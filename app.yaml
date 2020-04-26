@@ -1,0 +1,49 @@
+# Standard
+runtime: python37
+
+instance_class: B8
+basic_scaling:
+  max_instances: 10
+  idle_timeout: 30m
+
+
+# Flex (expensive!!!)
+#runtime: python
+#env: flex
+#
+#runtime_config:
+#  python_version: 3.7
+#
+## The settings below are to reduce costs during testing and are not appropriate
+## for production use. For more information, see:
+## https://cloud.google.com/appengine/docs/flexible/python/configuring-your-app-with-app-yaml
+#manual_scaling:
+#  instances: 5
+#
+#liveness_check:
+#  check_interval_sec: 300
+#  timeout_sec: 4
+#  failure_threshold: 2
+#  success_threshold: 2
+#
+#readiness_check:
+#  check_interval_sec: 300
+#  timeout_sec: 4
+#  failure_threshold: 2
+#  success_threshold: 2
+#  app_start_timeout_sec: 300
+
+
+entrypoint: gunicorn -b :$PORT main:app
+
+handlers:
+
+- url: /favicon.ico
+  static_files: static/favicon.ico
+  upload: static/favicon.ico
+  expiration: 1d
+
+- url: /.*
+  script: auto
+  secure: always
+  redirect_http_response_code: 301

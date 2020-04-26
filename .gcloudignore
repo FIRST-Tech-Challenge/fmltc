@@ -1,0 +1,18 @@
+# This file specifies files that are *not* uploaded to Google Cloud Platform
+# using gcloud. It follows the same syntax as .gitignore, with the addition of
+# For more information, run:
+#   $ gcloud topic gcloudignore
+#
+.gcloudignore
+.git
+.gitignore
+.index_updated
+teams
+
+__pycache__/
+bin/
+compiled/
+saveForLater/
+src/
+static/css/
+
