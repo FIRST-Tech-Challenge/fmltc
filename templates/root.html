@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<!--
+Copyright 2020 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<html>
+<head>
+  <script type="text/javascript"
+    src="https://storage.googleapis.com/{{project_id}}/compiled/js/fmltc.js?ignoreCache={{time_time}}"></script>
+  <link rel="stylesheet" type="text/css"
+    href="https://storage.googleapis.com/{{project_id}}/static/css/styles.css?ignoreCache={{time_time}}">
+</head>
+<body>
+
+<table cellpadding="10">
+  <tr>
+    <td align="center" valign="top"><button id="uploadVideoFileButton" class="biggestText">&#x1F4C1;</button><br>Upload Video File</td>
+  </tr>
+</table>
+
+<div id="uploadVideoFileDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <table>
+      <tr>
+        <td valign="top"><button id="uvfDismissButton">&#x274C;</button></td>
+        <td valign="top"><h1 style="margin: 0px">Upload File</h1></td>
+      </tr>
+    </table>
+    <input type="file" id="uvfVideoFileInput" accept="video/*" style="width: 100%">
+    <br><br>
+    <button id="uvfUploadButton" class="biggerText">Upload</button>
+    <h3 id="uvfUploadingH3" class="dimmed">Uploading Progress</h3>
+    <div><progress id="uvfUploadingProgress" style="visibility: hidden"></progress></div>
+    <div id="uvfUploadingFinishedDiv" style="visibility: hidden">
+      Uploading has finished.
+    </div>
+    <div id="uvfUploadingFailedDiv" style="visibility: hidden">
+      Uploading has failed!
+    </div>
+  </div>
+</div></div>
+
+<h2>Videos</h2>
+<table id="videoTable" border="1">
+  <tr>
+    <th rowspan="2"><span style="visibility: hidden">&#x1F5D1;</span></th>
+    <th rowspan="2">Video Filename</th>
+    <th rowspan="2">Date Uploaded</th>
+    <th rowspan="2">File Size</th>
+    <th rowspan="2">Dimensions</th>
+    <th rowspan="2">Duration</th>
+    <th rowspan="2">Frames<br>per<br>Second</th>
+    <th colspan="2">Number of Frames</th>
+  </tr>
+  <tr>
+    <th>In Video</th>
+    <th>Extracted</th>
+  </tr>
+</table>
+
+<h2>Datasets</h2>
+<table id="datasetTable" border="1">
+  <tr id="datasetHeaderRow1">
+    <th rowspan="3"><input type="checkbox" id="datasetCheckboxAll" style="visibility: hidden"></th>
+    <th rowspan="3"><span style="visibility: hidden">&#x;</span></th>
+    <th rowspan="3">Video Filename</th>
+    <th rowspan="3">Date Created</th>
+    <th colspan="4">Number of Frames</th>
+    <th rowspan="3">Labels</th>
+  </tr>
+  <tr id="datasetHeaderRow2">
+    <th colspan="2">Training</th>
+    <th colspan="2">Evaluation</th>
+  </tr>
+  <tr id="datasetHeaderRow3">
+    <th>Total</th>
+    <th>Negative</th>
+    <th>Total</th>
+    <th>Negative</th>
+  </tr>
+</table>
+
+<table cellpadding="10">
+  <tr>
+    <td align="center" valign="top">
+      <button id="downloadRecordsButton" class="biggestText">&#x1F4E6;</button><br>
+      Download Records
+    </td>
+    <td align="center" valign="top">
+      <button id="trainModelButton" class="biggestText">&#x1F682;</button><br>
+      Train Model
+    </td>
+  </tr>
+</table>
+
+<script type="text/javascript">
+  window.addEventListener('load', function() {
+    const util = new fmltc.Util({{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
+    new fmltc.ListVideos(util, {{ video_list|tojson }});
+    new fmltc.ListDatasets(util, {{ dataset_list|tojson }});
+  });
+</script>
+</body>
+</html>

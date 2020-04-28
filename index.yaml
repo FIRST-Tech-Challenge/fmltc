@@ -1,0 +1,65 @@
+indexes:
+- kind: Team
+  properties:
+  - name: program
+  - name: team_number
+  - name: team_code
+
+- kind: Team
+  properties:
+  - name: team_uuid
+  - name: team_number
+
+- kind: Video
+  properties:
+  - name: team_uuid
+  - name: video_uuid
+
+- kind: Video
+  properties:
+  - name: team_uuid
+  - name: delete_in_progress
+  - name: upload_time_ms
+
+- kind: VideoFrame
+  properties:
+  - name: team_uuid
+  - name: video_uuid
+
+- kind: VideoFrame
+  properties:
+  - name: team_uuid
+  - name: video_uuid
+  - name: frame_number
+
+- kind: Tracker
+  properties:
+  - name: tracker_uuid
+  - name: update_time_utc_ms
+
+- kind: TrackerClient
+  properties:
+  - name: tracker_uuid
+  - name: update_time_utc_ms
+
+- kind: Dataset
+  properties:
+  - name: team_uuid
+  - name: dataset_uuid
+
+- kind: Dataset
+  properties:
+  - name: team_uuid
+  - name: delete_in_progress
+  - name: creation_time_ms
+
+- kind: DatasetRecord
+  properties:
+  - name: team_uuid
+  - name: dataset_uuid
+
+- kind: DatasetRecord
+  properties:
+  - name: team_uuid
+  - name: dataset_uuid
+  - name: record_number
