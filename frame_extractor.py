@@ -15,7 +15,6 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
-from datetime import datetime, timedelta
 import logging
 import os
 import time
@@ -53,7 +52,7 @@ def extract_frames(action_parameters, time_limit, active_memory_limit):
     if not blob_storage.write_video_to_file(video_blob_name, video_filename):
         # The video blob hasn't been uploaded yet. Wait until it has.
         while True:
-            if action.is_over_limit(time_limit - timedelta(minutes=1), active_memory_limit):
+            if action.is_near_limit(time_limit, active_memory_limit):
                 # Time or memory is running out. Trigger the action again to restart.
                 action.trigger_action_via_blob(action_parameters)
                 return
@@ -84,7 +83,7 @@ def extract_frames(action_parameters, time_limit, active_memory_limit):
                 # vid.read().
                 frame_count = 0
                 while True:
-                    if action.is_over_limit(time_limit - timedelta(seconds=10), active_memory_limit):
+                    if action.is_near_limit(time_limit, active_memory_limit):
                         # Time or memory is running out. Trigger the action again to restart.
                         action.trigger_action_via_blob(action_parameters)
                         return
@@ -109,7 +108,7 @@ def extract_frames(action_parameters, time_limit, active_memory_limit):
 
             frame_number = previously_extracted_frame_count
 
-            if action.is_over_limit(time_limit - timedelta(seconds=10), active_memory_limit):
+            if action.is_near_limit(time_limit, active_memory_limit):
                 # Time or memory is running out. Trigger the action again to restart.
                 action.trigger_action_via_blob(action_parameters)
                 return
@@ -129,7 +128,7 @@ def extract_frames(action_parameters, time_limit, active_memory_limit):
                     frame_number += 1
                 else:
                     logging.error('cv2.imencode() returned %s' % success)
-                if action.is_over_limit(time_limit - timedelta(seconds=10), active_memory_limit):
+                if action.is_near_limit(time_limit, active_memory_limit):
                     # Time or memory is running out. Trigger the action again to restart.
                     action.trigger_action_via_blob(action_parameters)
                     break

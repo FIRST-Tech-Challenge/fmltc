@@ -15,7 +15,7 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import logging
 import uuid
@@ -93,11 +93,9 @@ def perform_action(action_parameters, time_limit, active_memory_limit):
 
     action_end_timestamp = util.time_now_utc_seconds()
 
-def is_over_limit(adjusted_time_limit, active_memory_limit):
-    now = datetime.now()
-    if now >= adjusted_time_limit:
+def is_near_limit(time_limit, active_memory_limit):
+    if datetime.now() >= time_limit - timedelta(seconds=30):
         return True
-    active_memory = psutil.virtual_memory().active
-    if active_memory >= active_memory_limit:
+    if psutil.virtual_memory().active >= active_memory_limit:
         return True
     return False 

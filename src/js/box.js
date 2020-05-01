@@ -62,11 +62,11 @@ fmltc.Box.prototype.set = function(x1, y1, x2, y2, label) {
 
 
 /**
- * Assigns the fields of this Box to the fields of the given Box.
+ * Assigns the x1, y1, x2, and y2 fields of this Box to the x1, y1, x2, and y2 fields of the given Box.
  * @param {fmltc.Box} other The other box.
  */
-fmltc.Box.prototype.fromAnotherBox = function(other) {
-  this.set(other.x1, other.y1, other.x2, other.y2, other.label);
+fmltc.Box.prototype.setXYFromAnotherBox = function(other) {
+  this.set(other.x1, other.y1, other.x2, other.y2, this.label);
 };
 
 /**
@@ -104,7 +104,7 @@ fmltc.Box.prototype.draw = function(ctx, scale, drawLabel) {
   if (drawLabel && this.label) {
     ctx.fillStyle = '#00FF00';
     ctx.font = Math.round(30 / scale) + 'px Georgia';
-    let dim = ctx.measureText(this.label);
+    const dim = ctx.measureText(this.label);
     ctx.fillText(this.label, this.x1 + 2, (this.y1 + this.y2 + dim.actualBoundingBoxAscent) / 2);
   }
 };
@@ -115,7 +115,7 @@ fmltc.Box.prototype.draw = function(ctx, scale, drawLabel) {
  * @return {number} 1 for the upper-left hotspot, 2 for the lower-right hotspot, 0 for no hotspot.
  */
 fmltc.Box.prototype.getResizeHotspot = function(point, scale) {
-  let size = Math.round(4  / scale);
+  const size = Math.round(4  / scale);
   if (Math.abs(point.y - this.y1) < size &&
       Math.abs(point.x - this.x1) < size) {
     // Upper-left corner.

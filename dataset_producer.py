@@ -16,8 +16,8 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
 import collections
-from datetime import datetime
 import io
+import json
 import logging
 import math
 import os
@@ -42,50 +42,100 @@ import util
 # NamedTuple for split
 Split = collections.namedtuple('Split', [
     'train_frame_count', 'train_frame_number_lists', 'eval_frame_count', 'eval_frame_number_lists',
-    'sorted_label_list'])
+    'label_set'])
 
 # NamedTuple for frame data.
 FrameData = collections.namedtuple('FrameData', [
     'png_filename', 'png_image', 'bboxes_text'])
 
 
-def start_dataset_production(team_uuid, video_uuid, eval_percent, start_time_ms):
-    # Read the video_entity from storage.
-    video_entity = storage.retrieve_video_entity(team_uuid, video_uuid)
-    # Read the video_frame entities from storage. They contain the labels.
-    video_frame_entities = storage.retrieve_video_frame_entities(
-         team_uuid, video_uuid, 0, video_entity['frame_count'] - 1)
-    # Determine which frames will be used for training and which frames will be used for eval.
-    split = __split_for_records(video_frame_entities, eval_percent)
-    train_record_count = len(split.train_frame_number_lists)
-    eval_record_count = len(split.eval_frame_number_lists)
-    dataset_uuid = storage.dataset_producer_starting(team_uuid, video_uuid,
-        video_entity['video_filename'], eval_percent, start_time_ms, split.train_frame_count,
-        train_record_count, split.eval_frame_count, eval_record_count, split.sorted_label_list)
-    action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCTION)
-    action_parameters['team_uuid'] = team_uuid
-    action_parameters['dataset_uuid'] = dataset_uuid
-    action_parameters['video_uuid'] = video_uuid
-    action_parameters['eval_percent'] = eval_percent
-    action_parameters['train_record_count'] = train_record_count
-    action_parameters['eval_record_count'] = eval_record_count
-    action_parameters['total_record_count'] = train_record_count + eval_record_count
-    action_parameters['sorted_label_list'] = split.sorted_label_list
+def start_dataset_production(team_uuid, video_uuids_json, eval_percent, start_time_ms):
+    video_uuid_list = json.loads(video_uuids_json)
+    if len(video_uuid_list) == 0:
+        message = "Error: No videos to process."
+        logging.critical(message)
+        raise exceptions.HttpErrorBadRequest(message)
+
+    video_entities = storage.retrieve_video_entities(team_uuid, video_uuid_list)
+    if len(video_entities) != len(video_uuid_list):
+        message = 'Error: One or more videos not found for video_uuids=%s.' % video_uuids_json
+        logging.critical(message)
+        raise exceptions.HttpErrorNotFound(message)
+
+    video_filenames = []
+    dict_video_uuid_to_split = {}
+    train_frame_count = 0
+    train_record_count = 0
+    eval_frame_count = 0
+    eval_record_count = 0
+    label_set = set()
+
+    for video_entity in video_entities:
+        video_uuid = video_entity['video_uuid']
+        video_filenames.append(video_entity['video_filename'])
+        # Read the video_frame entities from storage. They contain the labels.
+        video_frame_entities = storage.retrieve_video_frame_entities(
+             team_uuid, video_uuid, 0, video_entity['frame_count'] - 1)
+        # Determine which frames will be used for training and which frames will be used for eval.
+        split = __split_for_records(video_frame_entities, eval_percent)
+        dict_video_uuid_to_split[video_uuid] = split
+        train_frame_count += split.train_frame_count
+        train_record_count += len(split.train_frame_number_lists)
+        eval_frame_count += split.eval_frame_count
+        eval_record_count += len(split.eval_frame_number_lists)
+        label_set.update(split.label_set)
+
+    sorted_label_list = sorted(label_set)
+    len_longest_record_number = len(str(max(train_record_count - 1, eval_record_count - 1)))
+    num_digits = max(len_longest_record_number, 2)
+    train_record_id_format = 'train-%%0%dd' % num_digits
+    eval_record_id_format = 'eval-%%0%dd' % num_digits
+    
+    dataset_uuid = storage.dataset_producer_starting(
+        team_uuid, video_filenames, eval_percent, start_time_ms,
+        train_frame_count, train_record_count, eval_frame_count, eval_record_count, sorted_label_list)
+
     record_number = 0
-    for i, train_frame_number_list in enumerate(split.train_frame_number_lists):
-        action_parameters_copy = action_parameters.copy()
-        action_parameters_copy['frame_number_list'] = train_frame_number_list
-        action_parameters_copy['record_number'] = record_number
-        action_parameters_copy['is_eval'] = False
-        action.trigger_action_via_blob(action_parameters_copy)
-        record_number += 1
-    for i, eval_frame_number_list in enumerate(split.eval_frame_number_lists):
-        action_parameters_copy = action_parameters.copy()
-        action_parameters_copy['frame_number_list'] = eval_frame_number_list
-        action_parameters_copy['record_number'] = record_number
-        action_parameters_copy['is_eval'] = True
-        action.trigger_action_via_blob(action_parameters_copy)
-        record_number += 1
+    train_record_number = 0
+    eval_record_number = 0
+
+    # Trigger actions for the train records
+    for video_entity in video_entities:
+        video_uuid = video_entity['video_uuid']
+        split = dict_video_uuid_to_split[video_uuid]
+        action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCTION)
+        action_parameters['team_uuid'] = team_uuid
+        action_parameters['dataset_uuid'] = dataset_uuid
+        action_parameters['video_uuid'] = video_uuid
+        action_parameters['sorted_label_list'] = sorted_label_list
+        for i, train_frame_number_list in enumerate(split.train_frame_number_lists):
+            action_parameters_copy = action_parameters.copy()
+            action_parameters_copy['frame_number_list'] = train_frame_number_list
+            action_parameters_copy['record_number'] = record_number
+            action_parameters_copy['record_id'] = train_record_id_format % train_record_number
+            action_parameters_copy['is_eval'] = False
+            action.trigger_action_via_blob(action_parameters_copy)
+            train_record_number += 1
+            record_number += 1
+
+    # Trigger actions for the eval records
+    for video_entity in video_entities:
+        video_uuid = video_entity['video_uuid']
+        split = dict_video_uuid_to_split[video_uuid]
+        action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCTION)
+        action_parameters['team_uuid'] = team_uuid
+        action_parameters['dataset_uuid'] = dataset_uuid
+        action_parameters['video_uuid'] = video_uuid
+        action_parameters['sorted_label_list'] = sorted_label_list
+        for i, eval_frame_number_list in enumerate(split.eval_frame_number_lists):
+            action_parameters_copy = action_parameters.copy()
+            action_parameters_copy['frame_number_list'] = eval_frame_number_list
+            action_parameters_copy['record_number'] = record_number
+            action_parameters_copy['record_id'] = eval_record_id_format % eval_record_number
+            action_parameters_copy['is_eval'] = True
+            action.trigger_action_via_blob(action_parameters_copy)
+            eval_record_number += 1
+            record_number += 1
     return dataset_uuid
 
 
@@ -103,7 +153,6 @@ def __split_for_records(video_frame_entities, eval_percent, max_frames_per_recor
                 labels = bbox_writer.parse_bboxes_text_to_labels(bboxes_text)
                 label_set.update(set(labels))
     random.shuffle(included_frame_numbers)
-    sorted_label_list = sorted(label_set)
 
     included_frame_count = len(included_frame_numbers)
     if included_frame_count == 1 and eval_percent > 0 and eval_percent < 100:
@@ -147,25 +196,19 @@ def __split_for_records(video_frame_entities, eval_percent, max_frames_per_recor
     else:
         eval_frame_number_lists = []
     return Split(train_frame_count, train_frame_number_lists,
-        eval_frame_count, eval_frame_number_lists, sorted_label_list)
+        eval_frame_count, eval_frame_number_lists, label_set)
 
 
 def produce_dataset_record(action_parameters, time_limit, active_memory_limit):
     team_uuid = action_parameters['team_uuid']
-    video_uuid = action_parameters['video_uuid']
     dataset_uuid = action_parameters['dataset_uuid']
+    video_uuid = action_parameters['video_uuid']
     sorted_label_list = action_parameters['sorted_label_list']
     frame_number_list = action_parameters['frame_number_list']
     record_number = action_parameters['record_number']
+    record_id = action_parameters['record_id']
     is_eval = action_parameters['is_eval']
 
-    if is_eval:
-        # The eval records come after the train records, subtract the train_record_count to get the
-        # number for the record_id.
-        eval_record_number = record_number - action_parameters['train_record_count']
-        record_id = 'eval-%02d' % (eval_record_number)
-    else:
-        record_id = 'train-%02d' % record_number
     record_filename = '%s.record' %  record_id
 
     # Read the video_entity from storage.
@@ -187,7 +230,7 @@ def produce_dataset_record(action_parameters, time_limit, active_memory_limit):
         record_filename = '%s/%s' % (folder, record_filename)
         __write_record(team_uuid, video_uuid, sorted_label_list, frame_data_dict, dataset_uuid, record_number,
             record_id, is_eval, record_filename)
-        storage.dataset_producer_maybe_done(team_uuid, video_uuid, dataset_uuid, record_id)
+        storage.dataset_producer_maybe_done(team_uuid, dataset_uuid, record_id)
     finally:
         # Delete the temporary director.
         shutil.rmtree(folder)

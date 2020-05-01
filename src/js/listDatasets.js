@@ -30,9 +30,10 @@ goog.require('fmltc.Util');
  * @param {!fmltc.Util} util The utility instance
  * @constructor
  */
-fmltc.ListDatasets = function(util, datasetEntityArray) {
+fmltc.ListDatasets = function(util) {
   /** @type {!fmltc.Util} */
   this.util = util;
+  this.datasetsSectionDiv = document.getElementById('datasetsSectionDiv');
   this.datasetTable = document.getElementById('datasetTable');
   this.datasetCheckboxAll = document.getElementById('datasetCheckboxAll');
   this.downloadRecordsButton = document.getElementById('downloadRecordsButton');
@@ -40,68 +41,125 @@ fmltc.ListDatasets = function(util, datasetEntityArray) {
 
   this.headerRowCount = this.datasetTable.rows.length;
 
+  // Arrays with one element per dataset. Note that these need to be spliced in deleteButton_onclick.
+  this.datasetEntityArray = [];
+  this.checkboxes = [];
+
+  this.retrieveDatasets();
+  this.updateButtons();
+
   this.datasetCheckboxAll.onclick = this.datasetCheckboxAll_onclick.bind(this);
   this.downloadRecordsButton.onclick = this.downloadRecordsButton_onclick.bind(this);
   this.trainModelButton.onclick = this.trainModelButton_onclick.bind(this);
+};
 
-  // Arrays with one element per dataset. Note that these need to be spliced in deleteButton_onclick.
-  this.datasetEntityArray = datasetEntityArray;
-  this.checkboxes = [];
+fmltc.ListDatasets.prototype.retrieveDatasets = function() {
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/retrieveDatasetList', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_retrieveDatasetList_onreadystatechange.bind(this, xhr);
+  xhr.send();
+};
 
-  this.datasetCheckboxAll.style.visibility = (datasetEntityArray.length > 0)
-      ? 'visible'
-      : 'hidden';
+fmltc.ListDatasets.prototype.xhr_retrieveDatasetList_onreadystatechange = function(xhr) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
 
-  for (let i = 0; i < datasetEntityArray.length; i++) {
-    const datasetEntity = datasetEntityArray[i];
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+      const datasetEntityArray = response.dataset_entities;
+      for (let i = 0; i < datasetEntityArray.length; i++) {
+        this.addDataset(datasetEntityArray[i]);
+      }
+      if (this.datasetEntityArray.length > 0) {
+        this.datasetsSectionDiv.style.display = 'block';
+      }
 
-    const tr = this.datasetTable.insertRow(-1);
+    } else {
+      // TODO(lizlooney): handle error properly
+      console.log('Failure! /retrieveDatasetList? xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+    }
+  }
+};
 
-    const checkboxTd = tr.insertCell(-1);
-    const checkbox = document.createElement('input');
-    this.checkboxes[i] = checkbox;
-    checkbox.setAttribute('type', 'checkbox');
-    checkbox.onclick = this.checkbox_onclick.bind(this);
-    checkboxTd.appendChild(checkbox);
+fmltc.ListDatasets.prototype.addDataset = function(datasetEntity) {
+  const i = this.datasetEntityArray.length;
+  this.datasetEntityArray.push(datasetEntity);
 
-    const deleteTd = tr.insertCell(-1);
-    const deleteButton = document.createElement('button');
-    deleteButton.textContent = String.fromCodePoint(0x1F5D1); // wastebasket
-    deleteButton.onclick = this.deleteButton_onclick.bind(this, datasetEntity.dataset_uuid);
-    deleteTd.appendChild(deleteButton);
+  const tr = this.datasetTable.insertRow(-1);
 
-    const videoFilenameTd = tr.insertCell(-1);
+  const checkboxTd = tr.insertCell(-1);
+  this.util.addClass(checkboxTd, 'cellWithBorder');
+  const checkbox = document.createElement('input');
+  this.checkboxes[i] = checkbox;
+  checkbox.setAttribute('type', 'checkbox');
+  checkbox.onclick = this.checkbox_onclick.bind(this);
+  checkboxTd.appendChild(checkbox);
+
+  const deleteTd = tr.insertCell(-1);
+  this.util.addClass(deleteTd, 'cellWithBorder');
+  const deleteButton = document.createElement('button');
+  deleteButton.textContent = String.fromCodePoint(0x1F5D1); // wastebasket
+  deleteButton.title = "Delete this dataset";
+  deleteButton.onclick = this.deleteButton_onclick.bind(this, datasetEntity.dataset_uuid);
+  deleteTd.appendChild(deleteButton);
+
+  const videoFilenameTd = tr.insertCell(-1);
+  this.util.addClass(videoFilenameTd, 'cellWithBorder');
+  if (datasetEntity.video_filename) {
     videoFilenameTd.appendChild(document.createTextNode(datasetEntity.video_filename));
-
-    const dateCreatedTd = tr.insertCell(-1);
-    const dateCreatedSpan = document.createElement('span');
-    dateCreatedSpan.textContent = new Date(datasetEntity.creation_time_ms).toLocaleString();
-    dateCreatedTd.appendChild(dateCreatedSpan);
-
-    const trainFrameCountTd = tr.insertCell(-1);
-    trainFrameCountTd.setAttribute('align', 'right');
-    trainFrameCountTd.appendChild(document.createTextNode(new Number(datasetEntity.train_frame_count).toLocaleString()));
-
-    const trainNegativeFrameCountTd = tr.insertCell(-1);
-    trainNegativeFrameCountTd.setAttribute('align', 'right');
-    trainNegativeFrameCountTd.appendChild(document.createTextNode(new Number(datasetEntity.train_negative_frame_count).toLocaleString()));
-
-    const evalFrameCountTd = tr.insertCell(-1);
-    evalFrameCountTd.setAttribute('align', 'right');
-    evalFrameCountTd.appendChild(document.createTextNode(new Number(datasetEntity.eval_frame_count).toLocaleString()));
-
-    const evalNegativeFrameCountTd = tr.insertCell(-1);
-    evalNegativeFrameCountTd.setAttribute('align', 'right');
-    evalNegativeFrameCountTd.appendChild(document.createTextNode(new Number(datasetEntity.eval_negative_frame_count).toLocaleString()));
-
-    const labelsTd = tr.insertCell(-1);
-    labelsTd.appendChild(document.createTextNode(datasetEntity.sorted_label_list));
+  } else if (datasetEntity.video_filenames) {
+    videoFilenameTd.appendChild(document.createTextNode(datasetEntity.video_filenames.join(", ")));
   }
 
-  const canTrainModel = this.canTrainModel();
-  this.downloadRecordsButton.disabled = !canTrainModel;
-  this.trainModelButton.disabled = !canTrainModel;
+  const dateCreatedTd = tr.insertCell(-1);
+  this.util.addClass(dateCreatedTd, 'cellWithBorder');
+  const dateCreatedSpan = document.createElement('span');
+  dateCreatedSpan.textContent = new Date(datasetEntity.creation_time_ms).toLocaleString();
+  dateCreatedTd.appendChild(dateCreatedSpan);
+
+  const trainFrameCountTd = tr.insertCell(-1);
+  this.util.addClass(trainFrameCountTd, 'cellWithBorder');
+  trainFrameCountTd.setAttribute('align', 'right');
+  const trainFrameCountSpan = document.createElement('span');
+  trainFrameCountSpan.textContent = new Number(datasetEntity.train_frame_count).toLocaleString();
+  trainFrameCountTd.appendChild(trainFrameCountSpan);
+
+  const trainNegativeFrameCountTd = tr.insertCell(-1);
+  this.util.addClass(trainNegativeFrameCountTd, 'cellWithBorder');
+  trainNegativeFrameCountTd.setAttribute('align', 'right');
+  const trainNegativeFrameCountSpan = document.createElement('span');
+  trainNegativeFrameCountSpan.textContent = new Number(datasetEntity.train_negative_frame_count).toLocaleString();
+  trainNegativeFrameCountTd.appendChild(trainNegativeFrameCountSpan);
+
+  const evalFrameCountTd = tr.insertCell(-1);
+  this.util.addClass(evalFrameCountTd, 'cellWithBorder');
+  evalFrameCountTd.setAttribute('align', 'right');
+  const evalFrameCountSpan = document.createElement('span');
+  evalFrameCountSpan.textContent = new Number(datasetEntity.eval_frame_count).toLocaleString();
+  evalFrameCountTd.appendChild(evalFrameCountSpan);
+
+  const evalNegativeFrameCountTd = tr.insertCell(-1);
+  this.util.addClass(evalNegativeFrameCountTd, 'cellWithBorder');
+  evalNegativeFrameCountTd.setAttribute('align', 'right');
+  const evalNegativeFrameCountSpan = document.createElement('span');
+  evalNegativeFrameCountSpan.textContent = new Number(datasetEntity.eval_negative_frame_count).toLocaleString();
+  evalNegativeFrameCountTd.appendChild(evalNegativeFrameCountSpan);
+
+  const labelsTd = tr.insertCell(-1);
+  this.util.addClass(labelsTd, 'cellWithBorder');
+  const labelsSpan = document.createElement('span');
+  labelsSpan.textContent = datasetEntity.sorted_label_list;
+  labelsTd.appendChild(labelsSpan);
 };
+
+fmltc.ListDatasets.prototype.addNewDataset = function(datasetEntity) {
+  const wasEmpty = (this.datasetEntityArray.length == 0);
+  this.addDataset(datasetEntity);
+  if (wasEmpty && this.datasetEntityArray.length > 0) {
+    this.datasetsSectionDiv.style.display = 'block';
+  }
+}
 
 fmltc.ListDatasets.prototype.datasetCheckboxAll_onclick = function() {
   var anyChecked = false;
@@ -117,37 +175,28 @@ fmltc.ListDatasets.prototype.datasetCheckboxAll_onclick = function() {
   }
   this.datasetCheckboxAll.checked = check;
 
-  const canTrainModel = this.canTrainModel();
-  this.downloadRecordsButton.disabled = !canTrainModel;
-  this.trainModelButton.disabled = !canTrainModel;
+  this.updateButtons();
 };
 
 fmltc.ListDatasets.prototype.checkbox_onclick = function() {
+  this.updateButtons();
+};
+
+fmltc.ListDatasets.prototype.updateButtons = function() {
   const canTrainModel = this.canTrainModel();
   this.downloadRecordsButton.disabled = !canTrainModel;
   this.trainModelButton.disabled = !canTrainModel;
 };
-
 
 fmltc.ListDatasets.prototype.deleteButton_onclick = function(datasetUuid) {
   this.util.setWaitCursor();
 
-  let i = this.indexOfDataset(datasetUuid);
-  if (i != -1) {
-    this.datasetTable.deleteRow(i + this.headerRowCount);
-    this.datasetEntityArray.splice(i, 1);
-    this.checkboxes.splice(i, 1);
-    this.datasetCheckboxAll.style.visibility = (this.datasetEntityArray.length > 0)
-        ? 'visible'
-        : 'hidden';
-
-    const xhr = new XMLHttpRequest();
-    const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
-    xhr.open('POST', '/deleteDataset', true);
-    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    xhr.onreadystatechange = this.xhr_deleteDataset_onreadystatechange.bind(this, xhr, params, datasetUuid);
-    xhr.send(params);
-  }
+  const xhr = new XMLHttpRequest();
+  const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
+  xhr.open('POST', '/deleteDataset', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_deleteDataset_onreadystatechange.bind(this, xhr, params, datasetUuid);
+  xhr.send(params);
 };
 
 fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr, params, datasetUuid) {
@@ -157,6 +206,15 @@ fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr
     this.util.clearWaitCursor();
 
     if (xhr.status === 200) {
+      const i = this.indexOfDataset(datasetUuid);
+      if (i != -1) {
+        this.datasetTable.deleteRow(i + this.headerRowCount);
+        this.datasetEntityArray.splice(i, 1);
+        this.checkboxes.splice(i, 1);
+        if (this.datasetEntityArray.length == 0) {
+          this.datasetsSectionDiv.style.display = 'none';
+        }
+      }
 
     } else {
       // TODO(lizlooney): handle error properly
@@ -249,13 +307,11 @@ fmltc.ListDatasets.prototype.xhr_getDatasetZipStatus_onreadystatechange = functi
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      const datasetZipStatus = JSON.parse(xhr.responseText);
+      const response = JSON.parse(xhr.responseText);
 
-      if (datasetZipStatus.isReady && datasetZipStatus.url) {
-        console.log('dataset zip is ready.');
-        this.retrieveDatasetZip(downloadStartTime, datasetZipUuid, datasetZipStatus.url, 0);
+      if (response.is_ready && response.signed_url) {
+        this.retrieveDatasetZip(downloadStartTime, datasetZipUuid, response.signed_url, 0);
       } else {
-        console.log('dataset zip is not ready.');
         setTimeout(this.getDatasetZipStatus.bind(this, downloadStartTime, datasetZipUuid), 5000);
       }
 

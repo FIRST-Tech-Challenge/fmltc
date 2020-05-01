@@ -50,7 +50,7 @@ fmltc.UploadVideoFileDialog = function(util, onVideoUploaded) {
 
   this.videoFileInput.onchange = this.videoFileInput_onchange.bind(this);
   this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
-  this.uploadButton.onclick = this.uploadButton_onclick.bind(this)
+  this.uploadButton.onclick = this.uploadButton_onclick.bind(this);
 
   this.setState(fmltc.UploadVideoFileDialog.STATE_ZERO);
 };
@@ -69,7 +69,7 @@ fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
       this.videoFileInput.disabled = false;
       this.dismissButton.disabled = false;
       this.uploadButton.disabled = true;
-      this.util.addClass(this.uploadingH3, 'dimmed');
+      this.uploadingH3.style.visibility = 'hidden';
       this.uploadingProgress.style.visibility = 'hidden';
       this.uploadingFinishedDiv.style.visibility = 'hidden';
       this.uploadingFailedDiv.style.visibility = 'hidden';
@@ -81,7 +81,7 @@ fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
     case fmltc.UploadVideoFileDialog.STATE_UPLOADING:
       this.dismissButton.disabled = true;
       this.uploadButton.disabled = true;
-      this.util.removeClass(this.uploadingH3, 'dimmed');
+      this.uploadingH3.style.visibility = 'visible';
       this.uploadingProgress.style.visibility = 'visible';
       this.videoFileInput.disabled = true;
       break;
