@@ -101,14 +101,9 @@ def logout():
 def index():
     team_uuid = team_info.retrieve_team_uuid(session, request)
     team_number = team_info.retrieve_team_number(session)
-    video_entities = storage.retrieve_video_list(team_uuid)
-    dataset_entities = storage.retrieve_dataset_list(team_uuid)
-    sanitize(video_entities)
-    sanitize(video_entities)
     return render_template('root.html', time_time=time.time(), project_id=constants.PROJECT_ID,
         team_preferences=storage.retrieve_user_preferences(team_uuid, team_number),
-        http_perform_action_url=HTTP_PERFORM_ACTION_URL,
-        video_list=video_entities, dataset_list=dataset_entities)
+        http_perform_action_url=HTTP_PERFORM_ACTION_URL)
 
 @app.route('/labelVideo')
 @redirect_to_login_if_needed
@@ -117,6 +112,7 @@ def label_video():
     team_number = team_info.retrieve_team_number(session)
     video_uuid = request.args.get('video_uuid')
     video_entity = storage.retrieve_video_entity(team_uuid, video_uuid)
+    sanitize(video_entity)
     return render_template('labelVideo.html', time_time=time.time(), project_id=constants.PROJECT_ID,
         team_preferences=storage.retrieve_user_preferences(team_uuid, team_number),
         http_perform_action_url=HTTP_PERFORM_ACTION_URL,
@@ -146,22 +142,40 @@ def prepare_to_upload_video():
     content_type = data.get('content_type')
     upload_time_ms = int(data.get('upload_time_ms'))
     video_uuid = storage.store_video(team_uuid, video_filename, file_size, upload_time_ms)
+    signed_url = storage.prepare_to_upload_video(team_uuid, video_uuid, content_type)
+    action_parameters = frame_extractor.make_action_parameters(team_uuid, video_uuid)
     response = {
         'video_uuid': video_uuid,
-        'signed_url': storage.prepare_to_upload_video(team_uuid, video_uuid, content_type),
+        'signed_url': signed_url,
         # TODO(lizlooney): encrypt the action_parameters
-        'action_parameters': frame_extractor.make_action_parameters(team_uuid, video_uuid),
+        'action_parameters': action_parameters,
     }
     return jsonify(response)
 
-#@app.route('/triggerFrameExtraction', methods=['GET'])
-#@login_required
-#def trigger_frame_extraction():
-#    team_uuid = team_info.retrieve_team_uuid(session, request)
-#    data = request.args.to_dict(flat=True)
-#    video_uuid = data.get('video_uuid')
-#    frame_extractor.trigger_frame_extraction(team_uuid, video_uuid)
-#    return 'OK'
+@app.route('/triggerFrameExtraction', methods=['POST'])
+@login_required
+def trigger_frame_extraction():
+    team_uuid = team_info.retrieve_team_uuid(session, request)
+    data = request.form.to_dict(flat=True)
+    video_uuid = data.get('video_uuid')
+    storage.prepare_to_trigger_frame_extractor(team_uuid, video_uuid)
+    action_parameters = frame_extractor.make_action_parameters(team_uuid, video_uuid)
+    response = {
+        # TODO(lizlooney): encrypt the action_parameters
+        'action_parameters': action_parameters,
+    }
+    return jsonify(response)
+
+@app.route('/retrieveVideoList', methods=['POST'])
+@login_required
+def retrieve_video_list():
+    team_uuid = team_info.retrieve_team_uuid(session, request)
+    video_entities = storage.retrieve_video_list(team_uuid)
+    sanitize(video_entities)
+    response = {
+        'video_entities': video_entities,
+    }
+    return jsonify(response)
 
 @app.route('/retrieveVideo', methods=['POST'])
 @login_required
@@ -171,17 +185,10 @@ def retrieve_video():
     video_uuid = data.get('video_uuid')
     video_entity = storage.retrieve_video_entity(team_uuid, video_uuid)
     sanitize(video_entity)
-    return jsonify(video_entity)
-
-@app.route('/queryVideo', methods=['POST'])
-@login_required
-def query_video():
-    team_uuid = team_info.retrieve_team_uuid(session, request)
-    data = request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
-    video_entities = storage.query_video_entity(team_uuid, video_uuid)
-    sanitize(video_entities)
-    return jsonify(video_entities)
+    response = {
+        'video_entity': video_entity,
+    }
+    return jsonify(response)
 
 @app.route('/deleteVideo', methods=['POST'])
 @login_required
@@ -213,7 +220,10 @@ def retrieve_video_frames():
     video_frame_entities = storage.retrieve_video_frame_entities(
         team_uuid, video_uuid, min_frame_number, max_frame_number)
     sanitize(video_frame_entities)
-    return jsonify(video_frame_entities)
+    response = {
+        'video_frame_entities': video_frame_entities,
+    }
+    return jsonify(response)
 
 @app.route('/retrieveVideoFramesWithImageUrls', methods=['POST'])
 @login_required
@@ -226,7 +236,10 @@ def retrieve_video_frames_with_image_urls():
     video_frame_entities = storage.retrieve_video_frame_entities_with_image_urls(
         team_uuid, video_uuid, min_frame_number, max_frame_number)
     sanitize(video_frame_entities)
-    return jsonify(video_frame_entities)
+    response = {
+        'video_frame_entities': video_frame_entities,
+    }
+    return jsonify(response)
 
 
 @app.route('/storeVideoFrameBboxesText', methods=['POST'])
@@ -237,9 +250,8 @@ def store_video_frame_bboxes_text():
     video_uuid = data.get('video_uuid')
     frame_number = int(data.get('frame_number'))
     bboxes_text = data.get('bboxes_text')
-    video_frame_entity = storage.store_video_frame_bboxes_text(team_uuid, video_uuid, frame_number, bboxes_text)
-    sanitize(video_frame_entity)
-    return jsonify(video_frame_entity)
+    storage.store_video_frame_bboxes_text(team_uuid, video_uuid, frame_number, bboxes_text)
+    return 'ok'
 
 @app.route('/storeVideoFrameIncludeInDataset', methods=['POST'])
 @login_required
@@ -249,9 +261,8 @@ def store_video_frame_include_in_dataset():
     video_uuid = data.get('video_uuid')
     frame_number = int(data.get('frame_number'))
     include_frame_in_dataset = (data.get('include_frame_in_dataset') == 'true')
-    video_frame_entity = storage.store_video_frame_include_in_dataset(team_uuid, video_uuid, frame_number, include_frame_in_dataset)
-    sanitize(video_frame_entity)
-    return jsonify(video_frame_entity)
+    storage.store_video_frame_include_in_dataset(team_uuid, video_uuid, frame_number, include_frame_in_dataset)
+    return 'ok'
 
 @app.route('/prepareToStartTracking', methods=['POST'])
 @login_required
@@ -264,10 +275,11 @@ def prepare_to_start_tracking():
     tracker_name = data.get('tracker_name')
     scale = float(data.get('scale'))
     tracker_uuid = tracking.prepare_to_start_tracking(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text)
+    action_parameters = tracking.make_action_parameters(tracker_uuid)
     response = {
         'tracker_uuid': tracker_uuid,
         # TODO(lizlooney): encrypt the action_parameters
-        'action_parameters': tracking.make_action_parameters(tracker_uuid),
+        'action_parameters': action_parameters,
     }
     return jsonify(response)
 
@@ -317,12 +329,13 @@ def stop_tracking():
 def start_dataset_production():
     team_uuid = team_info.retrieve_team_uuid(session, request)
     data = request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
+    video_uuids_json = data.get('video_uuids')
     eval_percent = int(data.get('eval_percent'))
     start_time_ms = int(data.get('start_time_ms'))
+    dataset_uuid = dataset_producer.start_dataset_production(
+        team_uuid, video_uuids_json, eval_percent, start_time_ms)
     response = {
-        'dataset_uuid': dataset_producer.start_dataset_production(
-            team_uuid, video_uuid, eval_percent, start_time_ms)
+        'dataset_uuid': dataset_uuid,
     }
     return jsonify(response)
 
@@ -330,9 +343,12 @@ def start_dataset_production():
 @login_required
 def retrieve_dataset_list():
     team_uuid = team_info.retrieve_team_uuid(session, request)
-    dataset_list = storage.retrieve_dataset_list(team_uuid)
-    sanitize(dataset_list)
-    return jsonify(dataset_list)
+    dataset_entities = storage.retrieve_dataset_list(team_uuid)
+    sanitize(dataset_entities)
+    response = {
+        'dataset_entities': dataset_entities,
+    }
+    return jsonify(response)
 
 @app.route('/retrieveDataset', methods=['POST'])
 @login_required
@@ -342,7 +358,10 @@ def retrieve_dataset():
     dataset_uuid = data.get('dataset_uuid')
     dataset_entity = storage.retrieve_dataset_entity(team_uuid, dataset_uuid)
     sanitize(dataset_entity)
-    return jsonify(dataset_entity)
+    response = {
+        'dataset_entity': dataset_entity,
+    }
+    return jsonify(response)
 
 @app.route('/deleteDataset', methods=['POST'])
 @login_required
@@ -360,10 +379,11 @@ def prepare_to_zip_dataset():
     data = request.form.to_dict(flat=True)
     dataset_uuids_json = data.get('dataset_uuids')
     dataset_zip_uuid, dataset_zipper_prep = dataset_zipper.prepare_to_zip_dataset(team_uuid, dataset_uuids_json)
+    action_parameters = dataset_zipper.make_action_parameters(team_uuid, dataset_zip_uuid, dataset_zipper_prep)
     response = {
-        # TODO(lizlooney): encrypt the action_parameters
         'dataset_zip_uuid': dataset_zip_uuid,
-        'action_parameters': dataset_zipper.make_action_parameters(team_uuid, dataset_zip_uuid, dataset_zipper_prep),
+        # TODO(lizlooney): encrypt the action_parameters
+        'action_parameters': action_parameters,
     }
     return jsonify(response)
 
@@ -373,8 +393,12 @@ def get_dataset_zip_status():
     team_uuid = team_info.retrieve_team_uuid(session, request)
     data = request.form.to_dict(flat=True)
     dataset_zip_uuid = data.get('dataset_zip_uuid')
-    dataset_zip_status = blob_storage.get_dataset_zip_status(team_uuid, dataset_zip_uuid)
-    return jsonify(dataset_zip_status)
+    is_ready, signed_url = blob_storage.get_dataset_zip_status(team_uuid, dataset_zip_uuid)
+    response = {
+        'is_ready': is_ready,
+        'signed_url': signed_url,
+    }
+    return jsonify(response)
 
 @app.route('/deleteDatasetZip', methods=['POST'])
 @login_required
@@ -392,10 +416,11 @@ def prepare_to_train_model():
     data = request.form.to_dict(flat=True)
     dataset_uuids_json = data.get('dataset_uuids')
     model_uuid, model_trainer_prep = model_trainer.prepare_to_train_model(team_uuid, dataset_uuids_json)
+    action_parameters = model_trainer.make_action_parameters(team_uuid, model_uuid, model_trainer_prep)
     response = {
-        # TODO(lizlooney): encrypt the action_parameters
         'model_uuid': model_uuid,
-        'action_parameters': model_trainer.make_action_parameters(team_uuid, model_uuid, model_trainer_prep),
+        # TODO(lizlooney): encrypt the action_parameters
+        'action_parameters': action_parameters,
     }
     return jsonify(response)
 

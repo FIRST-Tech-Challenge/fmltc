@@ -15,7 +15,6 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
-from datetime import timedelta
 import logging
 import os
 import time
@@ -171,7 +170,7 @@ def __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity,
             util.time_now_utc_millis() - tracker_client_entity['update_time_utc_ms'] > TWO_MINUTES_IN_MS):
         storage.tracker_stopping(team_uuid, video_uuid, tracker_uuid)
         return True
-    if action.is_over_limit(time_limit - timedelta(seconds=10), active_memory_limit):
+    if action.is_near_limit(time_limit, active_memory_limit):
         # Time or memory is running out. Trigger the action again to restart.
         action.trigger_action_via_blob(action_parameters)
         return True

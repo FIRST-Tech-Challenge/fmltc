@@ -16,16 +16,24 @@ limitations under the License.
 -->
 <html>
 <head>
-  <script type="text/javascript"
-    src="https://storage.googleapis.com/{{project_id}}/compiled/js/fmltc.js?ignoreCache={{time_time}}"></script>
+  <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
   <link rel="stylesheet" type="text/css"
-    href="https://storage.googleapis.com/{{project_id}}/static/css/styles.css?ignoreCache={{time_time}}">
+      href="https://storage.googleapis.com/{{project_id}}/static/css/styles.css?ignoreCache={{time_time}}">
+  <script type="text/javascript"
+      src="https://storage.googleapis.com/{{project_id}}/compiled/js/fmltc.js?ignoreCache={{time_time}}">
+  </script>
 </head>
 <body>
 
-<table cellpadding="10">
+<table>
   <tr>
-    <td align="center" valign="top"><button id="uploadVideoFileButton" class="biggestText">&#x1F4C1;</button><br>Upload Video File</td>
+    <td align="center" valign="top">
+      <button id="uploadVideoFileButton" style="width: 100px;">
+        <span class="biggestText">&#x1F4C1;</span><br>
+        <span class="bigText">Upload Video File</span>
+      </button>
+    </td>
   </tr>
 </table>
 
@@ -34,81 +42,133 @@ limitations under the License.
     <table>
       <tr>
         <td valign="top"><button id="uvfDismissButton">&#x274C;</button></td>
-        <td valign="top"><h1 style="margin: 0px">Upload File</h1></td>
+        <td valign="top"><h1 style="margin: 0px">Upload Video File</h1></td>
       </tr>
     </table>
-    <input type="file" id="uvfVideoFileInput" accept="video/*" style="width: 100%">
+    <input type="file" id="uvfVideoFileInput" accept="video/*" class="bigText" style="width: 100%">
     <br><br>
     <button id="uvfUploadButton" class="biggerText">Upload</button>
-    <h3 id="uvfUploadingH3" class="dimmed">Uploading Progress</h3>
+    <h3 id="uvfUploadingH3" style="visibility: hidden">Uploading Progress</h3>
     <div><progress id="uvfUploadingProgress" style="visibility: hidden"></progress></div>
-    <div id="uvfUploadingFinishedDiv" style="visibility: hidden">
+    <div id="uvfUploadingFinishedDiv" class="bigText" style="visibility: hidden">
       Uploading has finished.
     </div>
-    <div id="uvfUploadingFailedDiv" style="visibility: hidden">
+    <div id="uvfUploadingFailedDiv" class="bigText" style="visibility: hidden">
       Uploading has failed!
     </div>
   </div>
 </div></div>
 
-<h2>Videos</h2>
-<table id="videoTable" border="1">
-  <tr>
-    <th rowspan="2"><span style="visibility: hidden">&#x1F5D1;</span></th>
-    <th rowspan="2">Video Filename</th>
-    <th rowspan="2">Date Uploaded</th>
-    <th rowspan="2">File Size</th>
-    <th rowspan="2">Dimensions</th>
-    <th rowspan="2">Duration</th>
-    <th rowspan="2">Frames<br>per<br>Second</th>
-    <th colspan="2">Number of Frames</th>
-  </tr>
-  <tr>
-    <th>In Video</th>
-    <th>Extracted</th>
-  </tr>
-</table>
+<div id="videosSectionDiv" style="display: none;">
+  <hr>
+  <h2>Videos</h2>
+  <table id="videoTable" class="collapsedBorder">
+    <tr>
+      <th rowspan="2" class="cellWithBorder"><input type="checkbox" id="videoCheckboxAll"></th>
+      <th rowspan="2" class="cellWithBorder"><span style="visibility: hidden">&#x1F5D1;</span></th>
+      <th rowspan="2" class="cellWithBorder">Video Filename</th>
+      <th rowspan="2" class="cellWithBorder">Date Uploaded</th>
+      <th rowspan="2" class="cellWithBorder">File Size</th>
+      <th rowspan="2" class="cellWithBorder">Dimensions</th>
+      <th rowspan="2" class="cellWithBorder">Duration</th>
+      <th rowspan="2" class="cellWithBorder">Frames<br>per<br>Second</th>
+      <th colspan="3" class="cellWithBorder">Number of Frames</th>
+    </tr>
+    <tr>
+      <th class="cellWithBorder">In Video</th>
+      <th class="cellWithBorder">Extracted</th>
+      <th class="cellWithBorder">Excluded</th>
+    </tr>
+  </table>
+  <br>
+  <table class="collapsedBorder">
+    <tr>
+      <td align="center" valign="top">
+        <button id="produceDatasetButton" style="width: 100px;">
+          <span class="biggestText">&#x1F5C3;</span><br>
+          <span class="bigText">Produce Dataset</span>
+        </button>
+      </td>
+    </tr>
+  </table>
+</div>
 
-<h2>Datasets</h2>
-<table id="datasetTable" border="1">
-  <tr id="datasetHeaderRow1">
-    <th rowspan="3"><input type="checkbox" id="datasetCheckboxAll" style="visibility: hidden"></th>
-    <th rowspan="3"><span style="visibility: hidden">&#x;</span></th>
-    <th rowspan="3">Video Filename</th>
-    <th rowspan="3">Date Created</th>
-    <th colspan="4">Number of Frames</th>
-    <th rowspan="3">Labels</th>
-  </tr>
-  <tr id="datasetHeaderRow2">
-    <th colspan="2">Training</th>
-    <th colspan="2">Evaluation</th>
-  </tr>
-  <tr id="datasetHeaderRow3">
-    <th>Total</th>
-    <th>Negative</th>
-    <th>Total</th>
-    <th>Negative</th>
-  </tr>
-</table>
+<div id="produceDatasetDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <table>
+      <tr>
+        <td valign="top"><button id="pdDismissButton">&#x274C;</button></td>
+        <td valign="top"><h1 style="margin: 0px">Produce Dataset</h1></td>
+      </tr>
+    </table>
+    <table class="mediumText">
+      <tr>
+        <td><label for="pdTrainPercentInput">Percentage of Frames for Training:</label></td>
+        <td><input id="pdTrainPercentInput" type="number" class="rightText mediumText"
+        value="80" min="0" max="100" style="width: 5ch">&percnt;</td>
+      </tr>
+      <tr>
+        <td><label for="pdEvalPercentInput">Percentage of Frames for Evaluation:</label></td>
+        <td><input id="pdEvalPercentInput" type="number" class="rightText mediumText"
+        value="20" min="0" max="100" style="width: 5ch">&percnt;</td>
+      </tr>
+    </table>
+    <br><br>
+    <button id="pdStartButton" class="biggerText">Produce Dataset</button>
+    <div id="pdInProgressDiv" style="visibility: hidden">In Progress...</div>
+    <div id="pdFinishedDiv" style="visibility: hidden">Finished!</div>
+    <div id="pdFailedDiv" style="visibility: hidden">Failed!</div>
+  </div>
+</div></div>
 
-<table cellpadding="10">
-  <tr>
-    <td align="center" valign="top">
-      <button id="downloadRecordsButton" class="biggestText">&#x1F4E6;</button><br>
-      Download Records
-    </td>
-    <td align="center" valign="top">
-      <button id="trainModelButton" class="biggestText">&#x1F682;</button><br>
-      Train Model
-    </td>
-  </tr>
-</table>
+<div id="datasetsSectionDiv" style="display: none;">
+  <hr>
+  <h2>Datasets</h2>
+  <table id="datasetTable" class="collapsedBorder">
+    <tr>
+      <th rowspan="3" class="cellWithBorder"><input type="checkbox" id="datasetCheckboxAll"></th>
+      <th rowspan="3" class="cellWithBorder"><span style="visibility: hidden">&#x1F5D1;</span></th>
+      <th rowspan="3" class="cellWithBorder">Video Filenames</th>
+      <th rowspan="3" class="cellWithBorder">Date Produced</th>
+      <th colspan="4" class="cellWithBorder">Number of Frames</th>
+      <th rowspan="3" class="cellWithBorder">Labels</th>
+    </tr>
+    <tr>
+      <th colspan="2" class="cellWithBorder">Training</th>
+      <th colspan="2" class="cellWithBorder">Evaluation</th>
+    </tr>
+    <tr>
+      <th class="cellWithBorder">Total</th>
+      <th class="cellWithBorder">Negative</th>
+      <th class="cellWithBorder">Total</th>
+      <th class="cellWithBorder">Negative</th>
+    </tr>
+  </table>
+  <br>
+  <table class="collapsedBorder">
+    <tr>
+      <td align="center" valign="top">
+        <button id="downloadRecordsButton" style="width: 100px;">
+          <span class="biggestText">&#x1F4E6;</span><br>
+          <span class="bigText">Download Records</span>
+        </button>
+      </td>
+      <td width="10px">
+      <td align="center" valign="top">
+        <button id="trainModelButton" style="width: 100px;">
+          <span class="biggestText">&#x1F682;</span><br>
+          <span class="bigText">Train Model</span>
+        </button>
+      </td>
+    </tr>
+  </table>
+</div>
 
 <script type="text/javascript">
   window.addEventListener('load', function() {
     const util = new fmltc.Util({{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
-    new fmltc.ListVideos(util, {{ video_list|tojson }});
-    new fmltc.ListDatasets(util, {{ dataset_list|tojson }});
+    const listDatasets = new fmltc.ListDatasets(util);
+    new fmltc.ListVideos(util, listDatasets);
   });
 </script>
 </body>

@@ -149,10 +149,7 @@ def get_dataset_zip_status(team_uuid, dataset_zip_uuid):
     bucket = __storage_client().bucket(BUCKET_BLOBS)
     blob = bucket.blob(dataset_zip_blob_name)
     if not blob.exists():
-        return {
-            'isReady': False,
-            'url': '',
-        }
+        return False, ''
     policies = bucket.cors
     if len(policies) == 0:
         policies.append({'origin': ['https://%s.appspot.com' % constants.PROJECT_ID]})
@@ -163,10 +160,7 @@ def get_dataset_zip_status(team_uuid, dataset_zip_uuid):
         bucket.update()
     expires_at_datetime = datetime.now() + timedelta(minutes=10)
     signed_url = blob.generate_signed_url(expires_at_datetime, method='GET')
-    return {
-        'isReady': True,
-        'url': signed_url,
-    }
+    return True, signed_url
 
 def delete_dataset_zip(team_uuid, dataset_zip_uuid):
     dataset_zip_blob_name = 'dataset_zips/%s/%s' % (team_uuid, dataset_zip_uuid)

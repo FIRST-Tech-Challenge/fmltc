@@ -61,6 +61,8 @@ fmltc.LabelVideo = function(util, videoEntity) {
   this.nextFrameButton = document.getElementById('nextFrameButton');
   this.nextTenFrameButton = document.getElementById('nextTenFrameButton');
   this.lastFrameButton = document.getElementById('lastFrameButton');
+  this.previousNegativeFrameButton = document.getElementById('previousNegativeFrameButton');
+  this.nextNegativeFrameButton = document.getElementById('nextNegativeFrameButton');
   this.playbackSpeedInput = document.getElementById('playbackSpeedInput');
   this.reversePlayPauseButton = document.getElementById('reversePlayPauseButton');
   this.forwardPlayPauseButton = document.getElementById('forwardPlayPauseButton');
@@ -73,11 +75,6 @@ fmltc.LabelVideo = function(util, videoEntity) {
   this.trackingStoppedDiv = document.getElementById('trackingStoppedDiv');
   this.trackingFinishedDiv = document.getElementById('trackingFinishedDiv');
   this.trackingFailedDiv = document.getElementById('trackingFailedDiv');
-  this.datasetEvalPercent = document.getElementById('datasetEvalPercent');
-  this.datasetProducerStartButton = document.getElementById('datasetProducerStartButton');
-  this.datasetProgress = document.getElementById('datasetProgress');
-  this.datasetFinishedDiv = document.getElementById('datasetFinishedDiv');
-  this.datasetFailedDiv = document.getElementById('datasetFailedDiv');
 
   this.button1 = document.getElementById('button1');
   this.button2 = document.getElementById('button2');
@@ -134,12 +131,6 @@ fmltc.LabelVideo = function(util, videoEntity) {
   this.trackerUuid = '';
   this.trackingRequestSentTime = 0;
 
-  this.datasetAlreadyInProgress = false;
-  this.datasetInProgress = false;
-  this.datasetUuid = '';
-  this.datasetProgressUnitPerKilobyte = 2;
-  this.datasetProgressUnitPerFrame = 1000; // TODO(lizlooney): adjust as necessary
-
   this.updateUI();
   this.setVideoEntity(videoEntity);
 };
@@ -153,7 +144,9 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
       videoEntity.extracted_frame_count == videoEntity.frame_count) {
     this.videoEntity = videoEntity;
 
-    this.datasetAlreadyInProgress = this.videoEntity.dataset_producer_in_progress;
+    this.minNegativeFrameNumber = videoEntity.frame_count;
+    this.maxNegativeFrameNumber = -1;
+
     this.trackingAlreadyInProgress = this.videoEntity.tracking_in_progress;
 
     this.loadingProgress.value++;
@@ -179,14 +172,14 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
     this.nextFrameButton.onclick = this.nextFrameButton_onclick.bind(this);
     this.nextTenFrameButton.onclick = this.nextTenFrameButton_onclick.bind(this);
     this.lastFrameButton.onclick = this.lastFrameButton_onclick.bind(this);
+    this.previousNegativeFrameButton.onclick = this.previousNegativeFrameButton_onclick.bind(this);
+    this.nextNegativeFrameButton.onclick = this.nextNegativeFrameButton_onclick.bind(this);
     this.reversePlayPauseButton.onclick = this.reversePlayPauseButton_onclick.bind(this);
     this.forwardPlayPauseButton.onclick = this.forwardPlayPauseButton_onclick.bind(this);
     this.trackingStartButton.onclick = this.trackingStartButton_onclick.bind(this);
     this.trackingPauseButton.onclick = this.trackingPauseButton_onclick.bind(this);
     this.trackingContinueButton.onclick = this.trackingContinueButton_onclick.bind(this);
     this.trackingStopButton.onclick = this.trackingStopButton_onclick.bind(this);
-    this.datasetEvalPercent.onchange = this.datasetPercentForEval_onchange.bind(this);
-    this.datasetProducerStartButton.onclick = this.datasetProducerStartButton_onclick.bind(this);
 
     this.updateUI();
 
@@ -267,6 +260,8 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.previousNegativeFrameButton.disabled = true;
+    this.nextNegativeFrameButton.disabled = true;
     this.playbackSpeedInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
@@ -278,8 +273,6 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.trackingPauseButton.disabled = true;
     this.trackingContinueButton.disabled = true;
     this.trackingStopButton.disabled = true;
-    this.datasetEvalPercent.disabled = true;
-    this.datasetProducerStartButton.disabled = true;
     return;
   }
 
@@ -297,6 +290,8 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.previousNegativeFrameButton.disabled = true;
+    this.nextNegativeFrameButton.disabled = true;
     this.playbackSpeedInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
@@ -308,8 +303,6 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.trackingPauseButton.disabled = true;
     this.trackingContinueButton.disabled = true;
     this.trackingStopButton.disabled = true;
-    this.datasetEvalPercent.disabled = true;
-    this.datasetProducerStartButton.disabled = true;
     return;
   }
   this.util.hideElement(this.labelHintDiv);
@@ -321,6 +314,8 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.previousNegativeFrameButton.disabled = true;
+    this.nextNegativeFrameButton.disabled = true;
     this.playbackSpeedInput.disabled = true;
     this.reversePlayPauseButton.disabled = (this.playingDirection == 1);
     this.forwardPlayPauseButton.disabled = (this.playingDirection == -1);
@@ -332,8 +327,6 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.trackingPauseButton.disabled = true;
     this.trackingContinueButton.disabled = true;
     this.trackingStopButton.disabled = true;
-    this.datasetEvalPercent.disabled = true;
-    this.datasetProducerStartButton.disabled = true;
 
   } else if (this.trackingInProgress) {
     this.firstFrameButton.disabled = true;
@@ -342,6 +335,8 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.previousNegativeFrameButton.disabled = true;
+    this.nextNegativeFrameButton.disabled = true;
     this.playbackSpeedInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
@@ -353,8 +348,6 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.trackingPauseButton.disabled = this.trackingPaused; // (this.trackingPaused || this.trackingWaitingForBboxes);
     this.trackingContinueButton.disabled = (!this.trackingPaused || this.trackingWaitingForBboxes);
     this.trackingStopButton.disabled = (!this.trackingPaused || this.trackingWaitingForBboxes);
-    this.datasetEvalPercent.disabled = true;
-    this.datasetProducerStartButton.disabled = true;
 
   } else {
     this.firstFrameButton.disabled = (this.currentFrameNumber == 0);
@@ -363,6 +356,12 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
     this.nextTenFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
     this.lastFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
+    this.previousNegativeFrameButton.disabled = (
+        this.loadedFrameEntityCount < this.videoEntity.frame_count ||
+        this.currentFrameNumber <= this.minNegativeFrameNumber);
+    this.nextNegativeFrameButton.disabled = (
+        this.loadedFrameEntityCount < this.videoEntity.frame_count ||
+        this.currentFrameNumber >= this.maxNegativeFrameNumber);
     this.playbackSpeedInput.disabled = false;
     this.reversePlayPauseButton.disabled = (this.currentFrameNumber == 0);
     this.forwardPlayPauseButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
@@ -378,10 +377,6 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.trackingPauseButton.disabled = true;
     this.trackingContinueButton.disabled = true;
     this.trackingStopButton.disabled = true;
-    this.datasetEvalPercent.disabled = this.datasetInProgress;
-    this.datasetProducerStartButton.disabled = (
-        this.datasetAlreadyInProgress ||
-        this.datasetInProgress);
   }
 };
 
@@ -398,7 +393,8 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideo_onreadystatechange = function(xhr, 
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
     if (xhr.status === 200) {
-      const videoEntity = JSON.parse(xhr.responseText);
+      const response = JSON.parse(xhr.responseText);
+      const videoEntity = response.video_entity;
       this.setVideoEntity(videoEntity);
 
     } else {
@@ -475,10 +471,11 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFramesWithImageUrls_onreadystatechan
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      const videoFrameEntityList = JSON.parse(xhr.responseText);
+      const response = JSON.parse(xhr.responseText);
+      const videoFrameEntityArray = response.video_frame_entities;
 
-      for (let i = 0; i < videoFrameEntityList.length; i++) {
-        const videoFrameEntity = videoFrameEntityList[i];
+      for (let i = 0; i < videoFrameEntityArray.length; i++) {
+        const videoFrameEntity = videoFrameEntityArray[i];
         const frameNumber = videoFrameEntity.frame_number;
 
         if (frameNumber == 0) {
@@ -531,12 +528,14 @@ fmltc.LabelVideo.prototype.setVideoFrameEntity = function(frameNumber, videoFram
   const includeFrameInDataset = videoFrameEntity.include_frame_in_dataset;
   const bboxesText = videoFrameEntity.bboxes_text;
 
-  this.updateFrameCounts(previousIncludeFrameInDataset, previousBboxesText, includeFrameInDataset, bboxesText);
+  this.updateFrameCounts(frameNumber, previousIncludeFrameInDataset, previousBboxesText,
+      includeFrameInDataset, bboxesText);
   this.videoFrameEntity[frameNumber] = videoFrameEntity;
   this.bboxes[frameNumber] = this.convertTextToBboxes(videoFrameEntity.bboxes_text);
 };
 
-fmltc.LabelVideo.prototype.updateFrameCounts = function(previousIncludeFrameInDataset, previousBboxesText,
+fmltc.LabelVideo.prototype.updateFrameCounts = function(frameNumber,
+    previousIncludeFrameInDataset, previousBboxesText,
     includeFrameInDataset, bboxesText) {
   if (previousIncludeFrameInDataset) {
     // This frame was included in the includedFrameCount.
@@ -559,6 +558,12 @@ fmltc.LabelVideo.prototype.updateFrameCounts = function(previousIncludeFrameInDa
       // This frame is now not included in the negativeFrameCount.
       this.negativeFrameCount--;
       this.negativeFrameCountSpan.textContent = String(this.negativeFrameCount);
+      if (frameNumber == this.minNegativeFrameNumber) {
+        this.minNegativeFrameNumber = this.findNextNegativeFrameNumber(frameNumber + 1)
+      }
+      if (frameNumber == this.maxNegativeFrameNumber) {
+        this.maxNegativeFrameNumber = this.findPreviousNegativeFrameNumber(frameNumber - 1)
+      }
     }
   } else {
     // This frame was not included in the negativeFrameCount.
@@ -566,6 +571,12 @@ fmltc.LabelVideo.prototype.updateFrameCounts = function(previousIncludeFrameInDa
       // This frame is now included in the negativeFrameCount.
       this.negativeFrameCount++;
       this.negativeFrameCountSpan.textContent = String(this.negativeFrameCount);
+      if (frameNumber < this.minNegativeFrameNumber) {
+        this.minNegativeFrameNumber = frameNumber;
+      }
+      if (frameNumber > this.maxNegativeFrameNumber) {
+        this.maxNegativeFrameNumber = frameNumber;
+      }
     }
   }
 };
@@ -602,8 +613,7 @@ fmltc.LabelVideo.prototype.convertBboxesToText = function(bboxes) {
 fmltc.LabelVideo.prototype.missingLabelNames = function(bboxes) {
   if (bboxes) {
     for (let i = 0; i < bboxes.length; i++) {
-      const box = bboxes[i];
-      if (!box.label) {
+      if (!bboxes[i].label) {
         return true;
       }
     }
@@ -624,7 +634,8 @@ fmltc.LabelVideo.prototype.saveBboxes = function() {
   }
 
   const includeFrameInDataset = this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset;
-  this.updateFrameCounts(includeFrameInDataset, previousBboxesText, includeFrameInDataset, bboxesText);
+  this.updateFrameCounts(this.currentFrameNumber, includeFrameInDataset, previousBboxesText,
+      includeFrameInDataset, bboxesText);
   this.videoFrameEntity[this.currentFrameNumber].bboxes_text = bboxesText;
 
   const xhr = new XMLHttpRequest();
@@ -696,6 +707,7 @@ fmltc.LabelVideo.prototype.refillLabelingArea = function(optLastLabelInputFocus)
     td = tr.insertCell(-1);
     const deleteButton = document.createElement('button');
     deleteButton.textContent = String.fromCodePoint(0x1F5D1); // wastebasket
+    deleteButton.title = "Delete this box";
     deleteButton.onclick = this.deleteButton_onclick.bind(this, i);
     td.appendChild(deleteButton);
   }
@@ -795,7 +807,8 @@ fmltc.LabelVideo.prototype.includeFrameInDatasetCheckbox_onclick = function() {
   }
 
   const bboxesText = this.videoFrameEntity[this.currentFrameNumber].bboxes_text;
-  this.updateFrameCounts(previousIncludeFrameInDataset, bboxesText, includeFrameInDataset, bboxesText);
+  this.updateFrameCounts(this.currentFrameNumber, previousIncludeFrameInDataset, bboxesText,
+      includeFrameInDataset, bboxesText);
   this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset = includeFrameInDataset;
 
   const xhr = new XMLHttpRequest();
@@ -844,6 +857,39 @@ fmltc.LabelVideo.prototype.nextTenFrameButton_onclick = function() {
 fmltc.LabelVideo.prototype.lastFrameButton_onclick = function() {
   this.goToFrame(this.videoEntity.frame_count - 1);
 };
+
+fmltc.LabelVideo.prototype.previousNegativeFrameButton_onclick = function() {
+  const i = this.findPreviousNegativeFrameNumber(this.currentFrameNumber - 1);
+  if (i >= 0) {
+    this.goToFrame(i);
+  }
+};
+
+fmltc.LabelVideo.prototype.findPreviousNegativeFrameNumber = function(start) {
+  for (let i = start; i >= 0; i++) {
+    if (this.videoFrameEntity[i].bboxes_text == '') {
+      return i;
+    }
+  }
+  return -1;
+};
+
+fmltc.LabelVideo.prototype.nextNegativeFrameButton_onclick = function() {
+  const i = this.findNextNegativeFrameNumber(this.currentFrameNumber + 1);
+  if (i < this.videoEntity.frame_count) {
+    this.goToFrame(i);
+  }
+};
+
+fmltc.LabelVideo.prototype.findNextNegativeFrameNumber = function(start) {
+  for (let i = start; i < this.videoEntity.frame_count; i++) {
+    if (this.videoFrameEntity[i].bboxes_text == '') {
+      return i;
+    }
+  }
+  return this.videoEntity.frame_count;
+};
+
 
 fmltc.LabelVideo.prototype.reversePlayPauseButton_onclick = function() {
   this.saveBboxes();
@@ -911,11 +957,13 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousedown = function(e) {
     // Start resizing an existing box.
     this.resizingBboxIndex = i;
     this.resizingBboxHotspot = hotspot;
+    // Note if the user is editing the label and then clicks on a resize hotspot, this.resizeingBbox
+    // won't contain the updated label.
     this.resizingBbox = this.bboxes[this.currentFrameNumber][i].duplicate();
     // Since the box already exists, we don't need to draw it here.
   } else {
     // Start defining a new box.
-    this.definingBbox = new fmltc.Box(this.point1.x, this.point1.y, this.point1.x, this.point1.y, 'a');
+    this.definingBbox = new fmltc.Box(this.point1.x, this.point1.y, this.point1.x, this.point1.y, '');
     // Draw the box.
     this.definingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
   }
@@ -1015,7 +1063,7 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseup = function(e) {
     this.resizingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
     this.bboxCanvasCtx.globalCompositeOperation = 'source-over';
     // Save the resized box.
-    this.bboxes[this.currentFrameNumber][this.resizingBboxIndex].fromAnotherBox(this.resizingBbox);
+    this.bboxes[this.currentFrameNumber][this.resizingBboxIndex].setXYFromAnotherBox(this.resizingBbox);
     // Stop resizing
     this.resizingBbox = null;
     this.redrawBboxes();
@@ -1130,7 +1178,8 @@ fmltc.LabelVideo.prototype.xhr_retrieveTrackedBboxes_onreadystatechange = functi
         const bboxesText = response.bboxes_text;
         const previousBboxesText = this.videoFrameEntity[frameNumber].bboxes_text;
         const includeFrameInDataset = this.videoFrameEntity[frameNumber].include_frame_in_dataset;
-        this.updateFrameCounts(includeFrameInDataset, previousBboxesText, includeFrameInDataset, bboxesText);
+        this.updateFrameCounts(frameNumber, includeFrameInDataset, previousBboxesText,
+            includeFrameInDataset, bboxesText);
         this.videoFrameEntity[frameNumber].bboxes_text = bboxesText;
         this.bboxes[frameNumber] = this.convertTextToBboxes(this.videoFrameEntity[frameNumber].bboxes_text);
 
@@ -1148,6 +1197,8 @@ fmltc.LabelVideo.prototype.xhr_retrieveTrackedBboxes_onreadystatechange = functi
         // If it's been more than 10 minutes, assume the tracker has died.
         const elapsedMillisSinceTrackerUpdate = Date.now() - response.update_time_utc_ms;
         if (elapsedMillisSinceTrackerUpdate > 10 * 60 * 1000) {
+          // TODO(lizlooney): Send a request to the server to delete the Tracker and TrackerClient
+          // entities, and to set tracking_in_progress to false in the Video entity.
           this.util.clearWaitCursor();
           this.trackingInProgress = false;
           this.trackingPaused = false;
@@ -1248,143 +1299,6 @@ fmltc.LabelVideo.prototype.xhr_stopTracking_onreadystatechange = function(xhr, p
     } else {
       // TODO(lizlooney): handle error properly
       console.log('Failure! /stopTracking?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-    }
-  }
-};
-
-fmltc.LabelVideo.prototype.datasetPercentForEval_onchange = function() {
-  this.saveBboxes();
-  this.enableDatasetProducerStartButton();
-};
-
-fmltc.LabelVideo.prototype.enableDatasetProducerStartButton = function() {
-  const evalPercent = this.datasetEvalPercent.value;
-
-  this.datasetProducerStartButton.disabled = (
-      this.includedFrameCount == 1 && evalPercent > 0 && evalPercent < 100);
-};
-
-fmltc.LabelVideo.prototype.datasetProducerStartButton_onclick = function() {
-  this.saveBboxes();
-
-  this.datasetFinishedDiv.style.visibility = 'hidden';
-  this.datasetFailedDiv.style.visibility = 'hidden';
-
-  this.datasetStartTime = Date.now();
-  this.datasetInProgress = true;
-
-  this.datasetProgress.value = 10;
-  // When the dataset producer starts there is a delay due to fetching the video file from cloud
-  // storage and saving it to a file so that it can be opened with opencv VideoCapture.
-  // Then there is time spent extracting the video frames as png files and then for the dataset
-  // producer workers to write the tensorflow records.
-  // Set this.datasetProgress.max based on these factors
-  // TODO(lizlooney): Adjust this.
-  this.datasetProgress.max = Math.ceil(
-      this.datasetProgressUnitPerKilobyte * this.videoEntity.file_size / 1000 +
-      this.datasetProgressUnitPerFrame * this.videoEntity.frame_count);
-  this.datasetProgress.style.visibility = 'visible';
-  this.updateUI();
-
-  const xhr = new XMLHttpRequest();
-  const params =
-      'video_uuid=' + encodeURIComponent(this.videoUuid) +
-      '&eval_percent=' + this.datasetEvalPercent.value +
-      '&start_time_ms=' + this.datasetStartTime;
-  xhr.open('POST', '/startDatasetProduction', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_startDatasetProduction_onreadystatechange.bind(this, xhr, params);
-  xhr.send(params);
-  //TODO(lizlooney): setTimeout(this.updateDatasetProgress.bind(this), 1000);
-};
-
-fmltc.LabelVideo.prototype.updateDatasetProgress = function(xhr) {
-  if (this.datasetInProgress) {
-    const elapsedMillis = Date.now() - this.datasetStartTime;
-    let progressValue = elapsedMillis;
-    this.datasetProgress.value = Math.min(progressValue, this.datasetProgress.max - 10);
-    if (this.datasetProgress.value < this.datasetProgress.max - 10) {
-      setTimeout(this.updateDatasetProgress.bind(this), 500);
-    }
-  }
-};
-
-fmltc.LabelVideo.prototype.xhr_startDatasetProduction_onreadystatechange = function(xhr, params) {
-  if (xhr.readyState === 4) {
-    xhr.onreadystatechange = null;
-
-    if (xhr.status === 200) {
-      const response = JSON.parse(xhr.responseText);
-      this.datasetUuid = response.dataset_uuid;
-      console.log('Success! /startDatasetProduction?' + params + ' dataset_uuid is ' + this.datasetUuid);
-
-      setTimeout(this.retrieveDatasetEntity.bind(this), 20000);
-
-    } else {
-      // TODO(lizlooney): handle error properly
-      console.log('Failure! /startDatasetProduction?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      this.datasetInProgress = false;
-      this.datasetFailedDiv.style.visibility = 'visible';
-    }
-    this.updateUI();
-  }
-};
-
-fmltc.LabelVideo.prototype.retrieveDatasetEntity = function() {
-  const xhr = new XMLHttpRequest();
-  const params = 'dataset_uuid=' + encodeURIComponent(this.datasetUuid);
-  xhr.open('POST', '/retrieveDataset', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveDataset_onreadystatechange.bind(this, xhr, params);
-  xhr.send(params);
-};
-
-fmltc.LabelVideo.prototype.xhr_retrieveDataset_onreadystatechange = function(xhr, params) {
-  if (xhr.readyState === 4) {
-    xhr.onreadystatechange = null;
-
-    if (xhr.status === 200) {
-      const datasetEntity = JSON.parse(xhr.responseText);
-
-      if (datasetEntity.dataset_time_utc_ms != 0) {
-        this.datasetInProgress = false;
-        this.datasetProgress.value = this.datasetProgress.max;
-        this.datasetFinishedDiv.style.visibility = 'visible';
-        this.updateUI();
-      } else {
-        setTimeout(this.retrieveDatasetEntity.bind(this), 1000);
-      }
-    } else {
-      // TODO(lizlooney): handle error properly. Currently we try again in 3 seconds, but that
-      // might not be the best idea.
-      console.log('Failure! /retrieveDataset?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      console.log('Will retry /retrieveDataset?' + params + ' in 3 seconds.');
-      setTimeout(this.retrieveDatasetEntity.bind(this), 3000);
-    }
-  }
-};
-
-
-fmltc.LabelVideo.prototype.button1_onclick = function(dataset_uuid) {
-  this.button1.disabled = false;
-
-  const xhr = new XMLHttpRequest();
-  const params = 'dataset_uuid=' + encodeURIComponent(this.datasetUuid);
-  xhr.open('POST', '/deleteDataset', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_deleteDataset_onreadystatechange.bind(this, xhr, params);
-  xhr.send(params);
-};
-
-fmltc.LabelVideo.prototype.xhr_deleteDataset_onreadystatechange = function(xhr, params) {
-  if (xhr.readyState === 4) {
-    xhr.onreadystatechange = null;
-
-    if (xhr.status === 200) {
-      console.log('Success! /deleteDataset?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-    } else {
-      // TODO(lizlooney): handle error properly
-      console.log('Failure! /deleteDataset?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };

@@ -15,7 +15,7 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import uuid
 
 # Other Modules
@@ -112,16 +112,14 @@ def store_video(team_uuid, video_filename, file_size, upload_time_ms):
             'file_size': file_size,
             'upload_time_ms': upload_time_ms,
             'create_time_utc_ms': util.time_now_utc_millis(),
+            'frame_extractor_triggered_time_utc_ms': 0,
             'frame_extractor_active_time_utc_ms': 0,
             'frame_extraction_start_time_utc_ms': 0,
             'frame_extraction_end_time_utc_ms': 0,
             'extracted_frame_count': 0,
+            'included_frame_count': 0,
             'tracking_in_progress': False,
             'tracker_uuid': '',
-            'dataset_producer_in_progress': False,
-            'last_dataset_uuid': '',
-            'dataset_producer_start_time_utc_ms': 0,
-            'dataset_producer_end_time_utc_ms': 0,
             'delete_in_progress': False,
         })
         transaction.put(video_entity)
@@ -134,8 +132,17 @@ def prepare_to_upload_video(team_uuid, video_uuid, content_type):
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
         video_entity['video_content_type'] = content_type
         video_entity['video_blob_name'] = video_blob_name
+        video_entity['frame_extractor_triggered_time_utc_ms'] = util.time_now_utc_millis()
         transaction.put(video_entity)
         return signed_url
+
+def prepare_to_trigger_frame_extractor(team_uuid, video_uuid, content_type):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        video_entity = retrieve_video_entity(team_uuid, video_uuid)
+        video_entity['frame_extractor_triggered_time_utc_ms'] = util.time_now_utc_millis()
+        transaction.put(video_entity)
+        return video_entity
 
 def frame_extractor_active(team_uuid, video_uuid):
     datastore_client = datastore.Client()
@@ -206,6 +213,14 @@ def retrieve_video_list(team_uuid):
     # listVideos.js to show the image?
     return video_entities
 
+def retrieve_video_entities(team_uuid, video_uuid_list):
+    video_entities = []
+    all_video_entities = retrieve_video_list(team_uuid)
+    for video_entity in all_video_entities:
+        if video_entity['video_uuid'] in video_uuid_list:
+            video_entities.append(video_entity)
+    return video_entities
+
 def delete_video(team_uuid, video_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -236,7 +251,7 @@ def finish_delete_video(action_parameters, time_limit, active_memory_limit):
         datastore_client.delete(video_entity.key)
     # Delete the video frames, 500 at a time.
     while True:
-        if action.is_over_limit(time_limit - timedelta(seconds=10), active_memory_limit):
+        if action.is_near_limit(time_limit, active_memory_limit):
             # Time or memory is running out. Trigger the action again to restart.
             action.trigger_action_via_blob(action_parameters)
             return
@@ -246,7 +261,7 @@ def finish_delete_video(action_parameters, time_limit, active_memory_limit):
         video_frame_entities = list(query.fetch(500))
         if len(video_frame_entities) == 0:
             return
-        if action.is_over_limit(time_limit - timedelta(seconds=10), active_memory_limit):
+        if action.is_near_limit(time_limit, active_memory_limit):
             # Time or memory is running out. Trigger the action again to restart.
             action.trigger_action_via_blob(action_parameters)
             return
@@ -259,7 +274,7 @@ def finish_delete_video(action_parameters, time_limit, active_memory_limit):
             keys.append(video_frame_entity.key)
         # Delete the blobs.
         blob_storage.delete_video_frame_images(blob_names)
-        if action.is_over_limit(time_limit - timedelta(seconds=10), active_memory_limit):
+        if action.is_near_limit(time_limit, active_memory_limit):
             # Time or memory is running out. Trigger the action again to restart.
             action.trigger_action_via_blob(action_parameters)
             return
@@ -333,9 +348,10 @@ def store_frame_image(team_uuid, video_uuid, frame_number, content_type, image_d
         video_frame_entity['content_type'] = content_type
         video_frame_entity['image_blob_name'] = image_blob_name
         transaction.put(video_frame_entity)
-        # Also update the video_entity in the same transaction.n
+        # Also update the video_entity in the same transaction.
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
         video_entity['extracted_frame_count'] = frame_number + 1
+        video_entity['included_frame_count'] = frame_number + 1
         video_entity['frame_extractor_active_time_utc_ms'] = util.time_now_utc_millis()
         if frame_number == 0:
             video_entity['image_content_type'] = content_type
@@ -367,8 +383,18 @@ def store_video_frame_include_in_dataset(team_uuid, video_uuid, frame_number, in
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         video_frame_entity = __retrieve_video_frame_entity(team_uuid, video_uuid, frame_number)
-        video_frame_entity['include_frame_in_dataset'] = include_frame_in_dataset
-        transaction.put(video_frame_entity)
+        previous_include_frame_in_dataset = video_frame_entity['include_frame_in_dataset']
+        if include_frame_in_dataset != previous_include_frame_in_dataset:
+            video_frame_entity['include_frame_in_dataset'] = include_frame_in_dataset
+            transaction.put(video_frame_entity)
+            # Also update the video_entity in the same transaction.
+            video_entity = retrieve_video_entity(team_uuid, video_uuid)
+            if 'included_frame_count' in video_entity:
+                if include_frame_in_dataset:
+                    video_entity['included_frame_count'] += 1
+                else:
+                    video_entity['included_frame_count'] -= 1
+            transaction.put(video_entity)
         return video_frame_entity
 
 def retrieve_video_frame_entities_with_image_urls(team_uuid, video_uuid,
@@ -516,7 +542,7 @@ def __query_dataset(team_uuid, dataset_uuid):
 
 # dataset - public methods
 
-def dataset_producer_starting(team_uuid, video_uuid, video_filename, eval_percent, start_time_ms,
+def dataset_producer_starting(team_uuid, video_filenames, eval_percent, start_time_ms,
         train_frame_count, train_record_count, eval_frame_count, eval_record_count, sorted_label_list):
     dataset_uuid = str(uuid.uuid4().hex)
     datastore_client = datastore.Client()
@@ -526,8 +552,7 @@ def dataset_producer_starting(team_uuid, video_uuid, video_filename, eval_percen
         dataset_entity.update({
             'team_uuid': team_uuid,
             'dataset_uuid': dataset_uuid,
-            'video_uuid': video_uuid,
-            'video_filename': video_filename,
+            'video_filenames': video_filenames,
             'eval_percent': eval_percent,
             'creation_time_ms': start_time_ms,
             'dataset_time_utc_ms': 0,
@@ -544,20 +569,10 @@ def dataset_producer_starting(team_uuid, video_uuid, video_filename, eval_percen
             'delete_in_progress': False,
         })
         transaction.put(dataset_entity)
-        # Also update the video_entity in the same transaction.
-        video_entity = retrieve_video_entity(team_uuid, video_uuid)
-        if video_entity['dataset_producer_in_progress']:
-            message = 'Error: Dataset producer is already in progress for video_uuid=%s.' % video_uuid
-            logging.critical(message)
-            raise exceptions.HttpErrorConflict(message)
-        video_entity['dataset_producer_in_progress'] = True
-        video_entity['last_dataset_uuid'] = dataset_uuid
-        video_entity['dataset_producer_start_time_utc_ms'] = util.time_now_utc_millis()
-        transaction.put(video_entity)
         return dataset_uuid
 
 
-def dataset_producer_maybe_done(team_uuid, video_uuid, dataset_uuid, record_id):
+def dataset_producer_maybe_done(team_uuid, dataset_uuid, record_id):
     time_now_utc_millis = util.time_now_utc_millis()
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -595,12 +610,6 @@ def dataset_producer_maybe_done(team_uuid, video_uuid, dataset_uuid, record_id):
             dataset_entity['eval_negative_frame_count'] = eval_negative_frame_count
             dataset_entity['eval_dict_label_to_count'] = eval_dict_label_to_count
             transaction.put(dataset_entity)
-            # Also update the video_entity in the same transaction.
-            video_entity = retrieve_video_entity(team_uuid, video_uuid)
-            if video_entity['last_dataset_uuid'] == dataset_uuid:
-                video_entity['dataset_producer_in_progress'] = False
-                video_entity['dataset_producer_end_time_utc_ms'] = time_now_utc_millis
-                transaction.put(video_entity)
             util.log("Dataset producer is all done!")
 
 # Retrieves the dataset entity associated with the given team_uuid and dataset_uuid. If no such
@@ -661,7 +670,7 @@ def finish_delete_dataset(action_parameters, time_limit, active_memory_limit):
         datastore_client.delete(dataset_entity.key)
     # Delete the dataset records, 500 at a time.
     while True:
-        if action.is_over_limit(time_limit - timedelta(seconds=10), active_memory_limit):
+        if action.is_near_limit(time_limit, active_memory_limit):
             # Time or memory is running out. Trigger the action again to restart.
             action.trigger_action_via_blob(action_parameters)
             return
@@ -671,7 +680,7 @@ def finish_delete_dataset(action_parameters, time_limit, active_memory_limit):
         dataset_record_entities = list(query.fetch(500))
         if len(dataset_record_entities) == 0:
             return
-        if action.is_over_limit(time_limit - timedelta(seconds=10), active_memory_limit):
+        if action.is_near_limit(time_limit, active_memory_limit):
             # Time or memory is running out. Trigger the action again to restart.
             action.trigger_action_via_blob(action_parameters)
             return
@@ -684,7 +693,7 @@ def finish_delete_dataset(action_parameters, time_limit, active_memory_limit):
             keys.append(dataset_record_entity.key)
         # Delete the blobs.
         blob_storage.delete_dataset_records(blob_names)
-        if action.is_over_limit(time_limit - timedelta(seconds=10), active_memory_limit):
+        if action.is_near_limit(time_limit, active_memory_limit):
             # Time or memory is running out. Trigger the action again to restart.
             action.trigger_action_via_blob(action_parameters)
             return

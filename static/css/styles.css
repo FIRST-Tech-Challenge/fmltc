@@ -1,6 +1,5 @@
-
-.dimmed {
-  color: #aaaaaa;
+body {
+  font-family: 'Roboto', sans-serif;
 }
 
 .hidden {
@@ -26,20 +25,37 @@
   cursor: wait;
 }
 
-.numericInput {
+.rightText {
   text-align: right;
 }
 
-.biggestText {
-  font-size : 50px;
+.smallText {
+  font-size : 12px;
+}
+
+.mediumText {
+  font-size : 16px;
+}
+
+.bigText {
+  font-size : 20px;
 }
 
 .biggerText {
   font-size : 30px;
 }
 
-.bigText {
-  font-size : 20px;
+.biggestText {
+  font-size : 50px;
+}
+
+.collapsedBorder {
+  border-collapse: collapse;
+}
+
+.cellWithBorder {
+  border: 1px solid #dddddd;
+  padding: 8px;
 }
 
 /* Modal dialog rules */
