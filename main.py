@@ -111,7 +111,7 @@ def label_video():
     team_uuid = team_info.retrieve_team_uuid(session, request)
     team_number = team_info.retrieve_team_number(session)
     video_uuid = request.args.get('video_uuid')
-    video_entity = storage.retrieve_video_entity(team_uuid, video_uuid)
+    video_entity = storage.retrieve_video_entity_for_labeling(team_uuid, video_uuid)
     sanitize(video_entity)
     return render_template('labelVideo.html', time_time=time.time(), project_id=constants.PROJECT_ID,
         team_preferences=storage.retrieve_user_preferences(team_uuid, team_number),
@@ -288,11 +288,11 @@ def prepare_to_start_tracking():
 def retrieve_tracked_bboxes():
     data = request.form.to_dict(flat=True)
     tracker_uuid = data.get('tracker_uuid')
-    frame_number, bboxes_text, update_time_utc_ms = storage.retrieve_tracked_bboxes(tracker_uuid)
+    tracker_failed, frame_number, bboxes_text = storage.retrieve_tracked_bboxes(tracker_uuid)
     response = {
+        'tracker_failed': tracker_failed,
         'frame_number': frame_number,
         'bboxes_text': bboxes_text,
-        'update_time_utc_ms': update_time_utc_ms,
     }
     return jsonify(response)
 
