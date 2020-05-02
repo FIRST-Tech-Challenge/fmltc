@@ -18,6 +18,7 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 from datetime import datetime, timedelta
 import json
 import logging
+import traceback
 import uuid
 
 # Other Modules
@@ -49,10 +50,12 @@ ACTION_NAME_TRACKING = 'tracking'
 def __storage_client():
     return google.cloud.storage.Client.from_service_account_json('key.json')
 
+
 def create_action_parameters(action_name):
     return {
         ACTION_NAME: action_name,
     }
+
 
 def trigger_action_via_blob(action_parameters):
     action_parameters_blob_name= '%s/%s' % (action_parameters[ACTION_NAME], str(uuid.uuid4().hex))
@@ -60,6 +63,7 @@ def trigger_action_via_blob(action_parameters):
     blob = __storage_client().bucket(BUCKET_ACTION_PARAMETERS).blob(action_parameters_blob_name)
     blob.upload_from_string(action_parameters_json, content_type="text/json")
     return action_parameters
+
 
 def perform_action_from_blob(action_parameters_blob_name, time_limit, active_memory_limit):
     blob = __storage_client().get_bucket(BUCKET_ACTION_PARAMETERS).blob(action_parameters_blob_name)
@@ -70,8 +74,9 @@ def perform_action_from_blob(action_parameters_blob_name, time_limit, active_mem
         action_parameters = json.loads(action_parameters_json)
         perform_action(action_parameters, time_limit, active_memory_limit)
 
+
 def perform_action(action_parameters, time_limit, active_memory_limit):
-    util.log("action.perform_action - %s" % action_parameters[ACTION_NAME])
+    util.log("action.perform_action - %s start" % action_parameters[ACTION_NAME])
 
     action_fns = {
         ACTION_NAME_DATASET_PRODUCTION: dataset_producer.produce_dataset_record,
@@ -85,17 +90,21 @@ def perform_action(action_parameters, time_limit, active_memory_limit):
 
     action_fn = action_fns.get(action_parameters[ACTION_NAME], None)
     if action_fn is not None:
-        action_fn(action_parameters, time_limit, active_memory_limit)
+        try:
+            action_fn(action_parameters, time_limit, active_memory_limit)
+        except:
+            util.log("action.perform_action - %s except %s" %
+                (action_parameters[ACTION_NAME], traceback.format_exc().replace('\n', ' ... ')))
     else:
         message = "Error: unknown action name %s." % action_parameters[ACTION_NAME]
         logging.critical(message)
         raise RuntimeError(message)
+    util.log("action.perform_action - %s end" % action_parameters[ACTION_NAME])
 
-    action_end_timestamp = util.time_now_utc_seconds()
 
 def is_near_limit(time_limit, active_memory_limit):
     if datetime.now() >= time_limit - timedelta(seconds=30):
         return True
     if psutil.virtual_memory().active >= active_memory_limit:
         return True
-    return False 
+    return False

@@ -14,6 +14,8 @@
 
 __author__ = "lizlooney@google.com (Liz Looney)"
 
+# Inspired by https://github.com/google/ftc-object-detection/tree/master/training/convert_labels_to_records.py
+
 # Python Standard Library
 import collections
 import io

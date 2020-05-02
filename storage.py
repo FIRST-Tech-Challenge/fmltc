@@ -221,6 +221,47 @@ def retrieve_video_entities(team_uuid, video_uuid_list):
             video_entities.append(video_entity)
     return video_entities
 
+def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        video_entity = retrieve_video_entity(team_uuid, video_uuid)
+        if video_entity['tracking_in_progress']:
+            tracking_in_progress = True
+            tracker_uuid = video_entity['tracker_uuid']
+            tracker_entity = retrieve_tracker_entity(tracker_uuid)
+            if tracker_entity is None:
+                tracking_in_progress = False
+                util.log('Tracker is not in progress. Tracker entity is missing.')
+            else:
+                # If it's been more than two minutes, assume the tracker has died.
+                millis_since_last_update = util.time_now_utc_millis() - tracker_entity['update_time_utc_ms']
+                two_minutes_in_ms = 2 * 60 * 1000
+                if millis_since_last_update > two_minutes_in_ms:
+                    tracking_in_progress = False
+                    util.log('Tracker is not in progress. Elapsed time since last tracker update: %d ms' %
+                        millis_since_last_update)
+            tracker_client_entity = retrieve_tracker_client_entity(tracker_uuid)
+            if tracker_client_entity is None:
+                tracking_in_progress = False
+                util.log('Tracker is not in progress. Tracker client entity is missing.')
+            else:
+                # If it's been more than two minutes, assume the tracker client is not connected.
+                millis_since_last_update = util.time_now_utc_millis() - tracker_client_entity['update_time_utc_ms']
+                two_minutes_in_ms = 2 * 60 * 1000
+                if millis_since_last_update > two_minutes_in_ms:
+                    tracking_in_progress = False
+                    util.log('Tracker is not in progress. Elapsed time since last tracker client update: %d ms' %
+                        millis_since_last_update)
+            if not tracker_in_progress:
+                video_entity['tracking_in_progress'] = False
+                video_entity['tracker_uuid'] = ''
+                transaction.put(video_entity)
+                if tracker_entity is not None:
+                    transaction.delete(tracker_entity.key)
+                if tracker_client_entity is not None:
+                    transaction.delete(tracker_client_entity.key)
+        return video_entity
+
 def delete_video(team_uuid, video_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -431,6 +472,7 @@ def tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_numb
             'scale': scale,
             'frame_number': init_frame_number,
             'bboxes_text': init_bboxes_text,
+            'tracker_failed': False,
         })
         transaction.put(tracker_entity)
         incomplete_key = datastore_client.key(DS_KIND_TRACKER_CLIENT)
@@ -456,9 +498,7 @@ def retrieve_tracker_entity(tracker_uuid):
     query.add_filter('update_time_utc_ms', '>', 0)
     tracker_entities = list(query.fetch(1))
     if len(tracker_entities) == 0:
-        message = 'Error: Tracker entity for tracker_uuid=%s not found.' % tracker_uuid
-        logging.critical(message)
-        raise exceptions.HttpErrorNotFound(message)
+        return None
     return tracker_entities[0]
 
 def retrieve_tracker_client_entity(tracker_uuid):
@@ -468,54 +508,64 @@ def retrieve_tracker_client_entity(tracker_uuid):
     query.add_filter('update_time_utc_ms', '>', 0)
     tracker_client_entities = list(query.fetch(1))
     if len(tracker_client_entities) == 0:
-        message = 'Error: Tracker client entity for tracker_uuid=%s not found.' % tracker_uuid
-        logging.critical(message)
-        raise exceptions.HttpErrorNotFound(message)
+        return None
     return tracker_client_entities[0]
 
 def store_tracked_bboxes(tracker_uuid, frame_number, bboxes_text):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         tracker_entity = retrieve_tracker_entity(tracker_uuid)
-        tracker_entity['frame_number'] = frame_number
-        tracker_entity['bboxes_text'] = bboxes_text
-        tracker_entity['update_time_utc_ms'] = util.time_now_utc_millis()
-        transaction.put(tracker_entity)
-        return tracker_entity
+        if tracker_entity is not None:
+            tracker_entity['frame_number'] = frame_number
+            tracker_entity['bboxes_text'] = bboxes_text
+            tracker_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            transaction.put(tracker_entity)
 
 def retrieve_tracked_bboxes(tracker_uuid):
     tracking_client_still_alive(tracker_uuid)
     tracker_entity = retrieve_tracker_entity(tracker_uuid)
-    return tracker_entity['frame_number'], tracker_entity['bboxes_text'], tracker_entity['update_time_utc_ms']
+    if tracker_entity is None:
+        return True, 0, ''
+    # If it's been more than two minutes, assume the tracker has died.
+    millis_since_last_update = util.time_now_utc_millis() - tracker_entity['update_time_utc_ms']
+    two_minutes_in_ms = 2 * 60 * 1000
+    if millis_since_last_update > two_minutes_in_ms:
+        util.log('Tracker appears to have failed. Elapsed time since last update: %d ms' % millis_since_last_update)
+        tracker_stopping(tracker_entity['team_uuid'], tracker_entity['video_uuid'], tracker_uuid)
+        tracker_entity['tracker_failed'] = True
+    return tracker_entity['tracker_failed'], tracker_entity['frame_number'], tracker_entity['bboxes_text']
 
 def tracking_client_still_alive(tracker_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         tracker_client_entity = retrieve_tracker_client_entity(tracker_uuid)
-        tracker_client_entity['update_time_utc_ms'] = util.time_now_utc_millis()
-        transaction.put(tracker_client_entity)
+        if tracker_client_entity is not None:
+            tracker_client_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            transaction.put(tracker_client_entity)
 
 def continue_tracking(team_uuid, video_uuid, tracker_uuid, frame_number, bboxes_text):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         tracker_client_entity = retrieve_tracker_client_entity(tracker_uuid)
-        # Update the video_frame_entity.
-        video_frame_entity = __retrieve_video_frame_entity(team_uuid, video_uuid, frame_number)
-        video_frame_entity['bboxes_text'] = bboxes_text
-        transaction.put(video_frame_entity)
-        # Update the tracker_client_entity
-        tracker_client_entity['frame_number'] = frame_number
-        tracker_client_entity['bboxes_text'] = bboxes_text
-        tracker_client_entity['update_time_utc_ms'] = util.time_now_utc_millis()
-        transaction.put(tracker_client_entity)
+        if tracker_client_entity is not None:
+            # Update the video_frame_entity.
+            video_frame_entity = __retrieve_video_frame_entity(team_uuid, video_uuid, frame_number)
+            video_frame_entity['bboxes_text'] = bboxes_text
+            transaction.put(video_frame_entity)
+            # Update the tracker_client_entity
+            tracker_client_entity['frame_number'] = frame_number
+            tracker_client_entity['bboxes_text'] = bboxes_text
+            tracker_client_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            transaction.put(tracker_client_entity)
 
 def set_tracking_stop_requested(tracker_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         tracker_client_entity = retrieve_tracker_client_entity(tracker_uuid)
-        tracker_client_entity['tracking_stop_requested'] = True
-        tracker_client_entity['update_time_utc_ms'] = util.time_now_utc_millis()
-        transaction.put(tracker_client_entity)
+        if tracker_client_entity is not None:
+            tracker_client_entity['tracking_stop_requested'] = True
+            tracker_client_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            transaction.put(tracker_client_entity)
 
 def tracker_stopping(team_uuid, video_uuid, tracker_uuid):
     datastore_client = datastore.Client()
@@ -525,9 +575,11 @@ def tracker_stopping(team_uuid, video_uuid, tracker_uuid):
         video_entity['tracker_uuid'] = ''
         transaction.put(video_entity)
         tracker_entity = retrieve_tracker_entity(tracker_uuid)
-        transaction.delete(tracker_entity.key)
+        if tracker_entity is not None:
+            transaction.delete(tracker_entity.key)
         tracker_client_entity = retrieve_tracker_client_entity(tracker_uuid)
-        transaction.delete(tracker_client_entity.key)
+        if tracker_client_entity is not None:
+            transaction.delete(tracker_client_entity.key)
 
 
 # dataset - private methods
