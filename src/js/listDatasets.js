@@ -309,8 +309,8 @@ fmltc.ListDatasets.prototype.xhr_getDatasetZipStatus_onreadystatechange = functi
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
 
-      if (response.is_ready && response.signed_url) {
-        this.retrieveDatasetZip(downloadStartTime, datasetZipUuid, response.signed_url, 0);
+      if (response.is_ready && response.download_url) {
+        this.retrieveDatasetZip(downloadStartTime, datasetZipUuid, response.download_url, 0);
       } else {
         setTimeout(this.getDatasetZipStatus.bind(this, downloadStartTime, datasetZipUuid), 5000);
       }

@@ -141,12 +141,12 @@ def prepare_to_upload_video():
     file_size = int(data.get('file_size'))
     content_type = data.get('content_type')
     upload_time_ms = int(data.get('upload_time_ms'))
-    video_uuid = storage.store_video(team_uuid, video_filename, file_size, upload_time_ms)
-    signed_url = storage.prepare_to_upload_video(team_uuid, video_uuid, content_type)
+    video_uuid, upload_url = storage.prepare_to_upload_video(
+        team_uuid, video_filename, file_size, content_type, upload_time_ms)
     action_parameters = frame_extractor.make_action_parameters(team_uuid, video_uuid)
     response = {
         'video_uuid': video_uuid,
-        'signed_url': signed_url,
+        'upload_url': upload_url,
         # TODO(lizlooney): encrypt the action_parameters
         'action_parameters': action_parameters,
     }
@@ -286,9 +286,11 @@ def prepare_to_start_tracking():
 @app.route('/retrieveTrackedBboxes', methods=['POST'])
 @login_required
 def retrieve_tracked_bboxes():
+    time_limit = datetime.now() + timedelta(seconds=25)
     data = request.form.to_dict(flat=True)
     tracker_uuid = data.get('tracker_uuid')
-    tracker_failed, frame_number, bboxes_text = storage.retrieve_tracked_bboxes(tracker_uuid)
+    retrieve_frame_number = int(data.get('retrieve_frame_number'))
+    tracker_failed, frame_number, bboxes_text = storage.retrieve_tracked_bboxes(tracker_uuid, retrieve_frame_number, time_limit)
     response = {
         'tracker_failed': tracker_failed,
         'frame_number': frame_number,
@@ -299,6 +301,7 @@ def retrieve_tracked_bboxes():
 @app.route('/continueTracking', methods=['POST'])
 @login_required
 def continue_tracking():
+    time_limit = datetime.now() + timedelta(seconds=25)
     team_uuid = team_info.retrieve_team_uuid(session, request)
     data = request.form.to_dict(flat=True)
     video_uuid = data.get('video_uuid')
@@ -306,6 +309,16 @@ def continue_tracking():
     frame_number = int(data.get('frame_number'))
     bboxes_text = data.get('bboxes_text')
     storage.continue_tracking(team_uuid, video_uuid, tracker_uuid, frame_number, bboxes_text)
+    if 'retrieve_frame_number' in data:
+      time.sleep(0.2)
+      retrieve_frame_number = int(data.get('retrieve_frame_number'))
+      tracker_failed, frame_number, bboxes_text = storage.retrieve_tracked_bboxes(tracker_uuid, retrieve_frame_number, time_limit)
+      response = {
+          'tracker_failed': tracker_failed,
+          'frame_number': frame_number,
+          'bboxes_text': bboxes_text,
+      }
+      return jsonify(response)
     return 'OK'
 
 @app.route('/trackingClientStillAlive', methods=['POST'])
@@ -393,10 +406,10 @@ def get_dataset_zip_status():
     team_uuid = team_info.retrieve_team_uuid(session, request)
     data = request.form.to_dict(flat=True)
     dataset_zip_uuid = data.get('dataset_zip_uuid')
-    is_ready, signed_url = blob_storage.get_dataset_zip_status(team_uuid, dataset_zip_uuid)
+    is_ready, download_url = blob_storage.get_dataset_zip_status(team_uuid, dataset_zip_uuid)
     response = {
         'is_ready': is_ready,
-        'signed_url': signed_url,
+        'download_url': download_url,
     }
     return jsonify(response)
 

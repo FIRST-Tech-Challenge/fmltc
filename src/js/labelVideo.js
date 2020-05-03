@@ -1159,7 +1159,9 @@ fmltc.LabelVideo.prototype.xhr_trackingClientStillAlive_onreadystatechange = fun
 
 fmltc.LabelVideo.prototype.retrieveTrackedBboxes = function(frameNumber, retryCount, failureCount) {
   const xhr = new XMLHttpRequest();
-  const params = 'tracker_uuid=' + encodeURIComponent(this.trackerUuid);
+  const params =
+      'tracker_uuid=' + encodeURIComponent(this.trackerUuid) +
+      '&retrieve_frame_number=' + encodeURIComponent(frameNumber);
   xhr.open('POST', '/retrieveTrackedBboxes', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_retrieveTrackedBboxes_onreadystatechange.bind(this, xhr, params, frameNumber, retryCount, failureCount);
@@ -1196,7 +1198,7 @@ fmltc.LabelVideo.prototype.xhr_retrieveTrackedBboxes_onreadystatechange = functi
         this.goToFrame(frameNumber);
 
         if (!this.trackingPaused) {
-          this.sendContinueTracking();
+          this.sendContinueTracking(0);
         }
 
       } else {
@@ -1226,10 +1228,10 @@ fmltc.LabelVideo.prototype.trackingPauseButton_onclick = function() {
 
 fmltc.LabelVideo.prototype.trackingContinueButton_onclick = function() {
   this.trackingPaused = false;
-  this.sendContinueTracking();
+  this.sendContinueTracking(0);
 };
 
-fmltc.LabelVideo.prototype.sendContinueTracking = function() {
+fmltc.LabelVideo.prototype.sendContinueTracking = function(failureCount) {
   this.trackingWaitingForBboxes = true;
   this.updateUI();
 
@@ -1237,37 +1239,41 @@ fmltc.LabelVideo.prototype.sendContinueTracking = function() {
       this.convertBboxesToText(this.bboxes[this.currentFrameNumber]);
 
   const xhr = new XMLHttpRequest();
-  const params =
+  let params =
       'video_uuid=' + encodeURIComponent(this.videoUuid) +
       '&tracker_uuid=' + encodeURIComponent(this.trackerUuid) +
       '&frame_number=' + encodeURIComponent(this.currentFrameNumber) +
       '&bboxes_text=' + encodeURIComponent(this.videoFrameEntity[this.currentFrameNumber].bboxes_text);
   xhr.open('POST', '/continueTracking', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_continueTracking_onreadystatechange.bind(this, xhr, params, this.currentFrameNumber);
+  if (this.currentFrameNumber < this.trackingFinalFrameNumber) {
+    const retrieveFrameNumber = this.currentFrameNumber + 1;
+    params += '&retrieve_frame_number=' + encodeURIComponent(retrieveFrameNumber);
+    xhr.onreadystatechange = this.xhr_retrieveTrackedBboxes_onreadystatechange.bind(this, xhr, params, retrieveFrameNumber, 0, 0);
+  } else {
+    xhr.onreadystatechange = this.xhr_continueTracking_onreadystatechange.bind(this, xhr, params, failureCount);
+  }
   xhr.send(params);
   this.trackingRequestSent();
 };
 
-fmltc.LabelVideo.prototype.xhr_continueTracking_onreadystatechange = function(xhr, params, frameNumber) {
+fmltc.LabelVideo.prototype.xhr_continueTracking_onreadystatechange = function(xhr, params, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      if (frameNumber < this.trackingFinalFrameNumber) {
-        setTimeout(this.retrieveTrackedBboxes.bind(this, frameNumber + 1, 0, 0), 10);
-
-      } else {
-        this.trackingInProgress = false;
-        this.trackingPaused = false;
-        this.trackingWaitingForBboxes = false;
-        this.trackingFinishedDiv.style.visibility = 'visible';
-        this.updateUI();
-      }
+      this.trackingInProgress = false;
+      this.trackingPaused = false;
+      this.trackingWaitingForBboxes = false;
+      this.trackingFinishedDiv.style.visibility = 'visible';
+      this.updateUI();
 
     } else {
       // TODO(lizlooney): handle error properly
       console.log('Failure! /continueTracking?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      if (failureCount < 5) {
+        setTimeout(this.sendContinueTracking.bind(this, failureCount + 1), 3000);
+      }
     }
   }
 };
