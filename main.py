@@ -286,9 +286,11 @@ def prepare_to_start_tracking():
 @app.route('/retrieveTrackedBboxes', methods=['POST'])
 @login_required
 def retrieve_tracked_bboxes():
+    time_limit = datetime.now() + timedelta(seconds=25)
     data = request.form.to_dict(flat=True)
     tracker_uuid = data.get('tracker_uuid')
-    tracker_failed, frame_number, bboxes_text = storage.retrieve_tracked_bboxes(tracker_uuid)
+    retrieve_frame_number = int(data.get('retrieve_frame_number'))
+    tracker_failed, frame_number, bboxes_text = storage.retrieve_tracked_bboxes(tracker_uuid, retrieve_frame_number, time_limit)
     response = {
         'tracker_failed': tracker_failed,
         'frame_number': frame_number,
@@ -299,6 +301,7 @@ def retrieve_tracked_bboxes():
 @app.route('/continueTracking', methods=['POST'])
 @login_required
 def continue_tracking():
+    time_limit = datetime.now() + timedelta(seconds=25)
     team_uuid = team_info.retrieve_team_uuid(session, request)
     data = request.form.to_dict(flat=True)
     video_uuid = data.get('video_uuid')
@@ -306,6 +309,16 @@ def continue_tracking():
     frame_number = int(data.get('frame_number'))
     bboxes_text = data.get('bboxes_text')
     storage.continue_tracking(team_uuid, video_uuid, tracker_uuid, frame_number, bboxes_text)
+    if 'retrieve_frame_number' in data:
+      time.sleep(0.2)
+      retrieve_frame_number = int(data.get('retrieve_frame_number'))
+      tracker_failed, frame_number, bboxes_text = storage.retrieve_tracked_bboxes(tracker_uuid, retrieve_frame_number, time_limit)
+      response = {
+          'tracker_failed': tracker_failed,
+          'frame_number': frame_number,
+          'bboxes_text': bboxes_text,
+      }
+      return jsonify(response)
     return 'OK'
 
 @app.route('/trackingClientStillAlive', methods=['POST'])

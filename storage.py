@@ -15,7 +15,8 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import time
 import uuid
 
 # Other Modules
@@ -513,18 +514,27 @@ def store_tracked_bboxes(tracker_uuid, frame_number, bboxes_text):
             tracker_entity['update_time_utc_ms'] = util.time_now_utc_millis()
             transaction.put(tracker_entity)
 
-def retrieve_tracked_bboxes(tracker_uuid):
+def retrieve_tracked_bboxes(tracker_uuid, retrieve_frame_number, time_limit):
     tracking_client_still_alive(tracker_uuid)
     tracker_entity = retrieve_tracker_entity(tracker_uuid)
-    if tracker_entity is None:
-        return True, 0, ''
-    # If it's been more than two minutes, assume the tracker has died.
-    millis_since_last_update = util.time_now_utc_millis() - tracker_entity['update_time_utc_ms']
-    two_minutes_in_ms = 2 * 60 * 1000
-    if millis_since_last_update > two_minutes_in_ms:
-        util.log('Tracker appears to have failed. Elapsed time since last update: %d ms' % millis_since_last_update)
-        tracker_stopping(tracker_entity['team_uuid'], tracker_entity['video_uuid'], tracker_uuid)
-        tracker_entity['tracker_failed'] = True
+    while True:
+        if tracker_entity is None:
+            util.log('Tracker appears to have failed. Tracker entity is missing.')
+            return True, 0, ''
+        if tracker_entity['frame_number'] == retrieve_frame_number:
+            break
+        if datetime.now() >= time_limit - timedelta(seconds=5):
+            break
+        # If it's been more than two minutes, assume the tracker has died.
+        millis_since_last_update = util.time_now_utc_millis() - tracker_entity['update_time_utc_ms']
+        two_minutes_in_ms = 2 * 60 * 1000
+        if millis_since_last_update > two_minutes_in_ms:
+            util.log('Tracker appears to have failed. Elapsed time since last update: %d ms' % millis_since_last_update)
+            tracker_stopping(tracker_entity['team_uuid'], tracker_entity['video_uuid'], tracker_uuid)
+            tracker_entity['tracker_failed'] = True
+            break
+        time.sleep(0.1)
+        tracker_entity = retrieve_tracker_entity(tracker_uuid)
     return tracker_entity['tracker_failed'], tracker_entity['frame_number'], tracker_entity['bboxes_text']
 
 def tracking_client_still_alive(tracker_uuid):

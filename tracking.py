@@ -162,7 +162,7 @@ def start_tracking(action_parameters, time_limit, active_memory_limit):
                     if __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity,
                             time_limit, active_memory_limit, action_parameters):
                         return
-                    time.sleep(0.10)
+                    time.sleep(0.1)
                     tracker_client_entity = storage.retrieve_tracker_client_entity(tracker_uuid)
                     if tracker_client_entity is None:
                         return
