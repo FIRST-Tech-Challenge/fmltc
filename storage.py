@@ -99,8 +99,9 @@ def retrieve_user_preferences(team_uuid, team_number):
 
 # video - public methods
 
-def store_video(team_uuid, video_filename, file_size, upload_time_ms):
+def prepare_to_upload_video(team_uuid, video_filename, file_size, content_type, upload_time_ms):
     video_uuid = str(uuid.uuid4().hex)
+    video_blob_name, upload_url = blob_storage.prepare_to_upload_video(video_uuid, content_type)
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_VIDEO)
@@ -110,9 +111,11 @@ def store_video(team_uuid, video_filename, file_size, upload_time_ms):
             'video_uuid': video_uuid,
             'video_filename': video_filename,
             'file_size': file_size,
+            'video_content_type': content_type,
             'upload_time_ms': upload_time_ms,
+            'video_blob_name': video_blob_name,
             'create_time_utc_ms': util.time_now_utc_millis(),
-            'frame_extractor_triggered_time_utc_ms': 0,
+            'frame_extractor_triggered_time_utc_ms': util.time_now_utc_millis(),
             'frame_extractor_active_time_utc_ms': 0,
             'frame_extraction_start_time_utc_ms': 0,
             'frame_extraction_end_time_utc_ms': 0,
@@ -123,18 +126,7 @@ def store_video(team_uuid, video_filename, file_size, upload_time_ms):
             'delete_in_progress': False,
         })
         transaction.put(video_entity)
-        return video_uuid
-
-def prepare_to_upload_video(team_uuid, video_uuid, content_type):
-    video_blob_name, signed_url = blob_storage.prepare_to_upload_video(video_uuid, content_type)
-    datastore_client = datastore.Client()
-    with datastore_client.transaction() as transaction:
-        video_entity = retrieve_video_entity(team_uuid, video_uuid)
-        video_entity['video_content_type'] = content_type
-        video_entity['video_blob_name'] = video_blob_name
-        video_entity['frame_extractor_triggered_time_utc_ms'] = util.time_now_utc_millis()
-        transaction.put(video_entity)
-        return signed_url
+        return video_uuid, upload_url
 
 def prepare_to_trigger_frame_extractor(team_uuid, video_uuid, content_type):
     datastore_client = datastore.Client()
