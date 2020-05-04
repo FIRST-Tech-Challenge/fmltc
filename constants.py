@@ -17,10 +17,10 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # TODO: Replace <Project ID> with the Google Cloud Project ID for our project.
 PROJECT_ID = '<Project ID>'
 
-# TODO: Replace <Region> with the region of the Google Cloud Functions.
-# For example: 'us-central1'
-REGION = '<Region>'
-
 # TODO: Replace <Secret Key> with the secret key you want to use to configure flask.
 # This should be kept secret and never be uploaded to the open source repo.
 SECRET_KEY = '<Secret Key>'
+
+# TODO: If necessary, replace us-central1 with the region of the http_perform_action
+# Google Cloud Function shown in https://console.cloud.google.com/functions/list
+REGION = 'us-central1'
