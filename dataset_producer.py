@@ -92,9 +92,10 @@ def start_dataset_production(team_uuid, video_uuids_json, eval_percent, start_ti
     num_digits = max(len_longest_record_number, 2)
     train_record_id_format = 'train-%%0%dd' % num_digits
     eval_record_id_format = 'eval-%%0%dd' % num_digits
-    
+    wildcards = '?' * num_digits
+
     dataset_uuid = storage.dataset_producer_starting(
-        team_uuid, video_filenames, eval_percent, start_time_ms,
+        team_uuid, video_filenames, eval_percent, start_time_ms, wildcards,
         train_frame_count, train_record_count, eval_frame_count, eval_record_count, sorted_label_list)
 
     record_number = 0
@@ -230,7 +231,7 @@ def produce_dataset_record(action_parameters, time_limit, active_memory_limit):
     os.makedirs(folder, exist_ok=True)
     try:
         record_filename = '%s/%s' % (folder, record_filename)
-        __write_record(team_uuid, video_uuid, sorted_label_list, frame_data_dict, dataset_uuid, record_number,
+        __write_record(team_uuid, sorted_label_list, frame_data_dict, dataset_uuid, record_number,
             record_id, is_eval, record_filename)
         storage.dataset_producer_maybe_done(team_uuid, dataset_uuid, record_id)
     finally:
@@ -285,7 +286,7 @@ def __get_frame_data(video_uuid, video_blob_name, video_frame_entities, frame_nu
         os.remove(video_filename)
 
 
-def __write_record(team_uuid, video_uuid, sorted_label_list, frame_data_dict,
+def __write_record(team_uuid, sorted_label_list, frame_data_dict,
         dataset_uuid, record_number, record_id, is_eval, record_filename):
     negative_frame_count = 0
     label_counter = collections.Counter()
@@ -295,7 +296,7 @@ def __write_record(team_uuid, video_uuid, sorted_label_list, frame_data_dict,
             writer.write(tf_example.SerializeToString())
             negative_frame_count += is_negative
             label_counter += label_counter_for_frame
-    tf_record_blob_name = blob_storage.store_dataset_record(video_uuid, dataset_uuid, record_id, record_filename)
+    tf_record_blob_name = blob_storage.store_dataset_record(team_uuid, dataset_uuid, record_id, record_filename)
     os.remove(record_filename)
     dict_label_to_count = dict(label_counter)
     storage.store_dataset_record(team_uuid, dataset_uuid, record_number, record_id, is_eval, tf_record_blob_name,

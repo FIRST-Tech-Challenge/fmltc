@@ -46,11 +46,25 @@ def __write_blob_to_file(blob_name, filename):
 
 def __write_file_to_blob(blob_name, filename, content_type):
     blob = __storage_client().bucket(BUCKET_BLOBS).blob(blob_name)
-    blob.upload_from_filename(filename, content_type=content_type)
+    # Retry up to 5 times.
+    retry = 0
+    while retry < 5:
+        try:
+            blob.upload_from_filename(filename, content_type=content_type)
+            return
+        except:
+            retry += 1
 
 def __write_string_to_blob(blob_name, s, content_type):
     blob = __storage_client().bucket(BUCKET_BLOBS).blob(blob_name)
-    blob.upload_from_string(s, content_type=content_type)
+    # Retry up to 5 times.
+    retry = 0
+    while retry < 5:
+        try:
+            blob.upload_from_string(s, content_type=content_type)
+            return
+        except:
+            retry += 1
 
 def __delete_blob(blob_name):
     blob = __storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
@@ -123,8 +137,8 @@ def delete_video_frame_images(image_blob_names):
 
 # dataset records
 
-def store_dataset_record(video_uuid, dataset_uuid, record_id, record_filename):
-    tf_record_blob_name = 'tf_records/%s/%s/%s' % (video_uuid, dataset_uuid, record_id)
+def store_dataset_record(team_uuid, dataset_uuid, record_id, record_filename):
+    tf_record_blob_name = 'tf_records/%s/%s/%s.record' % (team_uuid, dataset_uuid, record_id)
     __write_file_to_blob(tf_record_blob_name, record_filename, 'application/octet-stream')
     return tf_record_blob_name
 
