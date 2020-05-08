@@ -599,6 +599,7 @@ def __query_dataset(team_uuid, dataset_uuid):
 def dataset_producer_starting(team_uuid, video_filenames, eval_percent, start_time_ms, wildcards,
         train_frame_count, train_record_count, eval_frame_count, eval_record_count, sorted_label_list):
     dataset_uuid = str(uuid.uuid4().hex)
+    label_pbtxt_blob_name = blob_storage.store_dataset_label_pbtxt(team_uuid, dataset_uuid, sorted_label_list)
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_DATASET)
@@ -621,6 +622,7 @@ def dataset_producer_starting(team_uuid, video_filenames, eval_percent, start_ti
             'eval_dict_label_to_count': {},
             'total_record_count': train_record_count + eval_record_count,
             'sorted_label_list': sorted_label_list,
+            'label_pbtxt_blob_name': label_pbtxt_blob_name,
             'delete_in_progress': False,
         })
         transaction.put(dataset_entity)
@@ -723,6 +725,8 @@ def finish_delete_dataset(action_parameters, time_limit, active_memory_limit):
     if len(dataset_entities) != 0:
         dataset_entity = dataset_entities[0]
         datastore_client.delete(dataset_entity.key)
+    # Delete the label.pbtxt blob.
+    blob_storage.delete_dataset_label_pbtxt(dataset_entity['label_pbtxt_blob_name'])
     # Delete the dataset records, 500 at a time.
     while True:
         if action.is_near_limit(time_limit, active_memory_limit):

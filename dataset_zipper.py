@@ -43,20 +43,19 @@ def zip_dataset(action_parameters, time_limit, active_memory_limit):
     dataset_uuid = action_parameters['dataset_uuid']
 
     dataset_entity = storage.retrieve_dataset_entity(team_uuid, dataset_uuid)
-    sorted_label_list = dataset_entity['sorted_label_list']
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, allowZip64=True) as zip_file:
+        # Write the label.pbtxt file.
+        blob_name = dataset_entity['label_pbtxt_blob_name']
+        content = blob_storage.retrieve_dataset_label_pbtxt(blob_name)
+        filename = os.path.basename(blob_name)
+        zip_file.writestr(filename, content)
         # Write the dataset records.
         dataset_record_entities = storage.retrieve_dataset_records(dataset_entity)
         for dataset_record_entity in dataset_record_entities:
-            tf_record_blob_name = dataset_record_entity['tf_record_blob_name']
-            record_data = blob_storage.retrieve_dataset_record(tf_record_blob_name)
-            filename = os.path.basename(tf_record_blob_name)
-            zip_file.writestr(filename, record_data)
-
-        # Write the label.pbtxt file to the folder.
-        label_pbtxt = util.make_label_pbtxt(sorted_label_list)
-        label_pbtxt_filename = 'label.pbtxt'
-        zip_file.writestr(label_pbtxt_filename, label_pbtxt)
+            blob_name = dataset_record_entity['tf_record_blob_name']
+            content = blob_storage.retrieve_dataset_record(blob_name)
+            filename = os.path.basename(blob_name)
+            zip_file.writestr(filename, content)
     blob_storage.store_dataset_zip(team_uuid, dataset_zip_uuid, zip_buffer.getvalue())
