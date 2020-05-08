@@ -42,14 +42,10 @@ def train_model(action_parameters, time_limit, active_memory_limit):
     dataset_entity = storage.retrieve_dataset_entity(team_uuid, dataset_uuid)
     sorted_label_list = dataset_entity['sorted_label_list']
     dataset_record_entities = storage.retrieve_dataset_records(dataset_entity)
-    for dataset_record_entity in dataset_record_entities:
-      util.log('HeyLiz - tf_record_blob_name is %s' % dataset_record_entity['tf_record_blob_name'])
     blob_names = [dataset_record_entity['tf_record_blob_name'] for dataset_record_entity in dataset_record_entities]
     common_path = os.path.commonpath(blob_names)
-    util.log('HeyLiz - common_path is         %s' % common_path)
     train_input_path = '%s/train-%s.record' % (common_path, dataset_entity['wildcards'])
-    util.log('HeyLiz - train_input_path is    %s' % train_input_path)
     eval_input_path = '%s/eval-%s.record' % (common_path, dataset_entity['wildcards'])
-    util.log('HeyLiz - eval_input_path  is    %s' % eval_input_path)
+    label_pbtxt_path = '%s/label.pbtxt' % common_path
 
     # TODO(lizlooney): Write the pipeline.config file. What else?

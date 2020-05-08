@@ -137,13 +137,25 @@ def delete_video_frame_images(image_blob_names):
 
 # dataset records
 
+def get_dataset_folder(team_uuid, dataset_uuid):
+    return 'tf_records/%s/%s' % (team_uuid, dataset_uuid)
+
+def store_dataset_label_pbtxt(team_uuid, dataset_uuid, sorted_label_list):
+    label_pbtxt = util.make_label_pbtxt(sorted_label_list)
+    label_pbtxt_blob_name = '%s/label.pbtxt' % get_dataset_folder(team_uuid, dataset_uuid)
+    __write_string_to_blob(label_pbtxt_blob_name, label_pbtxt, 'text/plain')
+    return label_pbtxt_blob_name
+
+def retrieve_dataset_label_pbtxt(label_pbtxt_blob_name):
+    return __retrieve_blob(label_pbtxt_blob_name)
+
+def delete_dataset_label_pbtxt(label_pbtxt_blob_name):
+    __delete_blob(label_pbtxt_blob_name)
+
 def store_dataset_record(team_uuid, dataset_uuid, record_id, record_filename):
-    tf_record_blob_name = 'tf_records/%s/%s/%s.record' % (team_uuid, dataset_uuid, record_id)
+    tf_record_blob_name = '%s/%s.record' % (get_dataset_folder(team_uuid, dataset_uuid), record_id)
     __write_file_to_blob(tf_record_blob_name, record_filename, 'application/octet-stream')
     return tf_record_blob_name
-
-def write_dataset_record_to_file(dataset_record_blob_name, filename):
-    return __write_blob_to_file(dataset_record_blob_name, filename)
 
 def retrieve_dataset_record(dataset_record_blob_name):
     return __retrieve_blob(dataset_record_blob_name)
