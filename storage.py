@@ -596,7 +596,7 @@ def __query_dataset(team_uuid, dataset_uuid):
 
 # dataset - public methods
 
-def dataset_producer_starting(team_uuid, video_filenames, eval_percent, start_time_ms,
+def dataset_producer_starting(team_uuid, video_filenames, eval_percent, start_time_ms, wildcards,
         train_frame_count, train_record_count, eval_frame_count, eval_record_count, sorted_label_list):
     dataset_uuid = str(uuid.uuid4().hex)
     datastore_client = datastore.Client()
@@ -606,6 +606,7 @@ def dataset_producer_starting(team_uuid, video_filenames, eval_percent, start_ti
         dataset_entity.update({
             'team_uuid': team_uuid,
             'dataset_uuid': dataset_uuid,
+            'wildcards': wildcards,
             'video_filenames': video_filenames,
             'eval_percent': eval_percent,
             'creation_time_ms': start_time_ms,
@@ -787,7 +788,7 @@ def retrieve_dataset_records(dataset_entity):
 
 # model - public methods
 
-def model_trainer_starting(team_uuid, dataset_uuid_list):
+def model_trainer_starting(team_uuid, dataset_uuid):
     model_uuid = str(uuid.uuid4().hex)
     # TODO(lizlooney): store an entity?
     return model_uuid

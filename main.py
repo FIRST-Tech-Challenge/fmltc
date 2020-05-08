@@ -390,9 +390,8 @@ def delete_dataset():
 def prepare_to_zip_dataset():
     team_uuid = team_info.retrieve_team_uuid(session, request)
     data = request.form.to_dict(flat=True)
-    dataset_uuids_json = data.get('dataset_uuids')
-    dataset_zip_uuid, dataset_zipper_prep = dataset_zipper.prepare_to_zip_dataset(team_uuid, dataset_uuids_json)
-    action_parameters = dataset_zipper.make_action_parameters(team_uuid, dataset_zip_uuid, dataset_zipper_prep)
+    dataset_uuid = data.get('dataset_uuid')
+    dataset_zip_uuid, action_parameters = dataset_zipper.make_action_parameters(team_uuid, dataset_uuid)
     response = {
         'dataset_zip_uuid': dataset_zip_uuid,
         # TODO(lizlooney): encrypt the action_parameters
@@ -427,9 +426,8 @@ def delete_dataset_zip():
 def prepare_to_train_model():
     team_uuid = team_info.retrieve_team_uuid(session, request)
     data = request.form.to_dict(flat=True)
-    dataset_uuids_json = data.get('dataset_uuids')
-    model_uuid, model_trainer_prep = model_trainer.prepare_to_train_model(team_uuid, dataset_uuids_json)
-    action_parameters = model_trainer.make_action_parameters(team_uuid, model_uuid, model_trainer_prep)
+    dataset_uuid = data.get('dataset_uuid')
+    model_uuid, action_parameters = model_trainer.make_action_parameters(team_uuid, dataset_uuid)
     response = {
         'model_uuid': model_uuid,
         # TODO(lizlooney): encrypt the action_parameters

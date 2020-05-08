@@ -35,7 +35,6 @@ fmltc.ListDatasets = function(util) {
   this.util = util;
   this.datasetsSectionDiv = document.getElementById('datasetsSectionDiv');
   this.datasetTable = document.getElementById('datasetTable');
-  this.datasetCheckboxAll = document.getElementById('datasetCheckboxAll');
   this.downloadRecordsButton = document.getElementById('downloadRecordsButton');
   this.trainModelButton = document.getElementById('trainModelButton');
 
@@ -48,7 +47,6 @@ fmltc.ListDatasets = function(util) {
   this.retrieveDatasets();
   this.updateButtons();
 
-  this.datasetCheckboxAll.onclick = this.datasetCheckboxAll_onclick.bind(this);
   this.downloadRecordsButton.onclick = this.downloadRecordsButton_onclick.bind(this);
   this.trainModelButton.onclick = this.trainModelButton_onclick.bind(this);
 };
@@ -161,23 +159,6 @@ fmltc.ListDatasets.prototype.addNewDataset = function(datasetEntity) {
   }
 }
 
-fmltc.ListDatasets.prototype.datasetCheckboxAll_onclick = function() {
-  var anyChecked = false;
-  for (let i = 0; i < this.checkboxes.length; i++) {
-    if (this.checkboxes[i].checked) {
-      anyChecked = true;
-      break;
-    }
-  }
-  const check = !anyChecked;
-  for (let i = 0; i < this.checkboxes.length; i++) {
-    this.checkboxes[i].checked = check;
-  }
-  this.datasetCheckboxAll.checked = check;
-
-  this.updateButtons();
-};
-
 fmltc.ListDatasets.prototype.checkbox_onclick = function() {
   this.updateButtons();
 };
@@ -211,6 +192,7 @@ fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr
         this.datasetTable.deleteRow(i + this.headerRowCount);
         this.datasetEntityArray.splice(i, 1);
         this.checkboxes.splice(i, 1);
+        this.updateButtons();
         if (this.datasetEntityArray.length == 0) {
           this.datasetsSectionDiv.style.display = 'none';
         }
@@ -233,44 +215,35 @@ fmltc.ListDatasets.prototype.indexOfDataset = function(datasetUuid) {
 };
 
 fmltc.ListDatasets.prototype.canTrainModel = function() {
-  let sortedLabelList = '';
+  let countChecked = 0;
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
-      if (!sortedLabelList) {
-        sortedLabelList = this.datasetEntityArray[i].sorted_label_list;
-      } else {
-        if (sortedLabelList.length != this.datasetEntityArray[i].sorted_label_list.length) {
-          return false;
-        }
-        for (let j = 0; j < sortedLabelList.length; j++) {
-          if (sortedLabelList[j] != this.datasetEntityArray[i].sorted_label_list[j]) {
-            return false;
-          }
-        }
+      countChecked++;
+      if (countChecked > 1) {
+        break;
       }
     }
   }
-  return !!sortedLabelList;
+  return countChecked == 1;
 };
 
-fmltc.ListDatasets.prototype.getDatasetUuidsJson = function() {
-  const datasetUuids = [];
+fmltc.ListDatasets.prototype.getCheckedDatasetUuid = function() {
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
-      datasetUuids.push(this.datasetEntityArray[i].dataset_uuid);
+      return this.datasetEntityArray[i].dataset_uuid;
     }
   }
-  return JSON.stringify(datasetUuids);
+  return '';
 };
 
 fmltc.ListDatasets.prototype.downloadRecordsButton_onclick = function() {
   this.util.setWaitCursor();
 
-  const datasetUuidsJson = this.getDatasetUuidsJson();
+  const datasetUuid = this.getCheckedDatasetUuid();
   const downloadStartTime = Date.now();
 
   const xhr = new XMLHttpRequest();
-  const params = 'dataset_uuids=' + encodeURIComponent(datasetUuidsJson);
+  const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
   xhr.open('POST', '/prepareToZipDataset', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_prepareToZipDataset_onreadystatechange.bind(this, xhr, params, downloadStartTime);
@@ -381,14 +354,12 @@ fmltc.ListDatasets.prototype.xhr_deleteDatasetZip_onreadystatechange = function(
   }
 };
 
-
-
 fmltc.ListDatasets.prototype.trainModelButton_onclick = function() {
-  const datasetUuidsJson = this.getDatasetUuidsJson();
+  const datasetUuid = this.getCheckedDatasetUuid();
   const modelStartTime = Date.now();
 
   const xhr = new XMLHttpRequest();
-  const params = 'dataset_uuids=' + encodeURIComponent(datasetUuidsJson);
+  const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
   xhr.open('POST', '/prepareToTrainModel', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_prepareToTrainModel_onreadystatechange.bind(this, xhr, params);
