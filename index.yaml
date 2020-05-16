@@ -35,12 +35,12 @@ indexes:
 - kind: Tracker
   properties:
   - name: tracker_uuid
-  - name: update_time_utc_ms
+  - name: video_uuid
 
 - kind: TrackerClient
   properties:
   - name: tracker_uuid
-  - name: update_time_utc_ms
+  - name: video_uuid
 
 - kind: Dataset
   properties:
@@ -63,3 +63,14 @@ indexes:
   - name: team_uuid
   - name: dataset_uuid
   - name: record_number
+
+- kind: Model
+  properties:
+  - name: team_uuid
+  - name: model_uuid
+
+- kind: Model
+  properties:
+  - name: team_uuid
+  - name: delete_in_progress
+  - name: creation_time_ms

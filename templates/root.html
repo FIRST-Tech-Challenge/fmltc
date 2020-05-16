@@ -26,16 +26,52 @@ limitations under the License.
 </head>
 <body>
 
-<table>
-  <tr>
-    <td align="center" valign="top">
-      <button id="uploadVideoFileButton" style="width: 100px;">
-        <span class="biggestText">&#x1F4C1;</span><br>
-        <span class="bigText">Upload Video File</span>
-      </button>
-    </td>
-  </tr>
-</table>
+<div class="tabButtonsDiv">
+  <button id='videosTabButton' class="tabButton">Videos</button>
+  <button id='datasetsTabButton' class="tabButton">Datasets</button>
+  <button id='modelsTabButton' class="tabButton">Models</button>
+</div>
+
+<div id="videosTabDiv" class="tabDiv">
+  <table class="collapsedBorder">
+    <tr>
+      <td align="center" valign="top">
+        <button id="uploadVideoFileButton" style="width: 100px;">
+          <span class="biggestText">&#x1F4C1;</span><br>
+          <span class="bigText">Upload Video</span>
+        </button>
+      </td>
+      <td width="10px"></td>
+        <td align="center" valign="top">
+          <button id="produceDatasetButton" style="width: 100px;">
+            <span class="biggestText">&#x1F5C3;</span><br>
+            <span class="bigText">Produce Dataset</span>
+          </button>
+        </td>
+        <td width="10px"></td>
+    </tr>
+  </table>
+  <div id="videosListDiv" style="display: none;">
+    <table id="videosTable" class="collapsedBorder">
+      <tr>
+        <th rowspan="2" class="cellWithBorder"><input type="checkbox" id="videoCheckboxAll"></th>
+        <th rowspan="2" class="cellWithBorder"><span style="visibility: hidden">&#x1F5D1;</span></th>
+        <th rowspan="2" class="cellWithBorder">Video Filename</th>
+        <th rowspan="2" class="cellWithBorder">Date Uploaded</th>
+        <th rowspan="2" class="cellWithBorder">File Size</th>
+        <th rowspan="2" class="cellWithBorder">Dimensions</th>
+        <th rowspan="2" class="cellWithBorder">Duration</th>
+        <th rowspan="2" class="cellWithBorder">Frames<br>per<br>Second</th>
+        <th colspan="3" class="cellWithBorder">Number of Frames</th>
+      </tr>
+      <tr>
+        <th class="cellWithBorder">In Video</th>
+        <th class="cellWithBorder">Extracted</th>
+        <th class="cellWithBorder">Excluded</th>
+      </tr>
+    </table>
+  </div>
+</div>
 
 <div id="uploadVideoFileDialog" class="modal_dialog"><div class="modal_dialog_container">
   <div class="modal_dialog_content">
@@ -59,40 +95,6 @@ limitations under the License.
   </div>
 </div></div>
 
-<div id="videosSectionDiv" style="display: none;">
-  <hr>
-  <h2>Videos</h2>
-  <table id="videoTable" class="collapsedBorder">
-    <tr>
-      <th rowspan="2" class="cellWithBorder"><input type="checkbox" id="videoCheckboxAll"></th>
-      <th rowspan="2" class="cellWithBorder"><span style="visibility: hidden">&#x1F5D1;</span></th>
-      <th rowspan="2" class="cellWithBorder">Video Filename</th>
-      <th rowspan="2" class="cellWithBorder">Date Uploaded</th>
-      <th rowspan="2" class="cellWithBorder">File Size</th>
-      <th rowspan="2" class="cellWithBorder">Dimensions</th>
-      <th rowspan="2" class="cellWithBorder">Duration</th>
-      <th rowspan="2" class="cellWithBorder">Frames<br>per<br>Second</th>
-      <th colspan="3" class="cellWithBorder">Number of Frames</th>
-    </tr>
-    <tr>
-      <th class="cellWithBorder">In Video</th>
-      <th class="cellWithBorder">Extracted</th>
-      <th class="cellWithBorder">Excluded</th>
-    </tr>
-  </table>
-  <br>
-  <table class="collapsedBorder">
-    <tr>
-      <td align="center" valign="top">
-        <button id="produceDatasetButton" style="width: 100px;">
-          <span class="biggestText">&#x1F5C3;</span><br>
-          <span class="bigText">Produce Dataset</span>
-        </button>
-      </td>
-    </tr>
-  </table>
-</div>
-
 <div id="produceDatasetDialog" class="modal_dialog"><div class="modal_dialog_container">
   <div class="modal_dialog_content">
     <table>
@@ -105,12 +107,12 @@ limitations under the License.
       <tr>
         <td><label for="pdTrainPercentInput">Percentage of Frames for Training:</label></td>
         <td><input id="pdTrainPercentInput" type="number" class="rightText mediumText"
-        value="80" min="0" max="100" style="width: 5ch">&percnt;</td>
+        value="80" min="10" max="100" style="width: 5ch">&percnt;</td>
       </tr>
       <tr>
         <td><label for="pdEvalPercentInput">Percentage of Frames for Evaluation:</label></td>
         <td><input id="pdEvalPercentInput" type="number" class="rightText mediumText"
-        value="20" min="0" max="100" style="width: 5ch">&percnt;</td>
+        value="20" min="0" max="90" style="width: 5ch">&percnt;</td>
       </tr>
     </table>
     <br><br>
@@ -121,53 +123,80 @@ limitations under the License.
   </div>
 </div></div>
 
-<div id="datasetsSectionDiv" style="display: none;">
-  <hr>
-  <h2>Datasets</h2>
-  <table id="datasetTable" class="collapsedBorder">
-    <tr>
-      <th rowspan="3" class="cellWithBorder"><input type="checkbox" style="visibility: hidden"></th>
-      <th rowspan="3" class="cellWithBorder"><span style="visibility: hidden">&#x1F5D1;</span></th>
-      <th rowspan="3" class="cellWithBorder">Video Filenames</th>
-      <th rowspan="3" class="cellWithBorder">Date Produced</th>
-      <th colspan="4" class="cellWithBorder">Number of Frames</th>
-      <th rowspan="3" class="cellWithBorder">Labels</th>
-    </tr>
-    <tr>
-      <th colspan="2" class="cellWithBorder">Training</th>
-      <th colspan="2" class="cellWithBorder">Evaluation</th>
-    </tr>
-    <tr>
-      <th class="cellWithBorder">Total</th>
-      <th class="cellWithBorder">Negative</th>
-      <th class="cellWithBorder">Total</th>
-      <th class="cellWithBorder">Negative</th>
-    </tr>
-  </table>
-  <br>
+<div id="datasetsTabDiv" class="tabDiv">
   <table class="collapsedBorder">
     <tr>
       <td align="center" valign="top">
-        <button id="downloadRecordsButton" style="width: 100px;">
+        <button id="downloadDatasetButton" style="width: 100px;">
           <span class="biggestText">&#x1F4E6;</span><br>
-          <span class="bigText">Download Records</span>
+          <span class="bigText">Download Dataset</span>
         </button>
       </td>
-      <td width="10px">
+      <td width="10px"></td>
       <td align="center" valign="top">
-        <button id="trainModelButton" style="width: 100px;">
+        <button id="startTrainingButton" style="width: 100px;">
           <span class="biggestText">&#x1F682;</span><br>
-          <span class="bigText">Train Model</span>
+          <span class="bigText">Start Training</span>
         </button>
       </td>
+      <td width="10px"></td>
     </tr>
   </table>
+  <div id="datasetsListDiv">
+    <table id="datasetsTable" class="collapsedBorder">
+      <tr>
+        <th rowspan="3" class="cellWithBorder"><input type="checkbox" style="visibility: hidden"></th>
+        <th rowspan="3" class="cellWithBorder"><span style="visibility: hidden">&#x1F5D1;</span></th>
+        <th rowspan="3" class="cellWithBorder">Video Filenames</th>
+        <th rowspan="3" class="cellWithBorder">Date Produced</th>
+        <th colspan="4" class="cellWithBorder">Number of Frames</th>
+        <th rowspan="3" class="cellWithBorder">Labels</th>
+      </tr>
+      <tr>
+        <th colspan="2" class="cellWithBorder">Training</th>
+        <th colspan="2" class="cellWithBorder">Evaluation</th>
+      </tr>
+      <tr>
+        <th class="cellWithBorder">Total</th>
+        <th class="cellWithBorder">Negative</th>
+        <th class="cellWithBorder">Total</th>
+        <th class="cellWithBorder">Negative</th>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div id="modelsTabDiv" class="tabDiv">
+  <table class="collapsedBorder">
+    <tr>
+      <td align="center" valign="top">
+        <button id="downloadModelButton" style="width: 100px;">
+          <span class="biggestText">&#x1F4E6;</span><br>
+          <span class="bigText">Download Model</span>
+        </button>
+      </td>
+      <td width="10px"></td>
+    </tr>
+  </table>
+  <div id="modelsListDiv">
+    <table id="modelsTable" class="collapsedBorder">
+      <tr>
+        <th class="cellWithBorder"><input type="checkbox" style="visibility: hidden"></th>
+        <th class="cellWithBorder"><span style="visibility: hidden">&#x1F5D1;</span></th>
+        <th class="cellWithBorder">Video Filenames</th>
+        <th class="cellWithBorder">Date Created</th>
+        <th class="cellWithBorder">State</th>
+        <th class="cellWithBorder">Error Message</th>
+      </tr>
+    </table>
+  </div>
 </div>
 
 <script type="text/javascript">
   window.addEventListener('load', function() {
     const util = new fmltc.Util({{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
-    const listDatasets = new fmltc.ListDatasets(util);
+    const listModels = new fmltc.ListModels(util);
+    const listDatasets = new fmltc.ListDatasets(util, listModels);
     new fmltc.ListVideos(util, listDatasets);
   });
 </script>

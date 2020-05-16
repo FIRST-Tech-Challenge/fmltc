@@ -18,6 +18,9 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 from datetime import datetime, timezone
 import logging
 
+# Other Modules
+import google.cloud.storage
+
 
 LOG_MESSAGE_PREFIX = 'FMLTC - '
 
@@ -38,3 +41,6 @@ def make_label_pbtxt(sorted_label_list):
     for i, label in enumerate(sorted_label_list):
         label_pbtxt = "%sitem {\n  id: %d\n  name:'%s'\n}\n" % (label_pbtxt, i + 1, label)
     return label_pbtxt
+
+def storage_client():
+    return google.cloud.storage.Client.from_service_account_json('key.json')

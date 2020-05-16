@@ -119,8 +119,7 @@ def extract_frames(action_parameters, time_limit, active_memory_limit):
                     # We've reached the end of the video. All finished extracting frames!
                     video_entity = storage.frame_extraction_done(team_uuid, video_uuid, frame_number)
                     break
-                # Store the frame as a jpg image, which are smaller/faster than png. We still use
-                # png for the tensorflow records.
+                # Store the frame as a jpg image, which are smaller/faster than png.
                 success, buffer = cv2.imencode('.jpg', frame)
                 if success:
                     video_entity = storage.store_frame_image(team_uuid, video_uuid, frame_number,

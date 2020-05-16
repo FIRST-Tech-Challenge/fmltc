@@ -1,4 +1,4 @@
-/**
+ /**
  * @license
  * Copyright 2020 Google LLC
  *
@@ -28,27 +28,32 @@ goog.require('fmltc.Util');
 /**
  * Class for listing datasets.
  * @param {!fmltc.Util} util The utility instance
+ * @param {!fmltc.ListModels} listModels The ListModels instance
  * @constructor
  */
-fmltc.ListDatasets = function(util) {
+fmltc.ListDatasets = function(util, listModels) {
   /** @type {!fmltc.Util} */
   this.util = util;
-  this.datasetsSectionDiv = document.getElementById('datasetsSectionDiv');
-  this.datasetTable = document.getElementById('datasetTable');
-  this.downloadRecordsButton = document.getElementById('downloadRecordsButton');
-  this.trainModelButton = document.getElementById('trainModelButton');
+  /** @type {!fmltc.ListModels} */
+  this.listModels = listModels;
 
-  this.headerRowCount = this.datasetTable.rows.length;
+  this.datasetsTable = document.getElementById('datasetsTable');
+  this.downloadDatasetButton = document.getElementById('downloadDatasetButton');
+  this.startTrainingButton = document.getElementById('startTrainingButton');
+
+  this.headerRowCount = this.datasetsTable.rows.length;
 
   // Arrays with one element per dataset. Note that these need to be spliced in deleteButton_onclick.
   this.datasetEntityArray = [];
   this.checkboxes = [];
 
+  this.trainingStarting = false;
+
   this.retrieveDatasets();
   this.updateButtons();
 
-  this.downloadRecordsButton.onclick = this.downloadRecordsButton_onclick.bind(this);
-  this.trainModelButton.onclick = this.trainModelButton_onclick.bind(this);
+  this.downloadDatasetButton.onclick = this.downloadDatasetButton_onclick.bind(this);
+  this.startTrainingButton.onclick = this.startTrainingButton_onclick.bind(this);
 };
 
 fmltc.ListDatasets.prototype.retrieveDatasets = function() {
@@ -69,9 +74,6 @@ fmltc.ListDatasets.prototype.xhr_retrieveDatasetList_onreadystatechange = functi
       for (let i = 0; i < datasetEntityArray.length; i++) {
         this.addDataset(datasetEntityArray[i]);
       }
-      if (this.datasetEntityArray.length > 0) {
-        this.datasetsSectionDiv.style.display = 'block';
-      }
 
     } else {
       // TODO(lizlooney): handle error properly
@@ -84,7 +86,7 @@ fmltc.ListDatasets.prototype.addDataset = function(datasetEntity) {
   const i = this.datasetEntityArray.length;
   this.datasetEntityArray.push(datasetEntity);
 
-  const tr = this.datasetTable.insertRow(-1);
+  const tr = this.datasetsTable.insertRow(-1);
 
   const checkboxTd = tr.insertCell(-1);
   this.util.addClass(checkboxTd, 'cellWithBorder');
@@ -102,12 +104,12 @@ fmltc.ListDatasets.prototype.addDataset = function(datasetEntity) {
   deleteButton.onclick = this.deleteButton_onclick.bind(this, datasetEntity.dataset_uuid);
   deleteTd.appendChild(deleteButton);
 
-  const videoFilenameTd = tr.insertCell(-1);
-  this.util.addClass(videoFilenameTd, 'cellWithBorder');
-  if (datasetEntity.video_filename) {
-    videoFilenameTd.appendChild(document.createTextNode(datasetEntity.video_filename));
-  } else if (datasetEntity.video_filenames) {
-    videoFilenameTd.appendChild(document.createTextNode(datasetEntity.video_filenames.join(", ")));
+  const videoFilenamesTd = tr.insertCell(-1);
+  this.util.addClass(videoFilenamesTd, 'cellWithBorder');
+  for (let i = 0; i < datasetEntity.video_filenames.length; i++) {
+    const div = document.createElement('div');
+    div.textContent = datasetEntity.video_filenames[i];
+    videoFilenamesTd.appendChild(div);
   }
 
   const dateCreatedTd = tr.insertCell(-1);
@@ -152,21 +154,11 @@ fmltc.ListDatasets.prototype.addDataset = function(datasetEntity) {
 };
 
 fmltc.ListDatasets.prototype.addNewDataset = function(datasetEntity) {
-  const wasEmpty = (this.datasetEntityArray.length == 0);
   this.addDataset(datasetEntity);
-  if (wasEmpty && this.datasetEntityArray.length > 0) {
-    this.datasetsSectionDiv.style.display = 'block';
-  }
 }
 
 fmltc.ListDatasets.prototype.checkbox_onclick = function() {
   this.updateButtons();
-};
-
-fmltc.ListDatasets.prototype.updateButtons = function() {
-  const canTrainModel = this.canTrainModel();
-  this.downloadRecordsButton.disabled = !canTrainModel;
-  this.trainModelButton.disabled = !canTrainModel;
 };
 
 fmltc.ListDatasets.prototype.deleteButton_onclick = function(datasetUuid) {
@@ -176,11 +168,13 @@ fmltc.ListDatasets.prototype.deleteButton_onclick = function(datasetUuid) {
   const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
   xhr.open('POST', '/deleteDataset', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_deleteDataset_onreadystatechange.bind(this, xhr, params, datasetUuid);
+  xhr.onreadystatechange = this.xhr_deleteDataset_onreadystatechange.bind(this, xhr, params,
+      datasetUuid);
   xhr.send(params);
 };
 
-fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr, params, datasetUuid) {
+fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr, params,
+    datasetUuid) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -189,13 +183,11 @@ fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr
     if (xhr.status === 200) {
       const i = this.indexOfDataset(datasetUuid);
       if (i != -1) {
-        this.datasetTable.deleteRow(i + this.headerRowCount);
+        this.datasetsTable.deleteRow(i + this.headerRowCount);
         this.datasetEntityArray.splice(i, 1);
+        this.checkboxes[i].onclick = null;
         this.checkboxes.splice(i, 1);
         this.updateButtons();
-        if (this.datasetEntityArray.length == 0) {
-          this.datasetsSectionDiv.style.display = 'none';
-        }
       }
 
     } else {
@@ -214,7 +206,7 @@ fmltc.ListDatasets.prototype.indexOfDataset = function(datasetUuid) {
   return -1;
 };
 
-fmltc.ListDatasets.prototype.canTrainModel = function() {
+fmltc.ListDatasets.prototype.updateButtons = function() {
   let countChecked = 0;
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
@@ -224,7 +216,9 @@ fmltc.ListDatasets.prototype.canTrainModel = function() {
       }
     }
   }
-  return countChecked == 1;
+
+  this.downloadDatasetButton.disabled = this.trainingStarting || countChecked != 1;
+  this.startTrainingButton.disabled = this.trainingStarting || countChecked != 1;
 };
 
 fmltc.ListDatasets.prototype.getCheckedDatasetUuid = function() {
@@ -236,7 +230,7 @@ fmltc.ListDatasets.prototype.getCheckedDatasetUuid = function() {
   return '';
 };
 
-fmltc.ListDatasets.prototype.downloadRecordsButton_onclick = function() {
+fmltc.ListDatasets.prototype.downloadDatasetButton_onclick = function() {
   this.util.setWaitCursor();
 
   const datasetUuid = this.getCheckedDatasetUuid();
@@ -246,18 +240,22 @@ fmltc.ListDatasets.prototype.downloadRecordsButton_onclick = function() {
   const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
   xhr.open('POST', '/prepareToZipDataset', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_prepareToZipDataset_onreadystatechange.bind(this, xhr, params, downloadStartTime);
+  xhr.onreadystatechange = this.xhr_prepareToZipDataset_onreadystatechange.bind(this, xhr, params,
+      downloadStartTime);
   xhr.send(params);
 };
 
-fmltc.ListDatasets.prototype.xhr_prepareToZipDataset_onreadystatechange = function(xhr, params, downloadStartTime) {
+fmltc.ListDatasets.prototype.xhr_prepareToZipDataset_onreadystatechange = function(xhr, params,
+    downloadStartTime) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
       this.util.callHttpPerformAction(response.action_parameters, 0);
-      setTimeout(this.getDatasetZipStatus.bind(this, downloadStartTime, response.dataset_zip_uuid), 5000);
+      const partitionIndex = 0;
+      setTimeout(this.getDatasetZipStatus.bind(this,
+          downloadStartTime, response.dataset_zip_uuid, response.partition_count, partitionIndex), 30000);
 
     } else {
       // TODO(lizlooney): handle error properly
@@ -266,16 +264,20 @@ fmltc.ListDatasets.prototype.xhr_prepareToZipDataset_onreadystatechange = functi
   }
 };
 
-fmltc.ListDatasets.prototype.getDatasetZipStatus = function(downloadStartTime, datasetZipUuid) {
+fmltc.ListDatasets.prototype.getDatasetZipStatus = function(downloadStartTime, datasetZipUuid, partitionCount, partitionIndex) {
   const xhr = new XMLHttpRequest();
-  const params = 'dataset_zip_uuid=' + encodeURIComponent(datasetZipUuid);
+  const params =
+      'dataset_zip_uuid=' + encodeURIComponent(datasetZipUuid) +
+      '&partition_index=' + encodeURIComponent(partitionIndex);
   xhr.open('POST', '/getDatasetZipStatus', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_getDatasetZipStatus_onreadystatechange.bind(this, xhr, params, downloadStartTime, datasetZipUuid);
+  xhr.onreadystatechange = this.xhr_getDatasetZipStatus_onreadystatechange.bind(this, xhr, params,
+      downloadStartTime, datasetZipUuid, partitionCount, partitionIndex);
   xhr.send(params);
 };
 
-fmltc.ListDatasets.prototype.xhr_getDatasetZipStatus_onreadystatechange = function(xhr, params, downloadStartTime, datasetZipUuid) {
+fmltc.ListDatasets.prototype.xhr_getDatasetZipStatus_onreadystatechange = function(xhr, params,
+    downloadStartTime, datasetZipUuid, partitionCount, partitionIndex) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -283,9 +285,16 @@ fmltc.ListDatasets.prototype.xhr_getDatasetZipStatus_onreadystatechange = functi
       const response = JSON.parse(xhr.responseText);
 
       if (response.is_ready && response.download_url) {
-        this.retrieveDatasetZip(downloadStartTime, datasetZipUuid, response.download_url, 0);
+        this.retrieveDatasetZip(downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, response.download_url, 0);
+        partitionIndex++;
+        if (partitionIndex < partitionCount) {
+          // Get the next partition.
+          setTimeout(this.getDatasetZipStatus.bind(this,
+              downloadStartTime, datasetZipUuid, partitionCount, partitionIndex), 1000);
+        }
       } else {
-        setTimeout(this.getDatasetZipStatus.bind(this, downloadStartTime, datasetZipUuid), 5000);
+        setTimeout(this.getDatasetZipStatus.bind(this,
+            downloadStartTime, datasetZipUuid, partitionCount, partitionIndex), 5000);
       }
 
     } else {
@@ -295,90 +304,120 @@ fmltc.ListDatasets.prototype.xhr_getDatasetZipStatus_onreadystatechange = functi
   }
 };
 
-fmltc.ListDatasets.prototype.retrieveDatasetZip = function(downloadStartTime, datasetZipUuid, url, retryCount) {
+fmltc.ListDatasets.prototype.retrieveDatasetZip = function(
+    downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, url, failureCount) {
   const xhr = new XMLHttpRequest();
   xhr.open('GET', url, true);
   xhr.responseType = 'blob';
-  xhr.onreadystatechange = this.xhr_retrieveDatasetZip_onreadystatechange.bind(this, xhr, downloadStartTime, datasetZipUuid, url, retryCount);
+  xhr.onreadystatechange = this.xhr_retrieveDatasetZip_onreadystatechange.bind(this, xhr,
+      downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, url, failureCount);
   xhr.send(null);
 };
 
-fmltc.ListDatasets.prototype.xhr_retrieveDatasetZip_onreadystatechange = function(xhr, downloadStartTime, datasetZipUuid, url, retryCount) {
+fmltc.ListDatasets.prototype.xhr_retrieveDatasetZip_onreadystatechange = function(xhr,
+    downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, url, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
       const anchor = document.createElement('a');
       anchor.href = window.URL.createObjectURL(xhr.response);
-      anchor.download = 'dataset_' + this.util.getDateTimeString(downloadStartTime) + '.zip';
+      anchor.download = 'dataset_' + this.util.getDateTimeString(downloadStartTime) +
+          '_' + (partitionIndex + 1) + '_of_' + partitionCount + '.zip';
       anchor.click();
 
-      this.deleteDatasetZip(datasetZipUuid);
+      setTimeout(this.deleteDatasetZip.bind(this,
+          datasetZipUuid, partitionCount, partitionIndex, 0), 30000);
 
     } else {
-
-      console.log('Failure! ' + url + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      if (retryCount < 5) {
-        console.log('Will retry ' + url + ' in 1 seconds.');
-        setTimeout(this.retrieveDatasetZip.bind(this, downloadStartTime, datasetZipUuid, url, retryCount + 1), 1000);
+      failureCount++;
+      if (failureCount < 5) {
+        const delay = Math.pow(2, failureCount);
+        console.log('Will retry ' + url + ' in ' + delay + ' seconds.');
+        setTimeout(this.retrieveDatasetZip.bind(this,
+            downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, url, failureCount), delay * 1000);
       } else {
         // TODO(lizlooney): handle error properly. For now we delete the zip.
-        alert('Unable to download the dataset zip file.');
-        this.deleteDatasetZip(datasetZipUuid);
+        alert('Unable to download a dataset zip file.');
+        this.deleteDatasetZip(datasetZipUuid, partitionCount, partitionIndex, 0);
       }
     }
   }
 };
 
-fmltc.ListDatasets.prototype.deleteDatasetZip = function(datasetZipUuid) {
+fmltc.ListDatasets.prototype.deleteDatasetZip = function(datasetZipUuid, partitionCount, partitionIndex, failureCount) {
   const xhr = new XMLHttpRequest();
-  const params = 'dataset_zip_uuid=' + encodeURIComponent(datasetZipUuid);
+  const params =
+      'dataset_zip_uuid=' + encodeURIComponent(datasetZipUuid) +
+      '&partition_index=' + encodeURIComponent(partitionIndex);
   xhr.open('POST', '/deleteDatasetZip', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_deleteDatasetZip_onreadystatechange.bind(this, xhr, params);
+  xhr.onreadystatechange = this.xhr_deleteDatasetZip_onreadystatechange.bind(this, xhr, params,
+      datasetZipUuid, partitionCount, partitionIndex, failureCount);
   xhr.send(params);
 };
 
-fmltc.ListDatasets.prototype.xhr_deleteDatasetZip_onreadystatechange = function(xhr, params) {
+fmltc.ListDatasets.prototype.xhr_deleteDatasetZip_onreadystatechange = function(xhr, params,
+    datasetZipUuid, partitionCount, partitionIndex, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
-    this.util.clearWaitCursor();
-
     if (xhr.status === 200) {
+      if (partitionIndex == partitionCount - 1) {
+        this.util.clearWaitCursor();
+      }
 
     } else {
-      // TODO(lizlooney): handle error properly
-      console.log('Failure! /deleteDatasetZip?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      failureCount++;
+      if (failureCount < 5) {
+        const delay = Math.pow(2, failureCount);
+        console.log('Will retry /deleteDatasetZip in ' + delay + ' seconds.');
+        setTimeout(this.deleteDatasetZip.bind(this,
+            datasetZipUuid, partitionCount, partitionIndex, failureCount), delay * 1000);
+      } else {
+        // TODO(lizlooney): handle error properly
+        console.log('Unable to delete a dataset zip file.')
+        if (partitionIndex == partitionCount - 1) {
+          this.util.clearWaitCursor();
+        }
+      }
     }
   }
 };
 
-fmltc.ListDatasets.prototype.trainModelButton_onclick = function() {
+fmltc.ListDatasets.prototype.startTrainingButton_onclick = function() {
+  this.trainingStarting = true;
+  this.updateButtons();
+
   const datasetUuid = this.getCheckedDatasetUuid();
-  const modelStartTime = Date.now();
 
   const xhr = new XMLHttpRequest();
-  const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
-  xhr.open('POST', '/prepareToTrainModel', true);
+  const params =
+      'dataset_uuid=' + encodeURIComponent(datasetUuid) +
+      '&start_time_ms=' + Date.now();
+  xhr.open('POST', '/startTrainingModel', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_prepareToTrainModel_onreadystatechange.bind(this, xhr, params);
+  xhr.onreadystatechange = this.xhr_startTrainingModel_onreadystatechange.bind(this, xhr, params);
   xhr.send(params);
 };
 
-fmltc.ListDatasets.prototype.xhr_prepareToTrainModel_onreadystatechange = function(xhr, params) {
+fmltc.ListDatasets.prototype.xhr_startTrainingModel_onreadystatechange = function(xhr, params) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      console.log('Success! /prepareToTrainModel');
+      console.log('Success! /startTrainingModel');
       const response = JSON.parse(xhr.responseText);
-      this.util.callHttpPerformAction(response.action_parameters, 0);
-      // TODO(lizlooney): check status of response.model_uuid
+      const modelEntity = response.model_entity;
+      this.listModels.addNewModel(modelEntity);
+      this.util.showModelsTab();
+
+      this.trainingStarting = false;
+      this.updateButtons();
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /prepareToTrainModel?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /startTrainingModel?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };

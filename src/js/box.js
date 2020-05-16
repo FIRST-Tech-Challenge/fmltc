@@ -128,3 +128,10 @@ fmltc.Box.prototype.getResizeHotspot = function(point, scale) {
   }
   return 0;
 };
+
+/**
+ * Returns true if the box is empty.
+ */
+fmltc.Box.prototype.isEmpty = function() {
+  return this.x1 == this.x2 && this.y1 == this.y2;
+};

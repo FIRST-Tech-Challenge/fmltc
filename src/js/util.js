@@ -29,6 +29,8 @@ goog.provide('fmltc.Util');
 fmltc.Util = function(httpPerformActionUrl, preferences) {
   this.httpPerformActionUrl = httpPerformActionUrl;
   this.preferences = preferences;
+
+  this.initializeTabs();
 };
 
 fmltc.Util.prototype.getPreference = function(key, defaultValue) {
@@ -39,6 +41,9 @@ fmltc.Util.prototype.getPreference = function(key, defaultValue) {
 };
 
 fmltc.Util.prototype.setPreference = function(key, value) {
+  if (this.preferences[key] == value) {
+    return;
+  }
   this.preferences[key] = value;
 
   const xhr = new XMLHttpRequest();
@@ -47,7 +52,7 @@ fmltc.Util.prototype.setPreference = function(key, value) {
       '&value=' + encodeURIComponent(value);
   xhr.open('POST', '/setUserPreference', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_setUserPreference_onreadystatechange.bind(this, xhr);
+  xhr.onreadystatechange = this.xhr_setUserPreference_onreadystatechange.bind(this, xhr, params);
   xhr.send(params);
 };
 
@@ -56,7 +61,7 @@ fmltc.Util.prototype.xhr_setUserPreference_onreadystatechange = function(xhr, pa
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      console.log('Success! /setUserPreferences');
+      //console.log('Success! /setUserPreferences');
     } else {
       // TODO(lizlooney): handle error properly
       console.log('Failure! /setUserPreferences?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
@@ -139,24 +144,79 @@ fmltc.Util.prototype.callHttpPerformAction = function(actionParameters, retryCou
   const xhr = new XMLHttpRequest();
   xhr.open('POST', this.httpPerformActionUrl, true);
   xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.onreadystatechange = this.xhr_httpPerformAction_onreadystatechange.bind(this, xhr, actionParameters, retryCount);
+  xhr.onreadystatechange = this.xhr_httpPerformAction_onreadystatechange.bind(this, xhr,
+      actionParameters, retryCount);
+  console.log('Sending action "' + actionParameters.action_name + '".')
   xhr.send(JSON.stringify(actionParameters));
 };
 
-fmltc.Util.prototype.xhr_httpPerformAction_onreadystatechange = function(xhr, actionParameters, retryCount) {
+fmltc.Util.prototype.xhr_httpPerformAction_onreadystatechange = function(xhr,
+    actionParameters, retryCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
       // Success.
+      console.log('Action "' + actionParameters.action_name + '" was successful.')
     } else {
       // TODO(lizlooney): handle error properly. Currently we try again, but that might not be the best idea.
       console.log('Failure! calling http_perform_action xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      console.log('actionParameters is ' + JSON.stringify(actionParameters));
+      console.log('Action ' + actionParameters.action_name + ' failed.')
       //if (retryCount < 3) {
       //  console.log('Will retry http_perform_action in 1 second.');
       //  setTimeout(this.callHttpPerformAction.bind(this, actionParameters, retryCount + 1), 1000);
       //}
     }
   }
+};
+
+fmltc.Util.prototype.initializeTabs = function() {
+  let foundTabs = false;
+  const tabButtons = document.getElementsByClassName('tabButton');
+  for (let i = 0; i < tabButtons.length; i++) {
+    const id = tabButtons[i].id;
+    // The id should end with Button.
+    if (!id.endsWith('Button')) {
+      console.log('Error: tabButton with id "' + id + '" should end with "Button".');
+    }
+    foundTabs = true;
+    const idPrefix = id.substring(0, id.length - 'Button'.length);
+    tabButtons[i].onclick = this.tabDiv_onclick.bind(this, idPrefix);
+  }
+
+  if (foundTabs) {
+    const currentTabIdPrefix = this.getPreference('currentTab', 'videosTab');
+    this.tabDiv_onclick(currentTabIdPrefix);
+  }
+};
+
+fmltc.Util.prototype.showVideosTab = function() {
+  this.tabDiv_onclick('videosTab');
+};
+
+fmltc.Util.prototype.showDatasetsTab = function() {
+  this.tabDiv_onclick('datasetsTab');
+};
+
+fmltc.Util.prototype.showModelsTab = function() {
+  this.tabDiv_onclick('modelsTab');
+};
+
+fmltc.Util.prototype.tabDiv_onclick = function(idPrefix) {
+  // Hide all the tabDivs.
+  const tabDivs = document.getElementsByClassName('tabDiv');
+  for (let i = 0; i < tabDivs.length; i++) {
+    tabDivs[i].style.display = 'none';
+  }
+
+  // Remove the class "active" from all tabButtons.
+  const tabButtons = document.getElementsByClassName('tabButton');
+  for (let i = 0; i < tabButtons.length; i++) {
+    tabButtons[i].className = tabButtons[i].className.replace(' active', '');
+  }
+
+  // Show the current tabDiv, and add an 'active' class to the current tabButton.
+  document.getElementById(idPrefix + 'Div').style.display = 'block';
+  document.getElementById(idPrefix + 'Button').className += ' active';
+  this.setPreference('currentTab', idPrefix);
 };

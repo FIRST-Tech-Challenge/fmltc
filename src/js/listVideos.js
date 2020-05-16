@@ -38,12 +38,13 @@ fmltc.ListVideos = function(util, listDatasets) {
   this.util = util;
   /** @type {!fmltc.ListDatasets} */
   this.listDatasets = listDatasets;
-  this.videosSectionDiv = document.getElementById('videosSectionDiv');
-  this.videoTable = document.getElementById('videoTable');
+
+  this.videosListDiv = document.getElementById('videosListDiv');
+  this.videosTable = document.getElementById('videosTable');
   this.videoCheckboxAll = document.getElementById('videoCheckboxAll');
   this.produceDatasetButton = document.getElementById('produceDatasetButton');
 
-  this.headerRowCount = this.videoTable.rows.length;
+  this.headerRowCount = this.videosTable.rows.length;
 
   // Arrays with one element per video. Note that these need to be spliced in deleteButton_onclick.
   this.videoEntityArray = [];
@@ -89,7 +90,7 @@ fmltc.ListVideos.prototype.xhr_retrieveVideoList_onreadystatechange = function(x
         this.onVideoEntityUpdated(videoEntityArray[i]);
       }
       if (this.videoEntityArray.length > 0) {
-        this.videosSectionDiv.style.display = 'block';
+        this.videosListDiv.style.display = 'block';
       }
 
     } else {
@@ -108,7 +109,7 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     i = this.videoEntityArray.length;
     this.videoEntityArray.push(videoEntity);
 
-    const tr = this.videoTable.insertRow(-1);
+    const tr = this.videosTable.insertRow(-1);
     this.trs[i] = tr;
 
     const checkboxTd = tr.insertCell(-1);
@@ -247,36 +248,38 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
       videoFilenameA.appendChild(document.createTextNode(videoEntity.video_filename));
       this.videoFilenameTds[i].replaceChild(videoFilenameA, videoFilenameElement);
     }
-  } else {
-    if (this.isFrameExtractionStalled(videoEntity, i)) {
-      this.trs[i].className = 'frameExtractionStalled';
-      this.triggerFrameExtractionButtons[i].disabled = false;
-      this.triggerFrameExtractionButtons[i].style.display = 'inline-block';
 
-    } else {
-      this.trs[i].className = 'frameExtractionIncomplete';
-      setTimeout(this.retrieveVideoEntity.bind(this, videoEntity.video_uuid, true), 1000);
-    }
+  } else if (this.didFrameExtractionFailToStart(videoEntity)) {
+    this.triggerFrameExtractionButton_onclick(videoEntity.video_uuid);
+
+  } else if (this.isFrameExtractionStalled(videoEntity)) {
+    this.triggerFrameExtractionButton_onclick(videoEntity.video_uuid);
+
+  } else {
+    this.trs[i].className = 'frameExtractionIncomplete';
+    setTimeout(this.retrieveVideoEntity.bind(this, videoEntity.video_uuid, true), 1000);
   }
 };
 
-fmltc.ListVideos.prototype.isFrameExtractionStalled = function(videoEntity) {
-  if (videoEntity.frame_extractor_active_time_utc_ms == 0) {
-    return false;
-  }
-  if (videoEntity.frame_extractor_triggered_time_utc_ms != 0) {
+fmltc.ListVideos.prototype.didFrameExtractionFailToStart = function(videoEntity) {
+  if (videoEntity.frame_extractor_triggered_time_utc_ms != 0 &&
+      videoEntity.frame_extractor_active_time_utc_ms == 0) {
     const minutesSinceFrameExtractorWasTriggered = (Date.now() - videoEntity.frame_extractor_triggered_time_utc_ms) / 60000;
-    if (minutesSinceFrameExtractorWasTriggered < 3) {
-      return false;
+    if (minutesSinceFrameExtractorWasTriggered > 3) {
+      return true;
     }
   }
-  const minutesSinceFrameExtractorWasActive = (Date.now() - videoEntity.frame_extractor_active_time_utc_ms) / 60000;
-  if (minutesSinceFrameExtractorWasActive < 3) {
-    return false;
+  return false;
+};
+
+fmltc.ListVideos.prototype.isFrameExtractionStalled = function(videoEntity) {
+  if (videoEntity.frame_extractor_active_time_utc_ms != 0) {
+    const minutesSinceFrameExtractorWasActive = (Date.now() - videoEntity.frame_extractor_active_time_utc_ms) / 60000;
+    if (minutesSinceFrameExtractorWasActive > 3) {
+      return true;
+    }
   }
-  console.log("Frame extraction has stalled. Frame extractor was active " +
-      minutesSinceFrameExtractorWasActive + " minutes ago.");
-  return true;
+  return false;
 };
 
 fmltc.ListVideos.prototype.retrieveVideoEntity = function(videoUuid, checkDeleted) {
@@ -289,11 +292,13 @@ fmltc.ListVideos.prototype.retrieveVideoEntity = function(videoUuid, checkDelete
   const params = 'video_uuid=' + encodeURIComponent(videoUuid);
   xhr.open('POST', '/retrieveVideo', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveVideo_onreadystatechange.bind(this, xhr, params, videoUuid, checkDeleted);
+  xhr.onreadystatechange = this.xhr_retrieveVideo_onreadystatechange.bind(this, xhr, params,
+      videoUuid, checkDeleted);
   xhr.send(params);
 };
 
-fmltc.ListVideos.prototype.xhr_retrieveVideo_onreadystatechange = function(xhr, params, videoUuid, checkDeleted) {
+fmltc.ListVideos.prototype.xhr_retrieveVideo_onreadystatechange = function(xhr, params,
+    videoUuid, checkDeleted) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -307,7 +312,7 @@ fmltc.ListVideos.prototype.xhr_retrieveVideo_onreadystatechange = function(xhr, 
       const videoEntity = response.video_entity;
       this.onVideoEntityUpdated(videoEntity);
       if (this.videoEntityArray.length > 0) {
-        this.videosSectionDiv.style.display = 'block';
+        this.videosListDiv.style.display = 'block';
       }
 
     } else {
@@ -376,11 +381,13 @@ fmltc.ListVideos.prototype.deleteButton_onclick = function(videoUuid) {
   const params = 'video_uuid=' + encodeURIComponent(videoUuid);
   xhr.open('POST', '/deleteVideo', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_deleteVideo_onreadystatechange.bind(this, xhr, params, videoUuid);
+  xhr.onreadystatechange = this.xhr_deleteVideo_onreadystatechange.bind(this, xhr, params,
+      videoUuid);
   xhr.send(params);
 };
 
-fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, params, videoUuid) {
+fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, params,
+    videoUuid) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -389,7 +396,7 @@ fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, pa
     if (xhr.status === 200) {
       const i = this.indexOfVideo(videoUuid);
       if (i != -1) {
-        this.videoTable.deleteRow(i + this.headerRowCount);
+        this.videosTable.deleteRow(i + this.headerRowCount);
         this.videoEntityArray.splice(i, 1);
         this.checkboxes[i].onclick = null
         this.checkboxes.splice(i, 1);
@@ -406,7 +413,7 @@ fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, pa
         this.extractedFrameCountSpans.splice(i, 1);
         this.excludedFrameCountSpans.splice(i, 1);
         if (this.videoEntityArray.length == 0) {
-          this.videosSectionDiv.style.display = 'none';
+          this.videosListDiv.style.display = 'none';
         }
       }
 
@@ -427,12 +434,14 @@ fmltc.ListVideos.prototype.triggerFrameExtractionButton_onclick = function(video
     const params = 'video_uuid=' + encodeURIComponent(videoUuid);
     xhr.open('POST', '/triggerFrameExtraction', true);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    xhr.onreadystatechange = this.xhr_triggerFrameExtraction_onreadystatechange.bind(this, xhr, params, videoUuid);
+    xhr.onreadystatechange = this.xhr_triggerFrameExtraction_onreadystatechange.bind(this, xhr, params,
+        videoUuid);
     xhr.send(params);
   }
 };
 
-fmltc.ListVideos.prototype.xhr_triggerFrameExtraction_onreadystatechange = function(xhr, params, videoUuid) {
+fmltc.ListVideos.prototype.xhr_triggerFrameExtraction_onreadystatechange = function(xhr, params,
+    videoUuid) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -480,4 +489,5 @@ fmltc.ListVideos.prototype.produceDatasetButton_onclick = function() {
 
 fmltc.ListVideos.prototype.onDatasetProduced = function(datasetEntity) {
   this.listDatasets.addNewDataset(datasetEntity);
+  this.util.showDatasetsTab();
 };

@@ -176,11 +176,13 @@ fmltc.UploadVideoFileDialog.prototype.uploadVideoFile = function(signedUrl, vide
   const xhr = new XMLHttpRequest();
   xhr.open('PUT', signedUrl, true);
   xhr.setRequestHeader('Content-Type', this.videoFile.type);
-  xhr.onreadystatechange = this.xhr_uploadVideoFile_onreadystatechange.bind(this, xhr, videoUuid);
+  xhr.onreadystatechange = this.xhr_uploadVideoFile_onreadystatechange.bind(this, xhr,
+      videoUuid);
   xhr.send(this.videoFile);
 };
 
-fmltc.UploadVideoFileDialog.prototype.xhr_uploadVideoFile_onreadystatechange = function(xhr, videoUuid) {
+fmltc.UploadVideoFileDialog.prototype.xhr_uploadVideoFile_onreadystatechange = function(xhr,
+    videoUuid) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
