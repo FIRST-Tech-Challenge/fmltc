@@ -17,9 +17,6 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 import logging
 
-# Other Modules
-import google.cloud.storage
-
 # My Modules
 import constants
 import storage
@@ -36,6 +33,7 @@ def clear(session):
     session.pop('program', None)
     session.pop('team_number', None)
     session.pop('team_code', None)
+    session.pop('team_uuid', None)
 
 def validate_team_info(session):
     program = session.get('program')
@@ -48,7 +46,7 @@ def validate_team_info(session):
     return False
 
 def __validate_team_info(program, team_number, team_code):
-    bucket = google.cloud.storage.Client.from_service_account_json('key.json').get_bucket(BUCKET)
+    bucket = util.storage_client().get_bucket(BUCKET)
     teams = bucket.blob('team_info/teams').download_as_string().decode('utf-8')
     for line in teams.split('\n'):
         line = line.strip()
@@ -69,7 +67,11 @@ def retrieve_team_number(session):
     return session.get('team_number', '')
 
 def retrieve_team_uuid(session, request):
+    if 'team_uuid' in session:
+        return session['team_uuid']
     program = session['program']
     team_number = session['team_number']
     team_code = session['team_code']
-    return storage.retrieve_team_uuid(program, team_number, team_code, request.path)
+    team_uuid = storage.retrieve_team_uuid(program, team_number, team_code, request.path)
+    session['team_uuid'] = team_uuid
+    return team_uuid

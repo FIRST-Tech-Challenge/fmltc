@@ -16,11 +16,9 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
 from datetime import datetime, timedelta
+import json
 import os
 import uuid
-
-# Other Modules
-import google.cloud.storage
 
 # My Modules
 import constants
@@ -30,22 +28,19 @@ BUCKET_BLOBS = ('%s-blobs' % constants.PROJECT_ID)
 
 # blob storage
 
-def __storage_client():
-    return google.cloud.storage.Client.from_service_account_json('key.json')
-
 def __retrieve_blob(blob_name):
-    blob = __storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
+    blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
     return blob.download_as_string()
 
 def __write_blob_to_file(blob_name, filename):
-    blob = __storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
+    blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
     if blob.exists():
         blob.download_to_filename(filename)
         return True
     return False
 
 def __write_file_to_blob(blob_name, filename, content_type):
-    blob = __storage_client().bucket(BUCKET_BLOBS).blob(blob_name)
+    blob = util.storage_client().bucket(BUCKET_BLOBS).blob(blob_name)
     # Retry up to 5 times.
     retry = 0
     while retry < 5:
@@ -56,7 +51,7 @@ def __write_file_to_blob(blob_name, filename, content_type):
             retry += 1
 
 def __write_string_to_blob(blob_name, s, content_type):
-    blob = __storage_client().bucket(BUCKET_BLOBS).blob(blob_name)
+    blob = util.storage_client().bucket(BUCKET_BLOBS).blob(blob_name)
     # Retry up to 5 times.
     retry = 0
     while retry < 5:
@@ -67,7 +62,7 @@ def __write_string_to_blob(blob_name, s, content_type):
             retry += 1
 
 def __delete_blob(blob_name):
-    blob = __storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
+    blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
     if blob.exists():
         blob.delete()
         return True
@@ -75,20 +70,20 @@ def __delete_blob(blob_name):
 
 def __delete_blobs(blob_names):
     # Ignore 404 errors on delete.
-    bucket = __storage_client().get_bucket(BUCKET_BLOBS)
+    bucket = util.storage_client().get_bucket(BUCKET_BLOBS)
     bucket.delete_blobs(blob_names, on_error=lambda blob: None)
     
 # video files
 
-def prepare_to_upload_video(video_uuid, content_type):
-    video_blob_name = 'video_files/%s' % video_uuid
-    bucket = __storage_client().bucket(BUCKET_BLOBS)
+def prepare_to_upload_video(team_uuid, video_uuid, content_type):
+    video_blob_name = 'video_files/%s/%s' % (team_uuid, video_uuid)
+    bucket = util.storage_client().bucket(BUCKET_BLOBS)
     policies = bucket.cors
     if len(policies) == 0:
-        policies.append({'origin': ['https://%s.appspot.com' % constants.PROJECT_ID]})
+        policies.append({'origin': [constants.ORIGIN]})
         policies[0]['responseHeader'] = ['Content-Type']
         policies[0]['method'] = ['PUT']
-        policies[0]['maxAgeSeconds'] = 3600 # Change to 300?
+        policies[0]['maxAgeSeconds'] = 3600
         bucket.cors = policies
         bucket.update()
     expires_at_datetime = datetime.now() + timedelta(minutes=5)
@@ -107,8 +102,8 @@ def delete_video_blob(video_blob_name):
 
 # video frame images
 
-def store_video_frame_image(video_uuid, frame_number, content_type, image):
-    image_blob_name = 'image_files/%s/%05d' % (video_uuid, frame_number)
+def store_video_frame_image(team_uuid, video_uuid, frame_number, content_type, image):
+    image_blob_name = 'image_files/%s/%s/%05d' % (team_uuid, video_uuid, frame_number)
     __write_string_to_blob(image_blob_name, image, content_type)
     return image_blob_name
 
@@ -116,13 +111,13 @@ def retrieve_video_frame_image(image_blob_name):
     return __retrieve_blob(image_blob_name)
 
 def get_image_urls(image_blob_names):
-    bucket = __storage_client().bucket(BUCKET_BLOBS)
+    bucket = util.storage_client().bucket(BUCKET_BLOBS)
     policies = bucket.cors
     if len(policies) == 0:
-        policies.append({'origin': ['https://%s.appspot.com' % constants.PROJECT_ID]})
+        policies.append({'origin': [constants.ORIGIN]})
         policies[0]['responseHeader'] = ['Content-Type']
         policies[0]['method'] = ['GET']
-        policies[0]['maxAgeSeconds'] = 600
+        policies[0]['maxAgeSeconds'] = 3600
         bucket.cors = policies
         bucket.update()
     expires_at_datetime = datetime.now() + timedelta(minutes=10)
@@ -140,55 +135,88 @@ def delete_video_frame_images(image_blob_names):
 def get_dataset_folder(team_uuid, dataset_uuid):
     return 'tf_records/%s/%s' % (team_uuid, dataset_uuid)
 
+def get_dataset_folder_path(team_uuid, dataset_uuid):
+    return 'gs://%s/%s' % (BUCKET_BLOBS, get_dataset_folder(team_uuid, dataset_uuid))
+
 def store_dataset_label_pbtxt(team_uuid, dataset_uuid, sorted_label_list):
     label_pbtxt = util.make_label_pbtxt(sorted_label_list)
     label_pbtxt_blob_name = '%s/label.pbtxt' % get_dataset_folder(team_uuid, dataset_uuid)
+    label_pbtxt_path = '%s/label.pbtxt' % get_dataset_folder_path(team_uuid, dataset_uuid)
     __write_string_to_blob(label_pbtxt_blob_name, label_pbtxt, 'text/plain')
-    return label_pbtxt_blob_name
+    return label_pbtxt_blob_name, label_pbtxt_path
 
-def retrieve_dataset_label_pbtxt(label_pbtxt_blob_name):
-    return __retrieve_blob(label_pbtxt_blob_name)
-
-def delete_dataset_label_pbtxt(label_pbtxt_blob_name):
-    __delete_blob(label_pbtxt_blob_name)
-
-def store_dataset_record(team_uuid, dataset_uuid, record_id, record_filename):
-    tf_record_blob_name = '%s/%s.record' % (get_dataset_folder(team_uuid, dataset_uuid), record_id)
-    __write_file_to_blob(tf_record_blob_name, record_filename, 'application/octet-stream')
+def store_dataset_record(team_uuid, dataset_uuid, record_id, temp_record_filename):
+    tf_record_blob_name = '%s/%s' % (get_dataset_folder(team_uuid, dataset_uuid), record_id)
+    __write_file_to_blob(tf_record_blob_name, temp_record_filename, 'application/octet-stream')
     return tf_record_blob_name
 
-def retrieve_dataset_record(dataset_record_blob_name):
-    return __retrieve_blob(dataset_record_blob_name)
+def store_debug_info(team_uuid, dataset_uuid, record_id, debug_info):
+    blob_name = 'debug_info/%s/%s/%s' % (team_uuid, dataset_uuid, record_id)
+    __write_string_to_blob(blob_name, json.dumps(debug_info), 'application/json')
+    return blob_name
 
-def delete_dataset_records(blob_names):
+def retrieve_dataset_blob(blob_name):
+    return __retrieve_blob(blob_name)
+
+def delete_dataset_blob(blob_name):
+    __delete_blob(blob_name)
+
+def delete_dataset_blobs(blob_names):
     __delete_blobs(blob_names)
 
 # dataset zips
 
-def store_dataset_zip(team_uuid, dataset_zip_uuid, zip_data):
-    dataset_zip_blob_name = 'dataset_zips/%s/%s' % (team_uuid, dataset_zip_uuid)
-    __write_string_to_blob(dataset_zip_blob_name, zip_data, 'application/zip')
-    return dataset_zip_blob_name
+def __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index):
+    return 'dataset_zips/%s/%s/%s' % (team_uuid, dataset_zip_uuid, partition_index)
 
-def get_dataset_zip_status(team_uuid, dataset_zip_uuid):
-    dataset_zip_blob_name = 'dataset_zips/%s/%s' % (team_uuid, dataset_zip_uuid)
-    bucket = __storage_client().bucket(BUCKET_BLOBS)
-    blob = bucket.blob(dataset_zip_blob_name)
+def store_dataset_zip(team_uuid, dataset_zip_uuid, partition_index, zip_data):
+    blob_name = __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index)
+    __write_string_to_blob(blob_name, zip_data, 'application/zip')
+    return blob_name
+
+def get_dataset_zip_status(team_uuid, dataset_zip_uuid, partition_index):
+    blob_name = __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index)
+    bucket = util.storage_client().bucket(BUCKET_BLOBS)
+    blob = bucket.blob(blob_name)
     if not blob.exists():
         return False, ''
     policies = bucket.cors
     if len(policies) == 0:
-        policies.append({'origin': ['https://%s.appspot.com' % constants.PROJECT_ID]})
+        policies.append({'origin': [constants.ORIGIN]})
         policies[0]['responseHeader'] = ['Content-Type']
         policies[0]['method'] = ['GET']
-        policies[0]['maxAgeSeconds'] = 600
+        policies[0]['maxAgeSeconds'] = 3600
         bucket.cors = policies
         bucket.update()
     expires_at_datetime = datetime.now() + timedelta(minutes=10)
     signed_url = blob.generate_signed_url(expires_at_datetime, method='GET')
     return True, signed_url
 
-def delete_dataset_zip(team_uuid, dataset_zip_uuid):
-    dataset_zip_blob_name = 'dataset_zips/%s/%s' % (team_uuid, dataset_zip_uuid)
-    __delete_blob(dataset_zip_blob_name)
+def delete_dataset_zip(team_uuid, dataset_zip_uuid, partition_index):
+    blob_name = __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index)
+    __delete_blob(blob_name)
 
+# models
+
+def __get_model_folder(team_uuid, model_uuid):
+    return 'models/%s/%s' % (team_uuid, model_uuid)
+
+def __get_pipeline_config_blob_name(team_uuid, model_uuid):
+    return '%s/%s' % (__get_model_folder(team_uuid, model_uuid), 'pipeline.config')
+
+def get_pipeline_config_path(team_uuid, model_uuid):
+    return 'gs://%s/%s' % (BUCKET_BLOBS, __get_pipeline_config_blob_name(team_uuid, model_uuid))
+
+def store_pipeline_config(team_uuid, model_uuid, pipeline_config):
+    pipeline_config_blob_name = __get_pipeline_config_blob_name(team_uuid, model_uuid)
+    __write_string_to_blob(pipeline_config_blob_name, pipeline_config, 'text/plain')
+    return get_pipeline_config_path(team_uuid, model_uuid)
+
+def get_model_folder_path(team_uuid, model_uuid):
+    return 'gs://%s/%s' % (BUCKET_BLOBS, __get_model_folder(team_uuid, model_uuid))
+
+def delete_model_blobs(team_uuid, model_uuid):
+    client = util.storage_client()
+    prefix = '%s/' % __get_model_folder(team_uuid, model_uuid)
+    for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
+        __delete_blob(blob.name)

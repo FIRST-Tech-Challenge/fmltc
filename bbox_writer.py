@@ -63,10 +63,10 @@ def __convert_rects_to_bboxes(rects):
     return bboxes
 
 
-def __convert_text_to_rects_and_labels(bboxes_text):
+def convert_text_to_rects_and_labels(bboxes_text):
     rects = []
     labels = []
-    lines = bboxes_text.split("\n")    
+    lines = bboxes_text.split("\n")
     for line in lines:
         try:
             *rect, label = line.strip().split(",")
@@ -80,7 +80,7 @@ def __convert_text_to_rects_and_labels(bboxes_text):
 
 
 def __convert_text_to_bboxes_and_labels(bboxes_text):
-    rects, labels = __convert_text_to_rects_and_labels(bboxes_text)
+    rects, labels = convert_text_to_rects_and_labels(bboxes_text)
     bboxes = __convert_rects_to_bboxes(rects)
     return bboxes, labels
 
@@ -108,8 +108,16 @@ def parse_bboxes_text(bboxes_text, scale=1):
     return bboxes, labels
 
 
-def parse_bboxes_text_to_labels(bboxes_text):
-    _, labels = __convert_text_to_bboxes_and_labels(bboxes_text)
+def extract_labels(bboxes_text):
+    labels = []
+    lines = bboxes_text.split("\n")
+    for line in lines:
+        try:
+            *rect, label = line.strip().split(",")
+            assert(len(rect) == 4)
+            labels.append(label)
+        except Exception as e:
+            continue
     return labels
 
 

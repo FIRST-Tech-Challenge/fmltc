@@ -30,8 +30,8 @@ import uuid
 # Other Modules
 import cv2
 import PIL.Image
-import numpy as np
 import tensorflow as tf
+import dataset_util
 
 # My Modules
 import action
@@ -48,10 +48,29 @@ Split = collections.namedtuple('Split', [
 
 # NamedTuple for frame data.
 FrameData = collections.namedtuple('FrameData', [
-    'png_filename', 'png_image', 'bboxes_text'])
+    'video_filename', 'frame_number', 'filename', 'image', 'format', 'bboxes_text'])
 
 
-def start_dataset_production(team_uuid, video_uuids_json, eval_percent, start_time_ms):
+def prepare_to_start_dataset_production(team_uuid, eval_percent, start_time_ms):
+    dataset_uuid = storage.prepare_to_start_dataset_production(team_uuid, eval_percent, start_time_ms)
+    return dataset_uuid
+
+def make_action_parameters(team_uuid, dataset_uuid, video_uuids_json, eval_percent, start_time_ms):
+    action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCE)
+    action_parameters['team_uuid'] = team_uuid
+    action_parameters['dataset_uuid'] = dataset_uuid
+    action_parameters['video_uuids_json'] = video_uuids_json
+    action_parameters['eval_percent'] = eval_percent
+    action_parameters['start_time_ms'] = start_time_ms
+    return action_parameters
+
+def produce_dataset(action_parameters, time_limit, active_memory_limit):
+    team_uuid = action_parameters['team_uuid']
+    dataset_uuid = action_parameters['dataset_uuid']
+    video_uuids_json = action_parameters['video_uuids_json']
+    eval_percent = action_parameters['eval_percent']
+    start_time_ms = action_parameters['start_time_ms']
+
     video_uuid_list = json.loads(video_uuids_json)
     if len(video_uuid_list) == 0:
         message = "Error: No videos to process."
@@ -88,15 +107,15 @@ def start_dataset_production(team_uuid, video_uuids_json, eval_percent, start_ti
         label_set.update(split.label_set)
 
     sorted_label_list = sorted(label_set)
-    len_longest_record_number = len(str(max(train_record_count - 1, eval_record_count - 1)))
-    num_digits = max(len_longest_record_number, 2)
-    train_record_id_format = 'train-%%0%dd' % num_digits
-    eval_record_id_format = 'eval-%%0%dd' % num_digits
-    wildcards = '?' * num_digits
+    train_record_id_format = 'train_dataset.record-%05d-%05d'
+    train_input_path = 'train_dataset.record-?????-%05d' % train_record_count
+    eval_record_id_format = 'eval_dataset.record-%05d-%05d'
+    eval_input_path = 'eval_dataset.record-?????-%05d' % eval_record_count
 
-    dataset_uuid = storage.dataset_producer_starting(
-        team_uuid, video_filenames, eval_percent, start_time_ms, wildcards,
-        train_frame_count, train_record_count, eval_frame_count, eval_record_count, sorted_label_list)
+    storage.dataset_producer_starting(
+        team_uuid, dataset_uuid, video_filenames, sorted_label_list,
+        train_frame_count, train_record_count, train_input_path,
+        eval_frame_count, eval_record_count, eval_input_path)
 
     record_number = 0
     train_record_number = 0
@@ -106,7 +125,7 @@ def start_dataset_production(team_uuid, video_uuids_json, eval_percent, start_ti
     for video_entity in video_entities:
         video_uuid = video_entity['video_uuid']
         split = dict_video_uuid_to_split[video_uuid]
-        action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCTION)
+        action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCE_RECORD)
         action_parameters['team_uuid'] = team_uuid
         action_parameters['dataset_uuid'] = dataset_uuid
         action_parameters['video_uuid'] = video_uuid
@@ -115,7 +134,7 @@ def start_dataset_production(team_uuid, video_uuids_json, eval_percent, start_ti
             action_parameters_copy = action_parameters.copy()
             action_parameters_copy['frame_number_list'] = train_frame_number_list
             action_parameters_copy['record_number'] = record_number
-            action_parameters_copy['record_id'] = train_record_id_format % train_record_number
+            action_parameters_copy['record_id'] = train_record_id_format % (train_record_number, train_record_count)
             action_parameters_copy['is_eval'] = False
             action.trigger_action_via_blob(action_parameters_copy)
             train_record_number += 1
@@ -125,7 +144,7 @@ def start_dataset_production(team_uuid, video_uuids_json, eval_percent, start_ti
     for video_entity in video_entities:
         video_uuid = video_entity['video_uuid']
         split = dict_video_uuid_to_split[video_uuid]
-        action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCTION)
+        action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCE_RECORD)
         action_parameters['team_uuid'] = team_uuid
         action_parameters['dataset_uuid'] = dataset_uuid
         action_parameters['video_uuid'] = video_uuid
@@ -134,12 +153,11 @@ def start_dataset_production(team_uuid, video_uuids_json, eval_percent, start_ti
             action_parameters_copy = action_parameters.copy()
             action_parameters_copy['frame_number_list'] = eval_frame_number_list
             action_parameters_copy['record_number'] = record_number
-            action_parameters_copy['record_id'] = eval_record_id_format % eval_record_number
+            action_parameters_copy['record_id'] = eval_record_id_format % (eval_record_number, eval_record_count)
             action_parameters_copy['is_eval'] = True
             action.trigger_action_via_blob(action_parameters_copy)
             eval_record_number += 1
             record_number += 1
-    return dataset_uuid
 
 
 def __split_for_records(video_frame_entities, eval_percent, max_frames_per_record=50):
@@ -153,7 +171,7 @@ def __split_for_records(video_frame_entities, eval_percent, max_frames_per_recor
             included_frame_numbers.append(frame_number)
             bboxes_text = video_frame_entities[frame_number]['bboxes_text']
             if bboxes_text is not None:
-                labels = bbox_writer.parse_bboxes_text_to_labels(bboxes_text)
+                labels = bbox_writer.extract_labels(bboxes_text)
                 label_set.update(set(labels))
     random.shuffle(included_frame_numbers)
 
@@ -212,40 +230,39 @@ def produce_dataset_record(action_parameters, time_limit, active_memory_limit):
     record_id = action_parameters['record_id']
     is_eval = action_parameters['is_eval']
 
-    record_filename = '%s.record' %  record_id
-
     # Read the video_entity from storage.
     video_entity = storage.retrieve_video_entity(team_uuid, video_uuid)
-    video_blob_name = video_entity['video_blob_name']
 
     # Read the video_frame entities from storage. They contain the labels.
     video_frame_entities = storage.retrieve_video_frame_entities(
          team_uuid, video_uuid, 0, video_entity['frame_count'] - 1)
 
     # Get the data for the frames in frame_number_list.
-    frame_data_dict = __get_frame_data(
-        video_uuid, video_blob_name, video_frame_entities, frame_number_list)
+    frame_data_dict = __get_frame_data(video_entity, video_frame_entities, frame_number_list)
 
     # Make the directory for tensorflow record files.
     folder = '/tmp/dataset/%s' % str(uuid.uuid4().hex)
     os.makedirs(folder, exist_ok=True)
     try:
-        record_filename = '%s/%s' % (folder, record_filename)
+        temp_record_filename = '%s/%s' % (folder, record_id)
         __write_record(team_uuid, sorted_label_list, frame_data_dict, dataset_uuid, record_number,
-            record_id, is_eval, record_filename)
-        storage.dataset_producer_maybe_done(team_uuid, dataset_uuid, record_id)
+            record_id, is_eval, temp_record_filename)
+        storage.dataset_producer_maybe_done(team_uuid, dataset_uuid)
     finally:
         # Delete the temporary director.
         shutil.rmtree(folder)
 
 
-def __get_frame_data(video_uuid, video_blob_name, video_frame_entities, frame_number_list):
+def __get_frame_data(video_entity, video_frame_entities, frame_number_list):
+    video_uuid = video_entity['video_uuid']
+    video_blob_name = video_entity['video_blob_name']
+
     # Write the video out to a temporary file and open it with cv2.
-    video_filename = '/tmp/%s' % str(uuid.uuid4().hex)
-    os.makedirs(os.path.dirname(video_filename), exist_ok=True)
-    blob_storage.write_video_to_file(video_blob_name, video_filename)
+    temp_video_filename = '/tmp/%s' % str(uuid.uuid4().hex)
+    os.makedirs(os.path.dirname(temp_video_filename), exist_ok=True)
+    blob_storage.write_video_to_file(video_blob_name, temp_video_filename)
     try:
-        vid = cv2.VideoCapture(video_filename)
+        vid = cv2.VideoCapture(temp_video_filename)
         if not vid.isOpened():
             message = "Error: Unable to open video for video_uuid=%s." % video_uuid
             logging.critical(message)
@@ -261,16 +278,18 @@ def __get_frame_data(video_uuid, video_blob_name, video_frame_entities, frame_nu
                     if not success:
                         # We've reached the end of the video.
                         break
-                    success, buffer = cv2.imencode('.png', frame)
-                    if success:
-                        png_filename = '%s/%05d.png' % (video_blob_name, frame_number)
-                        png_image = buffer
-                        bboxes_text = video_frame_entities[frame_number]['bboxes_text']
-                        frame_data_dict[frame_number] = FrameData(png_filename, png_image, bboxes_text)
-                    else:
+                    format = 'png'
+                    success, buffer = cv2.imencode('.%s' % format, frame)
+                    if not success:
                         message = 'cv2.imencode returned %s for frame number %d.' % (success, frame_number)
                         logging.critical(message)
                         raise RuntimeError(message)
+                    filename = '%s_%05d.%s' % (video_uuid, frame_number, format)
+                    image = buffer
+                    bboxes_text = video_frame_entities[frame_number]['bboxes_text']
+                    frame_data_dict[frame_number] = FrameData(
+                        video_entity['video_filename'], frame_number,
+                        filename, image, format, bboxes_text)
                 else:
                     success = vid.grab()
                     if not success:
@@ -283,82 +302,74 @@ def __get_frame_data(video_uuid, video_blob_name, video_frame_entities, frame_nu
             vid.release()
     finally:
         # Delete the temporary file.
-        os.remove(video_filename)
+        os.remove(temp_video_filename)
 
 
 def __write_record(team_uuid, sorted_label_list, frame_data_dict,
-        dataset_uuid, record_number, record_id, is_eval, record_filename):
+        dataset_uuid, record_number, record_id, is_eval, temp_record_filename):
     negative_frame_count = 0
     label_counter = collections.Counter()
-    with tf.io.TFRecordWriter(record_filename) as writer:
+    debug_infos = {}
+    with tf.io.TFRecordWriter(temp_record_filename) as writer:
         for frame_number, frame_data in frame_data_dict.items():
-            tf_example, label_counter_for_frame, is_negative = __create_tf_example(frame_data, sorted_label_list)
+            tf_example, label_counter_for_frame, is_negative, debug_info = __create_tf_example(frame_data, sorted_label_list)
+            debug_infos[str(frame_number)] = debug_info
             writer.write(tf_example.SerializeToString())
             negative_frame_count += is_negative
             label_counter += label_counter_for_frame
-    tf_record_blob_name = blob_storage.store_dataset_record(team_uuid, dataset_uuid, record_id, record_filename)
-    os.remove(record_filename)
+    tf_record_blob_name = blob_storage.store_dataset_record(team_uuid, dataset_uuid, record_id, temp_record_filename)
+    os.remove(temp_record_filename)
     dict_label_to_count = dict(label_counter)
     storage.store_dataset_record(team_uuid, dataset_uuid, record_number, record_id, is_eval, tf_record_blob_name,
         negative_frame_count, dict_label_to_count)
+    #blob_storage.store_debug_infos(team_uuid, dataset_uuid, record_id, debug_infos)
 
 
 def __create_tf_example(frame_data, sorted_label_list):
-    utf8_png_filename = frame_data.png_filename.encode('utf-8')
-    im = PIL.Image.open(io.BytesIO(frame_data.png_image))
+    im = PIL.Image.open(io.BytesIO(frame_data.image))
+    arr = io.BytesIO()
+    if frame_data.format == 'jpg':
+      format = 'JPEG'
+    else:
+      format = frame_data.format.upper()
+    im.save(arr, format=format)
     height = im.height
     width = im.width
-    channels = np.array(im).shape[2]
-    arr = io.BytesIO()
-    image_fmt = 'png'
-    im.save(arr, format='PNG')
-    encoded_image_data = arr.getvalue() # Encoded image bytes in png
-    rects, labels = bbox_writer.parse_bboxes_text(frame_data.bboxes_text)
+    encoded_image_data = arr.getvalue()
+    rects, labels = bbox_writer.convert_text_to_rects_and_labels(frame_data.bboxes_text)
     # List of normalized coordinates, 1 per box, capped to [0, 1]
     xmins = [max(min(rect[0] / width, 1), 0) for rect in rects] # left x
     xmaxs = [max(min(rect[2] / width, 1), 0) for rect in rects] # right x
     ymins = [max(min(rect[1] / height, 1), 0) for rect in rects] # top y
     ymaxs = [max(min(rect[3] / height, 1), 0) for rect in rects] # bottom y
+
     classes_txt = [label.encode('utf-8') for label in labels] # String names
     label_to_id_dict = {label: i for i, label in enumerate(sorted_label_list)}
     class_ids = [label_to_id_dict[label] for label in labels]
+
+    debug_info = {
+        'frame_data_video_filename': frame_data.video_filename,
+        'frame_data_frame_number': frame_data.frame_number,
+        'image_object_bbox_xmin': xmins,
+        'image_object_bbox_xmax': xmaxs,
+        'image_object_bbox_ymin': ymins,
+        'image_object_bbox_ymax': ymaxs,
+    }
+
     tf_example = tf.train.Example(features=tf.train.Features(feature={
-        'image/height': __int64_feature(height),
-        'image/width': __int64_feature(width),
-        'image/channels': __int64_feature(channels),
-        'image/colorspace': __bytes_feature('RGB'.encode('utf-8')),
-        'image/filename': __bytes_feature(utf8_png_filename), # Is this needed?
-        'image/source_id': __bytes_feature(utf8_png_filename), # Is this needed?
-        'image/image_key': __bytes_feature(utf8_png_filename), # Is this needed?
-        'image/encoded': __bytes_feature(encoded_image_data),
-        'image/format': __bytes_feature(image_fmt.encode('utf-8')),
-        'image/object/bbox/xmin': __float_list_feature(xmins),
-        'image/object/bbox/xmax': __float_list_feature(xmaxs),
-        'image/object/bbox/ymin': __float_list_feature(ymins),
-        'image/object/bbox/ymax': __float_list_feature(ymaxs),
-        'image/object/class/text': _bytes_list_feature(classes_txt),
-        'image/object/class/label': __int64_list_feature(class_ids),
+        'image/height': dataset_util.int64_feature(height),
+        'image/width': dataset_util.int64_feature(width),
+        'image/filename': dataset_util.bytes_feature(frame_data.filename.encode('utf-8')),
+        'image/source_id': dataset_util.bytes_feature(frame_data.filename.encode('utf-8')),
+        'image/encoded': dataset_util.bytes_feature(encoded_image_data),
+        'image/format': dataset_util.bytes_feature(frame_data.format.encode('utf-8')),
+        'image/object/bbox/xmin': dataset_util.float_list_feature(xmins),
+        'image/object/bbox/xmax': dataset_util.float_list_feature(xmaxs),
+        'image/object/bbox/ymin': dataset_util.float_list_feature(ymins),
+        'image/object/bbox/ymax': dataset_util.float_list_feature(ymaxs),
+        'image/object/class/text': dataset_util.bytes_list_feature(classes_txt),
+        'image/object/class/label': dataset_util.int64_list_feature(class_ids),
     }))
     label_counter_for_frame = collections.Counter(labels)
     is_negative = len(rects) == 0
-    return tf_example, label_counter_for_frame, is_negative
-
-
-def __int64_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
-
-
-def __int64_list_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
-
-
-def __bytes_feature(value):
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
-
-
-def _bytes_list_feature(value):
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=value))
-
-
-def __float_list_feature(value):
-    return tf.train.Feature(float_list=tf.train.FloatList(value=value))
+    return tf_example, label_counter_for_frame, is_negative, debug_info

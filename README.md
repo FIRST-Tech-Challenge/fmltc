@@ -35,9 +35,12 @@ gcloud iam service-accounts keys create key.json --iam-account ${FMLTC_GCLOUD_PR
 ```
 7. Enable APIs.
    - [ ] Go to https://console.cloud.google.com/apis/library
-   - [ ] Enable Cloud Functions API, if it is not already enabled.
-   - [ ] Enable Cloud Storage, if it is not already enabled.
-   - [ ] Enable Cloud Datastore API, if it is not already enabled.
+   - Enable the following APIs, if they are not already enabled.
+     - [ ] Cloud Functions API
+     - [ ] Cloud Datastore API
+     - [ ] Cloud Storage
+     - [ ] AI Platform Training & Prediction API
+     - [ ] Compute Engine API
 8. Create cloud storage buckets.
 ```
 gsutil mb -c standard gs://${FMLTC_GCLOUD_PROJECT_ID}
@@ -50,6 +53,23 @@ gsutil mb -c standard gs://${FMLTC_GCLOUD_PROJECT_ID}-action-parameters
    - [ ] Click `SELECT NATIVE MODE`
    - [ ] Click `Select a location` and choose a location.
    - [ ] Click `CREATE DATABASE`
+10. Grant the ml.serviceAgent role to your TPU service account.
+   - [ ] Run the following command
+```
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)"  \
+    https://ml.googleapis.com/v1/projects/${FMLTC_GCLOUD_PROJECT_ID}:getConfig
+```
+   - [ ] Look for the tpuServiceAccount value in the curl command output.
+   - [ ] Set the environment variable FMLTC_TPU_SERVICE_ACCOUNT
+```
+FMLTC_TPU_SERVICE_ACCOUNT=<tpu service account>
+export FMLTC_TPU_SERVICE_ACCOUNT
+```
+   - [ ] Run the following command
+```
+gcloud projects add-iam-policy-binding ${FMLTC_GCLOUD_PROJECT_ID}  \
+    --member serviceAccount:${FMLTC_TPU_SERVICE_ACCOUNT} --role roles/ml.serviceAgent
+```
 
 
 ## Create and upload the team_info/teams file.
@@ -84,22 +104,28 @@ FRC, 1678,  f67145cf
    Click `Save`
 
 ## Install the Google Closure Compiler
-
+**Important!** Make sure the current working directory is the fmltc directory when you run these
+  commands.
 ```
-curl -o ~/tmp/compiler-latest.zip https://dl.google.com/closure-compiler/compiler-latest.zip
+mkdir -p ~/tmp_fmltc/
+curl -o ~/tmp_fmltc/compiler-latest.zip https://dl.google.com/closure-compiler/compiler-latest.zip
 mkdir ../closure-compiler
-cd ../closure-compiler
-unzip ~/tmp/compiler-latest.zip
+pushd ../closure-compiler
+unzip ~/tmp_fmltc/compiler-latest.zip
+popd
 ```
 
 
 ## Install the Google Closure Library
-
+**Important!** Make sure the current working directory is the fmltc directory when you run these
+  commands.
 ```
-curl -o ~/tmp/closure-library.zip https://codeload.github.com/google/closure-library/zip/master
+mkdir -p ~/tmp_fmltc/
+curl -o ~/tmp_fmltc/closure-library.zip https://codeload.github.com/google/closure-library/zip/master
 mkdir ../closure-library
-cd ../closure-library
-unzip ~/tmp/closure-library.zip
+pushd ../closure-library
+unzip ~/tmp_fmltc/closure-library.zip
+popd
 ```
 
 
@@ -107,16 +133,20 @@ unzip ~/tmp/closure-library.zip
 
 1. Replace `<Project ID>` with the Google Cloud Project ID for our project.
 2. Replace `<Secret Key>` with the secret key you want to use to configure flask.
-3. For now, leave `REGION` set to `us-central1`.
+3. Replace `<Origin>` with the base URL that will serve the website.
+4. For now, leave `REGION` set to `us-central1`.
 
 
 ## Setup the environment.
-
+**Important!** Make sure the current working directory is the fmltc directory when you run these
+  commands.
 ```
 source env_setup.sh
 ```
 
 ## Deploy everything.
+**Important!** Make sure the current working directory is the fmltc directory when you run these
+  commands.
 
 1. Deploy the Datastore indexes.
 ```

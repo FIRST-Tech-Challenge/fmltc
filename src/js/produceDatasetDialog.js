@@ -99,24 +99,25 @@ fmltc.ProduceDatasetDialog.prototype.startButton_onclick = function() {
       'video_uuids=' + encodeURIComponent(videoUuidsJson) +
       '&eval_percent=' + this.evalPercentInput.value +
       '&start_time_ms=' + Date.now();
-  xhr.open('POST', '/startDatasetProduction', true);
+  xhr.open('POST', '/prepareToStartDatasetProduction', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_startDatasetProduction_onreadystatechange.bind(this, xhr, params);
+  xhr.onreadystatechange = this.xhr_prepareToStartDatasetProduction_onreadystatechange.bind(this, xhr, params);
   xhr.send(params);
 };
 
-fmltc.ProduceDatasetDialog.prototype.xhr_startDatasetProduction_onreadystatechange = function(xhr, params) {
+fmltc.ProduceDatasetDialog.prototype.xhr_prepareToStartDatasetProduction_onreadystatechange = function(xhr, params) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
+      this.util.callHttpPerformAction(response.action_parameters, 0);
       const datasetUuid = response.dataset_uuid;
       setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid), 20000);
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /startDatasetProduction?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /prepareToStartDatasetProduction?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       this.datasetInProgress = false;
       this.updateStartButton();
       this.pdInProgressDiv.style.visibility = 'hidden';
@@ -130,11 +131,13 @@ fmltc.ProduceDatasetDialog.prototype.retrieveDatasetEntity = function(datasetUui
   const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
   xhr.open('POST', '/retrieveDataset', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveDataset_onreadystatechange.bind(this, xhr, params, datasetUuid);
+  xhr.onreadystatechange = this.xhr_retrieveDataset_onreadystatechange.bind(this, xhr, params,
+      datasetUuid);
   xhr.send(params);
 };
 
-fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDataset_onreadystatechange = function(xhr, params, datasetUuid) {
+fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDataset_onreadystatechange = function(xhr, params,
+    datasetUuid) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -142,7 +145,7 @@ fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDataset_onreadystatechange = fu
       const response = JSON.parse(xhr.responseText);
       const datasetEntity = response.dataset_entity;
 
-      if (datasetEntity.dataset_time_utc_ms != 0) {
+      if (datasetEntity.dataset_completed) {
         this.datasetInProgress = false;
         this.updateStartButton();
         this.pdInProgressDiv.style.visibility = 'hidden';

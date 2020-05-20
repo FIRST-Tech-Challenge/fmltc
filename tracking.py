@@ -51,22 +51,25 @@ def prepare_to_start_tracking(team_uuid, video_uuid, tracker_name, scale, init_f
     tracker_uuid = storage.tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text)
     return tracker_uuid
 
-def make_action_parameters(tracker_uuid):
+def make_action_parameters(video_uuid, tracker_uuid):
     action_parameters = action.create_action_parameters(action.ACTION_NAME_TRACKING)
+    action_parameters['video_uuid'] = video_uuid
     action_parameters['tracker_uuid'] = tracker_uuid
     return action_parameters
 
 def start_tracking(action_parameters, time_limit, active_memory_limit):
+    video_uuid = action_parameters['video_uuid']
     tracker_uuid = action_parameters['tracker_uuid']
 
-    tracker_entity = storage.retrieve_tracker_entity(tracker_uuid)
+    tracker_entity = storage.retrieve_tracker_entity(video_uuid, tracker_uuid)
     if tracker_entity is None:
+        util.log('Unexpected: storage.retrieve_tracker_entity returned None')
         return
     team_uuid = tracker_entity['team_uuid']
-    video_uuid = tracker_entity['video_uuid']
 
-    tracker_client_entity = storage.retrieve_tracker_client_entity(tracker_uuid)
+    tracker_client_entity = storage.retrieve_tracker_client_entity(video_uuid, tracker_uuid)
     if tracker_client_entity is None:
+        util.log('Unexpected: storage.retrieve_tracker_client_entity returned None')
         return
     if (tracker_client_entity['tracking_stop_requested'] or
             util.time_now_utc_millis() - tracker_client_entity['update_time_utc_ms'] > TWO_MINUTES_IN_MS):
@@ -118,8 +121,9 @@ def start_tracking(action_parameters, time_limit, active_memory_limit):
                         time_limit, active_memory_limit, action_parameters):
                     return
                 time.sleep(0.1)
-                tracker_client_entity = storage.retrieve_tracker_client_entity(tracker_uuid)
+                tracker_client_entity = storage.retrieve_tracker_client_entity(video_uuid, tracker_uuid)
                 if tracker_client_entity is None:
+                    util.log('Unexpected: storage.retrieve_tracker_client_entity returned None')
                     return
 
             # Separate bboxes_text into bboxes and classes.
@@ -148,23 +152,25 @@ def start_tracking(action_parameters, time_limit, active_memory_limit):
 
                 # Store the new bboxes.
                 tracked_bboxes_text = bbox_writer.format_bboxes_text(bboxes, classes, scale)
-                storage.store_tracked_bboxes(tracker_uuid, frame_number, tracked_bboxes_text)
+                storage.store_tracked_bboxes(video_uuid, tracker_uuid, frame_number, tracked_bboxes_text)
 
                 if __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity,
                         time_limit, active_memory_limit, action_parameters):
                     return
 
                 # Wait for the bboxes to be approved/adjusted.
-                tracker_client_entity = storage.retrieve_tracker_client_entity(tracker_uuid)
+                tracker_client_entity = storage.retrieve_tracker_client_entity(video_uuid, tracker_uuid)
                 if tracker_client_entity is None:
+                    util.log('Unexpected: storage.retrieve_tracker_client_entity returned None')
                     return
                 while tracker_client_entity['frame_number'] != frame_number:
                     if __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity,
                             time_limit, active_memory_limit, action_parameters):
                         return
                     time.sleep(0.1)
-                    tracker_client_entity = storage.retrieve_tracker_client_entity(tracker_uuid)
+                    tracker_client_entity = storage.retrieve_tracker_client_entity(video_uuid, tracker_uuid)
                     if tracker_client_entity is None:
+                        util.log('Unexpected: storage.retrieve_tracker_client_entity returned None')
                         return
 
                 if tracker_client_entity['bboxes_text'] != tracked_bboxes_text:

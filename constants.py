@@ -21,6 +21,11 @@ PROJECT_ID = '<Project ID>'
 # This should be kept secret and never be uploaded to the open source repo.
 SECRET_KEY = '<Secret Key>'
 
+# TODO: Replace <Origin> with the base URL that will serve the website.
+# In many cases, this will be https://<Project ID>.appspot.com 
+# The value should not end with a / and should not contain a path.
+ORIGIN = '<Origin>'
+
 # TODO: If necessary, replace us-central1 with the region of the http_perform_action
 # Google Cloud Function shown in https://console.cloud.google.com/functions/list
 REGION = 'us-central1'
