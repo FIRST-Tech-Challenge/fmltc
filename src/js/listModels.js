@@ -42,7 +42,6 @@ fmltc.ListModels = function(util) {
   this.checkboxes = [];
   this.trs = [];
   this.stateSpans = [];
-  this.errorMessageSpans = [];
 
   this.retrieveModels();
 };
@@ -121,18 +120,9 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
     const stateSpan = document.createElement('span');
     this.stateSpans[i] = stateSpan;
     stateTd.appendChild(stateSpan);
-
-    const errorMessageTd = tr.insertCell(-1);
-    this.util.addClass(errorMessageTd, 'cellWithBorder');
-    const errorMessageSpan = document.createElement('span');
-    this.errorMessageSpans[i] = errorMessageSpan;
-    errorMessageTd.appendChild(errorMessageSpan);
   }
 
   this.stateSpans[i].textContent = modelEntity.train_job_state;
-  this.errorMessageSpans[i].textContent = (modelEntity.train_job_state == 'FAILED')
-      ? modelEntity.error_message
-      : '';
 
   const isDone = (
       modelEntity.train_job_state == 'SUCCEEDED' ||

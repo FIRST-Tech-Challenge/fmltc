@@ -36,11 +36,11 @@ def time_now_utc_millis():
     return round(time_now_utc_seconds() * 1000)
 
 
-def make_label_pbtxt(sorted_label_list):
-    label_pbtxt = ""
+def make_label_map(sorted_label_list):
+    label_map = ""
     for i, label in enumerate(sorted_label_list):
-        label_pbtxt = "%sitem {\n  id: %d\n  name:'%s'\n}\n" % (label_pbtxt, i + 1, label)
-    return label_pbtxt
+        label_map = "%sitem {\n  id: %d\n  name:'%s'\n}\n" % (label_map, i + 1, label)
+    return label_map
 
 def storage_client():
     return google.cloud.storage.Client.from_service_account_json('key.json')

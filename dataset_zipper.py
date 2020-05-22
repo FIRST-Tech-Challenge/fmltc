@@ -52,7 +52,7 @@ def zip_dataset(action_parameters, time_limit, active_memory_limit):
 
     partition_lists = [[] for i in range(partition_count)]
     dataset_entity = storage.retrieve_dataset_entity(team_uuid, dataset_uuid)
-    partition_lists[0].append(dataset_entity['label_pbtxt_blob_name'])
+    partition_lists[0].append(dataset_entity['label_map_blob_name'])
     dataset_record_entities = storage.retrieve_dataset_records(dataset_entity)
     for i, dataset_record_entity in enumerate(dataset_record_entities):
         partition_lists[i % partition_count].append(dataset_record_entity['tf_record_blob_name'])
