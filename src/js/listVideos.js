@@ -46,7 +46,7 @@ fmltc.ListVideos = function(util, listDatasets) {
 
   this.headerRowCount = this.videosTable.rows.length;
 
-  // Arrays with one element per video. Note that these need to be spliced in deleteButton_onclick.
+  // Arrays with one element per video. Note that these need to be spliced when a video is deleted.
   this.videoEntityArray = [];
   this.checkboxes = [];
   this.lastTimeVideoEntityChanged = [];
@@ -208,10 +208,7 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     frameExtractionComplete = false;
   }
   if ('frame_count' in videoEntity && 'fps' in videoEntity) {
-    const duration = videoEntity.frame_count / videoEntity.fps;
-    const durationMinutes = Math.floor(duration / 60);
-    const durationSeconds = Math.round(duration - durationMinutes * 60);
-    this.durationSpans[i].textContent = durationMinutes + ':' + String(durationSeconds).padStart(2, '0');
+    this.durationSpans[i].textContent = this.util.formatElapsedSeconds(videoEntity.frame_count / videoEntity.fps)
   } else {
     frameExtractionComplete = false;
   }

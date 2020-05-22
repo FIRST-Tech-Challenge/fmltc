@@ -24,6 +24,8 @@ import util
 
 BUCKET = ('%s' % constants.PROJECT_ID)
 
+TOTAL_TRAINING_MINUTES_PER_TEAM = 120
+
 def save(request_form, session):
     session['program'] = request_form['program']
     session['team_number'] = request_form['team_number']
@@ -72,6 +74,6 @@ def retrieve_team_uuid(session, request):
     program = session['program']
     team_number = session['team_number']
     team_code = session['team_code']
-    team_uuid = storage.retrieve_team_uuid(program, team_number, team_code, request.path)
+    team_uuid = storage.retrieve_team_uuid(program, team_number, team_code)
     session['team_uuid'] = team_uuid
     return team_uuid

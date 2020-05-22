@@ -37,14 +37,14 @@ limitations under the License.
     <tr>
       <td align="center" valign="top">
         <button id="uploadVideoFileButton" style="width: 100px;">
-          <span class="biggestText">&#x1F4C1;</span><br>
+          <span class="iconText">&#x1F4C1;</span><br>
           <span class="bigText">Upload Video</span>
         </button>
       </td>
       <td width="10px"></td>
         <td align="center" valign="top">
           <button id="produceDatasetButton" style="width: 100px;">
-            <span class="biggestText">&#x1F5C3;</span><br>
+            <span class="iconText">&#x1F5C3;</span><br>
             <span class="bigText">Produce Dataset</span>
           </button>
         </td>
@@ -55,7 +55,7 @@ limitations under the License.
     <table id="videosTable" class="collapsedBorder">
       <tr>
         <th rowspan="2" class="cellWithBorder"><input type="checkbox" id="videoCheckboxAll"></th>
-        <th rowspan="2" class="cellWithBorder"><span style="visibility: hidden">&#x1F5D1;</span></th>
+        <th rowspan="2" class="cellWithBorder"><span style="visibility: hidden;">&#x1F5D1;</span></th>
         <th rowspan="2" class="cellWithBorder">Video Filename</th>
         <th rowspan="2" class="cellWithBorder">Date Uploaded</th>
         <th rowspan="2" class="cellWithBorder">File Size</th>
@@ -84,12 +84,12 @@ limitations under the License.
     <input type="file" id="uvfVideoFileInput" accept="video/*" class="bigText" style="width: 100%">
     <br><br>
     <button id="uvfUploadButton" class="biggerText">Upload</button>
-    <h3 id="uvfUploadingH3" style="visibility: hidden">Uploading Progress</h3>
-    <div><progress id="uvfUploadingProgress" style="visibility: hidden"></progress></div>
-    <div id="uvfUploadingFinishedDiv" class="bigText" style="visibility: hidden">
+    <h3 id="uvfUploadingH3" style="visibility: hidden;">Uploading Progress</h3>
+    <div><progress id="uvfUploadingProgress" style="visibility: hidden;"></progress></div>
+    <div id="uvfUploadingFinishedDiv" class="bigText" style="display: none;">
       Uploading has finished.
     </div>
-    <div id="uvfUploadingFailedDiv" class="bigText" style="visibility: hidden">
+    <div id="uvfUploadingFailedDiv" class="bigText" style="display: none;">
       Uploading has failed!
     </div>
   </div>
@@ -117,9 +117,10 @@ limitations under the License.
     </table>
     <br><br>
     <button id="pdStartButton" class="biggerText">Produce Dataset</button>
-    <div id="pdInProgressDiv" style="visibility: hidden">In Progress...</div>
-    <div id="pdFinishedDiv" style="visibility: hidden">Finished!</div>
-    <div id="pdFailedDiv" style="visibility: hidden">Failed!</div>
+    <br>
+    <div id="pdInProgressDiv" style="display: none;">In Progress...</div>
+    <div id="pdFinishedDiv" style="display: none;">Finished.</div>
+    <div id="pdFailedDiv" style="display: none;">Failed!</div>
   </div>
 </div></div>
 
@@ -128,14 +129,14 @@ limitations under the License.
     <tr>
       <td align="center" valign="top">
         <button id="downloadDatasetButton" style="width: 100px;">
-          <span class="biggestText">&#x1F4E6;</span><br>
+          <span class="iconText">&#x1F4E6;</span><br>
           <span class="bigText">Download Dataset</span>
         </button>
       </td>
       <td width="10px"></td>
       <td align="center" valign="top">
         <button id="startTrainingButton" style="width: 100px;">
-          <span class="biggestText">&#x1F682;</span><br>
+          <span class="iconText">&#x1F682;</span><br>
           <span class="bigText">Start Training</span>
         </button>
       </td>
@@ -145,8 +146,8 @@ limitations under the License.
   <div id="datasetsListDiv">
     <table id="datasetsTable" class="collapsedBorder">
       <tr>
-        <th rowspan="3" class="cellWithBorder"><input type="checkbox" style="visibility: hidden"></th>
-        <th rowspan="3" class="cellWithBorder"><span style="visibility: hidden">&#x1F5D1;</span></th>
+        <th rowspan="3" class="cellWithBorder"><input type="checkbox" style="visibility: hidden;"></th>
+        <th rowspan="3" class="cellWithBorder"><span style="visibility: hidden;">&#x1F5D1;</span></th>
         <th rowspan="3" class="cellWithBorder">Video Filenames</th>
         <th rowspan="3" class="cellWithBorder">Date Produced</th>
         <th colspan="4" class="cellWithBorder">Number of Frames</th>
@@ -166,12 +167,43 @@ limitations under the License.
   </div>
 </div>
 
+<div id="startTrainingDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <table>
+      <tr>
+        <td valign="top"><button id="stDismissButton">&#x274C;</button></td>
+        <td valign="top"><h1 style="margin: 0px">Start Training a Model</h1></td>
+      </tr>
+    </table>
+    <table class="mediumText">
+      <tr>
+        <td><label for="stMaxRunningMinutesInput">Maximum Training Time:</label></td>
+        <td><input id="stMaxRunningMinutesInput" type="number" class="rightText mediumText"
+        style="width: 5ch">Minutes</td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          Each team is allowed <span id="stTotalTrainingMinutesSpan"></span> minutes of training
+          time.<br>Your team has <span id="stRemainingTrainingMinutesSpan"></span> minutes of training
+          time remaining.
+        </td>
+      </tr>
+    </table>
+    <br><br>
+    <button id="stStartButton" class="biggerText">Start Training</button>
+    <br>
+    <div id="stInProgressDiv" style="display: none;">Submitting job request...</div>
+    <div id="stSuccessDiv" style="display: none;">Training job is queued.</div>
+    <div id="stFailedDiv" style="display: none;">Failed!</div>
+  </div>
+</div></div>
+
 <div id="modelsTabDiv" class="tabDiv">
   <table class="collapsedBorder">
     <tr>
       <td align="center" valign="top">
         <button id="downloadModelButton" style="width: 100px;">
-          <span class="biggestText">&#x1F4E6;</span><br>
+          <span class="iconText">&#x1F4E6;</span><br>
           <span class="bigText">Download Model</span>
         </button>
       </td>
@@ -181,11 +213,16 @@ limitations under the License.
   <div id="modelsListDiv">
     <table id="modelsTable" class="collapsedBorder">
       <tr>
-        <th class="cellWithBorder"><input type="checkbox" style="visibility: hidden"></th>
-        <th class="cellWithBorder"><span style="visibility: hidden">&#x1F5D1;</span></th>
-        <th class="cellWithBorder">Video Filenames</th>
-        <th class="cellWithBorder">Date Created</th>
-        <th class="cellWithBorder">State</th>
+        <th rowspan="2" class="cellWithBorder"><input type="checkbox" style="visibility: hidden;"></th>
+        <th rowspan="2" class="cellWithBorder"><span style="visibility: hidden;">&#x1F5D1;</span></th>
+        <th rowspan="2" class="cellWithBorder">Video Filenames</th>
+        <th rowspan="2" class="cellWithBorder">Date Created</th>
+        <th colspan="2" class="cellWithBorder">State</th>
+        <th rowspan="2" class="cellWithBorder">Training Time</th>
+      </tr>
+      <tr>
+        <th class="cellWithBorder">Training</th>
+        <th class="cellWithBorder">Evaluation</th>
       </tr>
     </table>
   </div>

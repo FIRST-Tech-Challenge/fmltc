@@ -16,6 +16,7 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
 from datetime import datetime, timedelta, timezone
+import dateutil.parser
 import time
 import uuid
 
@@ -41,7 +42,7 @@ DS_KIND_MODEL = 'Model'
 
 # teams - public methods
 
-def retrieve_team_uuid(program, team_number, team_code, path):
+def retrieve_team_uuid(program, team_number, team_code):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         query = datastore_client.query(kind=DS_KIND_TEAM)
@@ -58,45 +59,44 @@ def retrieve_team_uuid(program, team_number, team_code, path):
                 'program': program,
                 'team_number': team_number,
                 'team_code': team_code,
+                'remaining_training_minutes': team_info.TOTAL_TRAINING_MINUTES_PER_TEAM,
                 'last_time_utc_ms': datetime.now(timezone.utc),
-                'dict_path_to_count': {},
-                'dict_path_to_last_time_utc_ms': {},
                 'preferences': {},
             })
         else:
             team_entity = team_entities[0]
-        if path not in team_entity['dict_path_to_count']:
-            team_entity['dict_path_to_count'][path] = 1
-        else:
-            team_entity['dict_path_to_count'][path] += 1
         team_entity['last_time_utc_ms'] = datetime.now(timezone.utc)
-        team_entity['dict_path_to_last_time_utc_ms'][path] = util.time_now_utc_millis()
         if 'preferences' not in team_entity:
             team_entity['preferences'] = {}
         transaction.put(team_entity)
         return team_entity['team_uuid']
 
-def __retrieve_team_entity(team_uuid, team_number):
-    datastore_client = datastore.Client()
-    query = datastore_client.query(kind=DS_KIND_TEAM)
-    query.add_filter('team_uuid', '=', team_uuid)
-    query.add_filter('team_number', '=', team_number)
-    team_entities = list(query.fetch(1))
-    if len(team_entities) == 0:
-        message = 'Error: Team entity for team_number=%s not found.' % (team_number)
-        logging.critical(message)
-        raise exceptions.HttpErrorNotFound(message)
-    return team_entities[0]
-
-def store_user_preference(team_uuid, team_number, key, value):
+def retrieve_team_entity(team_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
-        team_entity = __retrieve_team_entity(team_uuid, team_number)
+        query = datastore_client.query(kind=DS_KIND_TEAM)
+        query.add_filter('team_uuid', '=', team_uuid)
+        query.add_filter('last_time_utc_ms', '>', 0)
+        team_entities = list(query.fetch(1))
+        if len(team_entities) == 0:
+            message = 'Error: Team entity for team_uuid=%s not found.' % (team_uuid)
+            logging.critical(message)
+            raise exceptions.HttpErrorNotFound(message)
+        team_entity = team_entities[0]
+        team_entity['last_time_utc_ms'] = datetime.now(timezone.utc)
+        transaction.put(team_entity)
+        return team_entity
+
+def store_user_preference(team_uuid, key, value):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        team_entity = retrieve_team_entity(team_uuid)
         team_entity['preferences'][key] = value
+        team_entity['last_time_utc_ms'] = datetime.now(timezone.utc)
         transaction.put(team_entity)
 
-def retrieve_user_preferences(team_uuid, team_number):
-    team_entity = __retrieve_team_entity(team_uuid, team_number)
+def retrieve_user_preferences(team_uuid):
+    team_entity = retrieve_team_entity(team_uuid)
     return team_entity['preferences']
 
 # video - public methods
@@ -800,26 +800,66 @@ def retrieve_dataset_records(dataset_entity):
 
 # model - public methods
 
-def model_trainer_starting():
+def model_trainer_starting(team_uuid, max_running_minutes):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        team_entity = retrieve_team_entity(team_uuid)
+        team_entity['remaining_training_minutes'] -= max_running_minutes
+        if team_entity['remaining_training_minutes'] < 0:
+            message = (
+                "Error: The requested training time (%d minutes) exceeds the team's remaining training time (%d minutes)." %
+                (max_running_minutes, team_entity['remaining_training_minutes']))
+            logging.critical(message)
+            raise exceptions.HttpErrorUnprocessableEntity(message)
+        transaction.put(team_entity)
     model_uuid = str(uuid.uuid4().hex)
     return model_uuid
 
-def model_trainer_started(team_uuid, model_uuid, start_time_ms,
-    dataset_uuid, video_filenames, fine_tune_checkpoint, train_job, eval_job):
+def model_trainer_failed_to_start(team_uuid, max_running_minutes):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        team_entity = retrieve_team_entity(team_uuid)
+        team_entity['remaining_training_minutes'] += max_running_minutes
+        transaction.put(team_entity)
+
+def model_trainer_started(team_uuid, model_uuid,
+    dataset_uuid, max_running_minutes, start_time_ms,
+    video_filenames, fine_tune_checkpoint, train_job, eval_job):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_MODEL)
         model_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
         model_entity.update({
-            'model_uuid': model_uuid,
-            'creation_time_ms': start_time_ms,
             'team_uuid': team_uuid,
+            'model_uuid': model_uuid,
             'dataset_uuid': dataset_uuid,
+            'max_running_minutes': max_running_minutes,
+            'creation_time_ms': start_time_ms,
             'video_filenames': video_filenames,
             'fine_tune_checkpoint': fine_tune_checkpoint,
             'delete_in_progress': False,
+            'train_consumed_ml_units': 0,
+            'train_job_elapsed_seconds': 0,
+            'eval_consumed_ml_units': 0,
+            'eval_job_elapsed_seconds': 0,
         })
-        __update_model_entity(model_entity, train_job, eval_job)
+        __update_model_entity(model_entity, train_job, 'train')
+        # If the training job has already ended, adjust the team's remaining training time.
+        if 'train_job_end_time' in model_entity:
+            team_entity = retrieve_team_entity(team_uuid)
+            train_job_elapsed_minutes = model_entity['train_job_elapsed_seconds'] / 60
+            delta = model_entity['max_running_minutes'] - train_job_elapsed_minutes
+            # Don't add the delta if it's negative. The job ran longer than the maximum running
+            # time that the user specified.
+            if delta > 0:
+                team_entity['remaining_training_minutes'] += delta
+                transaction.put(team_entity)
+        if eval_job is None:
+            model_entity['eval_job'] = False
+            model_entity['eval_job_state'] = ''
+        else:
+            model_entity['eval_job'] = True
+            __update_model_entity(model_entity, eval_job, 'eval')
         model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
         transaction.put(model_entity)
         return model_entity
@@ -845,30 +885,42 @@ def retrieve_model_entity(team_uuid, model_uuid):
         raise exceptions.HttpErrorNotFound(message)
     return model_entities[0]
 
-def __update_model_entity(model_entity, train_job, eval_job):
-    model_entity['train_job_state'] = train_job['state']
-    model_entity['train_error_message'] = train_job.get('errorMessage', '')
-    if 'trainingOutput' in train_job:
-        model_entity['train_consumed_ml_units'] = train_job['trainingOutput'].get('consumedMLUnits', 0)
-    else:
-        model_entity['train_consumed_ml_units'] = 0
-    if eval_job is None:
-        model_entity['eval_job'] = False
-        model_entity['eval_job_state'] = 'SUCCEEDED'
-        model_entity['eval_consumed_ml_units'] = 0
-    else:
-        model_entity['eval_job'] = True
-        model_entity['eval_job_state'] = eval_job['state']
-        if 'trainingOutput' in eval_job:
-            model_entity['eval_consumed_ml_units'] = eval_job['trainingOutput'].get('consumedMLUnits', 0)
-        else:
-           model_entity['eval_consumed_ml_units'] = 0
+def __update_model_entity(model_entity, job, prefix):
+    model_entity[prefix + '_job_state'] = job['state']
+    if 'trainingOutput' in job:
+        model_entity[prefix + '_consumed_ml_units'] = job['trainingOutput'].get('consumedMLUnits', 0)
+    if 'createTime' in job:
+        model_entity[prefix + '_job_create_time'] = job['createTime']
+    if 'startTime' in job:
+        model_entity[prefix + '_job_start_time'] = job['startTime']
+    if 'endTime' in job:
+        model_entity[prefix + '_job_end_time'] = job['endTime']
+    if (prefix + '_job_start_time') in model_entity and (prefix + '_job_end_time') in model_entity:
+        elapsed = (
+            dateutil.parser.parse(model_entity[prefix + '_job_end_time']) -
+            dateutil.parser.parse(model_entity[prefix + '_job_start_time']))
+        model_entity[prefix + '_job_elapsed_seconds'] = elapsed.total_seconds()
+    model_entity[prefix + '_error_message'] = job.get('errorMessage', '')
+
 
 def update_model_entity(team_uuid, model_uuid, train_job, eval_job):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         model_entity = retrieve_model_entity(team_uuid, model_uuid)
-        __update_model_entity(model_entity, train_job, eval_job)
+        train_job_was_not_already_done = ('train_job_end_time' not in model_entity)
+        __update_model_entity(model_entity, train_job, 'train')
+        # If the training job has ended, adjust the team's remaining training time.
+        if train_job_was_not_already_done and ('train_job_end_time' in model_entity):
+            team_entity = retrieve_team_entity(team_uuid)
+            train_job_elapsed_minutes = model_entity['train_job_elapsed_seconds'] / 60
+            delta = model_entity['max_running_minutes'] - train_job_elapsed_minutes
+            # Don't add the delta if it's negative. The job ran longer than the maximum running
+            # time that the user specified.
+            if delta > 0:
+                team_entity['remaining_training_minutes'] += delta
+                transaction.put(team_entity)
+        if eval_job is not None:
+            __update_model_entity(model_entity, eval_job, 'eval')
         model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
         transaction.put(model_entity)
         return model_entity

@@ -25,7 +25,7 @@ goog.provide('fmltc.ProduceDatasetDialog');
 goog.require('fmltc.Util');
 
 /**
- * Class for a dialog that uploads a video file.
+ * Class for a dialog that produces a dataset.
  * @param {!fmltc.Util} util The utility instance
  * @constructor
  */
@@ -39,18 +39,18 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, onDatasetProduced) {
   this.trainPercentInput = document.getElementById('pdTrainPercentInput');
   this.evalPercentInput = document.getElementById('pdEvalPercentInput');
   this.startButton = document.getElementById('pdStartButton');
-  this.pdInProgressDiv = document.getElementById('pdInProgressDiv');
-  this.pdFinishedDiv = document.getElementById('pdFinishedDiv');
-  this.pdFailedDiv = document.getElementById('pdFailedDiv');
+  this.inProgressDiv = document.getElementById('pdInProgressDiv');
+  this.finishedDiv = document.getElementById('pdFinishedDiv');
+  this.failedDiv = document.getElementById('pdFailedDiv');
 
-  this.datasetInProgress = false;
+  this.startDatasetInProgress = false;
 
   this.trainPercentInput.value = 80;
   this.evalPercentInput.value = 100 - this.trainPercentInput.value;
   this.updateStartButton();
-  this.pdInProgressDiv.style.visibility = 'hidden';
-  this.pdFinishedDiv.style.visibility = 'hidden';
-  this.pdFailedDiv.style.visibility = 'hidden';
+  this.inProgressDiv.style.display = 'none';
+  this.finishedDiv.style.display = 'none';
+  this.failedDiv.style.display = 'none';
 
   this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
   this.trainPercentInput.onchange = this.trainPercentInput_onchange.bind(this);
@@ -71,7 +71,7 @@ fmltc.ProduceDatasetDialog.prototype.dismissButton_onclick = function() {
 };
 
 fmltc.ProduceDatasetDialog.prototype.updateStartButton = function() {
-  this.startButton.disabled = (this.datasetInProgress ||
+  this.startButton.disabled = (this.startDatasetInProgress ||
       this.evalPercentInput.value < 0 ||
       this.evalPercentInput.value > 100);
 };
@@ -87,9 +87,11 @@ fmltc.ProduceDatasetDialog.prototype.evalPercentInput_onchange = function() {
 };
 
 fmltc.ProduceDatasetDialog.prototype.startButton_onclick = function() {
-  this.pdInProgressDiv.style.visibility = 'visible';
+  this.util.setWaitCursor();
 
-  this.datasetInProgress = true;
+  this.inProgressDiv.style.display = 'block';
+
+  this.startDatasetInProgress = true;
   this.updateStartButton();
 
   const videoUuidsJson = JSON.stringify(this.videoUuids);
@@ -118,10 +120,10 @@ fmltc.ProduceDatasetDialog.prototype.xhr_prepareToStartDatasetProduction_onready
     } else {
       // TODO(lizlooney): handle error properly
       console.log('Failure! /prepareToStartDatasetProduction?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      this.datasetInProgress = false;
+      this.startDatasetInProgress = false;
       this.updateStartButton();
-      this.pdInProgressDiv.style.visibility = 'hidden';
-      this.pdFailedDiv.style.visibility = 'visible';
+      this.inProgressDiv.style.display = 'none';
+      this.failedDiv.style.display = 'block';
     }
   }
 };
@@ -146,10 +148,12 @@ fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDataset_onreadystatechange = fu
       const datasetEntity = response.dataset_entity;
 
       if (datasetEntity.dataset_completed) {
-        this.datasetInProgress = false;
+        this.startDatasetInProgress = false;
         this.updateStartButton();
-        this.pdInProgressDiv.style.visibility = 'hidden';
-        this.pdFinishedDiv.style.visibility = 'visible';
+        this.inProgressDiv.style.display = 'none';
+        this.finishedDiv.style.display = 'block';
+        this.util.clearWaitCursor();
+
         this.onDatasetProduced(datasetEntity);
         setTimeout(this.dismissButton_onclick.bind(this), 1000);
 

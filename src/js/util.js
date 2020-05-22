@@ -220,3 +220,15 @@ fmltc.Util.prototype.tabDiv_onclick = function(idPrefix) {
   document.getElementById(idPrefix + 'Button').className += ' active';
   this.setPreference('currentTab', idPrefix);
 };
+
+fmltc.Util.prototype.formatElapsedSeconds = function(elapsedSeconds) {
+  const hours = Math.floor(elapsedSeconds / 3600);
+  elapsedSeconds -= hours * 3600;
+  const minutes = Math.floor(elapsedSeconds / 60);
+  elapsedSeconds -= minutes * 60;
+  const seconds = Math.round(elapsedSeconds);
+  if (hours > 0) {
+    return hours + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+  }
+  return minutes + ':' + String(seconds).padStart(2, '0');
+};

@@ -43,11 +43,10 @@ fmltc.ListDatasets = function(util, listModels) {
 
   this.headerRowCount = this.datasetsTable.rows.length;
 
-  // Arrays with one element per dataset. Note that these need to be spliced in deleteButton_onclick.
+  // Arrays with one element per dataset. Note that these need to be spliced when a dataset is
+  // deleted.
   this.datasetEntityArray = [];
   this.checkboxes = [];
-
-  this.trainingStarting = false;
 
   this.retrieveDatasets();
   this.updateButtons();
@@ -217,8 +216,8 @@ fmltc.ListDatasets.prototype.updateButtons = function() {
     }
   }
 
-  this.downloadDatasetButton.disabled = this.trainingStarting || countChecked != 1;
-  this.startTrainingButton.disabled = this.trainingStarting || countChecked != 1;
+  this.downloadDatasetButton.disabled = countChecked != 1;
+  this.startTrainingButton.disabled = countChecked != 1;
 };
 
 fmltc.ListDatasets.prototype.getCheckedDatasetUuid = function() {
@@ -386,38 +385,12 @@ fmltc.ListDatasets.prototype.xhr_deleteDatasetZip_onreadystatechange = function(
 };
 
 fmltc.ListDatasets.prototype.startTrainingButton_onclick = function() {
-  this.trainingStarting = true;
-  this.updateButtons();
-
-  const datasetUuid = this.getCheckedDatasetUuid();
-
-  const xhr = new XMLHttpRequest();
-  const params =
-      'dataset_uuid=' + encodeURIComponent(datasetUuid) +
-      '&start_time_ms=' + Date.now();
-  xhr.open('POST', '/startTrainingModel', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_startTrainingModel_onreadystatechange.bind(this, xhr, params);
-  xhr.send(params);
+  new fmltc.StartTrainingDialog(
+      this.util, this.listModels.totalTrainingMinutes, this.listModels.remainingTrainingMinutes,
+      this.getCheckedDatasetUuid(), this.onTrainingStarted.bind(this));
 };
 
-fmltc.ListDatasets.prototype.xhr_startTrainingModel_onreadystatechange = function(xhr, params) {
-  if (xhr.readyState === 4) {
-    xhr.onreadystatechange = null;
-
-    if (xhr.status === 200) {
-      console.log('Success! /startTrainingModel');
-      const response = JSON.parse(xhr.responseText);
-      const modelEntity = response.model_entity;
-      this.listModels.addNewModel(modelEntity);
-      this.util.showModelsTab();
-
-      this.trainingStarting = false;
-      this.updateButtons();
-
-    } else {
-      // TODO(lizlooney): handle error properly
-      console.log('Failure! /startTrainingModel?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-    }
-  }
+fmltc.ListDatasets.prototype.onTrainingStarted = function(remainingTrainingMinutes, modelEntity) {
+  this.listModels.addNewModel(remainingTrainingMinutes, modelEntity);
+  this.util.showModelsTab();
 };
