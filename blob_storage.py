@@ -138,12 +138,12 @@ def get_dataset_folder(team_uuid, dataset_uuid):
 def get_dataset_folder_path(team_uuid, dataset_uuid):
     return 'gs://%s/%s' % (BUCKET_BLOBS, get_dataset_folder(team_uuid, dataset_uuid))
 
-def store_dataset_label_pbtxt(team_uuid, dataset_uuid, sorted_label_list):
-    label_pbtxt = util.make_label_pbtxt(sorted_label_list)
-    label_pbtxt_blob_name = '%s/label.pbtxt' % get_dataset_folder(team_uuid, dataset_uuid)
-    label_pbtxt_path = '%s/label.pbtxt' % get_dataset_folder_path(team_uuid, dataset_uuid)
-    __write_string_to_blob(label_pbtxt_blob_name, label_pbtxt, 'text/plain')
-    return label_pbtxt_blob_name, label_pbtxt_path
+def store_dataset_label_map(team_uuid, dataset_uuid, sorted_label_list):
+    label_map = util.make_label_map(sorted_label_list)
+    label_map_blob_name = '%s/label.pbtxt' % get_dataset_folder(team_uuid, dataset_uuid)
+    label_map_path = '%s/label.pbtxt' % get_dataset_folder_path(team_uuid, dataset_uuid)
+    __write_string_to_blob(label_map_blob_name, label_map, 'text/plain')
+    return label_map_blob_name, label_map_path
 
 def store_dataset_record(team_uuid, dataset_uuid, record_id, temp_record_filename):
     tf_record_blob_name = '%s/%s' % (get_dataset_folder(team_uuid, dataset_uuid), record_id)

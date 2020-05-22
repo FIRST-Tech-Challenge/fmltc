@@ -32,10 +32,10 @@ import util
 BUCKET = ('%s' % constants.PROJECT_ID)
 
 def start_training_model(team_uuid, dataset_uuid, start_time_ms):
-    object_detection_tar_gz = "gs://%s/static/training/object_detection-0.1.tar.gz" % BUCKET
-    slim_tar_gz = "gs://%s/static/training/slim-0.1.tar.gz" % BUCKET
-    pycocotools_tar_gz = "gs://%s/static/training/pycocotools-2.0.tar.gz" % BUCKET
-    fine_tune_checkpoint = "gs://%s/static/training/models/ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync_2018_07_03/model.ckpt" % BUCKET
+    object_detection_tar_gz = 'gs://%s/static/training/object_detection-0.1.tar.gz' % BUCKET
+    slim_tar_gz = 'gs://%s/static/training/slim-0.1.tar.gz' % BUCKET
+    pycocotools_tar_gz = 'gs://%s/static/training/pycocotools-2.0.tar.gz' % BUCKET
+    fine_tune_checkpoint = 'gs://%s/static/training/models/ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync_2018_07_03/model.ckpt' % BUCKET
 
     dataset_entity = storage.retrieve_dataset_entity(team_uuid, dataset_uuid)
     model_uuid = storage.model_trainer_starting()
@@ -44,10 +44,13 @@ def start_training_model(team_uuid, dataset_uuid, start_time_ms):
     bucket = util.storage_client().get_bucket(BUCKET)
     config_template_blob_name = 'static/training/models/configs/ssd_mobilenet_v1_0.75_depth_quantized_300x300_pets_sync.config'
     pipeline_config = (bucket.blob(config_template_blob_name).download_as_string().decode('utf-8')
-        .replace("PATH_TO_BE_CONFIGURED/model.ckpt", fine_tune_checkpoint)
-        .replace("PATH_TO_BE_CONFIGURED/pet_faces_train.record-?????-of-00010", dataset_entity['train_input_path'])
-        .replace("PATH_TO_BE_CONFIGURED/pet_faces_val.record-?????-of-00010", dataset_entity['eval_input_path'])
-        .replace("PATH_TO_BE_CONFIGURED/pet_label_map.pbtxt", dataset_entity['label_pbtxt_path']))
+        .replace('TO_BE_CONFIGURED/num_classes', str(len(dataset_entity['sorted_label_list'])))
+        .replace('TO_BE_CONFIGURED/fine_tune_checkpoint', fine_tune_checkpoint)
+        .replace('TO_BE_CONFIGURED/train_input_path', dataset_entity['train_input_path'])
+        .replace('TO_BE_CONFIGURED/label_map_path', dataset_entity['label_map_path'])
+        .replace('TO_BE_CONFIGURED/eval_input_path', dataset_entity['eval_input_path'])
+        .replace('TO_BE_CONFIGURED/num_examples', str(dataset_entity['eval_frame_count']))
+        )
     pipeline_config_path = blob_storage.store_pipeline_config(team_uuid, model_uuid, pipeline_config)
 
     model_dir = blob_storage.get_model_folder_path(team_uuid, model_uuid)
@@ -167,7 +170,7 @@ def __get_ml_service():
     scopes = ['https://www.googleapis.com/auth/cloud-platform']
     credentials = service_account.Credentials.from_service_account_file('key.json', scopes=scopes)
     return googleapiclient.discovery.build(
-        serviceName='ml', version='v1', credentials=credentials)
+        serviceName='ml', version='v1', credentials=credentials, cache_discovery=False)
 
 def __get_parent():
     # TODO(lizlooney): Is the project id here supposed to be our Google Cloud Project ID?

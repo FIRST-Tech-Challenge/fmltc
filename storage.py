@@ -184,7 +184,7 @@ def __query_video_entity(team_uuid, video_uuid):
     video_entities = list(query.fetch(1))
     return video_entities
 
-        
+
 # Retrieves the video entity associated with the given team_uuid and video_uuid. If no such
 # entity exists, raises HttpErrorNotFound.
 def retrieve_video_entity(team_uuid, video_uuid):
@@ -353,7 +353,7 @@ def __store_video_frames(team_uuid, video_uuid, frame_numbers):
         })
         batch.put(video_frame_entity)
     batch.commit()
-    
+
 # video frame - public methods
 
 def store_video_frames(team_uuid, video_uuid, frame_count):
@@ -621,7 +621,7 @@ def dataset_producer_starting(team_uuid, dataset_uuid, video_filenames, sorted_l
         train_frame_count, train_record_count, train_input_path,
         eval_frame_count, eval_record_count, eval_input_path):
     dataset_folder_path = blob_storage.get_dataset_folder_path(team_uuid, dataset_uuid)
-    label_pbtxt_blob_name, label_pbtxt_path = blob_storage.store_dataset_label_pbtxt(team_uuid, dataset_uuid, sorted_label_list)
+    label_map_blob_name, label_map_path = blob_storage.store_dataset_label_map(team_uuid, dataset_uuid, sorted_label_list)
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         dataset_entity = retrieve_dataset_entity(team_uuid, dataset_uuid)
@@ -634,8 +634,8 @@ def dataset_producer_starting(team_uuid, dataset_uuid, video_filenames, sorted_l
         dataset_entity['eval_frame_count'] = eval_frame_count
         dataset_entity['eval_input_path'] = '%s/%s' % (dataset_folder_path, eval_input_path)
         dataset_entity['total_record_count'] = train_record_count + eval_record_count
-        dataset_entity['label_pbtxt_blob_name'] = label_pbtxt_blob_name
-        dataset_entity['label_pbtxt_path'] = label_pbtxt_path
+        dataset_entity['label_map_blob_name'] = label_map_blob_name
+        dataset_entity['label_map_path'] = label_map_path
         transaction.put(dataset_entity)
 
 
@@ -735,7 +735,7 @@ def finish_delete_dataset(action_parameters, time_limit, active_memory_limit):
         dataset_entity = dataset_entities[0]
         datastore_client.delete(dataset_entity.key)
     # Delete the label.pbtxt blob.
-    blob_storage.delete_dataset_blob(dataset_entity['label_pbtxt_blob_name'])
+    blob_storage.delete_dataset_blob(dataset_entity['label_map_blob_name'])
     # Delete the dataset records, 500 at a time.
     while True:
         if action.is_near_limit(time_limit, active_memory_limit):
@@ -810,10 +810,6 @@ def model_trainer_started(team_uuid, model_uuid, start_time_ms,
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_MODEL)
         model_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
-        if eval_job is None:
-            eval_job_state = 'SUCCEEDED'
-        else:
-            eval_job_state = eval_job['state']
         model_entity.update({
             'model_uuid': model_uuid,
             'creation_time_ms': start_time_ms,
@@ -821,15 +817,12 @@ def model_trainer_started(team_uuid, model_uuid, start_time_ms,
             'dataset_uuid': dataset_uuid,
             'video_filenames': video_filenames,
             'fine_tune_checkpoint': fine_tune_checkpoint,
-            'train_job_state': train_job['state'],
-            'error_message': train_job.get('error_message', ''),
-            'eval_job': (eval_job is not None),
-            'eval_job_state': eval_job_state,
-            'update_time_utc_ms': util.time_now_utc_millis(),
             'delete_in_progress': False,
         })
+        __update_model_entity(model_entity, train_job, eval_job)
+        model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
         transaction.put(model_entity)
-    return model_entity
+        return model_entity
 
 # Returns a list containing the model entity associated with the given team_uuid and
 # model_uuid. If no such entity exists, returns an empty list.
@@ -852,14 +845,30 @@ def retrieve_model_entity(team_uuid, model_uuid):
         raise exceptions.HttpErrorNotFound(message)
     return model_entities[0]
 
+def __update_model_entity(model_entity, train_job, eval_job):
+    model_entity['train_job_state'] = train_job['state']
+    model_entity['train_error_message'] = train_job.get('errorMessage', '')
+    if 'trainingOutput' in train_job:
+        model_entity['train_consumed_ml_units'] = train_job['trainingOutput'].get('consumedMLUnits', 0)
+    else:
+        model_entity['train_consumed_ml_units'] = 0
+    if eval_job is None:
+        model_entity['eval_job'] = False
+        model_entity['eval_job_state'] = 'SUCCEEDED'
+        model_entity['eval_consumed_ml_units'] = 0
+    else:
+        model_entity['eval_job'] = True
+        model_entity['eval_job_state'] = eval_job['state']
+        if 'trainingOutput' in eval_job:
+            model_entity['eval_consumed_ml_units'] = eval_job['trainingOutput'].get('consumedMLUnits', 0)
+        else:
+           model_entity['eval_consumed_ml_units'] = 0
+
 def update_model_entity(team_uuid, model_uuid, train_job, eval_job):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         model_entity = retrieve_model_entity(team_uuid, model_uuid)
-        model_entity['train_job_state'] = train_job['state']
-        model_entity['error_message'] = train_job.get('error_message', '')
-        if eval_job is not None:
-            model_entity['eval_job_state'] = eval_job['state']
+        __update_model_entity(model_entity, train_job, eval_job)
         model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
         transaction.put(model_entity)
         return model_entity
