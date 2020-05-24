@@ -98,21 +98,19 @@ def logout():
 @redirect_to_login_if_needed
 def index():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    team_number = team_info.retrieve_team_number(flask.session)
     return flask.render_template('root.html', time_time=time.time(), project_id=constants.PROJECT_ID,
-        team_preferences=storage.retrieve_user_preferences(team_uuid, team_number),
+        team_preferences=storage.retrieve_user_preferences(team_uuid),
         http_perform_action_url=HTTP_PERFORM_ACTION_URL)
 
 @app.route('/labelVideo')
 @redirect_to_login_if_needed
 def label_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    team_number = team_info.retrieve_team_number(flask.session)
     video_uuid = flask.request.args.get('video_uuid')
     video_entity = storage.retrieve_video_entity_for_labeling(team_uuid, video_uuid)
     sanitize(video_entity)
     return flask.render_template('labelVideo.html', time_time=time.time(), project_id=constants.PROJECT_ID,
-        team_preferences=storage.retrieve_user_preferences(team_uuid, team_number),
+        team_preferences=storage.retrieve_user_preferences(team_uuid),
         http_perform_action_url=HTTP_PERFORM_ACTION_URL,
         video_uuid=video_uuid, video_entity=video_entity)
 
@@ -121,9 +119,8 @@ def label_video():
 @redirect_to_login_if_needed
 def test():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    team_number = team_info.retrieve_team_number(flask.session)
     return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
-        team_preferences=storage.retrieve_user_preferences(team_uuid, team_number),
+        team_preferences=storage.retrieve_user_preferences(team_uuid),
         http_perform_action_url=HTTP_PERFORM_ACTION_URL)
 
 
@@ -133,11 +130,10 @@ def test():
 @login_required
 def set_user_preference():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    team_number = team_info.retrieve_team_number(flask.session)
     data = flask.request.form.to_dict(flat=True)
     key = data.get('key')
     value = data.get('value')
-    storage.store_user_preference(team_uuid, team_number, key, value)
+    storage.store_user_preference(team_uuid, key, value)
     return 'OK'
 
 @app.route('/prepareToUploadVideo', methods=['POST'])
@@ -448,21 +444,36 @@ def start_training_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     dataset_uuid = data.get('dataset_uuid')
+    max_running_minutes = int(data.get('max_running_minutes'))
     start_time_ms = int(data.get('start_time_ms'))
-    model_entity = model_trainer.start_training_model(team_uuid, dataset_uuid, start_time_ms)
+    model_entity = model_trainer.start_training_model(team_uuid, dataset_uuid, max_running_minutes, start_time_ms)
+    team_entity = storage.retrieve_team_entity(team_uuid)
     sanitize(model_entity)
     response = {
+        'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entity': model_entity,
     }
     return flask.jsonify(response)
+
+@app.route('/cancelTrainingModel', methods=['POST'])
+@login_required
+def cancel_training_model():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    model_uuid = data.get('model_uuid')
+    model_trainer.cancel_training_model(team_uuid, model_uuid)
+    return 'OK'
 
 @app.route('/retrieveModelList', methods=['POST'])
 @login_required
 def retrieve_model_list():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    model_entities = storage.retrieve_model_list(team_uuid)
+    model_entities = model_trainer.retrieve_model_list(team_uuid)
+    team_entity = storage.retrieve_team_entity(team_uuid)
     sanitize(model_entities)
     response = {
+        'total_training_minutes': team_info.TOTAL_TRAINING_MINUTES_PER_TEAM,
+        'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entities': model_entities,
     }
     return flask.jsonify(response)
@@ -474,8 +485,10 @@ def retrieve_model():
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
     model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
+    team_entity = storage.retrieve_team_entity(team_uuid)
     sanitize(model_entity)
     response = {
+        'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entity': model_entity,
     }
     return flask.jsonify(response)
@@ -486,7 +499,7 @@ def delete_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
-    model_trainer.delete_model(team_uuid, model_uuid)
+    storage.delete_model(team_uuid, model_uuid)
     return 'OK'
 
 # errors

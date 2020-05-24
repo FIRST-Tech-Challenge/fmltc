@@ -19,6 +19,7 @@ java -jar $FMLTC_CLOSURE_COMPILER_JAR \
   --entry_point fmltc.ListVideos \
   --entry_point fmltc.Point \
   --entry_point fmltc.ProduceDatasetDialog \
+  --entry_point fmltc.StartTrainingDialog \
   --entry_point fmltc.UploadVideoFileDialog \
   --entry_point fmltc.Util \
   --js_output_file compiled/js/fmltc_tmp.js

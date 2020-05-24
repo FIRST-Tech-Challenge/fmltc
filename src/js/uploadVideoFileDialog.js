@@ -71,8 +71,8 @@ fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
       this.uploadButton.disabled = true;
       this.uploadingH3.style.visibility = 'hidden';
       this.uploadingProgress.style.visibility = 'hidden';
-      this.uploadingFinishedDiv.style.visibility = 'hidden';
-      this.uploadingFailedDiv.style.visibility = 'hidden';
+      this.uploadingFinishedDiv.style.display = 'none';
+      this.uploadingFailedDiv.style.display = 'none';
       this.dialog.style.display = 'block';
       break;
     case fmltc.UploadVideoFileDialog.STATE_FILE_CHOSEN:
@@ -87,11 +87,11 @@ fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
       break;
     case fmltc.UploadVideoFileDialog.STATE_UPLOADING_FAILED:
       this.dismissButton.disabled = false;
-      this.uploadingFailedDiv.style.visibility = 'visible';
+      this.uploadingFailedDiv.style.display = 'block';
       break;
     case fmltc.UploadVideoFileDialog.STATE_UPLOADING_FINISHED:
       this.dismissButton.disabled = false;
-      this.uploadingFinishedDiv.style.visibility = 'visible';
+      this.uploadingFinishedDiv.style.display = 'block';
       break;
   }
 };

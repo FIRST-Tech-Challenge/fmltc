@@ -43,23 +43,29 @@ def __write_file_to_blob(blob_name, filename, content_type):
     blob = util.storage_client().bucket(BUCKET_BLOBS).blob(blob_name)
     # Retry up to 5 times.
     retry = 0
-    while retry < 5:
+    while True:
         try:
             blob.upload_from_filename(filename, content_type=content_type)
             return
         except:
-            retry += 1
+            if retry < 5:
+                retry += 1
+            else:
+                raise
 
 def __write_string_to_blob(blob_name, s, content_type):
     blob = util.storage_client().bucket(BUCKET_BLOBS).blob(blob_name)
     # Retry up to 5 times.
     retry = 0
-    while retry < 5:
+    while True:
         try:
             blob.upload_from_string(s, content_type=content_type)
             return
         except:
-            retry += 1
+            if retry < 5:
+                retry += 1
+            else:
+                raise
 
 def __delete_blob(blob_name):
     blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)

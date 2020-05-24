@@ -100,6 +100,7 @@ def perform_action(action_parameters, time_limit, active_memory_limit):
         except:
             util.log('action.perform_action - %s except %s' %
                 (action_parameters[ACTION_NAME], traceback.format_exc().replace('\n', ' ... ')))
+            raise
     else:
         util.log('action.perform_action - %s - action_fn is null' % action_parameters[ACTION_NAME])
 
