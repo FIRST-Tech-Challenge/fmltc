@@ -165,7 +165,8 @@ fmltc.UploadVideoFileDialog.prototype.xhr_prepareToUploadVideo_onreadystatechang
 
     } else {
       // TODO(lizlooney): handle error properly. We should retry
-      console.log('Failure! /prepareToUploadVideo?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /prepareToUploadVideo?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       console.log('Will retry /prepareToUploadVideo?' + params + ' in 1 seconds.');
       setTimeout(this.prepareToUploadVideo.bind(this), 1000);
     }

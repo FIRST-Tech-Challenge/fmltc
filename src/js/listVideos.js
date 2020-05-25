@@ -315,7 +315,8 @@ fmltc.ListVideos.prototype.xhr_retrieveVideo_onreadystatechange = function(xhr, 
     } else {
       // TODO(lizlooney): handle error properly. Currently we try again in 3 seconds, but that
       // might not be the best idea.
-      console.log('Failure! /retrieveVideo?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /retrieveVideo?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       console.log('Will retry /retrieveVideo?' + params + ' in 3 seconds.');
       setTimeout(this.retrieveVideoEntity.bind(this, videoUuid, checkDeleted), 3000);
     }
@@ -416,7 +417,8 @@ fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, pa
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /deleteVideo?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /deleteVideo?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };
@@ -453,7 +455,8 @@ fmltc.ListVideos.prototype.xhr_triggerFrameExtraction_onreadystatechange = funct
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /triggerFrameExtraction?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /triggerFrameExtraction?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };

@@ -33,7 +33,7 @@ fmltc.ListModels = function(util) {
   /** @type {!fmltc.Util} */
   this.util = util;
 
-  this.downloadModelButton = document.getElementById('downloadModelButton');
+  this.downloadTFLiteButton = document.getElementById('downloadTFLiteButton');
   this.modelsTable = document.getElementById('modelsTable');
 
   this.headerRowCount = this.modelsTable.rows.length;
@@ -50,6 +50,9 @@ fmltc.ListModels = function(util) {
   this.totalTrainingMinutes = 0; // Updated when we get a response from /retrieveModelList
   this.remainingTrainingMinutes = 0; // Updated when we get a response from /retrieveModelList
   this.retrieveModels();
+  this.updateButtons();
+
+  this.downloadTFLiteButton.onclick = this.downloadTFLiteButton_onclick.bind(this);
 };
 
 fmltc.ListModels.prototype.retrieveModels = function() {
@@ -323,11 +326,119 @@ fmltc.ListModels.prototype.updateButtons = function() {
     if (!this.checkboxes[i].disabled && this.checkboxes[i].checked) {
       countChecked++;
       if (countChecked > 1) {
+        // We don't need to keep counting. We just need to know whether there are
+        // 0, 1, or more than 1 checkboxes checked.
         break;
       }
     }
   }
 
-  this.downloadModelButton.disabled = true;
-  // TODO(lizlooney): Implement downloading tflite model.
+  this.downloadTFLiteButton.disabled = countChecked != 1;
+};
+
+fmltc.ListModels.prototype.getCheckedModelUuid = function() {
+  for (let i = 0; i < this.checkboxes.length; i++) {
+    if (this.checkboxes[i].checked) {
+      return this.modelEntityArray[i].model_uuid;
+    }
+  }
+  return '';
+};
+
+fmltc.ListModels.prototype.downloadTFLiteButton_onclick = function() {
+  this.util.setWaitCursor();
+
+  const modelUuid = this.getCheckedModelUuid();
+  const downloadStartTime = Date.now();
+  this.createTFLiteGraphPb(modelUuid, downloadStartTime);
+};
+
+fmltc.ListModels.prototype.createTFLiteGraphPb = function(modelUuid, downloadStartTime) {
+  const xhr = new XMLHttpRequest();
+  const params = 'model_uuid=' + encodeURIComponent(modelUuid);
+  xhr.open('POST', '/createTFLiteGraphPb', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_createTFLiteGraphPb_onreadystatechange.bind(this, xhr, params,
+      modelUuid, downloadStartTime);
+  xhr.send(params);
+};
+
+fmltc.ListModels.prototype.xhr_createTFLiteGraphPb_onreadystatechange = function(xhr, params,
+    modelUuid, downloadStartTime) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      this.createTFLite(modelUuid, downloadStartTime);
+    } else {
+      // TODO(lizlooney): handle error properly
+      console.log('Failure! /createTFLiteGraphPb?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      this.util.clearWaitCursor();
+    }
+  }
+};
+
+fmltc.ListModels.prototype.createTFLite = function(modelUuid, downloadStartTime) {
+  const xhr = new XMLHttpRequest();
+  const params = 'model_uuid=' + encodeURIComponent(modelUuid);
+  xhr.open('POST', '/createTFLite', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_createTFLite_onreadystatechange.bind(this, xhr, params,
+      modelUuid, downloadStartTime);
+  xhr.send(params);
+};
+
+fmltc.ListModels.prototype.xhr_createTFLite_onreadystatechange = function(xhr, params,
+    modelUuid, downloadStartTime) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+      this.downloadTFLite(downloadStartTime, response.download_url, 0);
+    } else {
+      // TODO(lizlooney): handle error properly
+      console.log('Failure! /createTFLite?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      this.util.clearWaitCursor();
+    }
+  }
+};
+
+fmltc.ListModels.prototype.downloadTFLite = function(downloadStartTime, downloadUrl, failureCount) {
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', downloadUrl, true);
+  xhr.responseType = 'blob';
+  xhr.onreadystatechange = this.xhr_downloadTFLite_onreadystatechange.bind(this, xhr,
+      downloadStartTime, downloadUrl, failureCount);
+  xhr.send(null);
+};
+
+fmltc.ListModels.prototype.xhr_downloadTFLite_onreadystatechange = function(xhr,
+    downloadStartTime, downloadUrl, failureCount) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    this.util.clearWaitCursor();
+
+    if (xhr.status === 200) {
+      const anchor = document.createElement('a');
+      anchor.href = window.URL.createObjectURL(xhr.response);
+      anchor.download = 'model_' + this.util.getDateTimeString(downloadStartTime) + '.tflite';
+      anchor.click();
+
+    } else {
+      failureCount++;
+      if (failureCount < 5) {
+        const delay = Math.pow(2, failureCount);
+        console.log('Will retry ' + downloadUrl + ' in ' + delay + ' seconds.');
+        setTimeout(this.downloadTFLite.bind(this,
+            downloadStartTime, downloadUrl, failureCount), delay * 1000);
+      } else {
+        // TODO(lizlooney): handle error properly. For now we delete the zip.
+        alert('Unable to download the TFLite model.');
+      }
+    }
+  }
 };

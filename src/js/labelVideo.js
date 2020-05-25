@@ -670,7 +670,8 @@ fmltc.LabelVideo.prototype.xhr_storeVideoFrameBboxesText_onreadystatechange = fu
     if (xhr.status === 200) {
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /storeVideoFrameBboxesText?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /storeVideoFrameBboxesText?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };
@@ -843,7 +844,8 @@ fmltc.LabelVideo.prototype.xhr_storeVideoFrameIncludeInDataset_onreadystatechang
     if (xhr.status === 200) {
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /storeVideoFrameIncludeInDataset?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /storeVideoFrameIncludeInDataset?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };
@@ -1133,7 +1135,8 @@ fmltc.LabelVideo.prototype.xhr_prepareToStartTracking_onreadystatechange = funct
 
     } else {
       // TODO(lizlooney): handle error properly.
-      console.log('Failure! /prepareToStartTracking?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /prepareToStartTracking?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       this.util.clearWaitCursor();
       this.trackingInProgress = false;
       this.trackingPaused = false;
@@ -1173,7 +1176,8 @@ fmltc.LabelVideo.prototype.xhr_trackingClientStillAlive_onreadystatechange = fun
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /trackingClientStillAlive?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /trackingClientStillAlive?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };
@@ -1334,7 +1338,8 @@ fmltc.LabelVideo.prototype.xhr_stopTracking_onreadystatechange = function(xhr, p
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /stopTracking?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /stopTracking?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };

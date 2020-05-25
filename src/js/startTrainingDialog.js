@@ -115,7 +115,8 @@ fmltc.StartTrainingDialog.prototype.xhr_startTrainingModel_onreadystatechange = 
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /startTrainingModel?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /startTrainingModel?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       this.startTrainingInProgress = false;
       this.updateStartButton();
       this.inProgressDiv.style.display = 'none';
