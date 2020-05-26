@@ -64,7 +64,8 @@ fmltc.Util.prototype.xhr_setUserPreference_onreadystatechange = function(xhr, pa
       //console.log('Success! /setUserPreferences');
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /setUserPreferences?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /setUserPreferences?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };
@@ -140,24 +141,28 @@ fmltc.Util.prototype.getDateTimeString = function(millis) {
       hours + minutes + seconds;
 }
 
-fmltc.Util.prototype.callHttpPerformAction = function(actionParameters, retryCount) {
+fmltc.Util.prototype.callHttpPerformAction = function(actionParameters, retryCount, onSuccess) {
   const xhr = new XMLHttpRequest();
   xhr.open('POST', this.httpPerformActionUrl, true);
   xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.onreadystatechange = this.xhr_httpPerformAction_onreadystatechange.bind(this, xhr,
-      actionParameters, retryCount);
+      actionParameters, retryCount, onSuccess);
   console.log('Sending action "' + actionParameters.action_name + '".')
   xhr.send(JSON.stringify(actionParameters));
 };
 
 fmltc.Util.prototype.xhr_httpPerformAction_onreadystatechange = function(xhr,
-    actionParameters, retryCount) {
+    actionParameters, retryCount, onSuccess) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
       // Success.
-      console.log('Action "' + actionParameters.action_name + '" was successful.')
+      console.log('Action "' + actionParameters.action_name + '" was successful.');
+      if (onSuccess) {
+        onSuccess();
+      }
+
     } else {
       // TODO(lizlooney): handle error properly. Currently we try again, but that might not be the best idea.
       console.log('Failure! calling http_perform_action xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);

@@ -29,7 +29,6 @@ import constants
 import dataset_producer
 import dataset_zipper
 import frame_extractor
-import model_trainer
 import storage
 import tracking
 import util

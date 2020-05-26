@@ -309,11 +309,9 @@ def __write_record(team_uuid, sorted_label_list, frame_data_dict,
         dataset_uuid, record_number, record_id, is_eval, temp_record_filename):
     negative_frame_count = 0
     label_counter = collections.Counter()
-    debug_infos = {}
     with tf.io.TFRecordWriter(temp_record_filename) as writer:
         for frame_number, frame_data in frame_data_dict.items():
-            tf_example, label_counter_for_frame, is_negative, debug_info = __create_tf_example(frame_data, sorted_label_list)
-            debug_infos[str(frame_number)] = debug_info
+            tf_example, label_counter_for_frame, is_negative = __create_tf_example(frame_data, sorted_label_list)
             writer.write(tf_example.SerializeToString())
             negative_frame_count += is_negative
             label_counter += label_counter_for_frame
@@ -322,7 +320,6 @@ def __write_record(team_uuid, sorted_label_list, frame_data_dict,
     dict_label_to_count = dict(label_counter)
     storage.store_dataset_record(team_uuid, dataset_uuid, record_number, record_id, is_eval, tf_record_blob_name,
         negative_frame_count, dict_label_to_count)
-    #blob_storage.store_debug_infos(team_uuid, dataset_uuid, record_id, debug_infos)
 
 
 def __create_tf_example(frame_data, sorted_label_list):
@@ -347,15 +344,6 @@ def __create_tf_example(frame_data, sorted_label_list):
     label_to_id_dict = {label: i for i, label in enumerate(sorted_label_list)}
     class_ids = [label_to_id_dict[label] for label in labels]
 
-    debug_info = {
-        'frame_data_video_filename': frame_data.video_filename,
-        'frame_data_frame_number': frame_data.frame_number,
-        'image_object_bbox_xmin': xmins,
-        'image_object_bbox_xmax': xmaxs,
-        'image_object_bbox_ymin': ymins,
-        'image_object_bbox_ymax': ymaxs,
-    }
-
     tf_example = tf.train.Example(features=tf.train.Features(feature={
         'image/height': dataset_util.int64_feature(height),
         'image/width': dataset_util.int64_feature(width),
@@ -372,4 +360,4 @@ def __create_tf_example(frame_data, sorted_label_list):
     }))
     label_counter_for_frame = collections.Counter(labels)
     is_negative = len(rects) == 0
-    return tf_example, label_counter_for_frame, is_negative, debug_info
+    return tf_example, label_counter_for_frame, is_negative

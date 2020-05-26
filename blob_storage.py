@@ -18,6 +18,7 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 from datetime import datetime, timedelta
 import json
 import os
+import re
 import uuid
 
 # My Modules
@@ -66,6 +67,26 @@ def __write_string_to_blob(blob_name, s, content_type):
                 retry += 1
             else:
                 raise
+
+def __get_path(blob_name_or_folder):
+    return 'gs://%s/%s' % (BUCKET_BLOBS, blob_name_or_folder)
+
+
+def __get_download_url(blob_name):
+    bucket = util.storage_client().bucket(BUCKET_BLOBS)
+    blob = bucket.blob(blob_name)
+    if not blob.exists():
+        return False, ''
+    policies = bucket.cors
+    if len(policies) == 0:
+        policies.append({'origin': [constants.ORIGIN]})
+        policies[0]['responseHeader'] = ['Content-Type']
+        policies[0]['method'] = ['GET']
+        policies[0]['maxAgeSeconds'] = 3600
+        bucket.cors = policies
+        bucket.update()
+    expires_at_datetime = datetime.now() + timedelta(minutes=10)
+    return True, blob.generate_signed_url(expires_at_datetime, method='GET')
 
 def __delete_blob(blob_name):
     blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
@@ -142,7 +163,7 @@ def get_dataset_folder(team_uuid, dataset_uuid):
     return 'tf_records/%s/%s' % (team_uuid, dataset_uuid)
 
 def get_dataset_folder_path(team_uuid, dataset_uuid):
-    return 'gs://%s/%s' % (BUCKET_BLOBS, get_dataset_folder(team_uuid, dataset_uuid))
+    return __get_path(get_dataset_folder(team_uuid, dataset_uuid))
 
 def store_dataset_label_map(team_uuid, dataset_uuid, sorted_label_list):
     label_map = util.make_label_map(sorted_label_list)
@@ -155,11 +176,6 @@ def store_dataset_record(team_uuid, dataset_uuid, record_id, temp_record_filenam
     tf_record_blob_name = '%s/%s' % (get_dataset_folder(team_uuid, dataset_uuid), record_id)
     __write_file_to_blob(tf_record_blob_name, temp_record_filename, 'application/octet-stream')
     return tf_record_blob_name
-
-def store_debug_info(team_uuid, dataset_uuid, record_id, debug_info):
-    blob_name = 'debug_info/%s/%s/%s' % (team_uuid, dataset_uuid, record_id)
-    __write_string_to_blob(blob_name, json.dumps(debug_info), 'application/json')
-    return blob_name
 
 def retrieve_dataset_blob(blob_name):
     return __retrieve_blob(blob_name)
@@ -180,23 +196,9 @@ def store_dataset_zip(team_uuid, dataset_zip_uuid, partition_index, zip_data):
     __write_string_to_blob(blob_name, zip_data, 'application/zip')
     return blob_name
 
-def get_dataset_zip_status(team_uuid, dataset_zip_uuid, partition_index):
-    blob_name = __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index)
-    bucket = util.storage_client().bucket(BUCKET_BLOBS)
-    blob = bucket.blob(blob_name)
-    if not blob.exists():
-        return False, ''
-    policies = bucket.cors
-    if len(policies) == 0:
-        policies.append({'origin': [constants.ORIGIN]})
-        policies[0]['responseHeader'] = ['Content-Type']
-        policies[0]['method'] = ['GET']
-        policies[0]['maxAgeSeconds'] = 3600
-        bucket.cors = policies
-        bucket.update()
-    expires_at_datetime = datetime.now() + timedelta(minutes=10)
-    signed_url = blob.generate_signed_url(expires_at_datetime, method='GET')
-    return True, signed_url
+def get_dataset_zip_download_url(team_uuid, dataset_zip_uuid, partition_index):
+    return __get_download_url(
+        __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index))
 
 def delete_dataset_zip(team_uuid, dataset_zip_uuid, partition_index):
     blob_name = __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index)
@@ -207,19 +209,60 @@ def delete_dataset_zip(team_uuid, dataset_zip_uuid, partition_index):
 def __get_model_folder(team_uuid, model_uuid):
     return 'models/%s/%s' % (team_uuid, model_uuid)
 
+def get_model_folder_path(team_uuid, model_uuid):
+    return __get_path(__get_model_folder(team_uuid, model_uuid))
+
 def __get_pipeline_config_blob_name(team_uuid, model_uuid):
     return '%s/%s' % (__get_model_folder(team_uuid, model_uuid), 'pipeline.config')
 
 def get_pipeline_config_path(team_uuid, model_uuid):
-    return 'gs://%s/%s' % (BUCKET_BLOBS, __get_pipeline_config_blob_name(team_uuid, model_uuid))
+    return __get_path(__get_pipeline_config_blob_name(team_uuid, model_uuid))
 
 def store_pipeline_config(team_uuid, model_uuid, pipeline_config):
     pipeline_config_blob_name = __get_pipeline_config_blob_name(team_uuid, model_uuid)
     __write_string_to_blob(pipeline_config_blob_name, pipeline_config, 'text/plain')
     return get_pipeline_config_path(team_uuid, model_uuid)
 
-def get_model_folder_path(team_uuid, model_uuid):
-    return 'gs://%s/%s' % (BUCKET_BLOBS, __get_model_folder(team_uuid, model_uuid))
+def get_trained_checkpoint_prefix(team_uuid, model_uuid):
+    client = util.storage_client()
+    # We're looking for a file like this: model.ckpt-2000.index
+    prefix = '%s/model.ckpt-' % __get_model_folder(team_uuid, model_uuid)
+    pattern = re.compile(r'%s(.*)\.index' % prefix)
+    max_number = None
+    for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
+        match = pattern.match(blob.name)
+        if match is not None:
+            n = int(match.group(1))
+            if max_number is None or n > max_number:
+                max_number = n
+    if max_number is not None:
+        return __get_path('%s%d' % (prefix, max_number))
+    return None
+
+def __get_tflite_folder(team_uuid, model_uuid):
+    return '%s/tflite' % (__get_model_folder(team_uuid, model_uuid))
+
+def get_tflite_folder_path(team_uuid, model_uuid):
+    return __get_path(__get_tflite_folder(team_uuid, model_uuid))
+
+def write_tflite_graph_pb_to_file(team_uuid, model_uuid, filename):
+    tflite_graph_pb_blob_name = '%s/tflite_graph.pb' % __get_tflite_folder(team_uuid, model_uuid)
+    return __write_blob_to_file(tflite_graph_pb_blob_name, filename)
+
+def tflite_graph_pb_exists(team_uuid, model_uuid):
+    tflite_graph_pb_blob_name = '%s/tflite_graph.pb' % __get_tflite_folder(team_uuid, model_uuid)
+    blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(tflite_graph_pb_blob_name)
+    return blob.exists()
+
+def __get_tflite_blob_name(team_uuid, model_uuid):
+    return '%s/tflite/model.tflite' % __get_model_folder(team_uuid, model_uuid)
+
+def store_tflite(team_uuid, model_uuid, tflite_model):
+    blob_name = __get_tflite_blob_name(team_uuid, model_uuid)
+    __write_string_to_blob(blob_name, tflite_model, 'application/octet-stream')
+
+def get_tflite_download_url(team_uuid, model_uuid):
+    return __get_download_url(__get_tflite_blob_name(team_uuid, model_uuid))
 
 def delete_model_blobs(team_uuid, model_uuid):
     client = util.storage_client()

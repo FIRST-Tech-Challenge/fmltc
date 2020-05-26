@@ -34,6 +34,7 @@ import exceptions
 import frame_extractor
 import model_trainer
 import storage
+import tflite_creator
 import team_info
 import tracking
 import util
@@ -84,7 +85,8 @@ def login():
         return flask.redirect(flask.url_for('index'))
     program = team_info.retrieve_program(flask.session)
     team_number = team_info.retrieve_team_number(flask.session)
-    return flask.render_template('login.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+    return flask.render_template('login.html',
+        time_time=time.time(), project_id=constants.PROJECT_ID,
         program=program, team_number=team_number)
 
 # TODO(lizlooney): add logout button to all pages.
@@ -278,7 +280,8 @@ def prepare_to_start_tracking():
     init_bboxes_text = data.get('init_bboxes_text')
     tracker_name = data.get('tracker_name')
     scale = float(data.get('scale'))
-    tracker_uuid = tracking.prepare_to_start_tracking(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text)
+    tracker_uuid = tracking.prepare_to_start_tracking(team_uuid, video_uuid,
+        tracker_name, scale, init_frame_number, init_bboxes_text)
     action_parameters = tracking.make_action_parameters(video_uuid, tracker_uuid)
     response = {
         'tracker_uuid': tracker_uuid,
@@ -405,7 +408,8 @@ def prepare_to_zip_dataset():
     data = flask.request.form.to_dict(flat=True)
     dataset_uuid = data.get('dataset_uuid')
     dataset_zip_uuid = dataset_zipper.prepare_to_zip_dataset(team_uuid, dataset_uuid)
-    partition_count, action_parameters = dataset_zipper.make_action_parameters(team_uuid, dataset_uuid, dataset_zip_uuid)
+    partition_count, action_parameters = dataset_zipper.make_action_parameters(
+        team_uuid, dataset_uuid, dataset_zip_uuid)
     response = {
         'dataset_zip_uuid': dataset_zip_uuid,
         'partition_count': partition_count,
@@ -421,9 +425,9 @@ def get_dataset_zip_status():
     data = flask.request.form.to_dict(flat=True)
     dataset_zip_uuid = data.get('dataset_zip_uuid')
     partition_index = int(data.get('partition_index'))
-    is_ready, download_url = blob_storage.get_dataset_zip_status(team_uuid, dataset_zip_uuid, partition_index)
+    exists, download_url = blob_storage.get_dataset_zip_download_url(team_uuid, dataset_zip_uuid, partition_index)
     response = {
-        'is_ready': is_ready,
+        'is_ready': exists,
         'download_url': download_url,
     }
     return flask.jsonify(response)
@@ -501,6 +505,27 @@ def delete_model():
     model_uuid = data.get('model_uuid')
     storage.delete_model(team_uuid, model_uuid)
     return 'OK'
+
+@app.route('/createTFLiteGraphPb', methods=['POST'])
+@login_required
+def create_tflite_graph_pb():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    model_uuid = data.get('model_uuid')
+    tflite_creator.create_tflite_graph_pb(team_uuid, model_uuid)
+    return 'OK'
+
+@app.route('/createTFLite', methods=['POST'])
+@login_required
+def create_tflite():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    model_uuid = data.get('model_uuid')
+    download_url = tflite_creator.create_tflite(team_uuid, model_uuid)
+    response = {
+        'download_url': download_url,
+    }
+    return flask.jsonify(response)
 
 # errors
 

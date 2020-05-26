@@ -191,7 +191,8 @@ fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /deleteDataset?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /deleteDataset?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };
@@ -211,6 +212,8 @@ fmltc.ListDatasets.prototype.updateButtons = function() {
     if (this.checkboxes[i].checked) {
       countChecked++;
       if (countChecked > 1) {
+        // We don't need to keep counting. We just need to know whether there are
+        // 0, 1, or more than 1 checkboxes checked.
         break;
       }
     }
@@ -258,7 +261,8 @@ fmltc.ListDatasets.prototype.xhr_prepareToZipDataset_onreadystatechange = functi
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /prepareToZipDatasetping?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /prepareToZipDataset?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };
@@ -284,7 +288,7 @@ fmltc.ListDatasets.prototype.xhr_getDatasetZipStatus_onreadystatechange = functi
       const response = JSON.parse(xhr.responseText);
 
       if (response.is_ready && response.download_url) {
-        this.retrieveDatasetZip(downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, response.download_url, 0);
+        this.downloadDatasetZip(downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, response.download_url, 0);
         partitionIndex++;
         if (partitionIndex < partitionCount) {
           // Get the next partition.
@@ -297,24 +301,25 @@ fmltc.ListDatasets.prototype.xhr_getDatasetZipStatus_onreadystatechange = functi
       }
 
     } else {
-      console.log('Failure! /getDatasetZipStatus?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /getDatasetZipStatus?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       setTimeout(this.getDatasetZipStatus.bind(this, downloadStartTime, datasetZipUuid), 5000);
     }
   }
 };
 
-fmltc.ListDatasets.prototype.retrieveDatasetZip = function(
-    downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, url, failureCount) {
+fmltc.ListDatasets.prototype.downloadDatasetZip = function(
+    downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, downloadUrl, failureCount) {
   const xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
+  xhr.open('GET', downloadUrl, true);
   xhr.responseType = 'blob';
-  xhr.onreadystatechange = this.xhr_retrieveDatasetZip_onreadystatechange.bind(this, xhr,
-      downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, url, failureCount);
+  xhr.onreadystatechange = this.xhr_downloadDatasetZip_onreadystatechange.bind(this, xhr,
+      downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, downloadUrl, failureCount);
   xhr.send(null);
 };
 
-fmltc.ListDatasets.prototype.xhr_retrieveDatasetZip_onreadystatechange = function(xhr,
-    downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, url, failureCount) {
+fmltc.ListDatasets.prototype.xhr_downloadDatasetZip_onreadystatechange = function(xhr,
+    downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, downloadUrl, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -332,9 +337,10 @@ fmltc.ListDatasets.prototype.xhr_retrieveDatasetZip_onreadystatechange = functio
       failureCount++;
       if (failureCount < 5) {
         const delay = Math.pow(2, failureCount);
-        console.log('Will retry ' + url + ' in ' + delay + ' seconds.');
-        setTimeout(this.retrieveDatasetZip.bind(this,
-            downloadStartTime, datasetZipUuid, partitionCount, partitionIndex, url, failureCount), delay * 1000);
+        console.log('Will retry ' + downloadUrl + ' in ' + delay + ' seconds.');
+        setTimeout(this.downloadDatasetZip.bind(this,
+            downloadStartTime, datasetZipUuid, partitionCount, partitionIndex,
+            downloadUrl, failureCount), delay * 1000);
       } else {
         // TODO(lizlooney): handle error properly. For now we delete the zip.
         alert('Unable to download a dataset zip file.');

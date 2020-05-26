@@ -119,7 +119,8 @@ fmltc.ProduceDatasetDialog.prototype.xhr_prepareToStartDatasetProduction_onready
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /prepareToStartDatasetProduction?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /prepareToStartDatasetProduction?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       this.startDatasetInProgress = false;
       this.updateStartButton();
       this.inProgressDiv.style.display = 'none';
@@ -163,7 +164,8 @@ fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDataset_onreadystatechange = fu
     } else {
       // TODO(lizlooney): handle error properly. Currently we try again in 3 seconds, but that
       // might not be the best idea.
-      console.log('Failure! /retrieveDataset?' + params + ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /retrieveDataset?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       console.log('Will retry /retrieveDataset?' + params + ' in 3 seconds.');
       setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid), 3000);
     }

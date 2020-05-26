@@ -164,7 +164,7 @@ def retrieve_model_entity(team_uuid, model_uuid):
 
 def update_model_entity(model_entity, ml=None):
     # If the train and eval jobs weren't done last time we checked, check now.
-    if __is_not_done(model_entity['train_job_state']) or __is_not_done(model_entity['eval_job_state']):
+    if is_not_done(model_entity):
         if ml is None:
             ml = __get_ml_service()
         train_job_name = __get_train_job_name(model_entity['model_uuid'])
@@ -181,6 +181,11 @@ def update_model_entity(model_entity, ml=None):
         model_entity = storage.update_model_entity(
             model_entity['team_uuid'], model_entity['model_uuid'], train_job_response, eval_job_response)
     return model_entity, ml
+
+def is_not_done(model_entity):
+    return (
+        __is_not_done(model_entity['train_job_state']) or
+        __is_not_done(model_entity['eval_job_state']))
 
 def cancel_training_model(team_uuid, model_uuid):
     model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
