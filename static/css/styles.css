@@ -97,6 +97,10 @@ body {
   vertical-align: bottom;
 }
 
+.iconVerticalAlign {
+  vertical-align: middle;
+}
+
 .inputWithoutBorder {
   padding: 0;
   border: none;
