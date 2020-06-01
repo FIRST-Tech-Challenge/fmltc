@@ -17,6 +17,8 @@ limitations under the License.
 <html>
 <head>
   <link rel="stylesheet"
+      href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
   <link rel="stylesheet" type="text/css"
       href="https://storage.googleapis.com/{{project_id}}/static/css/styles.css?ignoreCache={{time_time}}">
@@ -32,16 +34,18 @@ limitations under the License.
   <tr>
     <td valign="top">
       <table style="width: 100%"><tr>
-        <td><button id="dismissButton">&#x274C;</button></td>
-        <td style="width: 100%"><span id="videoFilenameSpan" class="bigText"></span></td>
-        <td><button id="smallerImageButton" title="Smaller" disabled="true">&#45;</button></td>
-        <td><button id="largerImageButton" title="Larger" disabled="true">&#43;</button></td>
+        <td><button id="dismissButton" class="material-icons text-24">close</button></td>
+        <td style="width: 100%"><span id="videoFilenameSpan" class="text-24"></span></td>
+        <td><button id="smallerImageButton" title="Smaller" disabled="true"
+          class="material-icons text-24">zoom_out</button></td>
+        <td><button id="largerImageButton" title="Larger" disabled="true"
+          class="material-icons text-24">zoom_in</button></td>
       </tr></table>
     </td>
     <td valign="top">
-      <span id="videoFrameCountSpan" class="bigText"></span><span class="bigText">&nbsp;Frames&nbsp;</span>
+      <span id="videoFrameCountSpan" class="text-24"></span><span class="text-24">&nbsp;Frames&nbsp;</span>
       <progress id="loadingProgress" value="0" max="100"></progress>
-      <span id="loadingFailedSpan" style="display: none">Loading Failed!</span>
+      <span id="loadingFailedSpan" class="text-18" style="display: none">Loading Failed!</span>
     </td>
   </tr>
   <tr>
@@ -49,15 +53,22 @@ limitations under the License.
       <div><img id="videoFrameImg"></img></div>
     </td>
     <td valign="top">
-      <div id="includedFrameCountDiv" style="visibility: hidden">Included frames: <span id="includedFrameCountSpan"></span></div>
-      <div id="negativeFrameCountDiv" style="visibility: hidden">Negative frames: <span id="negativeFrameCountSpan"></span></div>
+      <div id="includedFrameCountDiv" class="text-18" style="visibility: hidden">Included frames: <span id="includedFrameCountSpan"></span></div>
+      <div id="negativeFrameCountDiv" class="text-18" style="visibility: hidden">Negative frames: <span id="negativeFrameCountSpan"></span></div>
       <hr>
-      <div>Frame <span id="currentFrameSpan"></span></div>
+      <div class="text-18">Frame <span id="currentFrameSpan"></span></div>
       <div><input type="checkbox" id="includeFrameInDatasetCheckbox">
-        <label for="includeFrameInDatasetCheckbox">Include this frame in the data set</label>
+        <label for="includeFrameInDatasetCheckbox" class="text-18">Include this frame in the data set</label>
       </div>
-      <table id="labelingAreaTable" border="1">
-        <tr><th width="50">X1</th><th width="50">Y1</th><th width="50">X2</th><th width="50">Y2</th><th width="50">Label</th></tr>
+      <br>
+      <table id="labelingAreaTable" class="collapsedBorder">
+        <tr>
+          <th class="cellWithBorder text-18" width="50">X1</th>
+          <th class="cellWithBorder text-18" width="50">Y1</th>
+          <th class="cellWithBorder text-18" width="50">X2</th>
+          <th class="cellWithBorder text-18" width="50">Y2</th>
+          <th class="cellWithBorder text-18" width="50">Label</th>
+          <th class="cellWithBorder text-18"><!-- delete buttons --></th></tr>
       </table>
       <div id="labelHintDiv" class="hidden">To continue, each bounding box must have a label.</div>
     </td>
@@ -68,31 +79,42 @@ limitations under the License.
   <tr>
     <td valign="top">
       <div>
-        <button class="bigText" id="firstFrameButton" title="Go to the First Frame" disabled="true">&#x23EE;</button>
-        <button class="bigText" id="previousTenFrameButton" title="Go Back Ten Frames" disabled="true">&#x2B05;</button>
-        <button class="bigText" id="previousFrameButton" title="Go Back One Frame" disabled="true">&#x25C0;</button>
-        <button class="bigText" id="nextFrameButton" title="Go Forward One Frame" disabled="true">&#x25B6;</button>
-        <button class="bigText reverseDisplay" id="nextTenFrameButton" title="Go Forward Ten Frames"" disabled="true">&#x2B05;</button>
-        <button class="bigText" id="lastFrameButton" title="Go to the Last Frame" disabled="true">&#x23ED;</button>
+        <button id="firstFrameButton" title="Go to the First Frame" disabled="true"
+          class="material-icons text-24">first_page</button>
+        <button id="previousTenFrameButton" title="Go Back Ten Frames" disabled="true"
+          class="material-icons text-24">replay_10</button>
+        <button id="previousFrameButton" title="Go Back One Frame" disabled="true"
+          class="material-icons text-24">navigate_before</button>
+        <button id="nextFrameButton" title="Go Forward One Frame" disabled="true"
+          class="material-icons text-24">navigate_next</button>
+        <button id="nextTenFrameButton" title="Go Forward Ten Frames" disabled="true"
+          class="material-icons text-24">forward_10</button>
+        <button id="lastFrameButton" title="Go to the Last Frame" disabled="true"
+          class="material-icons text-24">last_page</button>
       </div>
       <hr>
-      <div>Negative Frames</div>
+      <div class="text-18">Find Negative Frames</div>
       <div>
-        <button class="bigText reverseDisplay" id="previousNegativeFrameButton" title="Go Back to the Previous Negative Frame" disabled="true">&#x2935;</button>
-        <button class="bigText" id="nextNegativeFrameButton" title="Go Forward to the Next Negative Frame" disabled="true">&#x2935;</button>
+        <button id="previousNegativeFrameButton" title="Go Back to the Previous Negative Frame" disabled="true"
+           class="material-icons text-24">skip_previous</button>
+        <button id="nextNegativeFrameButton" title="Go Forward to the Next Negative Frame" disabled="true"
+          class="material-icons text-24">skip_next</button>
       </div>
       <hr>
-      <div><label for="playbackSpeedInput">Playback Speed:</label>
-        <input type="range" id="playbackSpeedInput" name="playbackSpeedInput" min="1" value="4" max="24"></div>
+      <div class="text-18">Playback</div>
       <div>
-        <button class="bigText reverseDisplay" id="reversePlayPauseButton" title="Play/Pause Reverse" class="reverseDisplay" disabled="true">&#x23EF;</button>
-        <button class="bigText" id="forwardPlayPauseButton" title="Play/Pause Forward" disabled="true">&#x23EF;</button>
+        <button id="reversePlayPauseButton" title="Play/Pause Reverse" disabled="true"
+          class="reverseDisplay material-icons text-24">play_arrow</button>
+        <button id="forwardPlayPauseButton" title="Play/Pause Forward" disabled="true"
+          class="material-icons text-24">play_arrow</button>
+        <label for="playbackSpeedInput" class="text-18">Speed:</label>
+        <input type="range" id="playbackSpeedInput" name="playbackSpeedInput" min="1" value="4" max="24">
       </div>
     </td>
     <td valign="top" style="padding-left: 20px;">
-      <div class="bigText">Tracking</div>
+      <div class="text-24">Tracking</div>
       <div>
-        <label for="trackerSelect">Algorithm:</label>&nbsp;<select id="trackerSelect">
+        <label for="trackerSelect" class="text-18">Algorithm:</label>&nbsp;<select id="trackerSelect" class="text-18">
           <option value="CSRT">CSRT</option>
           <option value="MedianFlow">MedianFlow</option>
           <option value="MIL">MIL</option>
@@ -102,30 +124,23 @@ limitations under the License.
           <option value="Boosting">Boosting</option>
         </select>
       </div>
-      <div><label for="trackingScaleInput">Scale:</label>&nbsp;
-        <input id="trackingScaleInput" type="number" class="rightText" value="1.3" min="1" max="3" style="width: 5ch"></div>
+      <div><label for="trackingScaleInput" class="text-18">Scale:</label>&nbsp;
+        <input id="trackingScaleInput" type="number" class="text-18 rightText" value="1.3" min="1" max="3" style="width: 5ch"></div>
+      <br>
       <div>
-        <button id="trackingStartButton" title="Start Tracking" class="biggerText" disabled="true">&#x1F6E4;</button>
-        <button id="trackingPauseButton" title="Pause Tracking" class="biggerText" disabled="true">&#x23F8;</button>
-        <button id="trackingContinueButton" title="Approve These Boxes and Continue Tracking" class="biggerText" disabled="true">&#x2705;&#x25B6;</button>
-        <button id="trackingStopButton" title="Stop Tracking" class="biggerText" disabled="true">&#x23F9;</button>
+        <button id="trackingStartButton" title="Start Tracking" disabled="true"
+          class="material-icons text-24">batch_prediction</button>
+        <button id="trackingPauseButton" title="Pause Tracking to Adjust the Boxes" disabled="true"
+          class="material-icons text-24">pause edit</button>
+        <button id="trackingContinueButton" title="Approve These Boxes and Continue Tracking" disabled="true"
+          class="material-icons text-24">check play_arrow</button>
+        <button id="trackingStopButton" title="Stop Tracking" disabled="true"
+          class="material-icons text-24">stop</button>
       </div>
       <span id="drawHintDiv" class="hidden">To enable tracking, draw bounding boxes on this xframe.</span>
       <div id="trackingStoppedDiv" style="visibility: hidden">Stopped</div>
       <div id="trackingFinishedDiv" style="visibility: hidden">Finished</div>
       <div id="trackingFailedDiv" style="visibility: hidden">Stopped unexpectedly</div>
-    </td>
-    <td valign="top" style="padding-left: 20px;">
-      <button class="bigText" id="button1" title="Button 1" style="display: none"></button><br>
-      <button class="bigText" id="button2" title="Button 2" style="display: none"></button><br>
-    </td>
-    <td valign="top" style="padding-left: 20px;">
-      <button class="bigText" id="button3" title="Button 3" style="display: none"></button><br>
-      <button class="bigText" id="button4" title="Button 4" style="display: none"></button><br>
-    </td>
-    <td valign="top" style="padding-left: 20px;">
-      <button class="bigText" id="button5" title="Button 5" style="display: none"></button><br>
-      <button class="bigText" id="button6" title="Button 6" style="display: none"></button><br>
     </td>
   </tr>
 </table>

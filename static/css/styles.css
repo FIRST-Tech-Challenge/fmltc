@@ -52,24 +52,28 @@ body {
   text-align: right;
 }
 
-.smallText {
-  font-size : 12px;
+.text-12 {
+  font-size: 12px;
 }
 
-.mediumText {
-  font-size : 16px;
+.text-14 {
+  font-size: 14px;
 }
 
-.bigText {
-  font-size : 20px;
+.text-16 {
+  font-size: 16px;
 }
 
-.biggerText {
-  font-size : 30px;
+.text-18 {
+  font-size: 18px;
 }
 
-.iconText {
-  font-size : 30px;
+.text-24 {
+  font-size: 24px;
+}
+
+.text-36 {
+  font-size: 36px;
 }
 
 .collapsedBorder {
@@ -79,6 +83,23 @@ body {
 .cellWithBorder {
   border: 1px solid #dddddd;
   padding: 8px;
+}
+
+.cellWithBorderLeftPadding {
+  border: 1px solid #dddddd;
+  padding-left: 2px;
+}
+
+.buttonWithoutBorder {
+  padding: 0px 8px 0px 8px;
+  border: none;
+  background: none;
+  vertical-align: bottom;
+}
+
+.inputWithoutBorder {
+  padding: 0;
+  border: none;
 }
 
 /* Modal dialog rules */
@@ -112,6 +133,11 @@ body {
   background-color: #fefefe;
 }
 
+.modal_dialog_title {
+  font-size: 24px;
+  margin: 0px;
+}
+
 /* Tabs */
 
 .tabButtonsDiv {
@@ -121,7 +147,7 @@ body {
 }
 
 .tabButtonsDiv button {
-  font-size : 30px;
+  font-size: 24px;
   background-color: inherit;
   float: left;
   border: none;

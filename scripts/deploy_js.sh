@@ -13,6 +13,7 @@ java -jar $FMLTC_CLOSURE_COMPILER_JAR \
   --js $FMLTC_CLOSURE_LIBRARY_FOLDER/closure/goog/deps.js \
   --only_closure_dependencies \
   --entry_point fmltc.Box \
+  --entry_point fmltc.DeleteConfirmationDialog \
   --entry_point fmltc.LabelVideo \
   --entry_point fmltc.ListDatasets \
   --entry_point fmltc.ListModels \
