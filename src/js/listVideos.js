@@ -43,16 +43,15 @@ fmltc.ListVideos = function(util, listDatasets) {
   this.videosTable = document.getElementById('videosTable');
   this.videoCheckboxAll = document.getElementById('videoCheckboxAll');
   this.produceDatasetButton = document.getElementById('produceDatasetButton');
+  this.deleteVideosButton = document.getElementById('deleteVideosButton');
 
   this.headerRowCount = this.videosTable.rows.length;
 
   // Arrays with one element per video. Note that these need to be spliced when a video is deleted.
   this.videoEntityArray = [];
-  this.checkboxes = [];
-  this.lastTimeVideoEntityChanged = [];
+  this.frameExtractionComplete = [];
   this.trs = [];
-  this.deleteButtons = [];
-  this.triggerFrameExtractionButtons = [];
+  this.checkboxes = [];
   this.videoFilenameTds = [];
   this.dimensionsSpans = [];
   this.durationSpans = [];
@@ -61,14 +60,18 @@ fmltc.ListVideos = function(util, listDatasets) {
   this.extractedFrameCountSpans = [];
   this.excludedFrameCountSpans = [];
 
+  this.waitCursor = false;
+  this.deleteVideoCounter = 0;
+
   this.retrieveVideos();
 
-  this.updateProduceDatasetButton();
+  this.updateButtons();
 
   const uploadVideoFileButton = document.getElementById('uploadVideoFileButton');
   uploadVideoFileButton.onclick = this.uploadVideoFileButton_onclick.bind(this);
   this.videoCheckboxAll.onclick = this.videoCheckboxAll_onclick.bind(this);
   this.produceDatasetButton.onclick = this.produceDatasetButton_onclick.bind(this);
+  this.deleteVideosButton.onclick = this.deleteVideosButton_onclick.bind(this);
 };
 
 fmltc.ListVideos.prototype.retrieveVideos = function() {
@@ -109,92 +112,63 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     i = this.videoEntityArray.length;
     this.videoEntityArray.push(videoEntity);
 
+    this.frameExtractionComplete[i] = false;
+
     const tr = this.videosTable.insertRow(-1);
     this.trs[i] = tr;
 
-    const checkboxTd = tr.insertCell(-1);
-    this.util.addClass(checkboxTd, 'cellWithBorder');
+    const checkboxTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     const checkbox = document.createElement('input');
     this.checkboxes[i] = checkbox;
-    checkbox.style.display = 'none';
-    checkbox.disabled = true;
     checkbox.setAttribute('type', 'checkbox');
     checkbox.onclick = this.checkbox_onclick.bind(this);
     checkboxTd.appendChild(checkbox);
 
-    const deleteTd = tr.insertCell(-1);
-    this.util.addClass(deleteTd, 'cellWithBorder');
-    const deleteButton = document.createElement('button');
-    this.deleteButtons[i] = deleteButton;
-    deleteButton.textContent = String.fromCodePoint(0x1F5D1); // wastebasket
-    deleteButton.title = "Delete this video";
-    deleteButton.style.display = 'none';
-    deleteButton.disabled = true;
-    deleteButton.onclick = this.deleteButton_onclick.bind(this, videoEntity.video_uuid);
-    deleteTd.appendChild(deleteButton);
-    const triggerFrameExtractionButton = document.createElement('button');
-    this.triggerFrameExtractionButtons[i] = triggerFrameExtractionButton;
-    triggerFrameExtractionButton.textContent = String.fromCodePoint(0x1F6E0); // hammer and wrench
-    triggerFrameExtractionButton.title = "Restart frame extraction for this video";
-    triggerFrameExtractionButton.style.display = 'none';
-    triggerFrameExtractionButton.disabled = true;
-    triggerFrameExtractionButton.onclick = this.triggerFrameExtractionButton_onclick.bind(this, videoEntity.video_uuid);
-    deleteTd.appendChild(triggerFrameExtractionButton);
-
-    const videoFilenameTd = tr.insertCell(-1);
-    this.util.addClass(videoFilenameTd, 'cellWithBorder');
+    const videoFilenameTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     this.videoFilenameTds[i] = videoFilenameTd
     videoFilenameTd.appendChild(document.createTextNode(videoEntity.video_filename));
 
-    const dateUploadedTd = tr.insertCell(-1);
-    this.util.addClass(dateUploadedTd, 'cellWithBorder');
+    const dateUploadedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     const dateUploadedSpan = document.createElement('span');
     dateUploadedSpan.textContent = new Date(videoEntity.upload_time_ms).toLocaleString();
     dateUploadedTd.appendChild(dateUploadedSpan);
 
-    const fileSizeTd = tr.insertCell(-1);
-    this.util.addClass(fileSizeTd, 'cellWithBorder');
+    const fileSizeTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     fileSizeTd.setAttribute('align', 'right');
     const fileSizeSpan = document.createElement('span');
     fileSizeSpan.textContent = new Number(videoEntity.file_size).toLocaleString()
     fileSizeTd.appendChild(fileSizeSpan);
 
-    const dimensionsTd = tr.insertCell(-1);
-    this.util.addClass(dimensionsTd, 'cellWithBorder');
+    const dimensionsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     const dimensionsSpan = document.createElement('span');
     this.dimensionsSpans[i] = dimensionsSpan;
     dimensionsTd.appendChild(dimensionsSpan);
 
-    const durationTd = tr.insertCell(-1);
-    this.util.addClass(durationTd, 'cellWithBorder');
+    const durationTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     durationTd.setAttribute('align', 'right');
     const durationSpan = document.createElement('span');
     this.durationSpans[i] = durationSpan;
     durationTd.appendChild(durationSpan);
 
-    const framesPerSecondTd = tr.insertCell(-1);
-    this.util.addClass(framesPerSecondTd, 'cellWithBorder');
+    const framesPerSecondTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     framesPerSecondTd.setAttribute('align', 'right');
     const framesPerSecondSpan = document.createElement('span');
     this.framesPerSecondSpans[i] = framesPerSecondSpan;
     framesPerSecondTd.appendChild(framesPerSecondSpan);
 
-    const frameCountTd = tr.insertCell(-1);
-    this.util.addClass(frameCountTd, 'cellWithBorder');
+    const frameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     frameCountTd.setAttribute('align', 'right');
     const frameCountSpan = document.createElement('span');
     this.frameCountSpans[i] = frameCountSpan;
     frameCountTd.appendChild(frameCountSpan);
 
-    const extractedFrameCountTd = tr.insertCell(-1);
-    this.util.addClass(extractedFrameCountTd, 'cellWithBorder');
+    const extractedFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     extractedFrameCountTd.setAttribute('align', 'right');
     const extractedFrameCountSpan = document.createElement('span');
     this.extractedFrameCountSpans[i] = extractedFrameCountSpan;
     extractedFrameCountTd.appendChild(extractedFrameCountSpan);
 
-    const excludedFrameCountTd = tr.insertCell(-1);
-    this.util.addClass(excludedFrameCountTd, 'cellWithBorder');
+    const excludedFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     excludedFrameCountTd.setAttribute('align', 'right');
     const excludedFrameCountSpan = document.createElement('span');
     this.excludedFrameCountSpans[i] = excludedFrameCountSpan;
@@ -231,11 +205,8 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
         (videoEntity.extracted_frame_count - videoEntity.included_frame_count);
   }
   if (frameExtractionComplete) {
+    this.frameExtractionComplete[i] = true;
     this.trs[i].className = 'frameExtractionComplete';
-    this.checkboxes[i].disabled = false;
-    this.checkboxes[i].style.display = 'inline-block';
-    this.deleteButtons[i].disabled = false;
-    this.deleteButtons[i].style.display = 'inline-block';
     // Make the video filename a link to the labelVideo page, if it isn't already a link
     const videoFilenameElement = this.videoFilenameTds[i].childNodes[0];
     if (videoFilenameElement.nodeName != 'A') { // A for Anchor
@@ -247,10 +218,10 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     }
 
   } else if (this.didFrameExtractionFailToStart(videoEntity)) {
-    this.triggerFrameExtractionButton_onclick(videoEntity.video_uuid);
+    this.triggerFrameExtraction(videoEntity.video_uuid);
 
   } else if (this.isFrameExtractionStalled(videoEntity)) {
-    this.triggerFrameExtractionButton_onclick(videoEntity.video_uuid);
+    this.triggerFrameExtraction(videoEntity.video_uuid);
 
   } else {
     this.trs[i].className = 'frameExtractionIncomplete';
@@ -332,56 +303,55 @@ fmltc.ListVideos.prototype.onVideoUploaded = function(videoUuid) {
 };
 
 fmltc.ListVideos.prototype.videoCheckboxAll_onclick = function() {
-  var anyChecked = false;
-  for (let i = 0; i < this.checkboxes.length; i++) {
-    if (!this.checkboxes[i].disabled) {
-      if (this.checkboxes[i].checked) {
-        anyChecked = true;
-        break;
-      }
-    }
-  }
-  const check = !anyChecked;
-  for (let i = 0; i < this.checkboxes.length; i++) {
-    if (!this.checkboxes[i].disabled) {
-      this.checkboxes[i].checked = check;
-    }
-  }
-  this.videoCheckboxAll.checked = check;
-
-  this.updateProduceDatasetButton();
+  this.util.checkAllOrNone(this.videoCheckboxAll, this.checkboxes);
+  this.updateButtons();
 };
 
 fmltc.ListVideos.prototype.checkbox_onclick = function() {
-  this.updateProduceDatasetButton();
+  this.updateButtons();
 };
 
-fmltc.ListVideos.prototype.updateProduceDatasetButton = function() {
-  var disabled = true;
-  if (!this.datasetInProgress) {
-    for (let i = 0; i < this.checkboxes.length; i++) {
-      if (!this.checkboxes[i].disabled) {
-        if (this.checkboxes[i].checked) {
-          disabled = false;
-          break;
-        }
+fmltc.ListVideos.prototype.updateButtons = function() {
+  const countChecked = this.util.countChecked(this.checkboxes);
+  let frameExtractionIsNotComplete = false;
+  for (let i = 0; i < this.checkboxes.length; i++) {
+    if (this.checkboxes[i].checked) {
+      if (!this.frameExtractionComplete[i]) {
+        frameExtractionIsNotComplete = true;
       }
     }
   }
-  this.produceDatasetButton.disabled = disabled;
+  this.produceDatasetButton.disabled = this.waitCursor || countChecked == 0 || frameExtractionIsNotComplete;
+  // TODO(lizlooney): Allow videos with incomplete frame extraction to be deleted (we'll need to
+  // cancel the frame extraction).
+  this.deleteVideosButton.disabled = this.waitCursor || countChecked == 0 || frameExtractionIsNotComplete;
 };
 
 
-fmltc.ListVideos.prototype.deleteButton_onclick = function(videoUuid) {
-  this.util.setWaitCursor();
+fmltc.ListVideos.prototype.deleteVideosButton_onclick = function() {
+  const videoUuids = this.getCheckedVideoUuids();
+  new fmltc.DeleteConfirmationDialog(this.util, 'Delete Videos',
+      'Are you sure you want to delete the selected videos?',
+      this.deleteVideos.bind(this, videoUuids));
+};
 
-  const xhr = new XMLHttpRequest();
-  const params = 'video_uuid=' + encodeURIComponent(videoUuid);
-  xhr.open('POST', '/deleteVideo', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_deleteVideo_onreadystatechange.bind(this, xhr, params,
-      videoUuid);
-  xhr.send(params);
+fmltc.ListVideos.prototype.deleteVideos = function(videoUuids) {
+  this.waitCursor = true;
+  this.util.setWaitCursor();
+  this.updateButtons();
+
+  this.deleteVideoCounter = 0;
+  for (let i = 0; i < videoUuids.length; i++) {
+    const videoUuid = videoUuids[i];
+    const xhr = new XMLHttpRequest();
+    const params = 'video_uuid=' + encodeURIComponent(videoUuid);
+    xhr.open('POST', '/deleteVideo', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onreadystatechange = this.xhr_deleteVideo_onreadystatechange.bind(this, xhr, params,
+        videoUuid);
+    xhr.send(params);
+    this.deleteVideoCounter++;
+  }
 };
 
 fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, params,
@@ -389,20 +359,22 @@ fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, pa
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
-    this.util.clearWaitCursor();
+    this.deleteVideoCounter--;
+    if (this.deleteVideoCounter == 0) {
+      this.util.clearWaitCursor();
+      this.waitCursor = false;
+      this.updateButtons();
+    }
 
     if (xhr.status === 200) {
       const i = this.indexOfVideo(videoUuid);
       if (i != -1) {
         this.videosTable.deleteRow(i + this.headerRowCount);
         this.videoEntityArray.splice(i, 1);
+        this.frameExtractionComplete.splice(i, 1);
         this.checkboxes[i].onclick = null
         this.checkboxes.splice(i, 1);
         this.trs.splice(i, 1);
-        this.deleteButtons[i].onclick = null;
-        this.deleteButtons.splice(i, 1);
-        this.triggerFrameExtractionButtons[i].onclick = null;
-        this.triggerFrameExtractionButtons.splice(i, 1);
         this.videoFilenameTds.splice(i, 1);
         this.dimensionsSpans.splice(i, 1);
         this.durationSpans.splice(i, 1);
@@ -423,12 +395,9 @@ fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, pa
   }
 };
 
-fmltc.ListVideos.prototype.triggerFrameExtractionButton_onclick = function(videoUuid) {
+fmltc.ListVideos.prototype.triggerFrameExtraction = function(videoUuid) {
   const i = this.indexOfVideo(videoUuid);
   if (i != -1) {
-    this.triggerFrameExtractionButtons[i].disabled = true;
-    this.triggerFrameExtractionButtons[i].style.display = 'none';
-
     const xhr = new XMLHttpRequest();
     const params = 'video_uuid=' + encodeURIComponent(videoUuid);
     xhr.open('POST', '/triggerFrameExtraction', true);
@@ -470,20 +439,18 @@ fmltc.ListVideos.prototype.indexOfVideo = function(videoUuid) {
   return -1;
 };
 
-fmltc.ListVideos.prototype.getVideoUuids = function() {
+fmltc.ListVideos.prototype.getCheckedVideoUuids = function() {
   const videoUuids = [];
   for (let i = 0; i < this.checkboxes.length; i++) {
-    if (!this.checkboxes[i].disabled) {
-      if (this.checkboxes[i].checked) {
-        videoUuids.push(this.videoEntityArray[i].video_uuid);
-      }
+    if (this.checkboxes[i].checked) {
+      videoUuids.push(this.videoEntityArray[i].video_uuid);
     }
   }
   return videoUuids;
 };
 
 fmltc.ListVideos.prototype.produceDatasetButton_onclick = function() {
-  new fmltc.ProduceDatasetDialog(this.util, this.getVideoUuids(),
+  new fmltc.ProduceDatasetDialog(this.util, this.getCheckedVideoUuids(),
       this.onDatasetProduced.bind(this));
 };
 

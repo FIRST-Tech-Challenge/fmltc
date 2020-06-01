@@ -190,9 +190,13 @@ fmltc.Util.prototype.initializeTabs = function() {
   }
 
   if (foundTabs) {
-    const currentTabIdPrefix = this.getPreference('currentTab', 'videosTab');
-    this.tabDiv_onclick(currentTabIdPrefix);
+    this.showLastViewedTab();
   }
+};
+
+fmltc.Util.prototype.showLastViewedTab = function() {
+  const currentTabIdPrefix = this.getPreference('currentTab', 'videosTab');
+  this.tabDiv_onclick(currentTabIdPrefix);
 };
 
 fmltc.Util.prototype.showVideosTab = function() {
@@ -236,4 +240,35 @@ fmltc.Util.prototype.formatElapsedSeconds = function(elapsedSeconds) {
     return hours + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
   }
   return minutes + ':' + String(seconds).padStart(2, '0');
+};
+
+fmltc.Util.prototype.checkAllOrNone = function(checkboxAll, checkboxes) {
+  let anyChecked = false;
+  for (let i = 0; i < checkboxes.length; i++) {
+    if (checkboxes[i].checked) {
+      anyChecked = true;
+      break;
+    }
+  }
+  const check = !anyChecked;
+  for (let i = 0; i < checkboxes.length; i++) {
+    checkboxes[i].checked = check;
+  }
+  checkboxAll.checked = check;
+};
+
+fmltc.Util.prototype.countChecked = function(checkboxes) {
+  let countChecked = 0;
+  for (let i = 0; i < checkboxes.length; i++) {
+    if (checkboxes[i].checked) {
+      countChecked++;
+    }
+  }
+  return countChecked;
+};
+
+fmltc.Util.prototype.insertCellWithClass = function(tr, clazz) {
+  const td = tr.insertCell(-1);
+  this.addClass(td, clazz);
+  return td;
 };

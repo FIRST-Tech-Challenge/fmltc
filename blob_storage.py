@@ -99,7 +99,7 @@ def __delete_blobs(blob_names):
     # Ignore 404 errors on delete.
     bucket = util.storage_client().get_bucket(BUCKET_BLOBS)
     bucket.delete_blobs(blob_names, on_error=lambda blob: None)
-    
+
 # video files
 
 def prepare_to_upload_video(team_uuid, video_uuid, content_type):
@@ -222,6 +222,14 @@ def store_pipeline_config(team_uuid, model_uuid, pipeline_config):
     pipeline_config_blob_name = __get_pipeline_config_blob_name(team_uuid, model_uuid)
     __write_string_to_blob(pipeline_config_blob_name, pipeline_config, 'text/plain')
     return get_pipeline_config_path(team_uuid, model_uuid)
+
+def get_model_event_file_path(team_uuid, model_uuid):
+    client = util.storage_client()
+    # We're looking for a file like this: model.ckpt-2000.index
+    prefix = '%s/events.out.tfevents.' % __get_model_folder(team_uuid, model_uuid)
+    for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
+        return __get_path(blob.name)
+    return None
 
 def get_trained_checkpoint_prefix(team_uuid, model_uuid):
     client = util.storage_client()

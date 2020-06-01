@@ -33,26 +33,34 @@ fmltc.ListModels = function(util) {
   /** @type {!fmltc.Util} */
   this.util = util;
 
-  this.downloadTFLiteButton = document.getElementById('downloadTFLiteButton');
   this.modelsTable = document.getElementById('modelsTable');
+  this.modelCheckboxAll = document.getElementById('modelCheckboxAll');
+  this.downloadTFLiteButton = document.getElementById('downloadTFLiteButton');
+  this.cancelTrainingButton = document.getElementById('cancelTrainingButton');
+  this.deleteModelsButton = document.getElementById('deleteModelsButton');
 
   this.headerRowCount = this.modelsTable.rows.length;
 
   // Arrays with one element per model. Note that these need to be spliced when a model is deleted.
   this.modelEntityArray = [];
-  this.modelToBeDeleted = []
-  this.checkboxes = [];
   this.trs = [];
+  this.checkboxes = [];
   this.trainStateSpans = [];
   this.evalStateSpans = [];
   this.trainTimeSpans = [];
+
+  this.waitCursor = false;
+  this.deleteModelCounter = 0;
 
   this.totalTrainingMinutes = 0; // Updated when we get a response from /retrieveModelList
   this.remainingTrainingMinutes = 0; // Updated when we get a response from /retrieveModelList
   this.retrieveModels();
   this.updateButtons();
 
+  this.modelCheckboxAll.onclick = this.modelCheckboxAll_onclick.bind(this);
   this.downloadTFLiteButton.onclick = this.downloadTFLiteButton_onclick.bind(this);
+  this.cancelTrainingButton.onclick = this.cancelTrainingButton_onclick.bind(this);
+  this.deleteModelsButton.onclick = this.deleteModelsButton_onclick.bind(this);
 };
 
 fmltc.ListModels.prototype.retrieveModels = function() {
@@ -92,57 +100,39 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
     i = this.modelEntityArray.length;
     this.modelEntityArray.push(modelEntity);
 
-    this.modelToBeDeleted[i] = false;
-
     const tr = this.modelsTable.insertRow(-1);
     this.trs[i] = tr;
 
-    const checkboxTd = tr.insertCell(-1);
-    this.util.addClass(checkboxTd, 'cellWithBorder');
+    const checkboxTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     const checkbox = document.createElement('input');
     this.checkboxes[i] = checkbox;
-    checkbox.style.display = 'none';
-    checkbox.disabled = true;
     checkbox.setAttribute('type', 'checkbox');
     checkbox.onclick = this.checkbox_onclick.bind(this);
     checkboxTd.appendChild(checkbox);
 
-    const deleteTd = tr.insertCell(-1);
-    this.util.addClass(deleteTd, 'cellWithBorder');
-    const deleteButton = document.createElement('button');
-    deleteButton.textContent = String.fromCodePoint(0x1F5D1); // wastebasket
-    deleteButton.title = "Delete this model";
-    deleteButton.onclick = this.deleteButton_onclick.bind(this, modelEntity.model_uuid);
-    deleteTd.appendChild(deleteButton);
-
-    const videoFilenamesTd = tr.insertCell(-1);
-    this.util.addClass(videoFilenamesTd, 'cellWithBorder');
+    const videoFilenamesTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     for (let i = 0; i < modelEntity.video_filenames.length; i++) {
       const div = document.createElement('div');
       div.textContent = modelEntity.video_filenames[i];
       videoFilenamesTd.appendChild(div);
     }
 
-    const dateCreatedTd = tr.insertCell(-1);
-    this.util.addClass(dateCreatedTd, 'cellWithBorder');
+    const dateCreatedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     const dateCreatedSpan = document.createElement('span');
     dateCreatedSpan.textContent = new Date(modelEntity.creation_time_ms).toLocaleString();
     dateCreatedTd.appendChild(dateCreatedSpan);
 
-    const trainStateTd = tr.insertCell(-1);
-    this.util.addClass(trainStateTd, 'cellWithBorder');
+    const trainStateTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     const trainStateSpan = document.createElement('span');
     this.trainStateSpans[i] = trainStateSpan;
     trainStateTd.appendChild(trainStateSpan);
 
-    const evalStateTd = tr.insertCell(-1);
-    this.util.addClass(evalStateTd, 'cellWithBorder');
+    const evalStateTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     const evalStateSpan = document.createElement('span');
     this.evalStateSpans[i] = evalStateSpan;
     evalStateTd.appendChild(evalStateSpan);
 
-    const trainTimeTd = tr.insertCell(-1);
-    this.util.addClass(trainTimeTd, 'cellWithBorder');
+    const trainTimeTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     trainTimeTd.setAttribute('align', 'right');
     const trainTimeSpan = document.createElement('span');
     this.trainTimeSpans[i] = trainTimeSpan;
@@ -159,16 +149,13 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
 
   if (this.isTrainingDone(modelEntity)) {
     this.trs[i].className = 'trainingDone';
-    this.checkboxes[i].disabled = false;
-    this.checkboxes[i].style.display = 'inline-block';
 
-    if (this.modelToBeDeleted[i]) {
-      this.deleteModel(modelEntity.model_uuid);
-    }
   } else {
     this.trs[i].className = 'trainingNotDone';
     setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid), 60 * 1000);
   }
+
+  this.updateButtons();
 };
 
 fmltc.ListModels.prototype.isTrainingDone = function(modelEntity) {
@@ -227,23 +214,25 @@ fmltc.ListModels.prototype.addNewModel = function(remainingTrainingMinutes, mode
   this.onModelEntityUpdated(modelEntity);
 }
 
+fmltc.ListModels.prototype.modelCheckboxAll_onclick = function() {
+  this.util.checkAllOrNone(this.modelCheckboxAll, this.checkboxes);
+  this.updateButtons();
+};
+
 fmltc.ListModels.prototype.checkbox_onclick = function() {
   this.updateButtons();
 };
 
-fmltc.ListModels.prototype.deleteButton_onclick = function(modelUuid) {
-  const i = this.indexOfModel(modelUuid);
-  if (i == -1) {
-    return;
-  }
-
-  this.util.setWaitCursor();
-
-  if (this.isTrainingDone(this.modelEntityArray[i])) {
-    this.deleteModel(modelUuid);
-  } else {
-    this.modelToBeDeleted[i] = true;
-    this.cancelTraining(modelUuid);
+fmltc.ListModels.prototype.cancelTrainingButton_onclick = function() {
+  const modelUuids = this.getCheckedModelUuids();
+  for (let i = 0; i < modelUuids.length; i++) {
+    const modelUuid = modelUuids[i];
+    const index = this.indexOfModel(modelUuid);
+    if (index != -1) {
+      if (!this.isTrainingDone(this.modelEntityArray[index])) {
+        this.cancelTraining(modelUuid);
+      }
+    }
   }
 };
 
@@ -272,6 +261,31 @@ fmltc.ListModels.prototype.xhr_cancelTraining_onreadystatechange = function(xhr,
   }
 };
 
+fmltc.ListModels.prototype.deleteModelsButton_onclick = function() {
+  const modelUuids = this.getCheckedModelUuids();
+  new fmltc.DeleteConfirmationDialog(this.util, 'Delete Models',
+      'Are you sure you want to delete the selected models?',
+      this.startToDeleteModels.bind(this, modelUuids));
+};
+
+fmltc.ListModels.prototype.startToDeleteModels = function(modelUuids) {
+  this.waitCursor = true;
+  this.util.setWaitCursor();
+  this.updateButtons();
+
+  this.deleteModelCounter = 0;
+  for (let i = 0; i < modelUuids.length; i++) {
+    const modelUuid = modelUuids[i];
+    const index = this.indexOfModel(modelUuid);
+    if (index != -1) {
+      if (this.isTrainingDone(this.modelEntityArray[index])) {
+        this.deleteModel(modelUuid);
+        this.deleteModelCounter++;
+      }
+    }
+  }
+};
+
 fmltc.ListModels.prototype.deleteModel = function(modelUuid) {
   const xhr = new XMLHttpRequest();
   const params = 'model_uuid=' + encodeURIComponent(modelUuid);
@@ -287,17 +301,20 @@ fmltc.ListModels.prototype.xhr_deleteModel_onreadystatechange = function(xhr, pa
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
-    this.util.clearWaitCursor();
+    this.deleteModelCounter--;
+    if (this.deleteModelCounter == 0) {
+      this.util.clearWaitCursor();
+      this.waitCursor = false;
+    }
 
     if (xhr.status === 200) {
       const i = this.indexOfModel(modelUuid);
       if (i != -1) {
         this.modelsTable.deleteRow(i + this.headerRowCount);
         this.modelEntityArray.splice(i, 1);
-        this.modelToBeDeleted.splice(i, 1);
+        this.trs.splice(i, 1);
         this.checkboxes[i].onclick = null;
         this.checkboxes.splice(i, 1);
-        this.trs.splice(i, 1);
         this.trainStateSpans.splice(i, 1);
         this.evalStateSpans.splice(i, 1);
         this.trainTimeSpans.splice(i, 1);
@@ -321,34 +338,40 @@ fmltc.ListModels.prototype.indexOfModel = function(modelUuid) {
 };
 
 fmltc.ListModels.prototype.updateButtons = function() {
-  let countChecked = 0;
+  const countChecked = this.util.countChecked(this.checkboxes);
+  let modelsAreNotTraining = false;
+  let modelsAreNotDone = false;
   for (let i = 0; i < this.checkboxes.length; i++) {
-    if (!this.checkboxes[i].disabled && this.checkboxes[i].checked) {
-      countChecked++;
-      if (countChecked > 1) {
-        // We don't need to keep counting. We just need to know whether there are
-        // 0, 1, or more than 1 checkboxes checked.
-        break;
+    if (this.checkboxes[i].checked) {
+      if (!this.isTrainingDone(this.modelEntityArray[i])) {
+        modelsAreNotDone = true;
+      } else {
+        modelsAreNotTraining = true;
       }
     }
   }
 
-  this.downloadTFLiteButton.disabled = countChecked != 1;
+  this.downloadTFLiteButton.disabled = this.waitCursor || countChecked != 1 || modelsAreNotDone;
+  this.cancelTrainingButton.disabled = this.waitCursor || countChecked != 1 || modelsAreNotTraining;
+  this.deleteModelsButton.disabled = this.waitCursor || countChecked == 0 || modelsAreNotDone;
 };
 
-fmltc.ListModels.prototype.getCheckedModelUuid = function() {
+fmltc.ListModels.prototype.getCheckedModelUuids = function() {
+  const modelUuids = [];
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
-      return this.modelEntityArray[i].model_uuid;
+      modelUuids.push(this.modelEntityArray[i].model_uuid);
     }
   }
-  return '';
+  return modelUuids;
 };
 
 fmltc.ListModels.prototype.downloadTFLiteButton_onclick = function() {
   this.util.setWaitCursor();
+  this.waitCursor = true;
+  this.updateButtons();
 
-  const modelUuid = this.getCheckedModelUuid();
+  const modelUuid = this.getCheckedModelUuids()[0];
   const downloadStartTime = Date.now();
   this.createTFLiteGraphPb(modelUuid, downloadStartTime);
 };
@@ -375,6 +398,8 @@ fmltc.ListModels.prototype.xhr_createTFLiteGraphPb_onreadystatechange = function
       console.log('Failure! /createTFLiteGraphPb?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       this.util.clearWaitCursor();
+      this.waitCursor = false;
+      this.updateButtons();
     }
   }
 };
@@ -402,6 +427,8 @@ fmltc.ListModels.prototype.xhr_createTFLite_onreadystatechange = function(xhr, p
       console.log('Failure! /createTFLite?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       this.util.clearWaitCursor();
+      this.waitCursor = false;
+      this.updateButtons();
     }
   }
 };
@@ -421,6 +448,8 @@ fmltc.ListModels.prototype.xhr_downloadTFLite_onreadystatechange = function(xhr,
     xhr.onreadystatechange = null;
 
     this.util.clearWaitCursor();
+    this.waitCursor = false;
+    this.updateButtons();
 
     if (xhr.status === 200) {
       const anchor = document.createElement('a');

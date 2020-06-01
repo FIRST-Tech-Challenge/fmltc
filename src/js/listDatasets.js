@@ -38,8 +38,10 @@ fmltc.ListDatasets = function(util, listModels) {
   this.listModels = listModels;
 
   this.datasetsTable = document.getElementById('datasetsTable');
+  this.datasetCheckboxAll = document.getElementById('datasetCheckboxAll');
   this.downloadDatasetButton = document.getElementById('downloadDatasetButton');
   this.startTrainingButton = document.getElementById('startTrainingButton');
+  this.deleteDatasetsButton = document.getElementById('deleteDatasetsButton');
 
   this.headerRowCount = this.datasetsTable.rows.length;
 
@@ -48,11 +50,16 @@ fmltc.ListDatasets = function(util, listModels) {
   this.datasetEntityArray = [];
   this.checkboxes = [];
 
+  this.waitCursor = false;
+  this.deleteDatasetCounter = 0;
+
   this.retrieveDatasets();
   this.updateButtons();
 
+  this.datasetCheckboxAll.onclick = this.datasetCheckboxAll_onclick.bind(this);
   this.downloadDatasetButton.onclick = this.downloadDatasetButton_onclick.bind(this);
   this.startTrainingButton.onclick = this.startTrainingButton_onclick.bind(this);
+  this.deleteDatasetsButton.onclick = this.deleteDatasetsButton_onclick.bind(this);
 };
 
 fmltc.ListDatasets.prototype.retrieveDatasets = function() {
@@ -87,66 +94,50 @@ fmltc.ListDatasets.prototype.addDataset = function(datasetEntity) {
 
   const tr = this.datasetsTable.insertRow(-1);
 
-  const checkboxTd = tr.insertCell(-1);
-  this.util.addClass(checkboxTd, 'cellWithBorder');
+  const checkboxTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   const checkbox = document.createElement('input');
   this.checkboxes[i] = checkbox;
   checkbox.setAttribute('type', 'checkbox');
   checkbox.onclick = this.checkbox_onclick.bind(this);
   checkboxTd.appendChild(checkbox);
 
-  const deleteTd = tr.insertCell(-1);
-  this.util.addClass(deleteTd, 'cellWithBorder');
-  const deleteButton = document.createElement('button');
-  deleteButton.textContent = String.fromCodePoint(0x1F5D1); // wastebasket
-  deleteButton.title = "Delete this dataset";
-  deleteButton.onclick = this.deleteButton_onclick.bind(this, datasetEntity.dataset_uuid);
-  deleteTd.appendChild(deleteButton);
-
-  const videoFilenamesTd = tr.insertCell(-1);
-  this.util.addClass(videoFilenamesTd, 'cellWithBorder');
+  const videoFilenamesTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   for (let i = 0; i < datasetEntity.video_filenames.length; i++) {
     const div = document.createElement('div');
     div.textContent = datasetEntity.video_filenames[i];
     videoFilenamesTd.appendChild(div);
   }
 
-  const dateCreatedTd = tr.insertCell(-1);
-  this.util.addClass(dateCreatedTd, 'cellWithBorder');
+  const dateCreatedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   const dateCreatedSpan = document.createElement('span');
   dateCreatedSpan.textContent = new Date(datasetEntity.creation_time_ms).toLocaleString();
   dateCreatedTd.appendChild(dateCreatedSpan);
 
-  const trainFrameCountTd = tr.insertCell(-1);
-  this.util.addClass(trainFrameCountTd, 'cellWithBorder');
+  const trainFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   trainFrameCountTd.setAttribute('align', 'right');
   const trainFrameCountSpan = document.createElement('span');
   trainFrameCountSpan.textContent = new Number(datasetEntity.train_frame_count).toLocaleString();
   trainFrameCountTd.appendChild(trainFrameCountSpan);
 
-  const trainNegativeFrameCountTd = tr.insertCell(-1);
-  this.util.addClass(trainNegativeFrameCountTd, 'cellWithBorder');
+  const trainNegativeFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   trainNegativeFrameCountTd.setAttribute('align', 'right');
   const trainNegativeFrameCountSpan = document.createElement('span');
   trainNegativeFrameCountSpan.textContent = new Number(datasetEntity.train_negative_frame_count).toLocaleString();
   trainNegativeFrameCountTd.appendChild(trainNegativeFrameCountSpan);
 
-  const evalFrameCountTd = tr.insertCell(-1);
-  this.util.addClass(evalFrameCountTd, 'cellWithBorder');
+  const evalFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   evalFrameCountTd.setAttribute('align', 'right');
   const evalFrameCountSpan = document.createElement('span');
   evalFrameCountSpan.textContent = new Number(datasetEntity.eval_frame_count).toLocaleString();
   evalFrameCountTd.appendChild(evalFrameCountSpan);
 
-  const evalNegativeFrameCountTd = tr.insertCell(-1);
-  this.util.addClass(evalNegativeFrameCountTd, 'cellWithBorder');
+  const evalNegativeFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   evalNegativeFrameCountTd.setAttribute('align', 'right');
   const evalNegativeFrameCountSpan = document.createElement('span');
   evalNegativeFrameCountSpan.textContent = new Number(datasetEntity.eval_negative_frame_count).toLocaleString();
   evalNegativeFrameCountTd.appendChild(evalNegativeFrameCountSpan);
 
-  const labelsTd = tr.insertCell(-1);
-  this.util.addClass(labelsTd, 'cellWithBorder');
+  const labelsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   const labelsSpan = document.createElement('span');
   labelsSpan.textContent = datasetEntity.sorted_label_list;
   labelsTd.appendChild(labelsSpan);
@@ -156,20 +147,39 @@ fmltc.ListDatasets.prototype.addNewDataset = function(datasetEntity) {
   this.addDataset(datasetEntity);
 }
 
+fmltc.ListDatasets.prototype.datasetCheckboxAll_onclick = function() {
+  this.util.checkAllOrNone(this.datasetCheckboxAll, this.checkboxes);
+  this.updateButtons();
+};
+
 fmltc.ListDatasets.prototype.checkbox_onclick = function() {
   this.updateButtons();
 };
 
-fmltc.ListDatasets.prototype.deleteButton_onclick = function(datasetUuid) {
-  this.util.setWaitCursor();
+fmltc.ListDatasets.prototype.deleteDatasetsButton_onclick = function() {
+  const datasetUuids = this.getCheckedDatasetUuids();
+  new fmltc.DeleteConfirmationDialog(this.util, 'Delete Datasets',
+      'Are you sure you want to delete the selected datasets?',
+			this.deleteDatasets.bind(this, datasetUuids));
+};
 
-  const xhr = new XMLHttpRequest();
-  const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
-  xhr.open('POST', '/deleteDataset', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_deleteDataset_onreadystatechange.bind(this, xhr, params,
-      datasetUuid);
-  xhr.send(params);
+fmltc.ListDatasets.prototype.deleteDatasets = function(datasetUuids) {
+  this.waitCursor = true;
+  this.util.setWaitCursor();
+  this.updateButtons();
+
+  this.deleteDatasetCounter = 0;
+  for (let i = 0; i < datasetUuids.length; i++) {
+    const datasetUuid = datasetUuids[i];
+    const xhr = new XMLHttpRequest();
+    const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
+    xhr.open('POST', '/deleteDataset', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onreadystatechange = this.xhr_deleteDataset_onreadystatechange.bind(this, xhr, params,
+        datasetUuid);
+    xhr.send(params);
+    this.deleteDatasetCounter++;
+  }
 };
 
 fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr, params,
@@ -177,7 +187,12 @@ fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
-    this.util.clearWaitCursor();
+    this.deleteDatasetCounter--;
+    if (this.deleteDatasetCounter == 0) {
+      this.util.clearWaitCursor();
+      this.waitCursor = false;
+      this.updateButtons();
+    }
 
     if (xhr.status === 200) {
       const i = this.indexOfDataset(datasetUuid);
@@ -207,35 +222,28 @@ fmltc.ListDatasets.prototype.indexOfDataset = function(datasetUuid) {
 };
 
 fmltc.ListDatasets.prototype.updateButtons = function() {
-  let countChecked = 0;
-  for (let i = 0; i < this.checkboxes.length; i++) {
-    if (this.checkboxes[i].checked) {
-      countChecked++;
-      if (countChecked > 1) {
-        // We don't need to keep counting. We just need to know whether there are
-        // 0, 1, or more than 1 checkboxes checked.
-        break;
-      }
-    }
-  }
-
-  this.downloadDatasetButton.disabled = countChecked != 1;
-  this.startTrainingButton.disabled = countChecked != 1;
+  const countChecked = this.util.countChecked(this.checkboxes);
+  this.downloadDatasetButton.disabled = this.waitCursor || countChecked != 1;
+  this.startTrainingButton.disabled = this.waitCursor || countChecked != 1;
+  this.deleteDatasetsButton.disabled = this.waitCursor || countChecked == 0;
 };
 
-fmltc.ListDatasets.prototype.getCheckedDatasetUuid = function() {
+fmltc.ListDatasets.prototype.getCheckedDatasetUuids = function() {
+  const datasetUuids = [];
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
-      return this.datasetEntityArray[i].dataset_uuid;
+      datasetUuids.push(this.datasetEntityArray[i].dataset_uuid);
     }
   }
-  return '';
+  return datasetUuids;
 };
 
 fmltc.ListDatasets.prototype.downloadDatasetButton_onclick = function() {
+  this.waitCursor = true;
   this.util.setWaitCursor();
+  this.updateButtons();
 
-  const datasetUuid = this.getCheckedDatasetUuid();
+  const datasetUuid = this.getCheckedDatasetUuids()[0];
   const downloadStartTime = Date.now();
 
   const xhr = new XMLHttpRequest();
@@ -370,6 +378,8 @@ fmltc.ListDatasets.prototype.xhr_deleteDatasetZip_onreadystatechange = function(
     if (xhr.status === 200) {
       if (partitionIndex == partitionCount - 1) {
         this.util.clearWaitCursor();
+        this.waitCursor = false;
+        this.updateButtons();
       }
 
     } else {
@@ -384,6 +394,8 @@ fmltc.ListDatasets.prototype.xhr_deleteDatasetZip_onreadystatechange = function(
         console.log('Unable to delete a dataset zip file.')
         if (partitionIndex == partitionCount - 1) {
           this.util.clearWaitCursor();
+          this.waitCursor = false;
+          this.updateButtons();
         }
       }
     }
@@ -391,9 +403,10 @@ fmltc.ListDatasets.prototype.xhr_deleteDatasetZip_onreadystatechange = function(
 };
 
 fmltc.ListDatasets.prototype.startTrainingButton_onclick = function() {
+  const datasetUuid = this.getCheckedDatasetUuids()[0];
   new fmltc.StartTrainingDialog(
       this.util, this.listModels.totalTrainingMinutes, this.listModels.remainingTrainingMinutes,
-      this.getCheckedDatasetUuid(), this.onTrainingStarted.bind(this));
+      datasetUuid, this.onTrainingStarted.bind(this));
 };
 
 fmltc.ListDatasets.prototype.onTrainingStarted = function(remainingTrainingMinutes, modelEntity) {

@@ -65,7 +65,9 @@ fmltc.LabelVideo = function(util, videoEntity) {
   this.nextNegativeFrameButton = document.getElementById('nextNegativeFrameButton');
   this.playbackSpeedInput = document.getElementById('playbackSpeedInput');
   this.reversePlayPauseButton = document.getElementById('reversePlayPauseButton');
+  this.reversePlayPauseSpan = document.getElementById('reversePlayPauseSpan');
   this.forwardPlayPauseButton = document.getElementById('forwardPlayPauseButton');
+  this.forwardPlayPauseSpan = document.getElementById('forwardPlayPauseSpan');
   this.trackerSelect = document.getElementById('trackerSelect');
   this.trackingScaleInput = document.getElementById('trackingScaleInput');
   this.trackingStartButton = document.getElementById('trackingStartButton');
@@ -709,8 +711,13 @@ fmltc.LabelVideo.prototype.refillLabelingArea = function(optLastLabelInputFocus)
     const tr = this.labelingAreaTable.insertRow(-1);
     for (let f = 0; f < fields.length; f++) {
       const field = fields[f];
-      const td = tr.insertCell(-1);
+      const td = this.util.insertCellWithClass(tr, 'cellWithBorderLeftPadding');
       const input = document.createElement('input');
+      this.util.addClass(input, 'inputWithoutBorder');
+      this.util.addClass(input, 'text-16');
+      if (types[f] == 'number') {
+        this.util.addClass(input, 'rightText');
+      }
       input.setAttribute('type', types[f]);
       input.style.width = widths[f];
       input.value = box[field];
@@ -718,10 +725,13 @@ fmltc.LabelVideo.prototype.refillLabelingArea = function(optLastLabelInputFocus)
       td.appendChild(input);
       lastLabelInput = input
     }
-    td = tr.insertCell(-1);
+    td = this.util.insertCellWithClass(tr, 'cellWithBorderLeftPadding');
     const deleteButton = document.createElement('button');
-    deleteButton.textContent = String.fromCodePoint(0x1F5D1); // wastebasket
-    deleteButton.title = "Delete this box";
+    this.util.addClass(deleteButton, 'material-icons');
+    this.util.addClass(deleteButton, 'text-16');
+    this.util.addClass(deleteButton, 'buttonWithoutBorder');
+    deleteButton.textContent = 'delete';
+    deleteButton.title = 'Delete this box';
     deleteButton.onclick = this.deleteButton_onclick.bind(this, i);
     td.appendChild(deleteButton);
   }
@@ -912,6 +922,7 @@ fmltc.LabelVideo.prototype.reversePlayPauseButton_onclick = function() {
   this.saveBboxes();
 
   this.playing = !this.playing;
+  this.reversePlayPauseSpan.textContent = (this.playing) ? 'pause' : 'play_arrow';
   this.updateUI();
 
   if (this.playing) {
@@ -925,6 +936,7 @@ fmltc.LabelVideo.prototype.forwardPlayPauseButton_onclick = function() {
   this.saveBboxes();
 
   this.playing = !this.playing;
+  this.forwardPlayPauseSpan.textContent = (this.playing) ? 'pause' : 'play_arrow';
   this.updateUI();
 
   if (this.playing) {
@@ -944,6 +956,8 @@ fmltc.LabelVideo.prototype.advanceFrame = function() {
           : (frameNumber == this.videoEntity.frame_count - 1);
       if (allDone) {
         this.playing = false;
+        this.reversePlayPauseSpan.textContent = 'play_arrow';
+        this.forwardPlayPauseSpan.textContent = 'play_arrow';
         this.updateUI();
       } else {
         setTimeout(this.advanceFrame.bind(this), this.playingIntervalMs);
