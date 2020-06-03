@@ -17,7 +17,6 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timedelta
 import json
-import os
 import re
 import uuid
 
@@ -71,12 +70,8 @@ def __write_string_to_blob(blob_name, s, content_type):
 def __get_path(blob_name_or_folder):
     return 'gs://%s/%s' % (BUCKET_BLOBS, blob_name_or_folder)
 
-
-def __get_download_url(blob_name):
+def set_cors_policy_for_get():
     bucket = util.storage_client().bucket(BUCKET_BLOBS)
-    blob = bucket.blob(blob_name)
-    if not blob.exists():
-        return False, ''
     policies = bucket.cors
     if len(policies) == 0:
         policies.append({'origin': [constants.ORIGIN]})
@@ -85,6 +80,22 @@ def __get_download_url(blob_name):
         policies[0]['maxAgeSeconds'] = 3600
         bucket.cors = policies
         bucket.update()
+
+def set_cors_policy_for_put():
+    bucket = util.storage_client().bucket(BUCKET_BLOBS)
+    policies = bucket.cors
+    if len(policies) == 0:
+        policies.append({'origin': [constants.ORIGIN]})
+        policies[0]['responseHeader'] = ['Content-Type']
+        policies[0]['method'] = ['PUT']
+        policies[0]['maxAgeSeconds'] = 3600
+        bucket.cors = policies
+        bucket.update()
+
+def __get_download_url(blob_name):
+    blob = util.storage_client().bucket(BUCKET_BLOBS).blob(blob_name)
+    if not blob.exists():
+        return False, ''
     expires_at_datetime = datetime.now() + timedelta(minutes=10)
     return True, blob.generate_signed_url(expires_at_datetime, method='GET')
 
@@ -104,17 +115,8 @@ def __delete_blobs(blob_names):
 
 def prepare_to_upload_video(team_uuid, video_uuid, content_type):
     video_blob_name = 'video_files/%s/%s' % (team_uuid, video_uuid)
-    bucket = util.storage_client().bucket(BUCKET_BLOBS)
-    policies = bucket.cors
-    if len(policies) == 0:
-        policies.append({'origin': [constants.ORIGIN]})
-        policies[0]['responseHeader'] = ['Content-Type']
-        policies[0]['method'] = ['PUT']
-        policies[0]['maxAgeSeconds'] = 3600
-        bucket.cors = policies
-        bucket.update()
+    blob = util.storage_client().bucket(BUCKET_BLOBS).blob(video_blob_name)
     expires_at_datetime = datetime.now() + timedelta(minutes=5)
-    blob = bucket.blob(video_blob_name)
     signed_url = blob.generate_signed_url(expires_at_datetime, method='PUT', content_type=content_type)
     return video_blob_name, signed_url
 
@@ -139,14 +141,6 @@ def retrieve_video_frame_image(image_blob_name):
 
 def get_image_urls(image_blob_names):
     bucket = util.storage_client().bucket(BUCKET_BLOBS)
-    policies = bucket.cors
-    if len(policies) == 0:
-        policies.append({'origin': [constants.ORIGIN]})
-        policies[0]['responseHeader'] = ['Content-Type']
-        policies[0]['method'] = ['GET']
-        policies[0]['maxAgeSeconds'] = 3600
-        bucket.cors = policies
-        bucket.update()
     expires_at_datetime = datetime.now() + timedelta(minutes=10)
     signed_urls = []
     for image_blob_name in image_blob_names:
@@ -223,13 +217,36 @@ def store_pipeline_config(team_uuid, model_uuid, pipeline_config):
     __write_string_to_blob(pipeline_config_blob_name, pipeline_config, 'text/plain')
     return get_pipeline_config_path(team_uuid, model_uuid)
 
-def get_model_event_file_path(team_uuid, model_uuid):
+def get_training_event_file_path(team_uuid, model_uuid):
     client = util.storage_client()
-    # We're looking for a file like this: model.ckpt-2000.index
-    prefix = '%s/events.out.tfevents.' % __get_model_folder(team_uuid, model_uuid)
+    folder = __get_model_folder(team_uuid, model_uuid)
+    prefix = '%s/events.out.tfevents.' % folder
     for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
-        return __get_path(blob.name)
-    return None
+        return folder, __get_path(blob.name), blob.updated
+    return None, None, None
+
+def get_eval_event_file_path(team_uuid, model_uuid):
+    client = util.storage_client()
+    folder = '%s/eval_validation_data' % __get_model_folder(team_uuid, model_uuid)
+    prefix = '%s/events.out.tfevents.' % folder
+    for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
+        return folder, __get_path(blob.name), blob.updated
+    return None, None, None
+
+def store_event_summary_image(team_uuid, model_uuid, folder, step, tag, encoded_image_string):
+    blob_name = '%s/step_%d_%s' % (folder, step, tag.replace('/', '_'))
+    bucket = util.storage_client().bucket(BUCKET_BLOBS)
+    blob = bucket.blob(blob_name)
+    if not blob.exists():
+        __write_string_to_blob(blob_name, encoded_image_string, 'image/png')
+
+def get_event_summary_image_download_url(team_uuid, model_uuid, folder, step, tag, encoded_image_string):
+    blob_name = '%s/step_%d_%s' % (folder, step, tag.replace('/', '_'))
+    bucket = util.storage_client().bucket(BUCKET_BLOBS)
+    blob = bucket.blob(blob_name)
+    if not blob.exists():
+        __write_string_to_blob(blob_name, encoded_image_string, 'image/png')
+    return __get_download_url(blob_name)
 
 def get_trained_checkpoint_prefix(team_uuid, model_uuid):
     client = util.storage_client()

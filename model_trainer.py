@@ -15,15 +15,19 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
+from datetime import datetime, timedelta
 import json
 import os
+import time
 import traceback
 
 # Other Modules
 from google.oauth2 import service_account
 import googleapiclient.discovery
+from tensorflow.python.summary.summary_iterator import summary_iterator
 
 # My Modules
+import action
 import blob_storage
 import constants
 import storage
@@ -187,6 +191,11 @@ def is_not_done(model_entity):
         __is_not_done(model_entity['train_job_state']) or
         __is_not_done(model_entity['eval_job_state']))
 
+def is_done(model_entity):
+    return (
+        __is_done(model_entity['train_job_state']) and
+        __is_done(model_entity['eval_job_state']))
+
 def cancel_training_model(team_uuid, model_uuid):
     model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
     ml = __get_ml_service()
@@ -245,3 +254,115 @@ def __is_not_done(state):
             state != 'SUCCEEDED' and
             state != 'FAILED' and
             state != 'CANCELLED')
+
+def __is_done(state):
+    return not __is_not_done(state)
+
+
+def retrieve_summaries(team_uuid, model_uuid):
+    training_folder, training_event_file_path, _ = blob_storage.get_training_event_file_path(
+            team_uuid, model_uuid)
+    if training_event_file_path is None:
+        training_summaries = []
+    else:
+        training_summaries = retrieve_summaries_for_event_file(team_uuid, model_uuid,
+            training_folder, training_event_file_path)
+
+    eval_folder, eval_event_file_path, _ = blob_storage.get_eval_event_file_path(
+        team_uuid, model_uuid)
+    if eval_event_file_path is None:
+        eval_summaries = []
+    else:
+        eval_summaries = retrieve_summaries_for_event_file(team_uuid, model_uuid,
+            eval_folder, eval_event_file_path)
+
+    return training_summaries, eval_summaries
+
+
+def retrieve_summaries_for_event_file(team_uuid, model_uuid, folder, event_file_path):
+    summaries = []
+    for event in summary_iterator(event_file_path):
+        values = {}
+        for value in event.summary.value:
+            if value.HasField('simple_value'):
+                values[value.tag] = value.simple_value
+            elif value.HasField('image'):
+                exists, image_url = blob_storage.get_event_summary_image_download_url(team_uuid, model_uuid,
+                    folder, event.step, value.tag, value.image.encoded_image_string)
+                if exists:
+                    values[value.tag] = {
+                        'width': value.image.width,
+                        'height': value.image.height,
+                        'image_url': image_url,
+                    }
+        if len(values) > 0:
+            summary = {
+                'step': event.step,
+            }
+            summary['values'] = values
+            summaries.append(summary)
+    return summaries
+
+def make_action_parameters(team_uuid, model_uuid):
+    action_parameters = action.create_action_parameters(action.ACTION_NAME_EXTRACT_SUMMARY_IMAGES)
+    action_parameters['team_uuid'] = team_uuid
+    action_parameters['model_uuid'] = model_uuid
+    return action_parameters
+
+def extract_summary_images(action_parameters, time_limit, active_memory_limit):
+    team_uuid = action_parameters['team_uuid']
+    model_uuid = action_parameters['model_uuid']
+
+    previous_training_updated = None
+    previous_eval_updated = None
+
+    while True:
+        model_entity = retrieve_model_entity(team_uuid, model_uuid)
+
+        training_folder, training_event_file_path, training_updated = blob_storage.get_training_event_file_path(
+                team_uuid, model_uuid)
+        if training_event_file_path is not None and training_updated != previous_training_updated:
+            need_restart = extract_summary_images_for_event_file(team_uuid, model_uuid,
+                training_folder, training_event_file_path,
+                action_parameters, time_limit, active_memory_limit)
+            if need_restart:
+                action.trigger_action_via_blob(action_parameters)
+                return
+        previous_training_updated = training_updated
+
+        eval_folder, eval_event_file_path, eval_updated = blob_storage.get_eval_event_file_path(
+                team_uuid, model_uuid)
+        if eval_event_file_path is not None and eval_updated != previous_eval_updated:
+            need_restart = extract_summary_images_for_event_file(team_uuid, model_uuid,
+                eval_folder, eval_event_file_path,
+                action_parameters, time_limit, active_memory_limit)
+            if need_restart:
+                action.trigger_action_via_blob(action_parameters)
+                return
+        previous_eval_updated = eval_updated
+
+        if is_done(model_entity):
+            return
+
+        if datetime.now() < time_limit - timedelta(minutes=3):
+            time.sleep(150)
+        elif datetime.now() < time_limit - timedelta(minutes=2):
+            time.sleep(90)
+        elif datetime.now() < time_limit - timedelta(minutes=1):
+            time.sleep(30)
+
+        if action.is_near_limit(time_limit, active_memory_limit):
+            action.trigger_action_via_blob(action_parameters)
+            return
+
+
+def extract_summary_images_for_event_file(team_uuid, model_uuid, folder, event_file_path,
+        action_parameters, time_limit, active_memory_limit):
+    for event in summary_iterator(event_file_path):
+        if action.is_near_limit(time_limit, active_memory_limit):
+            return True
+        for value in event.summary.value:
+            if value.HasField('image'):
+                blob_storage.store_event_summary_image(team_uuid, model_uuid,
+                    folder, event.step, value.tag, value.image.encoded_image_string)
+    return False

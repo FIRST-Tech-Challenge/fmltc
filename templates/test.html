@@ -28,17 +28,44 @@ limitations under the License.
 </head>
 <body>
 
-<button id="sendHttpPerformAction" class="text-36">Send Http Perform Action</button>
+<button id="triggerHttpPerformAction" class="text-36">Trigger http_perform_action cloud function</button>
+<br><br>
+<button id="sendPerformActionGAE" class="text-36">Send /performActionGAE request</button>
 
 <script type="text/javascript">
   window.addEventListener('load', function() {
     const util = new fmltc.Util({{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
-    const sendHttpPerformAction = document.getElementById('sendHttpPerformAction');
-    sendHttpPerformAction.onclick = function() {
+
+    const triggerHttpPerformAction = document.getElementById('triggerHttpPerformAction');
+    triggerHttpPerformAction.onclick = function() {
       const actionParameters = Object.create(null);
-      actionParameters['action_name'] = 'sleep'
+      actionParameters['action_name'] = 'sleep';
       util.callHttpPerformAction(actionParameters, 0);
-    }
+    };
+
+    const sendPerformActionGAE = document.getElementById('sendPerformActionGAE');
+    sendPerformActionGAE.onclick = function() {
+      const actionParameters = Object.create(null);
+      actionParameters['action_name'] = 'sleep';
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/performActionGAE', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          xhr.onreadystatechange = null;
+          if (xhr.status === 200) {
+            // Success.
+            console.log('/performActionGAE "' + actionParameters.action_name + '" was successful.');
+
+          } else {
+            console.log('Failure! /performActionGAE? xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+          }
+        }
+      };
+      console.log('Sending /performActionGAE "' + actionParameters.action_name + '".')
+      xhr.send(JSON.stringify(actionParameters));
+    };
   });
 </script>
 </body>

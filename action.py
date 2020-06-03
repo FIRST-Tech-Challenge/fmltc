@@ -29,6 +29,7 @@ import constants
 import dataset_producer
 import dataset_zipper
 import frame_extractor
+import model_trainer
 import storage
 import tracking
 import util
@@ -44,6 +45,7 @@ ACTION_NAME_DATASET_ZIP_PARTITION = 'dataset_zip_partition'
 ACTION_NAME_DELETE_DATASET = 'delete_dataset'
 ACTION_NAME_DELETE_MODEL = 'delete_model'
 ACTION_NAME_DELETE_VIDEO = 'delete_video'
+ACTION_NAME_EXTRACT_SUMMARY_IMAGES = 'extract_summary_images'
 ACTION_NAME_FRAME_EXTRACTION = 'frame_extraction'
 ACTION_NAME_TRACKING = 'tracking'
 
@@ -81,7 +83,7 @@ def perform_action(action_parameters, time_limit, active_memory_limit):
     util.log('action.perform_action - %s - start' % action_parameters[ACTION_NAME])
 
     action_fns = {
-        ACTION_NAME_SLEEP: sleep_a_bit,
+        ACTION_NAME_SLEEP: __sleep_a_bit,
         ACTION_NAME_DATASET_PRODUCE: dataset_producer.produce_dataset,
         ACTION_NAME_DATASET_PRODUCE_RECORD: dataset_producer.produce_dataset_record,
         ACTION_NAME_DATASET_ZIP: dataset_zipper.zip_dataset,
@@ -89,6 +91,7 @@ def perform_action(action_parameters, time_limit, active_memory_limit):
         ACTION_NAME_DELETE_DATASET: storage.finish_delete_dataset,
         ACTION_NAME_DELETE_MODEL: storage.finish_delete_model,
         ACTION_NAME_DELETE_VIDEO: storage.finish_delete_video,
+        ACTION_NAME_EXTRACT_SUMMARY_IMAGES: model_trainer.extract_summary_images,
         ACTION_NAME_FRAME_EXTRACTION: frame_extractor.extract_frames,
         ACTION_NAME_TRACKING: tracking.start_tracking,
     }
@@ -101,7 +104,7 @@ def perform_action(action_parameters, time_limit, active_memory_limit):
                 (action_parameters[ACTION_NAME], traceback.format_exc().replace('\n', ' ... ')))
             raise
     else:
-        util.log('action.perform_action - %s - action_fn is null' % action_parameters[ACTION_NAME])
+        util.log('action.perform_action - %s - action_fn is None' % action_parameters[ACTION_NAME])
 
     util.log('action.perform_action - %s - end' % action_parameters[ACTION_NAME])
 
@@ -113,5 +116,5 @@ def is_near_limit(time_limit, active_memory_limit):
         return True
     return False
 
-def sleep_a_bit(action_parameters, time_limit, active_memory_limit):
+def __sleep_a_bit(action_parameters, time_limit, active_memory_limit):
     time.sleep(20)

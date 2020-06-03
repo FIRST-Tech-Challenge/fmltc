@@ -465,7 +465,7 @@ fmltc.ListModels.prototype.xhr_downloadTFLite_onreadystatechange = function(xhr,
         setTimeout(this.downloadTFLite.bind(this,
             downloadStartTime, downloadUrl, failureCount), delay * 1000);
       } else {
-        // TODO(lizlooney): handle error properly. For now we delete the zip.
+        // TODO(lizlooney): handle error properly.
         alert('Unable to download the TFLite model.');
       }
     }

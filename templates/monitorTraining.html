@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!--
+Copyright 2020 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<html>
+<head>
+  <link rel="stylesheet"
+      href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
+  <link rel="stylesheet" type="text/css"
+      href="https://storage.googleapis.com/{{project_id}}/static/css/styles.css?ignoreCache={{time_time}}">
+  <script type="text/javascript"
+      src="https://storage.googleapis.com/{{project_id}}/compiled/js/fmltc.js?ignoreCache={{time_time}}">
+  </script>
+</head>
+<body>
+
+<div id="summariesDiv"></div>
+
+<script type="text/javascript">
+  window.addEventListener('load', function() {
+    const util = new fmltc.Util({{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
+    new fmltc.MonitorTraining(util, {{ model_uuid|tojson }});
+  });
+</script>
+</body>
+</html>

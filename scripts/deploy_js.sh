@@ -18,6 +18,7 @@ java -jar $FMLTC_CLOSURE_COMPILER_JAR \
   --entry_point fmltc.ListDatasets \
   --entry_point fmltc.ListModels \
   --entry_point fmltc.ListVideos \
+  --entry_point fmltc.MonitorTraining \
   --entry_point fmltc.Point \
   --entry_point fmltc.ProduceDatasetDialog \
   --entry_point fmltc.StartTrainingDialog \
