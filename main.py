@@ -116,6 +116,16 @@ def label_video():
         http_perform_action_url=HTTP_PERFORM_ACTION_URL,
         video_uuid=video_uuid, video_entity=video_entity)
 
+@app.route('/monitorTraining')
+@redirect_to_login_if_needed
+def monitor_training():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    model_uuid = flask.request.args.get('model_uuid')
+    return flask.render_template('monitorTraining.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+        team_preferences=storage.retrieve_user_preferences(team_uuid),
+        http_perform_action_url=HTTP_PERFORM_ACTION_URL,
+        model_uuid=model_uuid)
+
 
 @app.route('/test')
 @redirect_to_login_if_needed
@@ -156,6 +166,7 @@ def prepare_to_upload_video():
         # TODO(lizlooney): encrypt the action_parameters
         'action_parameters': action_parameters,
     }
+    blob_storage.set_cors_policy_for_put()
     return flask.jsonify(response)
 
 @app.route('/triggerFrameExtraction', methods=['POST'])
@@ -245,6 +256,7 @@ def retrieve_video_frames_with_image_urls():
     response = {
         'video_frame_entities': video_frame_entities,
     }
+    blob_storage.set_cors_policy_for_get()
     return flask.jsonify(response)
 
 
@@ -430,6 +442,7 @@ def get_dataset_zip_status():
         'is_ready': exists,
         'download_url': download_url,
     }
+    blob_storage.set_cors_policy_for_get()
     return flask.jsonify(response)
 
 @app.route('/deleteDatasetZip', methods=['POST'])
@@ -451,12 +464,31 @@ def start_training_model():
     max_running_minutes = int(data.get('max_running_minutes'))
     start_time_ms = int(data.get('start_time_ms'))
     model_entity = model_trainer.start_training_model(team_uuid, dataset_uuid, max_running_minutes, start_time_ms)
+    action_parameters = model_trainer.make_action_parameters(team_uuid, model_entity['model_uuid'])
     team_entity = storage.retrieve_team_entity(team_uuid)
     sanitize(model_entity)
     response = {
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entity': model_entity,
+        'action_parameters': action_parameters,
     }
+    return flask.jsonify(response)
+
+@app.route('/retrieveSummaries', methods=['POST'])
+@login_required
+def retrieve_summaries():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    model_uuid = data.get('model_uuid')
+    model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
+    training_summaries, eval_summaries = model_trainer.retrieve_summaries(team_uuid, model_uuid)
+    sanitize(model_entity)
+    response = {
+        'model_entity': model_entity,
+        'training_summaries': training_summaries,
+        'eval_summaries': eval_summaries,
+    }
+    blob_storage.set_cors_policy_for_get()
     return flask.jsonify(response)
 
 @app.route('/cancelTrainingModel', methods=['POST'])
@@ -525,7 +557,18 @@ def create_tflite():
     response = {
         'download_url': download_url,
     }
+    blob_storage.set_cors_policy_for_get()
     return flask.jsonify(response)
+
+@app.route('/performActionGAE', methods=['POST'])
+@login_required
+def perform_action_gae():
+    # time_limit and active_memory_limit are wrong for GAE, but this request is only for debugging.
+    time_limit = datetime.now() + timedelta(seconds=500)
+    action_parameters = flask.request.get_json()
+    active_memory_limit = 2000000000
+    action.perform_action(action_parameters, time_limit, active_memory_limit)
+    return 'OK'
 
 # errors
 
