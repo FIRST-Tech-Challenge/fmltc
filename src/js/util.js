@@ -26,7 +26,8 @@ goog.provide('fmltc.Util');
  * Class for utilities.
  * @constructor
  */
-fmltc.Util = function(httpPerformActionUrl, preferences) {
+fmltc.Util = function(pageBasename, httpPerformActionUrl, preferences) {
+  this.pageBasename = pageBasename;
   this.httpPerformActionUrl = httpPerformActionUrl;
   this.preferences = preferences;
 
@@ -195,8 +196,14 @@ fmltc.Util.prototype.initializeTabs = function() {
 };
 
 fmltc.Util.prototype.showLastViewedTab = function() {
-  const currentTabIdPrefix = this.getPreference('currentTab', 'videosTab');
-  this.tabDiv_onclick(currentTabIdPrefix);
+  switch (this.pageBasename) {
+    case 'root':
+      this.tabDiv_onclick(this.getPreference('root.currentTab', 'videosTab'));
+      break;
+    case 'monitorTraining':
+      this.tabDiv_onclick(this.getPreference('monitorTraining.currentTab', 'scalarsTab'));
+      break;
+  }
 };
 
 fmltc.Util.prototype.showVideosTab = function() {
@@ -227,7 +234,7 @@ fmltc.Util.prototype.tabDiv_onclick = function(idPrefix) {
   // Show the current tabDiv, and add an 'active' class to the current tabButton.
   document.getElementById(idPrefix + 'Div').style.display = 'block';
   document.getElementById(idPrefix + 'Button').className += ' active';
-  this.setPreference('currentTab', idPrefix);
+  this.setPreference(this.pageBasename + '.currentTab', idPrefix);
 };
 
 fmltc.Util.prototype.formatElapsedSeconds = function(elapsedSeconds) {

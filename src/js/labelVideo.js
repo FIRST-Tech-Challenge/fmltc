@@ -65,9 +65,7 @@ fmltc.LabelVideo = function(util, videoEntity) {
   this.nextNegativeFrameButton = document.getElementById('nextNegativeFrameButton');
   this.playbackSpeedInput = document.getElementById('playbackSpeedInput');
   this.reversePlayPauseButton = document.getElementById('reversePlayPauseButton');
-  this.reversePlayPauseSpan = document.getElementById('reversePlayPauseSpan');
   this.forwardPlayPauseButton = document.getElementById('forwardPlayPauseButton');
-  this.forwardPlayPauseSpan = document.getElementById('forwardPlayPauseSpan');
   this.trackerSelect = document.getElementById('trackerSelect');
   this.trackingScaleInput = document.getElementById('trackingScaleInput');
   this.trackingStartButton = document.getElementById('trackingStartButton');
@@ -922,7 +920,7 @@ fmltc.LabelVideo.prototype.reversePlayPauseButton_onclick = function() {
   this.saveBboxes();
 
   this.playing = !this.playing;
-  this.reversePlayPauseSpan.textContent = (this.playing) ? 'pause' : 'play_arrow';
+  this.reversePlayPauseButton.textContent = (this.playing) ? 'pause' : 'play_arrow';
   this.updateUI();
 
   if (this.playing) {
@@ -936,7 +934,7 @@ fmltc.LabelVideo.prototype.forwardPlayPauseButton_onclick = function() {
   this.saveBboxes();
 
   this.playing = !this.playing;
-  this.forwardPlayPauseSpan.textContent = (this.playing) ? 'pause' : 'play_arrow';
+  this.forwardPlayPauseButton.textContent = (this.playing) ? 'pause' : 'play_arrow';
   this.updateUI();
 
   if (this.playing) {
@@ -956,8 +954,8 @@ fmltc.LabelVideo.prototype.advanceFrame = function() {
           : (frameNumber == this.videoEntity.frame_count - 1);
       if (allDone) {
         this.playing = false;
-        this.reversePlayPauseSpan.textContent = 'play_arrow';
-        this.forwardPlayPauseSpan.textContent = 'play_arrow';
+        this.reversePlayPauseButton.textContent = 'play_arrow';
+        this.forwardPlayPauseButton.textContent = 'play_arrow';
         this.updateUI();
       } else {
         setTimeout(this.advanceFrame.bind(this), this.playingIntervalMs);

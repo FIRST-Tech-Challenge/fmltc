@@ -136,7 +136,7 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     const fileSizeTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     fileSizeTd.setAttribute('align', 'right');
     const fileSizeSpan = document.createElement('span');
-    fileSizeSpan.textContent = new Number(videoEntity.file_size).toLocaleString()
+    fileSizeSpan.textContent = new Number(videoEntity.file_size).toLocaleString();
     fileSizeTd.appendChild(fileSizeSpan);
 
     const dimensionsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');

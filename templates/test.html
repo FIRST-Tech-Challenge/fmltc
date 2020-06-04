@@ -34,7 +34,8 @@ limitations under the License.
 
 <script type="text/javascript">
   window.addEventListener('load', function() {
-    const util = new fmltc.Util({{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
+    const util = new fmltc.Util('test',
+        {{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
 
     const triggerHttpPerformAction = document.getElementById('triggerHttpPerformAction');
     triggerHttpPerformAction.onclick = function() {
