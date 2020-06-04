@@ -22,17 +22,43 @@ limitations under the License.
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
   <link rel="stylesheet" type="text/css"
       href="https://storage.googleapis.com/{{project_id}}/static/css/styles.css?ignoreCache={{time_time}}">
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <script type="text/javascript"
       src="https://storage.googleapis.com/{{project_id}}/compiled/js/fmltc.js?ignoreCache={{time_time}}">
   </script>
 </head>
 <body>
 
+<div class="tabButtonsDiv">
+  <button id='scalarsTabButton' class="tabButton">Scalars</button>
+  <button id='imagesTabButton' class="tabButton">Images</button>
+</div>
+
+<table>
+  <tr>
+    <!--
+    <td id="leftPanel">
+      <input type="checkbox" id="trainingCheckbox">
+          <label for="trainingCheckbox" class="text-18">Training</label><br>
+      <input type="checkbox" id="evalCheckbox">
+          <label for="evalCheckbox" class="text-18">Evaluation</label><br>
+    </td>
+    -->
+    <td id="rightPanel">
+      <div id="scalarsTabDiv" class="tabDiv">
+      </div>
+      <div id="imagesTabDiv" class="tabDiv">
+      </div>
+    </td>
+  </tr>
+</table
+
 <div id="summariesDiv"></div>
 
 <script type="text/javascript">
   window.addEventListener('load', function() {
-    const util = new fmltc.Util({{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
+    const util = new fmltc.Util('monitorTraining',
+        {{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
     new fmltc.MonitorTraining(util, {{ model_uuid|tojson }});
   });
 </script>

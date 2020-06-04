@@ -481,11 +481,20 @@ def retrieve_summaries():
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
     model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
-    training_summaries, eval_summaries = model_trainer.retrieve_summaries(team_uuid, model_uuid)
+    training_updated, training_sorted_tags, training_sorted_steps, training_summaries = model_trainer.retrieve_training_summaries(
+        team_uuid, model_uuid)
+    eval_updated, eval_sorted_tags, eval_sorted_steps, eval_summaries = model_trainer.retrieve_eval_summaries(
+        team_uuid, model_uuid)
     sanitize(model_entity)
     response = {
         'model_entity': model_entity,
+        'training_updated': training_updated,
+        'training_sorted_tags': training_sorted_tags,
+        'training_sorted_steps': training_sorted_steps,
         'training_summaries': training_summaries,
+        'eval_updated': eval_updated,
+        'eval_sorted_tags': eval_sorted_tags,
+        'eval_sorted_steps': eval_sorted_steps,
         'eval_summaries': eval_summaries,
     }
     blob_storage.set_cors_policy_for_get()

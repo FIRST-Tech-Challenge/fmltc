@@ -35,10 +35,33 @@ fmltc.MonitorTraining = function(util, modelUuid) {
   this.util = util;
   this.modelUuid = modelUuid;
 
-  this.summariesDiv = document.getElementById('summariesDiv');
+  this.scalarsTabDiv = document.getElementById('scalarsTabDiv');
+  this.imagesTabDiv = document.getElementById('imagesTabDiv');
+
+  this.chartsLoaded = false;
+
+  this.trainingUpdated = '';
+  this.trainingSortedTags = [];
+  this.trainingSortedSteps = [];
+  this.trainingSummaries = [];
+  this.evalUpdated = '';
+  this.trainingSortedTags = [];
+  this.trainingSortedSteps = [];
+  this.trainingSummaries = [];
 
   this.retrieveSummaries(0);
+
+  google.charts.load('current', {'packages':['corechart']});
+  google.charts.setOnLoadCallback(this.charts_onload.bind(this));
 }
+
+fmltc.MonitorTraining.prototype.charts_onload = function() {
+  this.chartsLoaded = true;
+
+  if (this.trainingUpdated != '' || this.evalUpdated != '') {
+    this.updateUI();
+  }
+};
 
 fmltc.MonitorTraining.prototype.retrieveSummaries = function(failureCount) {
   const xhr = new XMLHttpRequest();
@@ -60,9 +83,24 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
       console.log('Success /retrieveSummaries?' + params);
 
       this.modelEntity = response.model_entity;
-      this.training_summaries = response.training_summaries;
-      this.eval_summaries = response.eval_summaries;
-      this.fillSummariesDiv(response.eval_summaries);
+
+      if (response.training_updated != this.trainingUpdated || response.eval_updated != this.evalUpdated) {
+        this.trainingUpdated = response.training_updated;
+        this.trainingSortedTags = response.training_sorted_tags;
+        this.trainingSortedSteps = response.training_sorted_steps;
+        this.trainingSummaries = response.training_summaries;
+
+        this.evalUpdated = response.eval_updated;
+        this.evalSortedTags = response.eval_sorted_tags;
+        this.evalSortedSteps = response.eval_sorted_steps;
+        this.evalSummaries = response.eval_summaries;
+
+        if (this.chartsLoaded) {
+          this.updateUI();
+        }
+      }
+
+      // TODO(lizlooney): if the jobs are not done, call retrieveSummaries again in 5 (?) minutes.
 
     } else {
       failureCount++;
@@ -78,52 +116,148 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
   }
 };
 
-fmltc.MonitorTraining.prototype.fillSummariesDiv = function(summaries) {
-  let delayForImage = 0;
+fmltc.MonitorTraining.prototype.updateUI = function() {
+  this.scalarsTabDiv.innerHTML = ''; // Remove previous children.
+  this.fillScalarsDiv(this.trainingSortedTags, this.trainingSortedSteps, this.trainingSummaries);
+  this.fillScalarsDiv(this.evalSortedTags, this.evalSortedSteps, this.evalSummaries);
+
+  this.imagesTabDiv.innerHTML = ''; // Remove previous children.
+  this.fillImagesDiv(this.trainingSortedTags, this.trainingSortedSteps, this.trainingSummaries);
+  this.fillImagesDiv(this.evalSortedTags, this.evalSortedSteps, this.evalSummaries);
+};
+
+fmltc.MonitorTraining.prototype.fillScalarsDiv = function(sortedTags, sortedSteps, summaries) {
+  const mapTagToValues = {}
+
   for (let i = 0; i < summaries.length; i++) {
     const summary = summaries[i];
-    const summaryDiv = document.createElement('div');
-    const dl = document.createElement('dl');
-    for (const key in summary) {
-      const dt = document.createElement('dt');
-      dt.textContent = key;
-      dl.appendChild(dt);
-      const dd = document.createElement('dd');
-      if (key == 'values') {
-        this.fillValues(dd, summary[key], delayForImage);
-        delayForImage += 10;
-      } else {
-        dd.textContent = summary[key];
+    const values = summary.values;
+    for (const tag in values) {
+      if (typeof values[tag] != 'number') {
+        continue;
       }
-      dl.appendChild(dd);
+      let mapStepToValue;
+      if (tag in mapTagToValues) {
+        mapStepToValue = mapTagToValues[tag];
+      } else {
+        mapStepToValue = {};
+        mapTagToValues[tag] = mapStepToValue;
+      }
+      mapStepToValue[summary.step] = values[tag];
     }
-    summaryDiv.appendChild(dl);
-    this.summariesDiv.appendChild(summaryDiv);
-    this.summariesDiv.appendChild(document.createElement('hr'));
+  }
+
+  for (let iTag = 0; iTag < sortedTags.length; iTag++) {
+    const tag = sortedTags[iTag];
+    if (tag in mapTagToValues) {
+      const label = document.createElement('div');
+      label.textContent = tag;
+      this.scalarsTabDiv.appendChild(label);
+
+      const mapStepToValue = mapTagToValues[tag];
+      const chartDiv = document.createElement('div');
+      chartDiv.style.width = '800px';
+      chartDiv.style.height = '500px';
+      this.scalarsTabDiv.appendChild(chartDiv);
+
+      const data = new google.visualization.DataTable();
+      data.addColumn('number', 'Step');
+      data.addColumn('number', '');
+      for (let iStep = 0; iStep < sortedSteps.length; iStep++) {
+        const step = sortedSteps[iStep];
+        data.addRow([step, mapStepToValue[step]]);
+      }
+      const options = {
+        hAxis: {
+          title: 'Step'
+        },
+        vAxis: {
+          title: ''
+        }
+      };
+
+      var chart = new google.visualization.LineChart(chartDiv);
+      chart.draw(data, options);
+    }
   }
 };
 
-fmltc.MonitorTraining.prototype.fillValues = function(parent, values, delayForImage) {
-  const dl = document.createElement('dl');
-  for (const key in values) {
-    const dt = document.createElement('dt');
-    dt.textContent = key;
-    dl.appendChild(dt);
-    const dd = document.createElement('dd');
-    if (typeof values[key] == 'object') {
-      const image = values[key];
-      const img = document.createElement('img');
-      img.setAttribute('width', image.width / 4);
-      img.setAttribute('height', image.height / 4);
-      img.src = '//:0';
-      setTimeout(this.retrieveImage.bind(this, img, image.image_url, 0), delayForImage);
-      dd.appendChild(img);
-    } else {
-      dd.textContent = String(values[key]);
+fmltc.MonitorTraining.prototype.fillImagesDiv = function(sortedTags, sortedSteps, summaries) {
+  const mapTagToImages = {};
+
+  let delayForImage = 0;
+  for (let i = 0; i < summaries.length; i++) {
+    const summary = summaries[i];
+    const values = summary.values;
+    for (const tag in values) {
+      if (typeof values[tag] != 'object' ||
+          !('image_url' in values[tag])) {
+        continue;
+      }
+      let mapStepToImage;
+      if (tag in mapTagToImages) {
+        mapStepToImage = mapTagToImages[tag];
+      } else {
+        mapStepToImage = {};
+        mapTagToImages[tag] = mapStepToImage;
+      }
+      mapStepToImage[summary.step] = values[tag];
     }
-    dl.appendChild(dd);
   }
-  parent.appendChild(dl);
+
+  for (let iTag = 0; iTag < sortedTags.length; iTag++) {
+    const tag = sortedTags[iTag];
+    if (tag in mapTagToImages) {
+      const label = document.createElement('div');
+      label.textContent = tag;
+      this.imagesTabDiv.appendChild(label);
+
+      const stepInput = document.createElement('input');
+      stepInput.setAttribute('type', 'range');
+      stepInput.min = 0;
+      stepInput.max = sortedSteps.length - 1;
+      stepInput.value = stepInput.max;
+      this.imagesTabDiv.appendChild(stepInput);
+
+      const stepDiv = document.createElement('div');
+      this.imagesTabDiv.appendChild(stepDiv);
+
+      const imgElements = [];
+      const mapStepToImage = mapTagToImages[tag];
+      for (let iStep = 0; iStep < sortedSteps.length; iStep++) {
+        const step = sortedSteps[iStep];
+        const image = mapStepToImage[step];
+        const img = document.createElement('img');
+        imgElements[iStep] = img;
+        img.setAttribute('width', image.width / 3);
+        img.setAttribute('height', image.height / 3);
+        if (iStep == stepInput.value) {
+          stepDiv.textContent = 'Step: ' + new Number(step).toLocaleString();
+          img.style.display = 'block';
+        } else {
+          img.style.display = 'none';
+        }
+        img.src = '//:0';
+        setTimeout(this.retrieveImage.bind(this, img, image.image_url, 0), delayForImage);
+        delayForImage += 10;
+        this.imagesTabDiv.appendChild(img);
+      }
+      stepInput.onchange = this.stepInput_onchange.bind(this, sortedSteps, stepInput, stepDiv, imgElements);
+      this.imagesTabDiv.appendChild(document.createElement('br'));
+      this.imagesTabDiv.appendChild(document.createElement('hr'));
+      this.imagesTabDiv.appendChild(document.createElement('br'));
+    }
+  }
+};
+
+fmltc.MonitorTraining.prototype.stepInput_onchange = function(sortedSteps, stepInput, stepDiv, imgElements) {
+  const iStep = stepInput.value;
+  const step = sortedSteps[iStep];
+  stepDiv.textContent = 'Step: ' + new Number(step).toLocaleString();
+
+  for (let i = 0; i < imgElements.length; i++) {
+    imgElements[i].style.display = (i == iStep) ? 'block' : 'none';
+  }
 };
 
 fmltc.MonitorTraining.prototype.retrieveImage = function(img, imageUrl, failureCount) {
