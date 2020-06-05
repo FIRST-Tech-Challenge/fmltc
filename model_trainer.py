@@ -35,7 +35,7 @@ import util
 
 BUCKET = ('%s' % constants.PROJECT_ID)
 
-def start_training_model(team_uuid, dataset_uuid, max_running_minutes, start_time_ms):
+def start_training_model(team_uuid, dataset_uuid, max_running_minutes, num_training_steps, start_time_ms):
     # Call retrieve_model_list to update all models and update the team_entity.
     retrieve_model_list(team_uuid)
     # storage.model_trainer_starting will raise an exception if the team doesn't have enough
@@ -122,6 +122,7 @@ def start_training_model(team_uuid, dataset_uuid, max_running_minutes, start_tim
                     '--model_dir', model_dir,
                     '--pipeline_config_path', pipeline_config_path,
                     '--checkpoint_dir', checkpoint_dir,
+                    '--num_train_steps', str(num_training_steps),
                 ],
                 # TODO(lizlooney): Specify hyperparameters.
                 #'hyperparameters': {
@@ -149,7 +150,7 @@ def start_training_model(team_uuid, dataset_uuid, max_running_minutes, start_tim
         ml.projects().jobs().cancel(name=__get_train_job_name(model_uuid)).execute()
         raise
     model_entity = storage.model_trainer_started(team_uuid, model_uuid,
-        dataset_uuid, max_running_minutes, start_time_ms,
+        dataset_uuid, max_running_minutes, num_training_steps, start_time_ms,
         dataset_entity['video_filenames'], fine_tune_checkpoint,
         train_job_response, eval_job_response)
     return model_entity

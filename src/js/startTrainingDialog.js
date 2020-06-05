@@ -40,6 +40,7 @@ fmltc.StartTrainingDialog = function(
   this.maxRunningMinutesInput = document.getElementById('stMaxRunningMinutesInput');
   this.totalTrainingMinutesSpan = document.getElementById('stTotalTrainingMinutesSpan');
   this.remainingTrainingMinutesSpan = document.getElementById('stRemainingTrainingMinutesSpan');
+  this.numTrainingStepsInput = document.getElementById('stNumTrainingStepsInput');
   this.startButton = document.getElementById('stStartButton');
   this.inProgressDiv = document.getElementById('stInProgressDiv');
   this.successDiv = document.getElementById('stSuccessDiv');
@@ -50,6 +51,10 @@ fmltc.StartTrainingDialog = function(
   this.maxRunningMinutesInput.min = Math.min(30, remainingTrainingMinutes);
   this.maxRunningMinutesInput.max = remainingTrainingMinutes;
   this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
+  this.numTrainingStepsInput.min = 400;
+  this.numTrainingStepsInput.max = 4000;
+  this.numTrainingStepsInput.value = 2000;
+
   this.updateStartButton();
   this.totalTrainingMinutesSpan.textContent = String(totalTrainingMinutes);
   this.remainingTrainingMinutesSpan.textContent = String(remainingTrainingMinutes);
@@ -87,6 +92,7 @@ fmltc.StartTrainingDialog.prototype.startButton_onclick = function() {
   const params =
       'dataset_uuid=' + encodeURIComponent(this.datasetUuid) +
       '&max_running_minutes=' + this.maxRunningMinutesInput.value +
+      '&num_training_steps=' + this.numTrainingStepsInput.value +
       '&start_time_ms=' + Date.now();
   xhr.open('POST', '/startTrainingModel', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');

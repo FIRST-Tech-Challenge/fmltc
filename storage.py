@@ -823,7 +823,7 @@ def model_trainer_failed_to_start(team_uuid, max_running_minutes):
         transaction.put(team_entity)
 
 def model_trainer_started(team_uuid, model_uuid,
-    dataset_uuid, max_running_minutes, start_time_ms,
+    dataset_uuid, max_running_minutes, num_training_steps, start_time_ms,
     video_filenames, fine_tune_checkpoint, train_job, eval_job):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -834,6 +834,7 @@ def model_trainer_started(team_uuid, model_uuid,
             'model_uuid': model_uuid,
             'dataset_uuid': dataset_uuid,
             'max_running_minutes': max_running_minutes,
+            'num_training_steps': num_training_steps,
             'creation_time_ms': start_time_ms,
             'video_filenames': video_filenames,
             'fine_tune_checkpoint': fine_tune_checkpoint,

@@ -462,8 +462,10 @@ def start_training_model():
     data = flask.request.form.to_dict(flat=True)
     dataset_uuid = data.get('dataset_uuid')
     max_running_minutes = int(data.get('max_running_minutes'))
+    num_training_steps = int(data.get('num_training_steps'))
     start_time_ms = int(data.get('start_time_ms'))
-    model_entity = model_trainer.start_training_model(team_uuid, dataset_uuid, max_running_minutes, start_time_ms)
+    model_entity = model_trainer.start_training_model(team_uuid, dataset_uuid,
+        max_running_minutes, num_training_steps, start_time_ms)
     action_parameters = model_trainer.make_action_parameters(team_uuid, model_entity['model_uuid'])
     team_entity = storage.retrieve_team_entity(team_uuid)
     sanitize(model_entity)
