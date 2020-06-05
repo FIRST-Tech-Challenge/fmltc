@@ -30,30 +30,14 @@ limitations under the License.
 <body>
 
 <div class="tabButtonsDiv">
-  <button id='scalarsTabButton' class="tabButton">Scalars</button>
-  <button id='imagesTabButton' class="tabButton">Images</button>
+  <button id="scalarsTabButton" class="tabButton">Scalars <span id="scalarsLoader" class="loader"></span></button>
+  <button id="imagesTabButton" class="tabButton">Images <span id="imagesLoader" class="loader"></span></button>
 </div>
 
-<table>
-  <tr>
-    <!--
-    <td id="leftPanel">
-      <input type="checkbox" id="trainingCheckbox">
-          <label for="trainingCheckbox" class="text-18">Training</label><br>
-      <input type="checkbox" id="evalCheckbox">
-          <label for="evalCheckbox" class="text-18">Evaluation</label><br>
-    </td>
-    -->
-    <td id="rightPanel">
-      <div id="scalarsTabDiv" class="tabDiv">
-      </div>
-      <div id="imagesTabDiv" class="tabDiv">
-      </div>
-    </td>
-  </tr>
-</table
-
-<div id="summariesDiv"></div>
+<div id="scalarsTabDiv" class="tabDiv">
+</div>
+<div id="imagesTabDiv" class="tabDiv">
+</div>
 
 <script type="text/javascript">
   window.addEventListener('load', function() {
