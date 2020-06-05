@@ -40,63 +40,85 @@ fmltc.MonitorTraining = function(util, modelUuid) {
 
   this.chartsLoaded = false;
 
-  this.trainingUpdated = '';
-  this.trainingSortedTags = [];
-  this.trainingSortedSteps = [];
-  this.trainingSummaries = [];
-  this.evalUpdated = '';
-  this.trainingSortedTags = [];
-  this.trainingSortedSteps = [];
-  this.trainingSummaries = [];
+  this.data = {};
+  this.data.scalars = this.createDataStructure(true, false, document.getElementById('scalarsLoader'));
+  this.data.images = this.createDataStructure(false, true, document.getElementById('imagesLoader'));
 
-  this.retrieveSummaries(0);
+  this.retrieveSummaries(this.data.scalars, 0);
+  this.retrieveSummaries(this.data.images, 0);
 
   google.charts.load('current', {'packages':['corechart']});
   google.charts.setOnLoadCallback(this.charts_onload.bind(this));
 }
 
+fmltc.MonitorTraining.prototype.createDataStructure = function(retrieveScalars, retrieveImages, loader) {
+  const dataStructure = {};
+  dataStructure.retrieveScalars = retrieveScalars;
+  dataStructure.retrieveImages = retrieveImages;
+  dataStructure.loader = loader;
+  dataStructure.training = {};
+  dataStructure.training.updated = '';
+  dataStructure.training.sortedSteps = [];
+  dataStructure.training.sortedTags = [];
+  dataStructure.training.summaries = [];
+  dataStructure.eval = {};
+  dataStructure.eval.updated = '';
+  dataStructure.eval.sortedSteps = [];
+  dataStructure.eval.sortedTags = [];
+  dataStructure.eval.summaries = [];
+  return dataStructure;
+};
+
 fmltc.MonitorTraining.prototype.charts_onload = function() {
   this.chartsLoaded = true;
 
-  if (this.trainingUpdated != '' || this.evalUpdated != '') {
-    this.updateUI();
+  if (this.data.scalars.training.updated != '' ||
+      this.data.scalars.eval.updated != '') {
+    this.updateUI(this.data.scalars);
+  }
+  if (this.data.images.training.updated != '' ||
+      this.data.images.eval.updated != '') {
+    this.updateUI(this.data.images);
   }
 };
 
-fmltc.MonitorTraining.prototype.retrieveSummaries = function(failureCount) {
+fmltc.MonitorTraining.prototype.retrieveSummaries = function(dataStructure, failureCount) {
+  dataStructure.loader.style.visibility = 'visible';
   const xhr = new XMLHttpRequest();
-  const params = 'model_uuid=' + encodeURIComponent(this.modelUuid);
+  const params =
+      'model_uuid=' + encodeURIComponent(this.modelUuid) +
+      '&retrieve_scalars=' + encodeURIComponent(dataStructure.retrieveScalars) +
+      '&retrieve_images=' + encodeURIComponent(dataStructure.retrieveImages);
   xhr.open('POST', '/retrieveSummaries', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_retrieveSummaries_onreadystatechange.bind(this, xhr, params,
-      failureCount);
-  console.log('Sending /retrieveSummaries?' + params);
+      dataStructure, failureCount);
   xhr.send(params);
 };
 
 fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = function(xhr, params,
-    failureCount) {
+    dataStructure, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      console.log('Success /retrieveSummaries?' + params);
 
       this.modelEntity = response.model_entity;
 
-      if (response.training_updated != this.trainingUpdated || response.eval_updated != this.evalUpdated) {
-        this.trainingUpdated = response.training_updated;
-        this.trainingSortedTags = response.training_sorted_tags;
-        this.trainingSortedSteps = response.training_sorted_steps;
-        this.trainingSummaries = response.training_summaries;
+      if (response.training_updated != dataStructure.training.updated ||
+          response.eval_updated != dataStructure.eval.updated) {
+        dataStructure.training.updated = response.training_updated;
+        dataStructure.training.sortedTags = response.training_sorted_tags;
+        dataStructure.training.sortedSteps = response.training_sorted_steps;
+        dataStructure.training.summaries = response.training_summaries;
 
-        this.evalUpdated = response.eval_updated;
-        this.evalSortedTags = response.eval_sorted_tags;
-        this.evalSortedSteps = response.eval_sorted_steps;
-        this.evalSummaries = response.eval_summaries;
+        dataStructure.eval.updated = response.eval_updated;
+        dataStructure.eval.sortedTags = response.eval_sorted_tags;
+        dataStructure.eval.sortedSteps = response.eval_sorted_steps;
+        dataStructure.eval.summaries = response.eval_summaries;
 
         if (this.chartsLoaded) {
-          this.updateUI();
+          this.updateUI(dataStructure);
         }
       }
 
@@ -107,7 +129,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
       if (failureCount < 5) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveSummaries?' + params + ' in ' + delay + ' seconds.');
-        setTimeout(this.retrieveSummaries.bind(this, failureCount), delay * 1000);
+        setTimeout(this.retrieveSummaries.bind(this, dataStructure, failureCount), delay * 1000);
       } else {
         // TODO(lizlooney): handle error properly.
         alert('Unable to retrieve the summaries.');
@@ -116,17 +138,26 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
   }
 };
 
-fmltc.MonitorTraining.prototype.updateUI = function() {
-  this.scalarsTabDiv.innerHTML = ''; // Remove previous children.
-  this.fillScalarsDiv(this.trainingSortedTags, this.trainingSortedSteps, this.trainingSummaries);
-  this.fillScalarsDiv(this.evalSortedTags, this.evalSortedSteps, this.evalSummaries);
+fmltc.MonitorTraining.prototype.updateUI = function(dataStructure) {
+  if (dataStructure.retrieveScalars) {
+    this.scalarsTabDiv.innerHTML = ''; // Remove previous children.
+    this.fillScalarsDiv(dataStructure.training);
+    this.fillScalarsDiv(dataStructure.eval);
+  }
 
-  this.imagesTabDiv.innerHTML = ''; // Remove previous children.
-  this.fillImagesDiv(this.trainingSortedTags, this.trainingSortedSteps, this.trainingSummaries);
-  this.fillImagesDiv(this.evalSortedTags, this.evalSortedSteps, this.evalSummaries);
+  if (dataStructure.retrieveImages) {
+    this.imagesTabDiv.innerHTML = ''; // Remove previous children.
+    this.fillImagesDiv(dataStructure.training);
+    this.fillImagesDiv(dataStructure.eval);
+  }
+
+  dataStructure.loader.style.visibility = 'hidden';
 };
 
-fmltc.MonitorTraining.prototype.fillScalarsDiv = function(sortedTags, sortedSteps, summaries) {
+fmltc.MonitorTraining.prototype.fillScalarsDiv = function(jobData) {
+  const sortedTags = jobData.sortedTags;
+  const sortedSteps = jobData.sortedSteps;
+  const summaries = jobData.summaries;
   const mapTagToValues = {}
 
   for (let i = 0; i < summaries.length; i++) {
@@ -150,10 +181,6 @@ fmltc.MonitorTraining.prototype.fillScalarsDiv = function(sortedTags, sortedStep
   for (let iTag = 0; iTag < sortedTags.length; iTag++) {
     const tag = sortedTags[iTag];
     if (tag in mapTagToValues) {
-      const label = document.createElement('div');
-      label.textContent = tag;
-      this.scalarsTabDiv.appendChild(label);
-
       const mapStepToValue = mapTagToValues[tag];
       const chartDiv = document.createElement('div');
       chartDiv.style.width = '800px';
@@ -173,7 +200,11 @@ fmltc.MonitorTraining.prototype.fillScalarsDiv = function(sortedTags, sortedStep
         },
         vAxis: {
           title: ''
-        }
+        },
+        legend: 'none',
+        lineWidth: 4,
+        interpolateNulls: true,
+        title: tag,
       };
 
       var chart = new google.visualization.LineChart(chartDiv);
@@ -182,7 +213,10 @@ fmltc.MonitorTraining.prototype.fillScalarsDiv = function(sortedTags, sortedStep
   }
 };
 
-fmltc.MonitorTraining.prototype.fillImagesDiv = function(sortedTags, sortedSteps, summaries) {
+fmltc.MonitorTraining.prototype.fillImagesDiv = function(jobData) {
+  const sortedTags = jobData.sortedTags;
+  const sortedSteps = jobData.sortedSteps;
+  const summaries = jobData.summaries;
   const mapTagToImages = {};
 
   let delayForImage = 0;
@@ -279,14 +313,14 @@ fmltc.MonitorTraining.prototype.xhr_retrieveImage_onreadystatechange = function(
 
     } else {
       failureCount++;
-      //if (failureCount < 5) {
-      //  const delay = Math.pow(2, failureCount);
-      //  console.log('Will retry ' + imageUrl + ' in ' + delay + ' seconds.');
-      //  setTimeout(this.retrieveImage.bind(this, img, imageUrl, failureCount), delay * 1000);
-      //} else {
+      if (failureCount < 5) {
+        const delay = Math.pow(2, failureCount);
+        console.log('Will retry ' + imageUrl + ' in ' + delay + ' seconds.');
+        setTimeout(this.retrieveImage.bind(this, img, imageUrl, failureCount), delay * 1000);
+      } else {
         // TODO(lizlooney): handle error properly.
         console.log('Unable to retrieve an image with url ' + imageUrl);
-      //}
+      }
     }
   }
 };

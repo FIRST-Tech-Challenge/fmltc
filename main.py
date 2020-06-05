@@ -480,11 +480,13 @@ def retrieve_summaries():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
+    retrieve_scalars = (data.get('retrieve_scalars') == 'true')
+    retrieve_images = (data.get('retrieve_images') == 'true')
     model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
     training_updated, training_sorted_tags, training_sorted_steps, training_summaries = model_trainer.retrieve_training_summaries(
-        team_uuid, model_uuid)
+        team_uuid, model_uuid, retrieve_scalars, retrieve_images)
     eval_updated, eval_sorted_tags, eval_sorted_steps, eval_summaries = model_trainer.retrieve_eval_summaries(
-        team_uuid, model_uuid)
+        team_uuid, model_uuid, retrieve_scalars, retrieve_images)
     sanitize(model_entity)
     response = {
         'model_entity': model_entity,

@@ -323,7 +323,7 @@ def extract_summary_images_for_event_file(team_uuid, model_uuid, folder, event_f
                     folder, event.step, value.tag, value.image.encoded_image_string)
     return False
 
-def retrieve_training_summaries(team_uuid, model_uuid):
+def retrieve_training_summaries(team_uuid, model_uuid, retrieve_scalars, retrieve_images):
     training_folder, training_event_file_path, training_updated = blob_storage.get_training_event_file_path(
             team_uuid, model_uuid)
     if training_event_file_path is None:
@@ -332,11 +332,11 @@ def retrieve_training_summaries(team_uuid, model_uuid):
         training_summaries = []
     else:
         training_sorted_tags, training_sorted_steps, training_summaries = __retrieve_summaries_for_event_file(
-            team_uuid, model_uuid, training_folder, training_event_file_path)
+            team_uuid, model_uuid, training_folder, training_event_file_path, retrieve_scalars, retrieve_images)
     return training_updated, training_sorted_tags, training_sorted_steps, training_summaries
 
 
-def retrieve_eval_summaries(team_uuid, model_uuid):
+def retrieve_eval_summaries(team_uuid, model_uuid, retrieve_scalars, retrieve_images):
     eval_folder, eval_event_file_path, eval_updated = blob_storage.get_eval_event_file_path(
         team_uuid, model_uuid)
     if eval_event_file_path is None:
@@ -345,21 +345,21 @@ def retrieve_eval_summaries(team_uuid, model_uuid):
         eval_summaries = []
     else:
         eval_sorted_tags, eval_sorted_steps, eval_summaries = __retrieve_summaries_for_event_file(
-            team_uuid, model_uuid, eval_folder, eval_event_file_path)
+            team_uuid, model_uuid, eval_folder, eval_event_file_path, retrieve_scalars, retrieve_images)
     return eval_updated, eval_sorted_tags, eval_sorted_steps, eval_summaries
 
 
-def __retrieve_summaries_for_event_file(team_uuid, model_uuid, folder, event_file_path):
+def __retrieve_summaries_for_event_file(team_uuid, model_uuid, folder, event_file_path, retrieve_scalars, retrieve_images):
     steps_set = set()
     tags_set = set()
     summaries = []
     for event in summary_iterator(event_file_path):
         values = {}
         for value in event.summary.value:
-            if value.HasField('simple_value'):
+            if retrieve_scalars and value.HasField('simple_value'):
                 tags_set.add(value.tag)
                 values[value.tag] = value.simple_value
-            elif value.HasField('image'):
+            elif retrieve_images and value.HasField('image'):
                 exists, image_url = blob_storage.get_event_summary_image_download_url(team_uuid, model_uuid,
                     folder, event.step, value.tag, value.image.encoded_image_string)
                 if exists:
