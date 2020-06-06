@@ -37,7 +37,7 @@ def create_tflite_graph_pb(team_uuid, model_uuid):
         return
 
     # The following code is inspired by
-    # https://github.com/tensorflow/models/tree/master/research/object_detection/export_tflite_ssd_graph.py
+    # https://github.com/tensorflow/models/tree/e5c9661aadbcb90cb4fd3ef76066f6d1dab116ff/research/object_detection/export_tflite_ssd_graph.py
     pipeline_config_path = blob_storage.get_pipeline_config_path(team_uuid, model_uuid)
     pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
     with tf.io.gfile.GFile(pipeline_config_path, 'r') as f:
@@ -66,8 +66,9 @@ def create_tflite(team_uuid, model_uuid):
 
     try:
         # The following code is inspired by
-        # https://github.com/tensorflow/tensorflow/tree/master/tensorflow/lite/python/lite.py and
-        # https://github.com/tensorflow/tensorflow/tree/master/tensorflow/lite/python/tflite_convert.py
+        # https://github.com/tensorflow/tensorflow/tree/4386a6640c9fb65503750c37714971031f3dc1fd/tensorflow/lite/python/lite.py
+        # and
+        # https://github.com/tensorflow/tensorflow/tree/4386a6640c9fb65503750c37714971031f3dc1fd/tensorflow/lite/python/tflite_convert.py
         input_arrays = ['normalized_input_image_tensor']
         output_arrays = [
             'TFLite_Detection_PostProcess',

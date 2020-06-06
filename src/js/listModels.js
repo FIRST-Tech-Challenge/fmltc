@@ -147,7 +147,7 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
         this.util.formatElapsedSeconds(modelEntity.train_job_elapsed_seconds);
   }
 
-  if (this.isTrainingDone(modelEntity)) {
+  if (this.util.isTrainingDone(modelEntity)) {
     this.trs[i].className = 'trainingDone';
 
   } else {
@@ -155,15 +155,8 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
     setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid), 60 * 1000);
   }
 
+
   this.updateButtons();
-};
-
-fmltc.ListModels.prototype.isTrainingDone = function(modelEntity) {
-  return this.isJobDone(modelEntity.train_job_state) && this.isJobDone(modelEntity.eval_job_state);
-};
-
-fmltc.ListModels.prototype.isJobDone = function(state) {
-  return state == '' || state == 'SUCCEEDED' || state == 'FAILED' || state == 'CANCELLED';
 };
 
 fmltc.ListModels.prototype.retrieveModelEntity = function(modelUuid) {
@@ -229,7 +222,7 @@ fmltc.ListModels.prototype.cancelTrainingButton_onclick = function() {
     const modelUuid = modelUuids[i];
     const index = this.indexOfModel(modelUuid);
     if (index != -1) {
-      if (!this.isTrainingDone(this.modelEntityArray[index])) {
+      if (!this.util.isTrainingDone(this.modelEntityArray[index])) {
         this.cancelTraining(modelUuid);
       }
     }
@@ -278,7 +271,7 @@ fmltc.ListModels.prototype.startToDeleteModels = function(modelUuids) {
     const modelUuid = modelUuids[i];
     const index = this.indexOfModel(modelUuid);
     if (index != -1) {
-      if (this.isTrainingDone(this.modelEntityArray[index])) {
+      if (this.util.isTrainingDone(this.modelEntityArray[index])) {
         this.deleteModel(modelUuid);
         this.deleteModelCounter++;
       }
@@ -343,7 +336,7 @@ fmltc.ListModels.prototype.updateButtons = function() {
   let modelsAreNotDone = false;
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
-      if (!this.isTrainingDone(this.modelEntityArray[i])) {
+      if (!this.util.isTrainingDone(this.modelEntityArray[i])) {
         modelsAreNotDone = true;
       } else {
         modelsAreNotTraining = true;

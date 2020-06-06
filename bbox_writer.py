@@ -14,7 +14,8 @@
 
 __author__ = "lizlooney@google.com (Liz Looney)"
 
-# Inspired by https://github.com/google/ftc-object-detection/tree/master/training/bbox_writer.py
+# Inspired by
+# https://github.com/google/ftc-object-detection/tree/46197ce4ecaee954c2164d257d7dc24e85678285/training/training/bbox_writer.py
 
 # Other Modules
 import numpy as np

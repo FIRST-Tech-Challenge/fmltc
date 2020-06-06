@@ -35,21 +35,34 @@ fmltc.MonitorTraining = function(util, modelUuid) {
   this.util = util;
   this.modelUuid = modelUuid;
 
+  this.refreshIntervalDiv = document.getElementById('refreshIntervalDiv');
+  this.refreshIntervalInput = document.getElementById('refreshIntervalInput');
+  this.modelTabDiv = document.getElementById('modelTabDiv');
   this.scalarsTabDiv = document.getElementById('scalarsTabDiv');
   this.imagesTabDiv = document.getElementById('imagesTabDiv');
 
   this.chartsLoaded = false;
 
+  this.modelLoader = document.getElementById('modelLoader');
+
   this.data = {};
   this.data.scalars = this.createDataStructure(true, false, document.getElementById('scalarsLoader'));
   this.data.images = this.createDataStructure(false, true, document.getElementById('imagesLoader'));
 
-  this.retrieveSummaries(this.data.scalars, 0);
-  this.retrieveSummaries(this.data.images, 0);
+  this.retrieveData();
 
   google.charts.load('current', {'packages':['corechart']});
   google.charts.setOnLoadCallback(this.charts_onload.bind(this));
+
+  this.refreshIntervalInput.onchange = this.refreshIntervalInput_onchange.bind(this);
 }
+
+fmltc.MonitorTraining.prototype.refreshIntervalInput_onchange = function() {
+  if (this.intervalId) {
+    clearInterval(this.intervalId);
+    this.intervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalInput.value * 60 * 1000);
+  }
+};
 
 fmltc.MonitorTraining.prototype.createDataStructure = function(retrieveScalars, retrieveImages, loader) {
   const dataStructure = {};
@@ -74,12 +87,17 @@ fmltc.MonitorTraining.prototype.charts_onload = function() {
 
   if (this.data.scalars.training.updated != '' ||
       this.data.scalars.eval.updated != '') {
-    this.updateUI(this.data.scalars);
+    this.updateSummariesUI(this.data.scalars);
   }
   if (this.data.images.training.updated != '' ||
       this.data.images.eval.updated != '') {
-    this.updateUI(this.data.images);
+    this.updateSummariesUI(this.data.images);
   }
+};
+
+fmltc.MonitorTraining.prototype.retrieveData = function() {
+  this.retrieveSummaries(this.data.scalars, 0);
+  this.retrieveSummaries(this.data.images, 0);
 };
 
 fmltc.MonitorTraining.prototype.retrieveSummaries = function(dataStructure, failureCount) {
@@ -104,6 +122,19 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
       const response = JSON.parse(xhr.responseText);
 
       this.modelEntity = response.model_entity;
+      this.updateModelUI();
+
+      if (this.util.isTrainingDone(this.modelEntity)) {
+        this.refreshIntervalDiv.style.display = 'none';
+        if (this.intervalId) {
+          clearInterval(this.intervalId);
+        }
+      } else {
+        this.refreshIntervalDiv.style.display = 'inline';
+        if (!this.intervalId) {
+          setInterval(this.retrieveData.bind(this), this.refreshIntervalInput.value * 60 * 1000);
+        }
+      }
 
       if (response.training_updated != dataStructure.training.updated ||
           response.eval_updated != dataStructure.eval.updated) {
@@ -118,11 +149,9 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
         dataStructure.eval.summaries = response.eval_summaries;
 
         if (this.chartsLoaded) {
-          this.updateUI(dataStructure);
+          this.updateSummariesUI(dataStructure);
         }
       }
-
-      // TODO(lizlooney): if the jobs are not done, call retrieveSummaries again in 5 (?) minutes.
 
     } else {
       failureCount++;
@@ -138,7 +167,15 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
   }
 };
 
-fmltc.MonitorTraining.prototype.updateUI = function(dataStructure) {
+fmltc.MonitorTraining.prototype.updateModelUI = function() {
+  this.modelLoader.style.visibility = 'hidden';
+
+  // TODO(lizlooney): implement.
+  // video_filenames, creation_time_ms, max_running_minutes, num_training_steps, train_job_state,
+  // eval_job_state, train_job_elapsed_seconds
+};
+
+fmltc.MonitorTraining.prototype.updateSummariesUI = function(dataStructure) {
   if (dataStructure.retrieveScalars) {
     this.scalarsTabDiv.innerHTML = ''; // Remove previous children.
     this.fillScalarsDiv(dataStructure.training);
@@ -277,9 +314,11 @@ fmltc.MonitorTraining.prototype.fillImagesDiv = function(jobData) {
         this.imagesTabDiv.appendChild(img);
       }
       stepInput.onchange = this.stepInput_onchange.bind(this, sortedSteps, stepInput, stepDiv, imgElements);
-      this.imagesTabDiv.appendChild(document.createElement('br'));
-      this.imagesTabDiv.appendChild(document.createElement('hr'));
-      this.imagesTabDiv.appendChild(document.createElement('br'));
+      if (iTag + 1 < sortedTags.length) {
+        this.imagesTabDiv.appendChild(document.createElement('br'));
+        this.imagesTabDiv.appendChild(document.createElement('hr'));
+        this.imagesTabDiv.appendChild(document.createElement('br'));
+      }
     }
   }
 };

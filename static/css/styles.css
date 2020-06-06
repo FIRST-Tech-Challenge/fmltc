@@ -16,6 +16,7 @@
 
 body {
   font-family: 'Roboto', sans-serif;
+  overflow: hidden;
 }
 
 .hidden {
@@ -147,12 +148,12 @@ body {
 .tabButtonsDiv {
   overflow: hidden;
   border: 1px solid #ccc;
-  background-color: #f1f1f1;
+  background-color: #ffffff;
 }
 
 .tabButtonsDiv button {
   font-size: 24px;
-  background-color: inherit;
+  background-color: #f1f1f1;
   float: left;
   border: none;
   outline: none;
@@ -169,9 +170,15 @@ body {
   background-color: #ccc;
 }
 
+.right {
+  float: right;
+  padding-top: 16px;
+}
+
 .tabDiv {
+  overflow: auto;
   display: none;
-  padding: 6px 12px;
+  padding: 6px 6px;
   border: 1px solid #ccc;
   border-top: none;
 }

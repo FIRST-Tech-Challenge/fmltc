@@ -82,8 +82,9 @@ def start_training_model(team_uuid, dataset_uuid, max_running_minutes, num_train
             'pythonModule': 'object_detection.model_tpu_main',
             'args': [
                 '--model_dir', model_dir,
-                '--tpu_zone', 'us-central1',
                 '--pipeline_config_path', pipeline_config_path,
+                '--tpu_zone', 'us-central1',
+                '--num_train_steps', str(num_training_steps),
             ],
             # TODO(lizlooney): Specify hyperparameters.
             #'hyperparameters': {
@@ -122,7 +123,6 @@ def start_training_model(team_uuid, dataset_uuid, max_running_minutes, num_train
                     '--model_dir', model_dir,
                     '--pipeline_config_path', pipeline_config_path,
                     '--checkpoint_dir', checkpoint_dir,
-                    '--num_train_steps', str(num_training_steps),
                 ],
                 # TODO(lizlooney): Specify hyperparameters.
                 #'hyperparameters': {
