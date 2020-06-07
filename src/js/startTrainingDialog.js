@@ -30,16 +30,17 @@ goog.require('fmltc.Util');
  * @constructor
  */
 fmltc.StartTrainingDialog = function(
-    util, totalTrainingMinutes, remainingTrainingMinutes, datasetUuid, onTrainingStarted) {
+    util, totalTrainingMinutes, remainingTrainingMinutes, datasetUuids, onTrainingStarted) {
   /** @type {!fmltc.Util} */
   this.util = util;
-  this.datasetUuid = datasetUuid;
+  this.datasetUuids = datasetUuids;
   this.onTrainingStarted = onTrainingStarted;
   this.dialog = document.getElementById('startTrainingDialog');
   this.dismissButton = document.getElementById('stDismissButton');
   this.maxRunningMinutesInput = document.getElementById('stMaxRunningMinutesInput');
   this.totalTrainingMinutesSpan = document.getElementById('stTotalTrainingMinutesSpan');
   this.remainingTrainingMinutesSpan = document.getElementById('stRemainingTrainingMinutesSpan');
+  this.numTrainingStepsInput = document.getElementById('stNumTrainingStepsInput');
   this.startButton = document.getElementById('stStartButton');
   this.inProgressDiv = document.getElementById('stInProgressDiv');
   this.successDiv = document.getElementById('stSuccessDiv');
@@ -50,6 +51,10 @@ fmltc.StartTrainingDialog = function(
   this.maxRunningMinutesInput.min = Math.min(30, remainingTrainingMinutes);
   this.maxRunningMinutesInput.max = remainingTrainingMinutes;
   this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
+  this.numTrainingStepsInput.min = 400;
+  this.numTrainingStepsInput.max = 4000;
+  this.numTrainingStepsInput.value = 2000;
+
   this.updateStartButton();
   this.totalTrainingMinutesSpan.textContent = String(totalTrainingMinutes);
   this.remainingTrainingMinutesSpan.textContent = String(remainingTrainingMinutes);
@@ -83,10 +88,21 @@ fmltc.StartTrainingDialog.prototype.startButton_onclick = function() {
   this.startTrainingInProgress = true;
   this.updateStartButton();
 
+  const datasetUuidsJson = JSON.stringify(this.datasetUuids);
+
+  // TODO(lizlooney): Allow the user to choose one of their own models as the starting checkpoint.
+  // Use the model_uuid for startingCheckpoint and the formatted creation_time_ms for
+  // userVisibleStartingCheckpoint.
+  const startingCheckpoint = 'SSD MobileNet';
+  const userVisibleStartingCheckpoint = 'SSD MobileNet';
+
   const xhr = new XMLHttpRequest();
   const params =
-      'dataset_uuid=' + encodeURIComponent(this.datasetUuid) +
+      'dataset_uuids=' + encodeURIComponent(datasetUuidsJson) +
+      '&starting_checkpoint=' + encodeURIComponent(startingCheckpoint) +
+      '&user_visible_starting_checkpoint=' + encodeURIComponent(userVisibleStartingCheckpoint) +
       '&max_running_minutes=' + this.maxRunningMinutesInput.value +
+      '&num_training_steps=' + this.numTrainingStepsInput.value +
       '&start_time_ms=' + Date.now();
   xhr.open('POST', '/startTrainingModel', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');

@@ -264,6 +264,12 @@ def get_trained_checkpoint_prefix(team_uuid, model_uuid):
         return __get_path('%s%d' % (prefix, max_number))
     return None
 
+def get_trained_checkpoint_path(team_uuid, model_uuid):
+    checkpoint_prefix = get_trained_checkpoint_prefix(team_uuid, model_uuid)
+    if checkpoint_prefix is None:
+        return None
+    return __get_path(checkpoint_prefix)
+
 def __get_tflite_folder(team_uuid, model_uuid):
     return '%s/tflite' % (__get_model_folder(team_uuid, model_uuid))
 

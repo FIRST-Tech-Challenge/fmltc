@@ -109,38 +109,30 @@ fmltc.ListDatasets.prototype.addDataset = function(datasetEntity) {
   }
 
   const dateCreatedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-  const dateCreatedSpan = document.createElement('span');
-  dateCreatedSpan.textContent = new Date(datasetEntity.creation_time_ms).toLocaleString();
-  dateCreatedTd.appendChild(dateCreatedSpan);
+  dateCreatedTd.textContent = new Date(datasetEntity.creation_time_ms).toLocaleString();
 
   const trainFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   trainFrameCountTd.setAttribute('align', 'right');
-  const trainFrameCountSpan = document.createElement('span');
-  trainFrameCountSpan.textContent = new Number(datasetEntity.train_frame_count).toLocaleString();
-  trainFrameCountTd.appendChild(trainFrameCountSpan);
+  trainFrameCountTd.textContent = new Number(datasetEntity.train_frame_count).toLocaleString();
 
   const trainNegativeFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   trainNegativeFrameCountTd.setAttribute('align', 'right');
-  const trainNegativeFrameCountSpan = document.createElement('span');
-  trainNegativeFrameCountSpan.textContent = new Number(datasetEntity.train_negative_frame_count).toLocaleString();
-  trainNegativeFrameCountTd.appendChild(trainNegativeFrameCountSpan);
+  trainNegativeFrameCountTd.textContent = new Number(datasetEntity.train_negative_frame_count).toLocaleString();
 
   const evalFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   evalFrameCountTd.setAttribute('align', 'right');
-  const evalFrameCountSpan = document.createElement('span');
-  evalFrameCountSpan.textContent = new Number(datasetEntity.eval_frame_count).toLocaleString();
-  evalFrameCountTd.appendChild(evalFrameCountSpan);
+  evalFrameCountTd.textContent = new Number(datasetEntity.eval_frame_count).toLocaleString();
 
   const evalNegativeFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   evalNegativeFrameCountTd.setAttribute('align', 'right');
-  const evalNegativeFrameCountSpan = document.createElement('span');
-  evalNegativeFrameCountSpan.textContent = new Number(datasetEntity.eval_negative_frame_count).toLocaleString();
-  evalNegativeFrameCountTd.appendChild(evalNegativeFrameCountSpan);
+  evalNegativeFrameCountTd.textContent = new Number(datasetEntity.eval_negative_frame_count).toLocaleString();
 
   const labelsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-  const labelsSpan = document.createElement('span');
-  labelsSpan.textContent = datasetEntity.sorted_label_list;
-  labelsTd.appendChild(labelsSpan);
+  for (let i = 0; i < datasetEntity.sorted_label_list.length; i++) {
+    const div = document.createElement('div');
+    div.textContent = datasetEntity.sorted_label_list[i];
+    labelsTd.appendChild(div);
+  }
 };
 
 fmltc.ListDatasets.prototype.addNewDataset = function(datasetEntity) {
@@ -222,9 +214,22 @@ fmltc.ListDatasets.prototype.indexOfDataset = function(datasetUuid) {
 };
 
 fmltc.ListDatasets.prototype.updateButtons = function() {
-  const countChecked = this.util.countChecked(this.checkboxes);
+  let countChecked = 0;
+  let labelsMatch = true;
+  let labels = null;
+  for (let i = 0; i < this.checkboxes.length; i++) {
+    if (this.checkboxes[i].checked) {
+      countChecked++;
+      if (labels == null) {
+        labels = this.datasetEntityArray[i].sorted_label_list;
+      } else if (this.util.sortedLabelListsEqual(labels, this.datasetEntityArray[i].sorted_label_list)) {
+        labelsMatch = false;
+      }
+    }
+  }
+
   this.downloadDatasetButton.disabled = this.waitCursor || countChecked != 1;
-  this.startTrainingButton.disabled = this.waitCursor || countChecked != 1;
+  this.startTrainingButton.disabled = this.waitCursor || countChecked == 0 || !labelsMatch;
   this.deleteDatasetsButton.disabled = this.waitCursor || countChecked == 0;
 };
 
@@ -403,10 +408,10 @@ fmltc.ListDatasets.prototype.xhr_deleteDatasetZip_onreadystatechange = function(
 };
 
 fmltc.ListDatasets.prototype.startTrainingButton_onclick = function() {
-  const datasetUuid = this.getCheckedDatasetUuids()[0];
+  const datasetUuids = this.getCheckedDatasetUuids();
   new fmltc.StartTrainingDialog(
       this.util, this.listModels.totalTrainingMinutes, this.listModels.remainingTrainingMinutes,
-      datasetUuid, this.onTrainingStarted.bind(this));
+      datasetUuids, this.onTrainingStarted.bind(this));
 };
 
 fmltc.ListDatasets.prototype.onTrainingStarted = function(remainingTrainingMinutes, modelEntity) {

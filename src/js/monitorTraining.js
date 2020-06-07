@@ -35,21 +35,49 @@ fmltc.MonitorTraining = function(util, modelUuid) {
   this.util = util;
   this.modelUuid = modelUuid;
 
+  this.refreshIntervalDiv = document.getElementById('refreshIntervalDiv');
+  this.refreshIntervalInput = document.getElementById('refreshIntervalInput');
+  this.modelTabDiv = document.getElementById('modelTabDiv');
+  this.dateCreatedTd = document.getElementById('dateCreatedTd');
+  this.videoFilenamesTd = document.getElementById('videoFilenamesTd');
+  this.trainFrameCountTd = document.getElementById('trainFrameCountTd');
+  this.trainNegativeFrameCountTd = document.getElementById('trainNegativeFrameCountTd');
+  this.trainLabelCountsTable = document.getElementById('trainLabelCountsTable');
+  this.evalFrameCountTd = document.getElementById('evalFrameCountTd');
+  this.evalNegativeFrameCountTd = document.getElementById('evalNegativeFrameCountTd');
+  this.evalLabelCountsTable = document.getElementById('evalLabelCountsTable');
+  this.startingCheckpointTd = document.getElementById('startingCheckpointTd');
+  this.numTrainingStepsTd = document.getElementById('numTrainingStepsTd');
+  this.trainStateTd = document.getElementById('trainStateTd');
+  this.evalStateTd = document.getElementById('evalStateTd');
+  this.trainTimeTd = document.getElementById('trainTimeTd');
   this.scalarsTabDiv = document.getElementById('scalarsTabDiv');
   this.imagesTabDiv = document.getElementById('imagesTabDiv');
 
   this.chartsLoaded = false;
 
+  this.filledModelUI = false;
+
+  this.modelLoader = document.getElementById('modelLoader');
+
   this.data = {};
   this.data.scalars = this.createDataStructure(true, false, document.getElementById('scalarsLoader'));
   this.data.images = this.createDataStructure(false, true, document.getElementById('imagesLoader'));
 
-  this.retrieveSummaries(this.data.scalars, 0);
-  this.retrieveSummaries(this.data.images, 0);
+  this.retrieveData();
 
   google.charts.load('current', {'packages':['corechart']});
   google.charts.setOnLoadCallback(this.charts_onload.bind(this));
+
+  this.refreshIntervalInput.onchange = this.refreshIntervalInput_onchange.bind(this);
 }
+
+fmltc.MonitorTraining.prototype.refreshIntervalInput_onchange = function() {
+  if (this.intervalId) {
+    clearInterval(this.intervalId);
+    this.intervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalInput.value * 60 * 1000);
+  }
+};
 
 fmltc.MonitorTraining.prototype.createDataStructure = function(retrieveScalars, retrieveImages, loader) {
   const dataStructure = {};
@@ -74,12 +102,17 @@ fmltc.MonitorTraining.prototype.charts_onload = function() {
 
   if (this.data.scalars.training.updated != '' ||
       this.data.scalars.eval.updated != '') {
-    this.updateUI(this.data.scalars);
+    this.updateSummariesUI(this.data.scalars);
   }
   if (this.data.images.training.updated != '' ||
       this.data.images.eval.updated != '') {
-    this.updateUI(this.data.images);
+    this.updateSummariesUI(this.data.images);
   }
+};
+
+fmltc.MonitorTraining.prototype.retrieveData = function() {
+  this.retrieveSummaries(this.data.scalars, 0);
+  this.retrieveSummaries(this.data.images, 0);
 };
 
 fmltc.MonitorTraining.prototype.retrieveSummaries = function(dataStructure, failureCount) {
@@ -104,6 +137,19 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
       const response = JSON.parse(xhr.responseText);
 
       this.modelEntity = response.model_entity;
+      this.updateModelUI();
+
+      if (this.util.isTrainingDone(this.modelEntity)) {
+        this.refreshIntervalDiv.style.display = 'none';
+        if (this.intervalId) {
+          clearInterval(this.intervalId);
+        }
+      } else {
+        this.refreshIntervalDiv.style.display = 'inline';
+        if (!this.intervalId) {
+          setInterval(this.retrieveData.bind(this), this.refreshIntervalInput.value * 60 * 1000);
+        }
+      }
 
       if (response.training_updated != dataStructure.training.updated ||
           response.eval_updated != dataStructure.eval.updated) {
@@ -118,11 +164,9 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
         dataStructure.eval.summaries = response.eval_summaries;
 
         if (this.chartsLoaded) {
-          this.updateUI(dataStructure);
+          this.updateSummariesUI(dataStructure);
         }
       }
-
-      // TODO(lizlooney): if the jobs are not done, call retrieveSummaries again in 5 (?) minutes.
 
     } else {
       failureCount++;
@@ -138,7 +182,58 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
   }
 };
 
-fmltc.MonitorTraining.prototype.updateUI = function(dataStructure) {
+fmltc.MonitorTraining.prototype.updateModelUI = function() {
+  this.modelLoader.style.visibility = 'hidden';
+
+  if (!this.filledModelUI) {
+    this.dateCreatedTd.textContent = new Date(this.modelEntity.creation_time_ms).toLocaleString();
+
+    for (let i = 0; i < this.modelEntity.video_filenames.length; i++) {
+      const div = document.createElement('div');
+      div.textContent = this.modelEntity.video_filenames[i];
+      this.videoFilenamesTd.appendChild(div);
+    }
+    this.trainFrameCountTd.textContent = new Number(this.modelEntity.train_frame_count).toLocaleString();
+    this.trainNegativeFrameCountTd.textContent = new Number(this.modelEntity.train_negative_frame_count).toLocaleString();
+    for (const label in this.modelEntity.train_dict_label_to_count) {
+      const tr = this.trainLabelCountsTable.insertRow(-1);
+      let td = tr.insertCell(-1);
+      td.textContent = label;
+      td = tr.insertCell(-1);
+      td.textContent = new Number(this.modelEntity.train_dict_label_to_count[label]).toLocaleString();
+    }
+
+    this.evalFrameCountTd.textContent = new Number(this.modelEntity.eval_frame_count).toLocaleString();
+    this.evalNegativeFrameCountTd.textContent = new Number(this.modelEntity.eval_negative_frame_count).toLocaleString();
+    for (const label in this.modelEntity.eval_dict_label_to_count) {
+      const tr = this.evalLabelCountsTable.insertRow(-1);
+      let td = tr.insertCell(-1);
+      td.textContent = label;
+      td = tr.insertCell(-1);
+      td.textContent = new Number(this.modelEntity.eval_dict_label_to_count[label]).toLocaleString();
+    }
+
+    if (typeof this.modelEntity.user_visible_starting_checkpoint == 'number') {
+      this.startingCheckpointTd.textContent = new Date(this.modelEntity.user_visible_starting_checkpoint).toLocaleString();
+    } else {
+      this.startingCheckpointTd.textContent = this.modelEntity.user_visible_starting_checkpoint;
+    }
+
+    this.numTrainingStepsTd.textContent = new Number(this.modelEntity.num_training_steps).toLocaleString();
+
+    this.filledModelUI = true;
+  }
+
+  this.trainStateTd.textContent = this.modelEntity.train_job_state;
+  this.evalStateTd.textContent = this.modelEntity.eval_job_state;
+
+  if (this.modelEntity['train_job_elapsed_seconds'] > 0) {
+    this.trainTimeTd.textContent =
+        this.util.formatElapsedSeconds(this.modelEntity.train_job_elapsed_seconds);
+  }
+};
+
+fmltc.MonitorTraining.prototype.updateSummariesUI = function(dataStructure) {
   if (dataStructure.retrieveScalars) {
     this.scalarsTabDiv.innerHTML = ''; // Remove previous children.
     this.fillScalarsDiv(dataStructure.training);
@@ -277,9 +372,11 @@ fmltc.MonitorTraining.prototype.fillImagesDiv = function(jobData) {
         this.imagesTabDiv.appendChild(img);
       }
       stepInput.onchange = this.stepInput_onchange.bind(this, sortedSteps, stepInput, stepDiv, imgElements);
-      this.imagesTabDiv.appendChild(document.createElement('br'));
-      this.imagesTabDiv.appendChild(document.createElement('hr'));
-      this.imagesTabDiv.appendChild(document.createElement('br'));
+      if (iTag + 1 < sortedTags.length) {
+        this.imagesTabDiv.appendChild(document.createElement('br'));
+        this.imagesTabDiv.appendChild(document.createElement('hr'));
+        this.imagesTabDiv.appendChild(document.createElement('br'));
+      }
     }
   }
 };

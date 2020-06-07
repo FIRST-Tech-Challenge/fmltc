@@ -44,3 +44,10 @@ def make_label_map(sorted_label_list):
 
 def storage_client():
     return google.cloud.storage.Client.from_service_account_json('key.json')
+
+def extend_dict_label_to_count(dict, other_dict):
+    for label, count in other_dict.items():
+        if label in dict:
+            dict[label] += count
+        else:
+            dict[label] = count

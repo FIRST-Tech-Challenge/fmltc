@@ -667,11 +667,7 @@ def dataset_producer_maybe_done(team_uuid, dataset_uuid):
                     else:
                         train_negative_frame_count += dataset_record_entity['negative_frame_count']
                         dict_label_to_count = train_dict_label_to_count
-                    for label, count in dataset_record_entity['dict_label_to_count'].items():
-                        if label in dict_label_to_count:
-                            dict_label_to_count[label] += count
-                        else:
-                            dict_label_to_count[label] = count
+                    util.extend_dict_label_to_count(dict_label_to_count, dataset_record_entity['dict_label_to_count'])
                 dataset_entity['dataset_completed'] = True
                 dataset_entity['train_negative_frame_count'] = train_negative_frame_count
                 dataset_entity['train_dict_label_to_count'] = train_dict_label_to_count
@@ -822,9 +818,12 @@ def model_trainer_failed_to_start(team_uuid, max_running_minutes):
         team_entity['remaining_training_minutes'] += max_running_minutes
         transaction.put(team_entity)
 
-def model_trainer_started(team_uuid, model_uuid,
-    dataset_uuid, max_running_minutes, start_time_ms,
-    video_filenames, fine_tune_checkpoint, train_job, eval_job):
+def model_trainer_started(team_uuid, model_uuid, dataset_uuid_list,
+        max_running_minutes, num_training_steps, start_time_ms,
+        starting_checkpoint, user_visible_starting_checkpoint, fine_tune_checkpoint,
+        video_filenames, sorted_label_list, label_map_path, train_input_path, eval_input_path,
+        train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
+        train_dict_label_to_count, eval_dict_label_to_count, train_job, eval_job):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_MODEL)
@@ -832,11 +831,24 @@ def model_trainer_started(team_uuid, model_uuid,
         model_entity.update({
             'team_uuid': team_uuid,
             'model_uuid': model_uuid,
-            'dataset_uuid': dataset_uuid,
-            'max_running_minutes': max_running_minutes,
+            'dataset_uuids': dataset_uuid_list,
             'creation_time_ms': start_time_ms,
             'video_filenames': video_filenames,
+            'sorted_label_list': sorted_label_list,
+            'label_map_path': label_map_path,
+            'train_input_path': train_input_path,
+            'eval_input_path': eval_input_path,
+            'train_frame_count': train_frame_count,
+            'eval_frame_count': eval_frame_count,
+            'train_negative_frame_count': train_negative_frame_count,
+            'eval_negative_frame_count': eval_negative_frame_count,
+            'train_dict_label_to_count': train_dict_label_to_count,
+            'eval_dict_label_to_count': eval_dict_label_to_count,
+            'starting_checkpoint': starting_checkpoint,
+            'user_visible_starting_checkpoint': user_visible_starting_checkpoint,
             'fine_tune_checkpoint': fine_tune_checkpoint,
+            'max_running_minutes': max_running_minutes,
+            'num_training_steps': num_training_steps,
             'delete_in_progress': False,
             'train_consumed_ml_units': 0,
             'train_job_elapsed_seconds': 0,

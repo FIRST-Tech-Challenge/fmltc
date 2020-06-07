@@ -192,6 +192,28 @@ fmltc.Util.prototype.initializeTabs = function() {
 
   if (foundTabs) {
     this.showLastViewedTab();
+    this.window_onresize();
+    window.addEventListener('resize', this.window_onresize.bind(this));
+  }
+};
+
+fmltc.Util.prototype.window_onresize = function() {
+  const tabDivs = document.getElementsByClassName('tabDiv');
+  let maxOffset = 0;
+  for (let i = 0; i < tabDivs.length; i++) {
+    const style = window.getComputedStyle(tabDivs[i]);
+    const offset = tabDivs[i].getBoundingClientRect().top +
+        parseFloat(style.getPropertyValue('padding-top')) +
+        parseFloat(style.getPropertyValue('padding-bottom')) +
+        parseFloat(style.getPropertyValue('border-top')) +
+        parseFloat(style.getPropertyValue('border-bottom'));
+    if (offset > maxOffset) {
+      maxOffset = offset;
+    }
+  }
+  const height = (window.innerHeight - maxOffset) + 'px';
+  for (let i = 0; i < tabDivs.length; i++) {
+    tabDivs[i].style.height = height;
   }
 };
 
@@ -278,4 +300,24 @@ fmltc.Util.prototype.insertCellWithClass = function(tr, clazz) {
   const td = tr.insertCell(-1);
   this.addClass(td, clazz);
   return td;
+};
+
+fmltc.Util.prototype.isTrainingDone = function(modelEntity) {
+  return this.isJobDone(modelEntity.train_job_state) && this.isJobDone(modelEntity.eval_job_state);
+};
+
+fmltc.Util.prototype.isJobDone = function(state) {
+  return state == '' || state == 'SUCCEEDED' || state == 'FAILED' || state == 'CANCELLED';
+};
+
+fmltc.Util.prototype.sortedLabelListsEqual = function(a1, a2) {
+  if (a1.length != a2.length) {
+    return false;
+  }
+  for (let i = 0; i < a1.length; i++) {
+    if (a1[i] !== a2[i]) {
+      return false;
+    }
+  }
+  return true;
 };
