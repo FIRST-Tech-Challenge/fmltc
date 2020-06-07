@@ -45,9 +45,9 @@ fmltc.ListModels = function(util) {
   this.modelEntityArray = [];
   this.trs = [];
   this.checkboxes = [];
-  this.trainStateSpans = [];
-  this.evalStateSpans = [];
-  this.trainTimeSpans = [];
+  this.trainStateTds = [];
+  this.evalStateTds = [];
+  this.trainTimeTds = [];
 
   this.waitCursor = false;
   this.deleteModelCounter = 0;
@@ -118,32 +118,21 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
     }
 
     const dateCreatedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    const dateCreatedSpan = document.createElement('span');
-    dateCreatedSpan.textContent = new Date(modelEntity.creation_time_ms).toLocaleString();
-    dateCreatedTd.appendChild(dateCreatedSpan);
+    dateCreatedTd.textContent = new Date(modelEntity.creation_time_ms).toLocaleString();
 
-    const trainStateTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    const trainStateSpan = document.createElement('span');
-    this.trainStateSpans[i] = trainStateSpan;
-    trainStateTd.appendChild(trainStateSpan);
+    this.trainStateTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
 
-    const evalStateTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    const evalStateSpan = document.createElement('span');
-    this.evalStateSpans[i] = evalStateSpan;
-    evalStateTd.appendChild(evalStateSpan);
+    this.evalStateTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
 
-    const trainTimeTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    trainTimeTd.setAttribute('align', 'right');
-    const trainTimeSpan = document.createElement('span');
-    this.trainTimeSpans[i] = trainTimeSpan;
-    trainTimeTd.appendChild(trainTimeSpan);
+    this.trainTimeTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    this.trainTimeTds[i].setAttribute('align', 'right');
   }
 
-  this.trainStateSpans[i].textContent = modelEntity.train_job_state;
-  this.evalStateSpans[i].textContent = modelEntity.eval_job_state;
+  this.trainStateTds[i].textContent = modelEntity.train_job_state;
+  this.evalStateTds[i].textContent = modelEntity.eval_job_state;
 
   if (modelEntity['train_job_elapsed_seconds'] > 0) {
-    this.trainTimeSpans[i].textContent =
+    this.trainTimeTds[i].textContent =
         this.util.formatElapsedSeconds(modelEntity.train_job_elapsed_seconds);
   }
 
@@ -308,9 +297,9 @@ fmltc.ListModels.prototype.xhr_deleteModel_onreadystatechange = function(xhr, pa
         this.trs.splice(i, 1);
         this.checkboxes[i].onclick = null;
         this.checkboxes.splice(i, 1);
-        this.trainStateSpans.splice(i, 1);
-        this.evalStateSpans.splice(i, 1);
-        this.trainTimeSpans.splice(i, 1);
+        this.trainStateTds.splice(i, 1);
+        this.evalStateTds.splice(i, 1);
+        this.trainTimeTds.splice(i, 1);
       }
 
     } else {

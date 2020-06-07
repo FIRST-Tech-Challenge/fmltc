@@ -35,9 +35,33 @@ import util
 
 BUCKET = ('%s' % constants.PROJECT_ID)
 
-def start_training_model(team_uuid, dataset_uuid, max_running_minutes, num_training_steps, start_time_ms):
-    # Call retrieve_model_list to update all models and update the team_entity.
-    retrieve_model_list(team_uuid)
+SSD_MOBILENET = 'SSD MobileNet'
+
+def start_training_model(team_uuid, dataset_uuids_json,
+        starting_checkpoint, user_visible_starting_checkpoint,
+        max_running_minutes, num_training_steps, start_time_ms):
+    dataset_uuid_list = json.loads(dataset_uuids_json)
+    if len(dataset_uuid_list) == 0 and starting_checkpoint != SSD_MOBILENET:
+        message = "Error: No datasets to use for training."
+        logging.critical(message)
+        raise exceptions.HttpErrorBadRequest(message)
+
+    # Call retrieve_model_list to update all models (which may have finished training) and update
+    # the team_entity.
+    model_entities = retrieve_model_list(team_uuid)
+
+    if starting_checkpoint == SSD_MOBILENET:
+        fine_tune_checkpoint = 'gs://%s/static/training/models/%s/model.ckpt' % (
+            BUCKET, 'ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync_2018_07_03')
+    else:
+        # starting_checkpoint is the model_uuid of one of the user's own models.
+        # user_visible_starting_checkpoint is the creation_time_ms of that mode, formatted by the UI.
+        fine_tune_checkpoint = blob_storage.get_trained_checkpoint_path(starting_checkpoint)
+        if fine_tune_checkpoint is None:
+            message = 'Error: Checkpoint not found for starting_checkpoint=%s.' % starting_checkpoint
+            logging.critical(message)
+            raise exceptions.HttpErrorNotFound(message)
+
     # storage.model_trainer_starting will raise an exception if the team doesn't have enough
     # training time left.
     model_uuid = storage.model_trainer_starting(team_uuid, max_running_minutes)
@@ -45,20 +69,54 @@ def start_training_model(team_uuid, dataset_uuid, max_running_minutes, num_train
         object_detection_tar_gz = 'gs://%s/static/training/object_detection-0.1.tar.gz' % BUCKET
         slim_tar_gz = 'gs://%s/static/training/slim-0.1.tar.gz' % BUCKET
         pycocotools_tar_gz = 'gs://%s/static/training/pycocotools-2.0.tar.gz' % BUCKET
-        fine_tune_checkpoint = 'gs://%s/static/training/models/ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync_2018_07_03/model.ckpt' % BUCKET
 
-        dataset_entity = storage.retrieve_dataset_entity(team_uuid, dataset_uuid)
+        dataset_entities = storage.retrieve_dataset_entities(team_uuid, dataset_uuid_list)
+        if len(dataset_entities) != len(dataset_uuid_list):
+            message = 'Error: One or more datasets not found for dataset_uuids=%s.' % dataset_uuids_json
+            logging.critical(message)
+            raise exceptions.HttpErrorNotFound(message)
+
+        # TODO(lizlooney): This whole section of code needs to be updated for the user using their
+        # own model as a starting checkpoint.
+        video_filenames = []
+        train_input_path = []
+        eval_input_path = []
+        train_frame_count = 0
+        eval_frame_count = 0
+        train_negative_frame_count = 0
+        eval_negative_frame_count = 0
+        train_dict_label_to_count = {}
+        eval_dict_label_to_count = {}
+        sorted_label_list = None
+        label_map_path = None
+        for dataset_entity in dataset_entities:
+            video_filenames.extend(dataset_entity['video_filenames'])
+            train_input_path.append(dataset_entity['train_input_path'])
+            eval_input_path.append(dataset_entity['train_input_path'])
+            train_frame_count += dataset_entity['train_frame_count']
+            eval_frame_count += dataset_entity['eval_frame_count']
+            train_negative_frame_count += dataset_entity['train_negative_frame_count']
+            eval_negative_frame_count += dataset_entity['eval_negative_frame_count']
+            util.extend_dict_label_to_count(train_dict_label_to_count, dataset_entity['train_dict_label_to_count'])
+            util.extend_dict_label_to_count(eval_dict_label_to_count, dataset_entity['eval_dict_label_to_count'])
+            if sorted_label_list is None:
+                sorted_label_list = dataset_entity['sorted_label_list']
+                label_map_path = dataset_entity['label_map_path']
+            elif sorted_label_list != dataset_entity['sorted_label_list']:
+                message = "Error: The datasets contain different labels and cannot be used together."
+                logging.critical(message)
+                raise exceptions.HttpErrorBadRequest(message)
 
         # Create the pipeline.config file and store it in cloud storage.
         bucket = util.storage_client().get_bucket(BUCKET)
         config_template_blob_name = 'static/training/models/configs/ssd_mobilenet_v1_0.75_depth_quantized_300x300_pets_sync.config'
         pipeline_config = (bucket.blob(config_template_blob_name).download_as_string().decode('utf-8')
-            .replace('TO_BE_CONFIGURED/num_classes', str(len(dataset_entity['sorted_label_list'])))
+            .replace('TO_BE_CONFIGURED/num_classes', str(len(sorted_label_list)))
             .replace('TO_BE_CONFIGURED/fine_tune_checkpoint', fine_tune_checkpoint)
-            .replace('TO_BE_CONFIGURED/train_input_path', dataset_entity['train_input_path'])
-            .replace('TO_BE_CONFIGURED/label_map_path', dataset_entity['label_map_path'])
-            .replace('TO_BE_CONFIGURED/eval_input_path', dataset_entity['eval_input_path'])
-            .replace('TO_BE_CONFIGURED/num_examples', str(dataset_entity['eval_frame_count']))
+            .replace('TO_BE_CONFIGURED/train_input_path',  json.dumps(train_input_path))
+            .replace('TO_BE_CONFIGURED/label_map_path', label_map_path)
+            .replace('TO_BE_CONFIGURED/eval_input_path', json.dumps(eval_input_path))
+            .replace('TO_BE_CONFIGURED/num_examples', str(eval_frame_count))
             )
         pipeline_config_path = blob_storage.store_pipeline_config(team_uuid, model_uuid, pipeline_config)
 
@@ -109,7 +167,7 @@ def start_training_model(team_uuid, dataset_uuid, max_running_minutes, num_train
         raise
 
     try:
-        if dataset_entity['eval_record_count'] > 0:
+        if eval_frame_count > 0:
             eval_job_id = __get_eval_job_id(model_uuid)
             eval_training_input = {
                 'scaleTier': 'BASIC_GPU',
@@ -124,15 +182,10 @@ def start_training_model(team_uuid, dataset_uuid, max_running_minutes, num_train
                     '--pipeline_config_path', pipeline_config_path,
                     '--checkpoint_dir', checkpoint_dir,
                 ],
-                # TODO(lizlooney): Specify hyperparameters.
-                #'hyperparameters': {
-                #  object (HyperparameterSpec)
-                #},
                 'region': 'us-central1',
                 'jobDir': job_dir,
                 'runtimeVersion': '1.15',
                 'pythonVersion': '3.7',
-                'scheduling': scheduling,
             }
             eval_job = {
                 'jobId': eval_job_id,
@@ -149,10 +202,12 @@ def start_training_model(team_uuid, dataset_uuid, max_running_minutes, num_train
         # Cancel the training job.
         ml.projects().jobs().cancel(name=__get_train_job_name(model_uuid)).execute()
         raise
-    model_entity = storage.model_trainer_started(team_uuid, model_uuid,
-        dataset_uuid, max_running_minutes, num_training_steps, start_time_ms,
-        dataset_entity['video_filenames'], fine_tune_checkpoint,
-        train_job_response, eval_job_response)
+    model_entity = storage.model_trainer_started(team_uuid, model_uuid, dataset_uuid_list,
+        max_running_minutes, num_training_steps, start_time_ms,
+        starting_checkpoint, user_visible_starting_checkpoint, fine_tune_checkpoint,
+        video_filenames, sorted_label_list, label_map_path, train_input_path, eval_input_path,
+        train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
+        train_dict_label_to_count, eval_dict_label_to_count, train_job_response, eval_job_response)
     return model_entity
 
 def retrieve_model_list(team_uuid):

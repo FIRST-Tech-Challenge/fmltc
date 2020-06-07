@@ -38,10 +38,25 @@ fmltc.MonitorTraining = function(util, modelUuid) {
   this.refreshIntervalDiv = document.getElementById('refreshIntervalDiv');
   this.refreshIntervalInput = document.getElementById('refreshIntervalInput');
   this.modelTabDiv = document.getElementById('modelTabDiv');
+  this.dateCreatedTd = document.getElementById('dateCreatedTd');
+  this.videoFilenamesTd = document.getElementById('videoFilenamesTd');
+  this.trainFrameCountTd = document.getElementById('trainFrameCountTd');
+  this.trainNegativeFrameCountTd = document.getElementById('trainNegativeFrameCountTd');
+  this.trainLabelCountsTable = document.getElementById('trainLabelCountsTable');
+  this.evalFrameCountTd = document.getElementById('evalFrameCountTd');
+  this.evalNegativeFrameCountTd = document.getElementById('evalNegativeFrameCountTd');
+  this.evalLabelCountsTable = document.getElementById('evalLabelCountsTable');
+  this.startingCheckpointTd = document.getElementById('startingCheckpointTd');
+  this.numTrainingStepsTd = document.getElementById('numTrainingStepsTd');
+  this.trainStateTd = document.getElementById('trainStateTd');
+  this.evalStateTd = document.getElementById('evalStateTd');
+  this.trainTimeTd = document.getElementById('trainTimeTd');
   this.scalarsTabDiv = document.getElementById('scalarsTabDiv');
   this.imagesTabDiv = document.getElementById('imagesTabDiv');
 
   this.chartsLoaded = false;
+
+  this.filledModelUI = false;
 
   this.modelLoader = document.getElementById('modelLoader');
 
@@ -170,9 +185,52 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
 fmltc.MonitorTraining.prototype.updateModelUI = function() {
   this.modelLoader.style.visibility = 'hidden';
 
-  // TODO(lizlooney): implement.
-  // video_filenames, creation_time_ms, max_running_minutes, num_training_steps, train_job_state,
-  // eval_job_state, train_job_elapsed_seconds
+  if (!this.filledModelUI) {
+    this.dateCreatedTd.textContent = new Date(this.modelEntity.creation_time_ms).toLocaleString();
+
+    for (let i = 0; i < this.modelEntity.video_filenames.length; i++) {
+      const div = document.createElement('div');
+      div.textContent = this.modelEntity.video_filenames[i];
+      this.videoFilenamesTd.appendChild(div);
+    }
+    this.trainFrameCountTd.textContent = new Number(this.modelEntity.train_frame_count).toLocaleString();
+    this.trainNegativeFrameCountTd.textContent = new Number(this.modelEntity.train_negative_frame_count).toLocaleString();
+    for (const label in this.modelEntity.train_dict_label_to_count) {
+      const tr = this.trainLabelCountsTable.insertRow(-1);
+      let td = tr.insertCell(-1);
+      td.textContent = label;
+      td = tr.insertCell(-1);
+      td.textContent = new Number(this.modelEntity.train_dict_label_to_count[label]).toLocaleString();
+    }
+
+    this.evalFrameCountTd.textContent = new Number(this.modelEntity.eval_frame_count).toLocaleString();
+    this.evalNegativeFrameCountTd.textContent = new Number(this.modelEntity.eval_negative_frame_count).toLocaleString();
+    for (const label in this.modelEntity.eval_dict_label_to_count) {
+      const tr = this.evalLabelCountsTable.insertRow(-1);
+      let td = tr.insertCell(-1);
+      td.textContent = label;
+      td = tr.insertCell(-1);
+      td.textContent = new Number(this.modelEntity.eval_dict_label_to_count[label]).toLocaleString();
+    }
+
+    if (typeof this.modelEntity.user_visible_starting_checkpoint == 'number') {
+      this.startingCheckpointTd.textContent = new Date(this.modelEntity.user_visible_starting_checkpoint).toLocaleString();
+    } else {
+      this.startingCheckpointTd.textContent = this.modelEntity.user_visible_starting_checkpoint;
+    }
+
+    this.numTrainingStepsTd.textContent = new Number(this.modelEntity.num_training_steps).toLocaleString();
+
+    this.filledModelUI = true;
+  }
+
+  this.trainStateTd.textContent = this.modelEntity.train_job_state;
+  this.evalStateTd.textContent = this.modelEntity.eval_job_state;
+
+  if (this.modelEntity['train_job_elapsed_seconds'] > 0) {
+    this.trainTimeTd.textContent =
+        this.util.formatElapsedSeconds(this.modelEntity.train_job_elapsed_seconds);
+  }
 };
 
 fmltc.MonitorTraining.prototype.updateSummariesUI = function(dataStructure) {

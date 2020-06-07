@@ -244,7 +244,7 @@ fmltc.LabelVideo.prototype.redrawBboxes = function() {
 
   if (this.bboxes[this.currentFrameNumber] && this.videoFrameImage[this.currentFrameNumber]) {
     for (let i = 0; i < this.bboxes[this.currentFrameNumber].length; i++) {
-      this.bboxes[this.currentFrameNumber][i].draw(this.bboxCanvasCtx, this.canvasScale, true);
+      this.bboxes[this.currentFrameNumber][i].draw(this.bboxCanvasCtx, this.canvasScale, false /*true*/);
     }
   }
 };

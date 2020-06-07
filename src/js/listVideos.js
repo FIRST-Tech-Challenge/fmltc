@@ -53,12 +53,12 @@ fmltc.ListVideos = function(util, listDatasets) {
   this.trs = [];
   this.checkboxes = [];
   this.videoFilenameTds = [];
-  this.dimensionsSpans = [];
-  this.durationSpans = [];
-  this.framesPerSecondSpans = [];
-  this.frameCountSpans = [];
-  this.extractedFrameCountSpans = [];
-  this.excludedFrameCountSpans = [];
+  this.dimensionsTds = [];
+  this.durationTds = [];
+  this.framesPerSecondTds = [];
+  this.frameCountTds = [];
+  this.extractedFrameCountTds = [];
+  this.excludedFrameCountTds = [];
 
   this.waitCursor = false;
   this.deleteVideoCounter = 0;
@@ -129,79 +129,57 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     videoFilenameTd.appendChild(document.createTextNode(videoEntity.video_filename));
 
     const dateUploadedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    const dateUploadedSpan = document.createElement('span');
-    dateUploadedSpan.textContent = new Date(videoEntity.upload_time_ms).toLocaleString();
-    dateUploadedTd.appendChild(dateUploadedSpan);
+    dateUploadedTd.textContent = new Date(videoEntity.upload_time_ms).toLocaleString();
 
     const fileSizeTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     fileSizeTd.setAttribute('align', 'right');
-    const fileSizeSpan = document.createElement('span');
-    fileSizeSpan.textContent = new Number(videoEntity.file_size).toLocaleString();
-    fileSizeTd.appendChild(fileSizeSpan);
+    fileSizeTd.textContent = new Number(videoEntity.file_size).toLocaleString();
 
-    const dimensionsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    const dimensionsSpan = document.createElement('span');
-    this.dimensionsSpans[i] = dimensionsSpan;
-    dimensionsTd.appendChild(dimensionsSpan);
+    this.dimensionsTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
 
-    const durationTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    durationTd.setAttribute('align', 'right');
-    const durationSpan = document.createElement('span');
-    this.durationSpans[i] = durationSpan;
-    durationTd.appendChild(durationSpan);
+    this.durationTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    this.durationTds[i].setAttribute('align', 'right');
 
-    const framesPerSecondTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    framesPerSecondTd.setAttribute('align', 'right');
-    const framesPerSecondSpan = document.createElement('span');
-    this.framesPerSecondSpans[i] = framesPerSecondSpan;
-    framesPerSecondTd.appendChild(framesPerSecondSpan);
+    this.framesPerSecondTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    this.framesPerSecondTds[i].setAttribute('align', 'right');
 
-    const frameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    frameCountTd.setAttribute('align', 'right');
-    const frameCountSpan = document.createElement('span');
-    this.frameCountSpans[i] = frameCountSpan;
-    frameCountTd.appendChild(frameCountSpan);
+    this.frameCountTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    this.frameCountTds[i].setAttribute('align', 'right');
 
-    const extractedFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    extractedFrameCountTd.setAttribute('align', 'right');
-    const extractedFrameCountSpan = document.createElement('span');
-    this.extractedFrameCountSpans[i] = extractedFrameCountSpan;
-    extractedFrameCountTd.appendChild(extractedFrameCountSpan);
+    this.extractedFrameCountTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    this.extractedFrameCountTds[i].setAttribute('align', 'right');
 
-    const excludedFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    excludedFrameCountTd.setAttribute('align', 'right');
-    const excludedFrameCountSpan = document.createElement('span');
-    this.excludedFrameCountSpans[i] = excludedFrameCountSpan;
-    excludedFrameCountTd.appendChild(excludedFrameCountSpan);
+    this.excludedFrameCountTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    this.excludedFrameCountTds[i].setAttribute('align', 'right');
   }
 
   let frameExtractionComplete = true;
   if ('width' in videoEntity && 'height' in videoEntity) {
-    this.dimensionsSpans[i].textContent = videoEntity.width + ' x ' + videoEntity.height;
+    this.dimensionsTds[i].textContent = videoEntity.width + ' x ' + videoEntity.height;
   } else {
     frameExtractionComplete = false;
   }
   if ('frame_count' in videoEntity && 'fps' in videoEntity) {
-    this.durationSpans[i].textContent = this.util.formatElapsedSeconds(videoEntity.frame_count / videoEntity.fps)
+    this.durationTds[i].textContent = this.util.formatElapsedSeconds(videoEntity.frame_count / videoEntity.fps)
   } else {
     frameExtractionComplete = false;
   }
   if ('fps' in videoEntity) {
-    this.framesPerSecondSpans[i].textContent = videoEntity.fps.toFixed(0);
+    this.framesPerSecondTds[i].textContent = videoEntity.fps.toFixed(0);
   } else {
     frameExtractionComplete = false;
   }
   if ('frame_count' in videoEntity) {
-    this.frameCountSpans[i].textContent = videoEntity.frame_count;
+    this.frameCountTds[i].textContent = videoEntity.frame_count;
     if (videoEntity.extracted_frame_count != videoEntity.frame_count) {
       frameExtractionComplete = false;
     }
   } else {
     frameExtractionComplete = false;
   }
-  this.extractedFrameCountSpans[i].textContent = videoEntity.extracted_frame_count;
+  this.extractedFrameCountTds[i].textContent = videoEntity.extracted_frame_count;
   if ('included_frame_count' in videoEntity) {
-    this.excludedFrameCountSpans[i].textContent =
+    this.excludedFrameCountTds[i].textContent =
         (videoEntity.extracted_frame_count - videoEntity.included_frame_count);
   }
   if (frameExtractionComplete) {
@@ -376,12 +354,12 @@ fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, pa
         this.checkboxes.splice(i, 1);
         this.trs.splice(i, 1);
         this.videoFilenameTds.splice(i, 1);
-        this.dimensionsSpans.splice(i, 1);
-        this.durationSpans.splice(i, 1);
-        this.framesPerSecondSpans.splice(i, 1);
-        this.frameCountSpans.splice(i, 1);
-        this.extractedFrameCountSpans.splice(i, 1);
-        this.excludedFrameCountSpans.splice(i, 1);
+        this.dimensionsTds.splice(i, 1);
+        this.durationTds.splice(i, 1);
+        this.framesPerSecondTds.splice(i, 1);
+        this.frameCountTds.splice(i, 1);
+        this.extractedFrameCountTds.splice(i, 1);
+        this.excludedFrameCountTds.splice(i, 1);
         if (this.videoEntityArray.length == 0) {
           this.videosListDiv.style.display = 'none';
         }

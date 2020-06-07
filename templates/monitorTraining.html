@@ -40,9 +40,88 @@ limitations under the License.
   </div>
 </div>
 
-<div id="modelTabDiv" class="tabDiv"></div>
-<div id="scalarsTabDiv" class="tabDiv"></div>
-<div id="imagesTabDiv" class="tabDiv"></div>
+<div id="modelTabDiv" class="tabDiv">
+  <table width="100%">
+    <tr>
+      <td valign="top" width="33%">
+        <table>
+          <tr>
+            <th class="labelCellInModelTable">Date Created</th>
+            <td class="valueCellInModelTable" id="dateCreatedTd"></td>
+          </tr>
+          <tr>
+            <th class="labelCellInModelTable">Video Filenames</th>
+            <td class="valueCellInModelTable" id="videoFilenamesTd"></td>
+          </tr>
+          <tr>
+            <th class="labelCellInModelTable">Total Training Frames</th>
+            <td class="valueCellInModelTable" id="trainFrameCountTd"></td>
+          </tr>
+          <tr>
+            <th class="labelCellInModelTable">Negative Training Frames</th>
+            <td class="valueCellInModelTable" id="trainNegativeFrameCountTd"></td>
+          </tr>
+          <tr>
+            <th class="labelCellInModelTable">Training Label Counts</th>
+            <td class="valueCellInModelTable">
+              <table id="trainLabelCountsTable"><tr><th>Label</th><th>Count</th></tr></table>
+            </td>
+          </tr>
+          <tr>
+            <th class="labelCellInModelTable">Total Evaluation Frames</th>
+            <td class="valueCellInModelTable" id="evalFrameCountTd"></td>
+          </tr>
+          <tr>
+            <th class="labelCellInModelTable">Negative Evaluation Frames</th>
+            <td class="valueCellInModelTable" id="evalNegativeFrameCountTd"></td>
+          </tr>
+          <tr>
+            <th class="labelCellInModelTable">Evaluation Label Counts</th>
+            <td class="valueCellInModelTable">
+              <table id="evalLabelCountsTable"><tr><th>Label</th><th>Count</th></tr></table>
+            </td>
+          </tr>
+        </table>
+      </td>
+      <td valign="top" width="33%">
+        <table>
+          <tr>
+            <th class="labelCellInModelTable">Starting Checkpoint</th>
+            <td class="valueCellInModelTable" id="startingCheckpointTd"></td>
+          </tr>
+          <tr>
+            <th class="labelCellInModelTable">Requested Training Steps</th>
+            <td class="valueCellInModelTable" id="numTrainingStepsTd"></td>
+          </tr>
+        </table>
+      </td>
+      <td valign="top" width="33%">
+        <table>
+          <tr>
+            <th class="labelCellInModelTable">Training State</th>
+            <td class="valueCellInModelTable" id="trainStateTd"></td>
+          </tr>
+          <tr>
+            <th class="labelCellInModelTable">Eval State</th>
+            <td class="valueCellInModelTable" id="evalStateTd"></td>
+          </tr>
+          <tr>
+            <th class="labelCellInModelTable">Training Time</th>
+            <td class="valueCellInModelTable" id="trainTimeTd"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div id="scalarsTabDiv" class="tabDiv">
+  <div>No data available yet.</div>
+</div>
+
+<div id="imagesTabDiv" class="tabDiv">
+  <div>No data available yet.</div>
+</div>
 
 <script type="text/javascript">
   window.addEventListener('load', function() {

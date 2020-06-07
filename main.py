@@ -460,11 +460,14 @@ def delete_dataset_zip():
 def start_training_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
-    dataset_uuid = data.get('dataset_uuid')
+    dataset_uuids_json = data.get('dataset_uuids')
+    starting_checkpoint = data.get('starting_checkpoint')
+    user_visible_starting_checkpoint = data.get('user_visible_starting_checkpoint')
     max_running_minutes = int(data.get('max_running_minutes'))
     num_training_steps = int(data.get('num_training_steps'))
     start_time_ms = int(data.get('start_time_ms'))
-    model_entity = model_trainer.start_training_model(team_uuid, dataset_uuid,
+    model_entity = model_trainer.start_training_model(team_uuid, dataset_uuids_json,
+        starting_checkpoint, user_visible_starting_checkpoint,
         max_running_minutes, num_training_steps, start_time_ms)
     action_parameters = model_trainer.make_action_parameters(team_uuid, model_entity['model_uuid'])
     team_entity = storage.retrieve_team_entity(team_uuid)
