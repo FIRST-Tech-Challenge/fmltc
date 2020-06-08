@@ -513,8 +513,12 @@ def cancel_training_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
-    model_trainer.cancel_training_model(team_uuid, model_uuid)
-    return 'OK'
+    model_entity = model_trainer.cancel_training_model(team_uuid, model_uuid)
+    sanitize(model_entity)
+    response = {
+        'model_entity': model_entity,
+    }
+    return flask.jsonify(response)
 
 @app.route('/retrieveModelList', methods=['POST'])
 @login_required

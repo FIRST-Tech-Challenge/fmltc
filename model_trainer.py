@@ -253,25 +253,24 @@ def is_done(model_entity):
         __is_done(model_entity['eval_job_state']))
 
 def cancel_training_model(team_uuid, model_uuid):
-    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
+    model_entity = retrieve_model_entity(team_uuid, model_uuid)
     ml = __get_ml_service()
-    train_job_name = __get_train_job_name(model_uuid)
-    train_job_response = ml.projects().jobs().get(name=train_job_name).execute()
-    if __is_alive(train_job_response['state']):
+    if __is_alive(model_entity['train_job_state']):
         try:
+            train_job_name = __get_train_job_name(model_uuid)
             ml.projects().jobs().cancel(name=train_job_name).execute()
         except:
             util.log('model_trainer.cancel_training_model - canceling training job - except %s' %
                 traceback.format_exc().replace('\n', ' ... '))
     if model_entity['eval_job']:
-        eval_job_name = __get_eval_job_name(model_uuid)
-        eval_job_response = ml.projects().jobs().get(name=eval_job_name).execute()
-        if __is_alive(eval_job_response['state']):
+        if __is_alive(model_entity['eval_job_state']):
             try:
+                eval_job_name = __get_eval_job_name(model_uuid)
                 ml.projects().jobs().cancel(name=eval_job_name).execute()
             except:
                 util.log('model_trainer.cancel_training_model - canceling eval job - except %s' %
                     traceback.format_exc().replace('\n', ' ... '))
+    return storage.cancel_training_requested(team_uuid, model_uuid)
 
 def __get_ml_service():
     scopes = ['https://www.googleapis.com/auth/cloud-platform']

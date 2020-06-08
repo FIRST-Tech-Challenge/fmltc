@@ -128,8 +128,10 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
     this.trainTimeTds[i].setAttribute('align', 'right');
   }
 
-  this.trainStateTds[i].textContent = modelEntity.train_job_state;
-  this.evalStateTds[i].textContent = modelEntity.eval_job_state;
+  this.trainStateTds[i].textContent = this.util.formatJobState(
+      modelEntity.cancel_requested, modelEntity.train_job_state);
+  this.evalStateTds[i].textContent = this.util.formatJobState(
+      modelEntity.cancel_requested, modelEntity.eval_job_state);
 
   if (modelEntity['train_job_elapsed_seconds'] > 0) {
     this.trainTimeTds[i].textContent =
@@ -235,6 +237,11 @@ fmltc.ListModels.prototype.xhr_cancelTraining_onreadystatechange = function(xhr,
 
     if (xhr.status === 200) {
       console.log('Success! /cancelTrainingModel');
+      const response = JSON.parse(xhr.responseText);
+
+      const modelEntity = response.model_entity;
+      this.onModelEntityUpdated(modelEntity);
+
     } else {
       // TODO(lizlooney): handle error properly
       console.log('Failure! /cancelTraining?' + params +
@@ -321,21 +328,26 @@ fmltc.ListModels.prototype.indexOfModel = function(modelUuid) {
 
 fmltc.ListModels.prototype.updateButtons = function() {
   const countChecked = this.util.countChecked(this.checkboxes);
-  let modelsAreNotTraining = false;
-  let modelsAreNotDone = false;
+  let canDownloadTFLite = true;
+  let canCancelTraining = true;
+  let canDeleteModels = true;
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
-      if (!this.util.isTrainingDone(this.modelEntityArray[i])) {
-        modelsAreNotDone = true;
+      if (this.util.isTrainingDone(this.modelEntityArray[i])) {
+        canCancelTraining = false;
       } else {
-        modelsAreNotTraining = true;
+        canDownloadTFLite = false;
+        canDeleteModels = false;
+        if (this.modelEntityArray[i].cancel_requested) {
+          canCancelTraining = false;
+        }
       }
     }
   }
 
-  this.downloadTFLiteButton.disabled = this.waitCursor || countChecked != 1 || modelsAreNotDone;
-  this.cancelTrainingButton.disabled = this.waitCursor || countChecked != 1 || modelsAreNotTraining;
-  this.deleteModelsButton.disabled = this.waitCursor || countChecked == 0 || modelsAreNotDone;
+  this.downloadTFLiteButton.disabled = this.waitCursor || countChecked != 1 || !canDownloadTFLite;
+  this.cancelTrainingButton.disabled = this.waitCursor || countChecked != 1 || !canCancelTraining;
+  this.deleteModelsButton.disabled = this.waitCursor || countChecked == 0 || !canDeleteModels;
 };
 
 fmltc.ListModels.prototype.getCheckedModelUuids = function() {
