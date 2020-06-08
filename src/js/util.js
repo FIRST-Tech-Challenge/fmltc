@@ -306,8 +306,13 @@ fmltc.Util.prototype.isTrainingDone = function(modelEntity) {
   return this.isJobDone(modelEntity.train_job_state) && this.isJobDone(modelEntity.eval_job_state);
 };
 
-fmltc.Util.prototype.isJobDone = function(state) {
-  return state == '' || state == 'SUCCEEDED' || state == 'FAILED' || state == 'CANCELLED';
+fmltc.Util.prototype.isJobDone = function(jobState) {
+  return jobState == '' || jobState == 'SUCCEEDED' || jobState == 'FAILED' || jobState == 'CANCELLED';
+};
+
+fmltc.Util.prototype.formatJobState = function(cancel_requested, jobState) {
+  return (cancel_requested && !jobState.startsWith('CANCEL'))
+      ? 'CANCEL REQUESTED' : jobState;
 };
 
 fmltc.Util.prototype.sortedLabelListsEqual = function(a1, a2) {

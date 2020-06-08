@@ -29,15 +29,19 @@ limitations under the License.
 </head>
 <body>
 
-<div class="tabButtonsDiv">
-  <button id="modelTabButton" class="tabButton">Model <span id="modelLoader" class="loader"></span></button>
-  <button id="scalarsTabButton" class="tabButton">Scalars <span id="scalarsLoader" class="loader"></span></button>
-  <button id="imagesTabButton" class="tabButton">Images <span id="imagesLoader" class="loader"></span></button>
-  <div id="refreshIntervalDiv" class="right" style="display: hidden;">
-    <label for="refreshIntervalInput" class="text-18">Refresh Interval:</label>
-    <input type="range" id="refreshIntervalInput" name="refreshIntervalInput" min="1" value="5"
-            max="15" style="padding-top: 2px;">
+<div style="display: inline-block;">
+  <div class="tabButtonsDiv">
+    <button id="modelTabButton" class="tabButton">Model <span id="modelLoader" class="loader"></span></button>
+    <button id="scalarsTabButton" class="tabButton">Scalars <span id="scalarsLoader" class="loader"></span></button>
+    <button id="imagesTabButton" class="tabButton">Images <span id="imagesLoader" class="loader"></span></button>
   </div>
+</div>
+<div id="activeTrainingDiv" class="rightSideOfTabBar" style="display: none;">
+  <button id="cancelTrainingButton" class="text-24">
+    <span class="material-icons iconVerticalAlign">cancel</span><span class="iconVerticalAlign">Cancel Training</span>
+  </button>
+  <label for="refreshIntervalInput" class="text-18">Refresh Interval:</label>
+  <input type="range" id="refreshIntervalInput" name="refreshIntervalInput" min="1" value="5" max="15">
 </div>
 
 <div id="modelTabDiv" class="tabDiv">

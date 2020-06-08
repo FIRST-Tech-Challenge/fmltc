@@ -849,6 +849,7 @@ def model_trainer_started(team_uuid, model_uuid, dataset_uuid_list,
             'fine_tune_checkpoint': fine_tune_checkpoint,
             'max_running_minutes': max_running_minutes,
             'num_training_steps': num_training_steps,
+            'cancel_requested': False,
             'delete_in_progress': False,
             'train_consumed_ml_units': 0,
             'train_job_elapsed_seconds': 0,
@@ -872,6 +873,15 @@ def model_trainer_started(team_uuid, model_uuid, dataset_uuid_list,
         else:
             model_entity['eval_job'] = True
             __update_model_entity(model_entity, eval_job, 'eval')
+        model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+        transaction.put(model_entity)
+        return model_entity
+
+def cancel_training_requested(team_uuid, model_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        model_entity = retrieve_model_entity(team_uuid, model_uuid)
+        model_entity['cancel_requested'] = True
         model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
         transaction.put(model_entity)
         return model_entity

@@ -35,7 +35,8 @@ fmltc.MonitorTraining = function(util, modelUuid) {
   this.util = util;
   this.modelUuid = modelUuid;
 
-  this.refreshIntervalDiv = document.getElementById('refreshIntervalDiv');
+  this.activeTrainingDiv = document.getElementById('activeTrainingDiv');
+  this.cancelTrainingButton = document.getElementById('cancelTrainingButton');
   this.refreshIntervalInput = document.getElementById('refreshIntervalInput');
   this.modelTabDiv = document.getElementById('modelTabDiv');
   this.dateCreatedTd = document.getElementById('dateCreatedTd');
@@ -69,8 +70,49 @@ fmltc.MonitorTraining = function(util, modelUuid) {
   google.charts.load('current', {'packages':['corechart']});
   google.charts.setOnLoadCallback(this.charts_onload.bind(this));
 
+  this.cancelTrainingButton.onclick = this.cancelTrainingButton_onclick.bind(this);
   this.refreshIntervalInput.onchange = this.refreshIntervalInput_onchange.bind(this);
-}
+};
+
+fmltc.MonitorTraining.prototype.updateButtons = function() {
+  let canCancelTraining = true;
+  if (this.util.isTrainingDone(this.modelEntity)) {
+    canCancelTraining = false;
+  } else {
+    if (this.modelEntity.cancel_requested) {
+      canCancelTraining = false;
+    }
+  }
+
+  this.cancelTrainingButton.disabled = !canCancelTraining;
+};
+
+fmltc.MonitorTraining.prototype.cancelTrainingButton_onclick = function() {
+  const xhr = new XMLHttpRequest();
+  const params = 'model_uuid=' + encodeURIComponent(this.modelUuid);
+  xhr.open('POST', '/cancelTrainingModel', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_cancelTraining_onreadystatechange.bind(this, xhr, params);
+  xhr.send(params);
+};
+
+fmltc.MonitorTraining.prototype.xhr_cancelTraining_onreadystatechange = function(xhr, params) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+
+      this.modelEntity = response.model_entity;
+      this.modelEntityUpdated();
+
+    } else {
+      // TODO(lizlooney): handle error properly
+      console.log('Failure! /cancelTraining?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+    }
+  }
+};
 
 fmltc.MonitorTraining.prototype.refreshIntervalInput_onchange = function() {
   if (this.intervalId) {
@@ -116,7 +158,6 @@ fmltc.MonitorTraining.prototype.retrieveData = function() {
 };
 
 fmltc.MonitorTraining.prototype.retrieveSummaries = function(dataStructure, failureCount) {
-  dataStructure.loader.style.visibility = 'visible';
   const xhr = new XMLHttpRequest();
   const params =
       'model_uuid=' + encodeURIComponent(this.modelUuid) +
@@ -137,19 +178,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
       const response = JSON.parse(xhr.responseText);
 
       this.modelEntity = response.model_entity;
-      this.updateModelUI();
-
-      if (this.util.isTrainingDone(this.modelEntity)) {
-        this.refreshIntervalDiv.style.display = 'none';
-        if (this.intervalId) {
-          clearInterval(this.intervalId);
-        }
-      } else {
-        this.refreshIntervalDiv.style.display = 'inline';
-        if (!this.intervalId) {
-          setInterval(this.retrieveData.bind(this), this.refreshIntervalInput.value * 60 * 1000);
-        }
-      }
+      this.modelEntityUpdated();
 
       if (response.training_updated != dataStructure.training.updated ||
           response.eval_updated != dataStructure.eval.updated) {
@@ -170,21 +199,36 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (!this.intervalId && failureCount < 5) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveSummaries?' + params + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveSummaries.bind(this, dataStructure, failureCount), delay * 1000);
       } else {
-        // TODO(lizlooney): handle error properly.
-        alert('Unable to retrieve the summaries.');
+        console.log('Unable to retrieve the summaries.');
       }
     }
   }
 };
 
-fmltc.MonitorTraining.prototype.updateModelUI = function() {
-  this.modelLoader.style.visibility = 'hidden';
+fmltc.MonitorTraining.prototype.modelEntityUpdated = function() {
+  this.updateButtons();
 
+  this.updateModelUI();
+
+  if (this.util.isTrainingDone(this.modelEntity)) {
+    this.activeTrainingDiv.style.display = 'none';
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+    }
+  } else {
+    this.activeTrainingDiv.style.display = 'inline-block';
+    if (!this.intervalId) {
+      this.intervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalInput.value * 60 * 1000);
+    }
+  }
+};
+
+fmltc.MonitorTraining.prototype.updateModelUI = function() {
   if (!this.filledModelUI) {
     this.dateCreatedTd.textContent = new Date(this.modelEntity.creation_time_ms).toLocaleString();
 
@@ -224,23 +268,34 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
     this.filledModelUI = true;
   }
 
-  this.trainStateTd.textContent = this.modelEntity.train_job_state;
-  this.evalStateTd.textContent = this.modelEntity.eval_job_state;
+  this.trainStateTd.textContent = this.util.formatJobState(
+      this.modelEntity.cancel_requested, this.modelEntity.train_job_state);
+  this.evalStateTd.textContent = this.util.formatJobState(
+      this.modelEntity.cancel_requested, this.modelEntity.eval_job_state);
 
   if (this.modelEntity['train_job_elapsed_seconds'] > 0) {
     this.trainTimeTd.textContent =
         this.util.formatElapsedSeconds(this.modelEntity.train_job_elapsed_seconds);
   }
+
+  this.modelLoader.style.visibility = 'hidden';
 };
 
 fmltc.MonitorTraining.prototype.updateSummariesUI = function(dataStructure) {
+  dataStructure.loader.style.visibility = 'visible';
+
   if (dataStructure.retrieveScalars) {
+    // TODO(lizlooney): remember the scroll position and restore it.
     this.scalarsTabDiv.innerHTML = ''; // Remove previous children.
+    // TODO(lizlooney): Sometimes the graphs end up too small. I'm not sure why, but maybe it
+    // happends if the scalars tab isn't the active tab?
+    // Figure out why.
     this.fillScalarsDiv(dataStructure.training);
     this.fillScalarsDiv(dataStructure.eval);
   }
 
   if (dataStructure.retrieveImages) {
+    // TODO(lizlooney): remember the scroll position and restore it.
     this.imagesTabDiv.innerHTML = ''; // Remove previous children.
     this.fillImagesDiv(dataStructure.training);
     this.fillImagesDiv(dataStructure.eval);

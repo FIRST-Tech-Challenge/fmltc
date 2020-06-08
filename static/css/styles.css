@@ -183,9 +183,8 @@ body {
   background-color: #ccc;
 }
 
-.right {
+.rightSideOfTabBar {
   float: right;
-  padding-top: 16px;
 }
 
 .tabDiv {
