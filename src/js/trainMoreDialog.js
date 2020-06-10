@@ -20,7 +20,7 @@
  * @author lizlooney@google.com (Liz Looney)
  */
 'use strict';
-goog.provide('fmltc.StartTrainingDialog');
+goog.provide('fmltc.TrainMoreDialog');
 
 goog.require('fmltc.Util');
 
@@ -29,23 +29,29 @@ goog.require('fmltc.Util');
  * @param {!fmltc.Util} util The utility instance
  * @constructor
  */
-fmltc.StartTrainingDialog = function(
-    util, totalTrainingMinutes, remainingTrainingMinutes, datasetUuids, onTrainingStarted) {
+fmltc.TrainMoreDialog = function(
+    util, totalTrainingMinutes, remainingTrainingMinutes,
+    modelEntity, datasetEntities, onTrainingStarted) {
   /** @type {!fmltc.Util} */
   this.util = util;
-  this.datasetUuids = datasetUuids;
+  this.datasetEntities = datasetEntities;
+  this.modelEntity = modelEntity;
+
   this.onTrainingStarted = onTrainingStarted;
-  this.dialog = document.getElementById('startTrainingDialog');
-  this.dismissButton = document.getElementById('stDismissButton');
-  this.maxRunningMinutesInput = document.getElementById('stMaxRunningMinutesInput');
-  this.totalTrainingMinutesSpan = document.getElementById('stTotalTrainingMinutesSpan');
-  this.remainingTrainingMinutesSpan = document.getElementById('stRemainingTrainingMinutesSpan');
-  this.numTrainingStepsInput = document.getElementById('stNumTrainingStepsInput');
-  this.descriptionInput = document.getElementById('stDescriptionInput');
-  this.startButton = document.getElementById('stStartButton');
-  this.inProgressDiv = document.getElementById('stInProgressDiv');
-  this.successDiv = document.getElementById('stSuccessDiv');
-  this.failedDiv = document.getElementById('stFailedDiv');
+  this.dialog = document.getElementById('trainMoreDialog');
+  this.dismissButton = document.getElementById('tmDismissButton');
+  this.maxRunningMinutesInput = document.getElementById('tmMaxRunningMinutesInput');
+  this.totalTrainingMinutesSpan = document.getElementById('tmTotalTrainingMinutesSpan');
+  this.remainingTrainingMinutesSpan = document.getElementById('tmRemainingTrainingMinutesSpan');
+  this.numTrainingStepsInput = document.getElementById('tmNumTrainingStepsInput');
+  this.datasetContainerDiv = document.getElementById('tmDatasetContainerDiv');
+  this.descriptionInput = document.getElementById('tmDescriptionInput');
+  this.startButton = document.getElementById('tmStartButton');
+  this.inProgressDiv = document.getElementById('tmInProgressDiv');
+  this.successDiv = document.getElementById('tmSuccessDiv');
+  this.failedDiv = document.getElementById('tmFailedDiv');
+
+  this.checkboxes = [];
 
   this.startTrainingInProgress = false;
 
@@ -55,6 +61,26 @@ fmltc.StartTrainingDialog = function(
   this.numTrainingStepsInput.min = 100;
   this.numTrainingStepsInput.max = 4000;
   this.numTrainingStepsInput.value = 2000;
+
+  // Create checkboxes for the datasets. Check and disable the checkboxes that correspond to
+  // datasets that are already part of this model.
+  for (let i = 0; i < this.datasetEntities.length; i++) {
+    const checkbox = document.createElement('input');
+    this.checkboxes[i] = checkbox;
+    checkbox.setAttribute('type', 'checkbox');
+    checkbox.id = this.datasetEntities[i].dataset_uuid;
+    if (this.isDatasetInModel(this.datasetEntities[i])) {
+      checkbox.checked = true;
+      checkbox.disabled = true;
+    }
+    this.datasetContainerDiv.appendChild(checkbox);
+    const label = document.createElement('label');
+    label.textContent = this.datasetEntities[i].description;
+    label.setAttribute('for', checkbox.id);
+    this.datasetContainerDiv.appendChild(label);
+    this.datasetContainerDiv.appendChild(document.createElement('br'));
+  }
+
   this.descriptionInput.value = '';
 
   this.updateStartButton();
@@ -70,7 +96,16 @@ fmltc.StartTrainingDialog = function(
   this.dialog.style.display = 'block';
 };
 
-fmltc.StartTrainingDialog.prototype.dismissButton_onclick = function() {
+fmltc.TrainMoreDialog.prototype.isDatasetInModel = function(datasetEntity) {
+  for (let i = 0; i < this.modelEntity.dataset_uuids.length; i++) {
+    if (this.modelEntity.dataset_uuids[i] == datasetEntity.dataset_uuid) {
+      return true;
+    }
+  }
+  return false;
+};
+
+fmltc.TrainMoreDialog.prototype.dismissButton_onclick = function() {
   // Clear event handlers.
   this.dismissButton.onclick = null;
   this.startButton.onclick = null;
@@ -79,17 +114,17 @@ fmltc.StartTrainingDialog.prototype.dismissButton_onclick = function() {
   this.dialog.style.display = 'none';
 };
 
-fmltc.StartTrainingDialog.prototype.descriptionInput_onchange = function() {
+fmltc.TrainMoreDialog.prototype.descriptionInput_onchange = function() {
   this.updateStartButton();
 };
 
-fmltc.StartTrainingDialog.prototype.updateStartButton = function() {
+fmltc.TrainMoreDialog.prototype.updateStartButton = function() {
   this.startButton.disabled = (
       this.startTrainingInProgress ||
       this.descriptionInput.value.length == 0);
 };
 
-fmltc.StartTrainingDialog.prototype.startButton_onclick = function() {
+fmltc.TrainMoreDialog.prototype.startButton_onclick = function() {
   this.util.setWaitCursor();
 
   this.inProgressDiv.style.display = 'block';
@@ -97,9 +132,17 @@ fmltc.StartTrainingDialog.prototype.startButton_onclick = function() {
   this.startTrainingInProgress = true;
   this.updateStartButton();
 
-  const datasetUuidsJson = JSON.stringify(this.datasetUuids);
+  // Collect the dataset_uuids that correspond to the the enabled and checked checkboxes.
+  const datasetUuids = [];
+  for (let i = 0; i < this.datasetEntities.length; i++) {
+    if (!this.checkboxes[i].disabled && this.checkboxes[i].checked) {
+      datasetUuids.push(this.datasetEntities[i].dataset_uuid);
+    }
+  }
+  const datasetUuidsJson = JSON.stringify(datasetUuids);
 
-  const startingCheckpoint = 'SSD MobileNet';
+  // Use the model_uuid for startingCheckpoint.
+  const startingCheckpoint = this.modelEntity.model_uuid;
 
   const xhr = new XMLHttpRequest();
   const params =
@@ -115,7 +158,7 @@ fmltc.StartTrainingDialog.prototype.startButton_onclick = function() {
   xhr.send(params);
 };
 
-fmltc.StartTrainingDialog.prototype.xhr_startTrainingModel_onreadystatechange = function(xhr, params) {
+fmltc.TrainMoreDialog.prototype.xhr_startTrainingModel_onreadystatechange = function(xhr, params) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 

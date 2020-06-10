@@ -34,6 +34,26 @@ fmltc.Util = function(pageBasename, httpPerformActionUrl, preferences) {
   this.initializeTabs();
 };
 
+fmltc.Util.prototype.setListVideos = function(listVideos) {
+  this.listVideos = listVideos;
+};
+
+fmltc.Util.prototype.setListDatasets = function(listDatasets) {
+  this.listDatasets = listDatasets;
+};
+
+fmltc.Util.prototype.getListDatasets = function() {
+  return this.listDatasets;
+};
+
+fmltc.Util.prototype.setListModels = function(listModels) {
+  this.listModels = listModels;
+};
+
+fmltc.Util.prototype.getListModels = function() {
+  return this.listModels;
+};
+
 fmltc.Util.prototype.getPreference = function(key, defaultValue) {
   if (key in this.preferences) {
     return this.preferences[key];

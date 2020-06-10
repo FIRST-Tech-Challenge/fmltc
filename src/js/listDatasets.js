@@ -28,14 +28,11 @@ goog.require('fmltc.Util');
 /**
  * Class for listing datasets.
  * @param {!fmltc.Util} util The utility instance
- * @param {!fmltc.ListModels} listModels The ListModels instance
  * @constructor
  */
-fmltc.ListDatasets = function(util, listModels) {
+fmltc.ListDatasets = function(util) {
   /** @type {!fmltc.Util} */
   this.util = util;
-  /** @type {!fmltc.ListModels} */
-  this.listModels = listModels;
 
   this.datasetsTable = document.getElementById('datasetsTable');
   this.datasetCheckboxAll = document.getElementById('datasetCheckboxAll');
@@ -101,15 +98,18 @@ fmltc.ListDatasets.prototype.addDataset = function(datasetEntity) {
   checkbox.onclick = this.checkbox_onclick.bind(this);
   checkboxTd.appendChild(checkbox);
 
+  const dateCreatedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
+  dateCreatedTd.textContent = new Date(datasetEntity.creation_time_ms).toLocaleString();
+
+  const descriptionTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
+  descriptionTd.textContent = datasetEntity.description;
+
   const videoFilenamesTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   for (let i = 0; i < datasetEntity.video_filenames.length; i++) {
     const div = document.createElement('div');
     div.textContent = datasetEntity.video_filenames[i];
     videoFilenamesTd.appendChild(div);
   }
-
-  const dateCreatedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-  dateCreatedTd.textContent = new Date(datasetEntity.creation_time_ms).toLocaleString();
 
   const trainFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   trainFrameCountTd.setAttribute('align', 'right');
@@ -409,12 +409,23 @@ fmltc.ListDatasets.prototype.xhr_deleteDatasetZip_onreadystatechange = function(
 
 fmltc.ListDatasets.prototype.startTrainingButton_onclick = function() {
   const datasetUuids = this.getCheckedDatasetUuids();
+  const listModels = this.util.getListModels();
   new fmltc.StartTrainingDialog(
-      this.util, this.listModels.totalTrainingMinutes, this.listModels.remainingTrainingMinutes,
+      this.util, listModels.totalTrainingMinutes, listModels.remainingTrainingMinutes,
       datasetUuids, this.onTrainingStarted.bind(this));
 };
 
 fmltc.ListDatasets.prototype.onTrainingStarted = function(remainingTrainingMinutes, modelEntity) {
-  this.listModels.addNewModel(remainingTrainingMinutes, modelEntity);
+  this.util.getListModels().addNewModel(remainingTrainingMinutes, modelEntity);
   this.util.showModelsTab();
+};
+
+fmltc.ListDatasets.prototype.getDatasetsWithLabels = function(sorted_label_list) {
+  const datasetEntities = []
+  for (let i = 0; i < this.datasetEntityArray.length; i++) {
+    if (this.util.sortedLabelListsEqual(sorted_label_list, this.datasetEntityArray[i].sorted_label_list)) {
+      datasetEntities.push(this.datasetEntityArray[i]);
+    }
+  }
+  return datasetEntities;
 };

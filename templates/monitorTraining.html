@@ -54,9 +54,14 @@ limitations under the License.
             <td class="valueCellInModelTable" id="dateCreatedTd"></td>
           </tr>
           <tr>
+            <th class="labelCellInModelTable">Description</th>
+            <td class="valueCellInModelTable" id="descriptionTd"></td>
+          </tr>
+          <tr>
             <th class="labelCellInModelTable">Video Filenames</th>
             <td class="valueCellInModelTable" id="videoFilenamesTd"></td>
           </tr>
+          <tr>
           <tr>
             <th class="labelCellInModelTable">Total Training Frames</th>
             <td class="valueCellInModelTable" id="trainFrameCountTd"></td>
@@ -94,9 +99,22 @@ limitations under the License.
             <td class="valueCellInModelTable" id="startingCheckpointTd"></td>
           </tr>
           <tr>
-            <th class="labelCellInModelTable">Requested Training Steps</th>
-            <td class="valueCellInModelTable" id="numTrainingStepsTd"></td>
-          </tr>
+            <td colspan="2">
+              <table>
+                <tr>
+                  <th class="labelCellInModelTable">Previous Training Steps</th>
+                  <td class="valueCellInModelTable" id="previousTrainingStepsTd"></td>
+                </tr>
+                <tr>
+                  <th class="labelCellInModelTable">New Training Steps</th>
+                  <td class="valueCellInModelTable" id="numTrainingStepsTd"></td>
+                </tr>
+                <tr>
+                  <th class="labelCellInModelTable">Total Training Steps</th>
+                  <td class="valueCellInModelTable" id="totalTrainingStepsTd"></td>
+                </tr>
+              </table>
+            </td>
         </table>
       </td>
       <td valign="top" width="33%">
@@ -120,18 +138,16 @@ limitations under the License.
 </div>
 
 <div id="scalarsTabDiv" class="tabDiv">
-  <div>No data available yet.</div>
 </div>
 
 <div id="imagesTabDiv" class="tabDiv">
-  <div>No data available yet.</div>
 </div>
 
 <script type="text/javascript">
   window.addEventListener('load', function() {
     const util = new fmltc.Util('monitorTraining',
         {{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
-    new fmltc.MonitorTraining(util, {{ model_uuid|tojson }});
+    new fmltc.MonitorTraining(util, {{ model_entity|tojson }});
   });
 </script>
 </body>

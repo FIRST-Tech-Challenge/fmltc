@@ -17,6 +17,7 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timedelta
 import json
+import logging
 import os
 import time
 import traceback
@@ -30,6 +31,7 @@ from tensorflow.python.summary.summary_iterator import summary_iterator
 import action
 import blob_storage
 import constants
+import exceptions
 import storage
 import util
 
@@ -37,30 +39,29 @@ BUCKET = ('%s' % constants.PROJECT_ID)
 
 SSD_MOBILENET = 'SSD MobileNet'
 
-def start_training_model(team_uuid, dataset_uuids_json,
-        starting_checkpoint, user_visible_starting_checkpoint,
-        max_running_minutes, num_training_steps, start_time_ms):
-    dataset_uuid_list = json.loads(dataset_uuids_json)
-    if len(dataset_uuid_list) == 0 and starting_checkpoint != SSD_MOBILENET:
-        message = "Error: No datasets to use for training."
-        logging.critical(message)
-        raise exceptions.HttpErrorBadRequest(message)
-
+def start_training_model(team_uuid, description, dataset_uuids_json,
+        starting_checkpoint, max_running_minutes, num_training_steps, start_time_ms):
     # Call retrieve_model_list to update all models (which may have finished training) and update
     # the team_entity.
     model_entities = retrieve_model_list(team_uuid)
 
     if starting_checkpoint == SSD_MOBILENET:
+        starting_model_uuid = None
+        starting_model_entity = None
+        user_visible_starting_checkpoint = SSD_MOBILENET
         fine_tune_checkpoint = 'gs://%s/static/training/models/%s/model.ckpt' % (
             BUCKET, 'ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync_2018_07_03')
     else:
         # starting_checkpoint is the model_uuid of one of the user's own models.
-        # user_visible_starting_checkpoint is the creation_time_ms of that mode, formatted by the UI.
-        fine_tune_checkpoint = blob_storage.get_trained_checkpoint_path(starting_checkpoint)
-        if fine_tune_checkpoint is None:
-            message = 'Error: Checkpoint not found for starting_checkpoint=%s.' % starting_checkpoint
+        # user_visible_starting_checkpoint is the description of that model.
+        starting_model_uuid = starting_checkpoint
+        starting_model_entity = retrieve_model_entity(team_uuid, starting_model_uuid)
+        if starting_model_entity['trained_checkpoint_path'] == '':
+            message = 'Error: Trained checkpoint not found for model_uuid=%s.' % starting_model_uuid
             logging.critical(message)
             raise exceptions.HttpErrorNotFound(message)
+        user_visible_starting_checkpoint = starting_model_entity['description']
+        fine_tune_checkpoint = starting_model_entity['trained_checkpoint_path']
 
     # storage.model_trainer_starting will raise an exception if the team doesn't have enough
     # training time left.
@@ -70,14 +71,15 @@ def start_training_model(team_uuid, dataset_uuids_json,
         slim_tar_gz = 'gs://%s/static/training/slim-0.1.tar.gz' % BUCKET
         pycocotools_tar_gz = 'gs://%s/static/training/pycocotools-2.0.tar.gz' % BUCKET
 
+        dataset_uuid_list = json.loads(dataset_uuids_json)
         dataset_entities = storage.retrieve_dataset_entities(team_uuid, dataset_uuid_list)
         if len(dataset_entities) != len(dataset_uuid_list):
             message = 'Error: One or more datasets not found for dataset_uuids=%s.' % dataset_uuids_json
             logging.critical(message)
             raise exceptions.HttpErrorNotFound(message)
 
-        # TODO(lizlooney): This whole section of code needs to be updated for the user using their
-        # own model as a starting checkpoint.
+        previous_training_steps = 0
+        dataset_uuids = []
         video_filenames = []
         train_input_path = []
         eval_input_path = []
@@ -89,10 +91,26 @@ def start_training_model(team_uuid, dataset_uuids_json,
         eval_dict_label_to_count = {}
         sorted_label_list = None
         label_map_path = None
+        if starting_model_entity is not None:
+            previous_training_steps += starting_model_entity['previous_training_steps']
+            dataset_uuids.extend(starting_model_entity['dataset_uuids'])
+            video_filenames.extend(starting_model_entity['video_filenames'])
+            train_input_path.extend(starting_model_entity['train_input_path'])
+            eval_input_path.extend(starting_model_entity['eval_input_path'])
+            train_frame_count += starting_model_entity['train_frame_count']
+            eval_frame_count += starting_model_entity['eval_frame_count']
+            train_negative_frame_count += starting_model_entity['train_negative_frame_count']
+            eval_negative_frame_count += starting_model_entity['eval_negative_frame_count']
+            util.extend_dict_label_to_count(train_dict_label_to_count, starting_model_entity['train_dict_label_to_count'])
+            util.extend_dict_label_to_count(eval_dict_label_to_count, starting_model_entity['eval_dict_label_to_count'])
+            sorted_label_list = starting_model_entity['sorted_label_list']
+            label_map_path = starting_model_entity['label_map_path']
+
         for dataset_entity in dataset_entities:
+            dataset_uuids.append(dataset_entity['dataset_uuid'])
             video_filenames.extend(dataset_entity['video_filenames'])
             train_input_path.append(dataset_entity['train_input_path'])
-            eval_input_path.append(dataset_entity['train_input_path'])
+            eval_input_path.append(dataset_entity['eval_input_path'])
             train_frame_count += dataset_entity['train_frame_count']
             eval_frame_count += dataset_entity['eval_frame_count']
             train_negative_frame_count += dataset_entity['train_negative_frame_count']
@@ -202,12 +220,15 @@ def start_training_model(team_uuid, dataset_uuids_json,
         # Cancel the training job.
         ml.projects().jobs().cancel(name=__get_train_job_name(model_uuid)).execute()
         raise
-    model_entity = storage.model_trainer_started(team_uuid, model_uuid, dataset_uuid_list,
-        max_running_minutes, num_training_steps, start_time_ms,
-        starting_checkpoint, user_visible_starting_checkpoint, fine_tune_checkpoint,
-        video_filenames, sorted_label_list, label_map_path, train_input_path, eval_input_path,
-        train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
-        train_dict_label_to_count, eval_dict_label_to_count, train_job_response, eval_job_response)
+    model_entity = storage.model_trainer_started(team_uuid, model_uuid, description,
+        dataset_uuids, start_time_ms, max_running_minutes, num_training_steps,
+        previous_training_steps, starting_checkpoint, user_visible_starting_checkpoint,
+        fine_tune_checkpoint, video_filenames, sorted_label_list, label_map_path,
+        train_input_path, eval_input_path,
+        train_frame_count, eval_frame_count,
+        train_negative_frame_count, eval_negative_frame_count,
+        train_dict_label_to_count, eval_dict_label_to_count,
+        train_job_response, eval_job_response)
     return model_entity
 
 def retrieve_model_list(team_uuid):

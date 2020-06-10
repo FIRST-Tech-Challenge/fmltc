@@ -35,6 +35,7 @@ fmltc.ListModels = function(util) {
 
   this.modelsTable = document.getElementById('modelsTable');
   this.modelCheckboxAll = document.getElementById('modelCheckboxAll');
+  this.trainMoreButton = document.getElementById('trainMoreButton');
   this.downloadTFLiteButton = document.getElementById('downloadTFLiteButton');
   this.cancelTrainingButton = document.getElementById('cancelTrainingButton');
   this.deleteModelsButton = document.getElementById('deleteModelsButton');
@@ -52,12 +53,13 @@ fmltc.ListModels = function(util) {
   this.waitCursor = false;
   this.deleteModelCounter = 0;
 
-  this.totalTrainingMinutes = 0; // Updated when we get a response from /retrieveModelList
+  this.totalTrainingMinutes = 0;     // Updated when we get a response from /retrieveModelList
   this.remainingTrainingMinutes = 0; // Updated when we get a response from /retrieveModelList
   this.retrieveModels();
   this.updateButtons();
 
   this.modelCheckboxAll.onclick = this.modelCheckboxAll_onclick.bind(this);
+  this.trainMoreButton.onclick = this.trainMoreButton_onclick.bind(this);
   this.downloadTFLiteButton.onclick = this.downloadTFLiteButton_onclick.bind(this);
   this.cancelTrainingButton.onclick = this.cancelTrainingButton_onclick.bind(this);
   this.deleteModelsButton.onclick = this.deleteModelsButton_onclick.bind(this);
@@ -110,6 +112,18 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
     checkbox.onclick = this.checkbox_onclick.bind(this);
     checkboxTd.appendChild(checkbox);
 
+    const dateCreatedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    dateCreatedTd.textContent = new Date(modelEntity.creation_time_ms).toLocaleString();
+
+    // Make the description link to the monitorTraining page.
+    const descriptionTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    const descriptionA = document.createElement('a'); // a for anchor
+    const url = 'monitorTraining?model_uuid=' + encodeURIComponent(modelEntity.model_uuid);
+    const descriptionTextNode = document.createTextNode(modelEntity.description);
+    descriptionA.setAttribute('href', url);
+    descriptionA.appendChild(descriptionTextNode);
+    descriptionTd.appendChild(descriptionA);
+
     const videoFilenamesTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     for (let i = 0; i < modelEntity.video_filenames.length; i++) {
       const div = document.createElement('div');
@@ -117,8 +131,15 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
       videoFilenamesTd.appendChild(div);
     }
 
-    const dateCreatedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    dateCreatedTd.textContent = new Date(modelEntity.creation_time_ms).toLocaleString();
+    const previousTrainingStepsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    previousTrainingStepsTd.setAttribute('align', 'right');
+    previousTrainingStepsTd.textContent = modelEntity.previous_training_steps;
+    const newTrainingStepsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    newTrainingStepsTd.setAttribute('align', 'right');
+    newTrainingStepsTd.textContent = modelEntity.num_training_steps;
+    const totalTrainingStepsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    totalTrainingStepsTd.setAttribute('align', 'right');
+    totalTrainingStepsTd.textContent = modelEntity.total_training_steps;
 
     this.trainStateTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
 
@@ -328,6 +349,7 @@ fmltc.ListModels.prototype.indexOfModel = function(modelUuid) {
 
 fmltc.ListModels.prototype.updateButtons = function() {
   const countChecked = this.util.countChecked(this.checkboxes);
+  let canTrainMore = true;
   let canDownloadTFLite = true;
   let canCancelTraining = true;
   let canDeleteModels = true;
@@ -335,16 +357,29 @@ fmltc.ListModels.prototype.updateButtons = function() {
     if (this.checkboxes[i].checked) {
       if (this.util.isTrainingDone(this.modelEntityArray[i])) {
         canCancelTraining = false;
+
+        if (this.modelEntityArray[i].train_job_state != 'SUCCEEDED') {
+          canTrainMore = false;
+          canDownloadTFLite = false;
+        }
+        if (this.modelEntityArray[i].trained_checkpoint_path == '') {
+          canTrainMore = false;
+        }
+        if (this.modelEntityArray[i].trained_checkpoint == '') {
+          canDownloadTFLite = false;
+        }
       } else {
+        canTrainMore = false;
         canDownloadTFLite = false;
         canDeleteModels = false;
         if (this.modelEntityArray[i].cancel_requested) {
-          canCancelTraining = false;
+          canCancelTaraining = false;
         }
       }
     }
   }
 
+  this.trainMoreButton.disabled = this.waitCursor || countChecked != 1 || !canTrainMore;
   this.downloadTFLiteButton.disabled = this.waitCursor || countChecked != 1 || !canDownloadTFLite;
   this.cancelTrainingButton.disabled = this.waitCursor || countChecked != 1 || !canCancelTraining;
   this.deleteModelsButton.disabled = this.waitCursor || countChecked == 0 || !canDeleteModels;
@@ -358,6 +393,30 @@ fmltc.ListModels.prototype.getCheckedModelUuids = function() {
     }
   }
   return modelUuids;
+};
+
+fmltc.ListModels.prototype.getCheckedModelEntities = function() {
+  const modelEntities = [];
+  for (let i = 0; i < this.checkboxes.length; i++) {
+    if (this.checkboxes[i].checked) {
+      modelEntities.push(this.modelEntityArray[i]);
+    }
+  }
+  return modelEntities;
+};
+
+fmltc.ListModels.prototype.trainMoreButton_onclick = function() {
+  const modelEntity = this.getCheckedModelEntities()[0];
+
+  const datasetEntities = this.util.getListDatasets().getDatasetsWithLabels(modelEntity.sorted_label_list);
+
+  new fmltc.TrainMoreDialog(
+      this.util, this.totalTrainingMinutes, this.remainingTrainingMinutes,
+      modelEntity, datasetEntities, this.onTrainingStarted.bind(this));
+};
+
+fmltc.ListModels.prototype.onTrainingStarted = function(remainingTrainingMinutes, modelEntity) {
+  this.addNewModel(remainingTrainingMinutes, modelEntity);
 };
 
 fmltc.ListModels.prototype.downloadTFLiteButton_onclick = function() {

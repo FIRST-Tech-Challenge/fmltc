@@ -39,19 +39,22 @@ limitations under the License.
     <tr>
       <td align="center" valign="top">
         <button id="uploadVideoFileButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">cloud_upload</span><span class="iconVerticalAlign">Upload Video</span>
+          <span class="material-icons iconVerticalAlign">cloud_upload</span>
+          <span class="iconVerticalAlign">Upload Video</span>
         </button>
       </td>
       <td width="10px"></td>
       <td align="center" valign="top">
         <button id="produceDatasetButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">construction</span><span class="iconVerticalAlign">Produce Dataset</span>
+          <span class="material-icons iconVerticalAlign">construction</span>
+          <span class="iconVerticalAlign">Produce Dataset</span>
         </button>
       </td>
       <td width="10px"></td>
       <td align="center" valign="top">
         <button id="deleteVideosButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">delete</span><span class="iconVerticalAlign">Delete Video</span>
+          <span class="material-icons iconVerticalAlign">delete</span>
+          <span class="iconVerticalAlign">Delete Video</span>
         </button>
       </td>
       <td width="10px"></td>
@@ -62,8 +65,9 @@ limitations under the License.
     <table id="videosTable" class="collapsedBorder">
       <tr>
         <th rowspan="2" class="cellWithBorder"><input type="checkbox" id="videoCheckboxAll"></th>
-        <th rowspan="2" class="cellWithBorder">Video Filename</th>
         <th rowspan="2" class="cellWithBorder">Date Uploaded</th>
+        <th rowspan="2" class="cellWithBorder" width="200px">Description</th>
+        <th rowspan="2" class="cellWithBorder">Video Filename</th>
         <th rowspan="2" class="cellWithBorder">File Size</th>
         <th rowspan="2" class="cellWithBorder">Dimensions</th>
         <th rowspan="2" class="cellWithBorder">Duration</th>
@@ -90,6 +94,9 @@ limitations under the License.
       </tr>
     </table>
     <input type="file" id="uvfVideoFileInput" accept="video/*" class="text-18" style="width: 100%">
+    <br><br>
+    <label for="uvfDescriptionInput">Description:</label><br>
+    <input type="text" maxlength="30" id="uvfDescriptionInput" class="text-18" style="width: 100%">
     <br><br>
     <button id="uvfUploadButton" class="text-18">Upload</button>
     <h3 id="uvfUploadingH3" style="visibility: hidden;">Uploading Progress</h3>
@@ -126,6 +133,9 @@ limitations under the License.
       </tr>
     </table>
     <br><br>
+    <label for="pdDescriptionInput">Description:</label><br>
+    <input type="text" maxlength="30" id="pdDescriptionInput" class="text-18" style="width: 100%">
+    <br><br>
     <button id="pdStartButton" class="text-24">Produce Dataset</button>
     <br>
     <div id="pdInProgressDiv" style="display: none;">In Progress...</div>
@@ -154,19 +164,22 @@ limitations under the License.
     <tr>
       <td align="center" valign="top">
         <button id="downloadDatasetButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">cloud_download</span><span class="iconVerticalAlign">Download Dataset</span>
+          <span class="material-icons iconVerticalAlign">cloud_download</span>
+          <span class="iconVerticalAlign">Download Dataset</span>
         </button>
       </td>
       <td width="10px"></td>
       <td align="center" valign="top">
         <button id="startTrainingButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">model_training</span><span class="iconVerticalAlign">Produce Model</span>
+          <span class="material-icons iconVerticalAlign">model_training</span>
+          <span class="iconVerticalAlign">Produce Model</span>
         </button>
       </td>
       <td width="10px"></td>
       <td align="center" valign="top">
         <button id="deleteDatasetsButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">delete</span><span class="iconVerticalAlign">Delete Dataset</span>
+          <span class="material-icons iconVerticalAlign">delete</span>
+          <span class="iconVerticalAlign">Delete Dataset</span>
         </button>
       </td>
       <td width="10px"></td>
@@ -177,8 +190,9 @@ limitations under the License.
     <table id="datasetsTable" class="collapsedBorder">
       <tr>
         <th rowspan="3" class="cellWithBorder"><input type="checkbox" id="datasetCheckboxAll"></th>
-        <th rowspan="3" class="cellWithBorder">Video Filenames</th>
         <th rowspan="3" class="cellWithBorder">Date Produced</th>
+        <th rowspan="3" class="cellWithBorder" width="200px">Description</th>
+        <th rowspan="3" class="cellWithBorder">Video Filenames</th>
         <th colspan="4" class="cellWithBorder">Number of Frames</th>
         <th rowspan="3" class="cellWithBorder">Labels</th>
       </tr>
@@ -226,6 +240,9 @@ limitations under the License.
       </tr>
     </table>
     <br><br>
+    <label for="stDescriptionInput">Description:</label><br>
+    <input type="text" maxlength="30" id="stDescriptionInput" class="text-18" style="width: 100%">
+    <br><br>
     <button id="stStartButton" class="text-24">Start Training</button>
     <br>
     <div id="stInProgressDiv" style="display: none;">Submitting job request...</div>
@@ -238,20 +255,30 @@ limitations under the License.
   <table class="collapsedBorder">
     <tr>
       <td align="center" valign="top">
+        <button id="trainMoreButton" class="text-24">
+          <span class="material-icons iconVerticalAlign">model_training</span>
+          <span class="iconVerticalAlign">More Training</span>
+        </button>
+      </td>
+      <td width="10px"></td>
+      <td align="center" valign="top">
         <button id="downloadTFLiteButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">cloud_download</span><span class="iconVerticalAlign">Download Model</span>
+          <span class="material-icons iconVerticalAlign">cloud_download</span>
+          <span class="iconVerticalAlign">Download Model</span>
         </button>
       </td>
       <td width="10px"></td>
       <td align="center" valign="top">
         <button id="cancelTrainingButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">cancel</span><span class="iconVerticalAlign">Cancel Training</span>
+          <span class="material-icons iconVerticalAlign">cancel</span>
+          <span class="iconVerticalAlign">Cancel Training</span>
         </button>
       </td>
       <td width="10px"></td>
       <td align="center" valign="top">
         <button id="deleteModelsButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">delete</span><span class="iconVerticalAlign">Delete Model</span>
+          <span class="material-icons iconVerticalAlign">delete</span>
+          <span class="iconVerticalAlign">Delete Model</span>
         </button>
       </td>
       <td width="10px"></td>
@@ -261,12 +288,17 @@ limitations under the License.
     <table id="modelsTable" class="collapsedBorder">
       <tr>
         <th rowspan="2" class="cellWithBorder"><input type="checkbox" id="modelCheckboxAll"></th>
-        <th rowspan="2" class="cellWithBorder">Video Filenames</th>
         <th rowspan="2" class="cellWithBorder">Date Created</th>
+        <th rowspan="2" class="cellWithBorder" width="200px">Description</th>
+        <th rowspan="2" class="cellWithBorder">Video Filenames</th>
+        <th colspan="3" class="cellWithBorder">Training Steps</th>
         <th colspan="2" class="cellWithBorder">State</th>
         <th rowspan="2" class="cellWithBorder">Training Time</th>
       </tr>
       <tr>
+        <th class="cellWithBorder">Previous</th>
+        <th class="cellWithBorder">New</th>
+        <th class="cellWithBorder">Total</th>
         <th class="cellWithBorder">Training</th>
         <th class="cellWithBorder">Evaluation</th>
       </tr>
@@ -274,12 +306,56 @@ limitations under the License.
   </div>
 </div>
 
+<div id="trainMoreDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <table>
+      <tr>
+        <td valign="top">
+          <button id="tmDismissButton" class="material-icons iconVerticalAlign text-18">close</button>
+        </td>
+        <td valign="top"><span class="modal_dialog_title">Train More</span></td>
+      </tr>
+    </table>
+    <table class="text-18">
+      <tr>
+        <td colspan="2">
+          Each team is allowed <span id="tmTotalTrainingMinutesSpan"></span> minutes of training
+          time.<br>Your team has <span id="tmRemainingTrainingMinutesSpan"></span> minutes of training
+          time remaining.
+        </td>
+      </tr>
+      <tr>
+        <td><label for="tmMaxRunningMinutesInput">Maximum Training Time:</label></td>
+        <td><input id="tmMaxRunningMinutesInput" type="number" class="rightText text-18"
+        style="width: 5ch">&nbsp;Minutes</td>
+      </tr>
+      <tr>
+        <td><label for="tmNumTrainingStepsInput">Number of Training Steps:</label></td>
+        <td><input id="tmNumTrainingStepsInput" type="number" class="rightText text-18"
+        style="width: 8ch"></td>
+      </tr>
+    </table>
+    <br><br>
+    <div id="tmDatasetContainerDiv">
+    </div>
+    <br><br>
+    <label for="tmDescriptionInput">Description:</label><br>
+    <input type="text" maxlength="30" id="tmDescriptionInput" class="text-18" style="width: 100%">
+    <br><br>
+    <button id="tmStartButton" class="text-24">Start Training</button>
+    <br>
+    <div id="tmInProgressDiv" style="display: none;">Submitting job request...</div>
+    <div id="tmSuccessDiv" style="display: none;">Training job is queued.</div>
+    <div id="tmFailedDiv" style="display: none;">Failed!</div>
+  </div>
+</div></div>
+
 <script type="text/javascript">
   window.addEventListener('load', function() {
     const util = new fmltc.Util('root', {{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
-    const listModels = new fmltc.ListModels(util);
-    const listDatasets = new fmltc.ListDatasets(util, listModels);
-    new fmltc.ListVideos(util, listDatasets);
+    util.setListModels(new fmltc.ListModels(util));
+    util.setListDatasets(new fmltc.ListDatasets(util));
+    util.setListVideos(new fmltc.ListVideos(util));
   });
 </script>
 </body>

@@ -36,6 +36,7 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, onDatasetProduced) {
   this.onDatasetProduced = onDatasetProduced;
   this.dialog = document.getElementById('produceDatasetDialog');
   this.dismissButton = document.getElementById('pdDismissButton');
+  this.descriptionInput = document.getElementById('pdDescriptionInput');
   this.trainPercentInput = document.getElementById('pdTrainPercentInput');
   this.evalPercentInput = document.getElementById('pdEvalPercentInput');
   this.startButton = document.getElementById('pdStartButton');
@@ -47,6 +48,8 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, onDatasetProduced) {
 
   this.trainPercentInput.value = 80;
   this.evalPercentInput.value = 100 - this.trainPercentInput.value;
+  this.descriptionInput.value = '';
+
   this.updateStartButton();
   this.inProgressDiv.style.display = 'none';
   this.finishedDiv.style.display = 'none';
@@ -55,6 +58,7 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, onDatasetProduced) {
   this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
   this.trainPercentInput.onchange = this.trainPercentInput_onchange.bind(this);
   this.evalPercentInput.onchange = this.evalPercentInput_onchange.bind(this);
+  this.descriptionInput.onchange = this.descriptionInput_onchange.bind(this);
   this.startButton.onclick = this.startButton_onclick.bind(this);
   this.dialog.style.display = 'block';
 };
@@ -70,10 +74,16 @@ fmltc.ProduceDatasetDialog.prototype.dismissButton_onclick = function() {
   this.dialog.style.display = 'none';
 };
 
+fmltc.ProduceDatasetDialog.prototype.descriptionInput_onchange = function() {
+  this.updateStartButton();
+};
+
 fmltc.ProduceDatasetDialog.prototype.updateStartButton = function() {
-  this.startButton.disabled = (this.startDatasetInProgress ||
+  this.startButton.disabled = (
+      this.startDatasetInProgress ||
       this.evalPercentInput.value < 0 ||
-      this.evalPercentInput.value > 100);
+      this.evalPercentInput.value > 100 ||
+      this.descriptionInput.value.length == 0);
 };
 
 fmltc.ProduceDatasetDialog.prototype.trainPercentInput_onchange = function() {
@@ -98,7 +108,8 @@ fmltc.ProduceDatasetDialog.prototype.startButton_onclick = function() {
 
   const xhr = new XMLHttpRequest();
   const params =
-      'video_uuids=' + encodeURIComponent(videoUuidsJson) +
+      'description=' + encodeURIComponent(this.descriptionInput.value) +
+      '&video_uuids=' + encodeURIComponent(videoUuidsJson) +
       '&eval_percent=' + this.evalPercentInput.value +
       '&start_time_ms=' + Date.now();
   xhr.open('POST', '/prepareToStartDatasetProduction', true);

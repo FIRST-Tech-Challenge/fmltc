@@ -51,8 +51,8 @@ FrameData = collections.namedtuple('FrameData', [
     'video_filename', 'frame_number', 'filename', 'image', 'format', 'bboxes_text'])
 
 
-def prepare_to_start_dataset_production(team_uuid, eval_percent, start_time_ms):
-    dataset_uuid = storage.prepare_to_start_dataset_production(team_uuid, eval_percent, start_time_ms)
+def prepare_to_start_dataset_production(team_uuid, description, eval_percent, start_time_ms):
+    dataset_uuid = storage.prepare_to_start_dataset_production(team_uuid, description, eval_percent, start_time_ms)
     return dataset_uuid
 
 def make_action_parameters(team_uuid, dataset_uuid, video_uuids_json, eval_percent, start_time_ms):

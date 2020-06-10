@@ -101,7 +101,7 @@ def retrieve_user_preferences(team_uuid):
 
 # video - public methods
 
-def prepare_to_upload_video(team_uuid, video_filename, file_size, content_type, upload_time_ms):
+def prepare_to_upload_video(team_uuid, description, video_filename, file_size, content_type, upload_time_ms):
     video_uuid = str(uuid.uuid4().hex)
     video_blob_name, upload_url = blob_storage.prepare_to_upload_video(team_uuid, video_uuid, content_type)
     datastore_client = datastore.Client()
@@ -111,6 +111,7 @@ def prepare_to_upload_video(team_uuid, video_filename, file_size, content_type, 
         video_entity.update({
             'team_uuid': team_uuid,
             'video_uuid': video_uuid,
+            'description': description,
             'video_filename': video_filename,
             'file_size': file_size,
             'video_content_type': content_type,
@@ -596,7 +597,7 @@ def __query_dataset(team_uuid, dataset_uuid):
 
 # dataset - public methods
 
-def prepare_to_start_dataset_production(team_uuid, eval_percent, start_time_ms):
+def prepare_to_start_dataset_production(team_uuid, description, eval_percent, start_time_ms):
     dataset_uuid = str(uuid.uuid4().hex)
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -605,6 +606,7 @@ def prepare_to_start_dataset_production(team_uuid, eval_percent, start_time_ms):
         dataset_entity.update({
             'team_uuid': team_uuid,
             'dataset_uuid': dataset_uuid,
+            'description': description,
             'eval_percent': eval_percent,
             'creation_time_ms': start_time_ms,
             'dataset_completed': False,
@@ -818,8 +820,8 @@ def model_trainer_failed_to_start(team_uuid, max_running_minutes):
         team_entity['remaining_training_minutes'] += max_running_minutes
         transaction.put(team_entity)
 
-def model_trainer_started(team_uuid, model_uuid, dataset_uuid_list,
-        max_running_minutes, num_training_steps, start_time_ms,
+def model_trainer_started(team_uuid, model_uuid, description, dataset_uuids,
+        start_time_ms, max_running_minutes, num_training_steps, previous_training_steps,
         starting_checkpoint, user_visible_starting_checkpoint, fine_tune_checkpoint,
         video_filenames, sorted_label_list, label_map_path, train_input_path, eval_input_path,
         train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
@@ -831,7 +833,8 @@ def model_trainer_started(team_uuid, model_uuid, dataset_uuid_list,
         model_entity.update({
             'team_uuid': team_uuid,
             'model_uuid': model_uuid,
-            'dataset_uuids': dataset_uuid_list,
+            'description': description,
+            'dataset_uuids': dataset_uuids,
             'creation_time_ms': start_time_ms,
             'video_filenames': video_filenames,
             'sorted_label_list': sorted_label_list,
@@ -849,14 +852,18 @@ def model_trainer_started(team_uuid, model_uuid, dataset_uuid_list,
             'fine_tune_checkpoint': fine_tune_checkpoint,
             'max_running_minutes': max_running_minutes,
             'num_training_steps': num_training_steps,
+            'previous_training_steps': previous_training_steps,
+            'total_training_steps': (num_training_steps + previous_training_steps),
             'cancel_requested': False,
             'delete_in_progress': False,
             'train_consumed_ml_units': 0,
             'train_job_elapsed_seconds': 0,
             'eval_consumed_ml_units': 0,
             'eval_job_elapsed_seconds': 0,
+            'trained_checkpoint': '',
+            'trained_checkpoint_path': '',
         })
-        __update_model_entity(model_entity, train_job, 'train')
+        __update_model_entity(model_entity, train_job, 'train_')
         # If the training job has already ended, adjust the team's remaining training time.
         if 'train_job_end_time' in model_entity:
             team_entity = retrieve_team_entity(team_uuid)
@@ -872,7 +879,7 @@ def model_trainer_started(team_uuid, model_uuid, dataset_uuid_list,
             model_entity['eval_job_state'] = ''
         else:
             model_entity['eval_job'] = True
-            __update_model_entity(model_entity, eval_job, 'eval')
+            __update_model_entity(model_entity, eval_job, 'eval_')
         model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
         transaction.put(model_entity)
         return model_entity
@@ -908,21 +915,21 @@ def retrieve_model_entity(team_uuid, model_uuid):
     return model_entities[0]
 
 def __update_model_entity(model_entity, job, prefix):
-    model_entity[prefix + '_job_state'] = job['state']
+    model_entity[prefix + 'job_state'] = job['state']
     if 'trainingOutput' in job:
-        model_entity[prefix + '_consumed_ml_units'] = job['trainingOutput'].get('consumedMLUnits', 0)
+        model_entity[prefix + 'consumed_ml_units'] = job['trainingOutput'].get('consumedMLUnits', 0)
     if 'createTime' in job:
-        model_entity[prefix + '_job_create_time'] = job['createTime']
+        model_entity[prefix + 'job_create_time'] = job['createTime']
     if 'startTime' in job:
-        model_entity[prefix + '_job_start_time'] = job['startTime']
+        model_entity[prefix + 'job_start_time'] = job['startTime']
     if 'endTime' in job:
-        model_entity[prefix + '_job_end_time'] = job['endTime']
-    if (prefix + '_job_start_time') in model_entity and (prefix + '_job_end_time') in model_entity:
+        model_entity[prefix + 'job_end_time'] = job['endTime']
+    if (prefix + 'job_start_time') in model_entity and (prefix + 'job_end_time') in model_entity:
         elapsed = (
-            dateutil.parser.parse(model_entity[prefix + '_job_end_time']) -
-            dateutil.parser.parse(model_entity[prefix + '_job_start_time']))
-        model_entity[prefix + '_job_elapsed_seconds'] = elapsed.total_seconds()
-    model_entity[prefix + '_error_message'] = job.get('errorMessage', '')
+            dateutil.parser.parse(model_entity[prefix + 'job_end_time']) -
+            dateutil.parser.parse(model_entity[prefix + 'job_start_time']))
+        model_entity[prefix + 'job_elapsed_seconds'] = elapsed.total_seconds()
+    model_entity[prefix + 'error_message'] = job.get('errorMessage', '')
 
 
 def update_model_entity(team_uuid, model_uuid, train_job, eval_job):
@@ -930,7 +937,7 @@ def update_model_entity(team_uuid, model_uuid, train_job, eval_job):
     with datastore_client.transaction() as transaction:
         model_entity = retrieve_model_entity(team_uuid, model_uuid)
         train_job_was_not_already_done = ('train_job_end_time' not in model_entity)
-        __update_model_entity(model_entity, train_job, 'train')
+        __update_model_entity(model_entity, train_job, 'train_')
         # If the training job has ended, adjust the team's remaining training time.
         if train_job_was_not_already_done and ('train_job_end_time' in model_entity):
             team_entity = retrieve_team_entity(team_uuid)
@@ -942,7 +949,11 @@ def update_model_entity(team_uuid, model_uuid, train_job, eval_job):
                 team_entity['remaining_training_minutes'] += delta
                 transaction.put(team_entity)
         if eval_job is not None:
-            __update_model_entity(model_entity, eval_job, 'eval')
+            __update_model_entity(model_entity, eval_job, 'eval_')
+        # If training was successful, set trained_checkpoint and trained_checkpoint_path.
+        if model_entity['train_job_state'] == 'SUCCEEDED':
+            model_entity['trained_checkpoint'] = blob_storage.get_trained_checkpoint(team_uuid, model_uuid)
+            model_entity['trained_checkpoint_path'] = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
         model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
         transaction.put(model_entity)
         return model_entity
