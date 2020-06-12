@@ -183,10 +183,6 @@ body {
   background-color: #ccc;
 }
 
-.rightSideOfTabBar {
-  float: right;
-}
-
 .tabDiv {
   overflow: auto;
   display: none;

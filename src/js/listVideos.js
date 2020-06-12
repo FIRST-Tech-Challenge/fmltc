@@ -350,10 +350,10 @@ fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, pa
         this.videosTable.deleteRow(i + this.headerRowCount);
         this.videoEntityArray.splice(i, 1);
         this.frameExtractionComplete.splice(i, 1);
+        this.trs.splice(i, 1);
         this.checkboxes[i].onclick = null
         this.checkboxes.splice(i, 1);
-        this.trs.splice(i, 1);
-        this.videoFilenameTds.splice(i, 1);
+        this.descriptionTds.splice(i, 1);
         this.dimensionsTds.splice(i, 1);
         this.durationTds.splice(i, 1);
         this.framesPerSecondTds.splice(i, 1);

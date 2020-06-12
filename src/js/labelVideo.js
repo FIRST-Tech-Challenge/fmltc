@@ -63,7 +63,7 @@ fmltc.LabelVideo = function(util, videoEntity) {
   this.lastFrameButton = document.getElementById('lastFrameButton');
   this.previousNegativeFrameButton = document.getElementById('previousNegativeFrameButton');
   this.nextNegativeFrameButton = document.getElementById('nextNegativeFrameButton');
-  this.playbackSpeedInput = document.getElementById('playbackSpeedInput');
+  this.playbackSpeedRangeInput = document.getElementById('playbackSpeedRangeInput');
   this.reversePlayPauseButton = document.getElementById('reversePlayPauseButton');
   this.forwardPlayPauseButton = document.getElementById('forwardPlayPauseButton');
   this.trackerSelect = document.getElementById('trackerSelect');
@@ -150,7 +150,7 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
     this.loadingProgress.value++;
     this.loadingProgress.max = 1 + 2 * this.videoEntity.frame_count;
 
-    document.getElementById('videoFilenameSpan').textContent = this.videoEntity.video_filename;
+    document.getElementById('descriptionSpan').textContent = this.videoEntity.description;
     document.getElementById('videoFrameCountSpan').textContent = String(this.videoEntity.frame_count);
 
     this.rescaleCanvas();
@@ -260,7 +260,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.lastFrameButton.disabled = true;
     this.previousNegativeFrameButton.disabled = true;
     this.nextNegativeFrameButton.disabled = true;
-    this.playbackSpeedInput.disabled = true;
+    this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
     this.includeFrameInDatasetCheckbox.disabled = true;
@@ -290,7 +290,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.lastFrameButton.disabled = true;
     this.previousNegativeFrameButton.disabled = true;
     this.nextNegativeFrameButton.disabled = true;
-    this.playbackSpeedInput.disabled = true;
+    this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
     this.includeFrameInDatasetCheckbox.disabled = true;
@@ -314,7 +314,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.lastFrameButton.disabled = true;
     this.previousNegativeFrameButton.disabled = true;
     this.nextNegativeFrameButton.disabled = true;
-    this.playbackSpeedInput.disabled = true;
+    this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = (this.playingDirection == 1);
     this.forwardPlayPauseButton.disabled = (this.playingDirection == -1);
     this.includeFrameInDatasetCheckbox.disabled = true;
@@ -335,7 +335,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.lastFrameButton.disabled = true;
     this.previousNegativeFrameButton.disabled = true;
     this.nextNegativeFrameButton.disabled = true;
-    this.playbackSpeedInput.disabled = true;
+    this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
     this.includeFrameInDatasetCheckbox.disabled = true;
@@ -360,7 +360,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextNegativeFrameButton.disabled = (
         this.loadedFrameEntityCount < this.videoEntity.frame_count ||
         this.currentFrameNumber >= this.maxNegativeFrameNumber);
-    this.playbackSpeedInput.disabled = false;
+    this.playbackSpeedRangeInput.disabled = false;
     this.reversePlayPauseButton.disabled = (this.currentFrameNumber == 0);
     this.forwardPlayPauseButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
     this.includeFrameInDatasetCheckbox.disabled = false;
@@ -719,7 +719,7 @@ fmltc.LabelVideo.prototype.refillLabelingArea = function(optLastLabelInputFocus)
       input.setAttribute('type', types[f]);
       input.style.width = widths[f];
       input.value = box[field];
-      input.onchange = this.bboxFieldInput_onchange.bind(this, i, input, field);
+      input.oninput = this.bboxFieldInput_oninput.bind(this, i, input, field);
       td.appendChild(input);
       lastLabelInput = input
     }
@@ -741,7 +741,7 @@ fmltc.LabelVideo.prototype.refillLabelingArea = function(optLastLabelInputFocus)
 
 fmltc.LabelVideo.prototype.removeEventHandlers = function(element) {
   if (element.nodeName == 'INPUT') {
-    element.onchange = null;
+    element.oninput = null;
   } else if (element.nodeName == 'BUTTON') {
     element.onclick = null;
   }
@@ -750,7 +750,7 @@ fmltc.LabelVideo.prototype.removeEventHandlers = function(element) {
   }
 };
 
-fmltc.LabelVideo.prototype.bboxFieldInput_onchange = function(i, input, field) {
+fmltc.LabelVideo.prototype.bboxFieldInput_oninput = function(i, input, field) {
   if (i < this.bboxes[this.currentFrameNumber].length) {
     const box = this.bboxes[this.currentFrameNumber][i];
     box[field] = input.value;
@@ -925,7 +925,7 @@ fmltc.LabelVideo.prototype.reversePlayPauseButton_onclick = function() {
 
   if (this.playing) {
     this.playingDirection = -1;
-    this.playingIntervalMs = Math.round(1000 / this.playbackSpeedInput.value);
+    this.playingIntervalMs = Math.round(1000 / this.playbackSpeedRangeInput.value);
     this.advanceFrame();
   }
 };
@@ -939,7 +939,7 @@ fmltc.LabelVideo.prototype.forwardPlayPauseButton_onclick = function() {
 
   if (this.playing) {
     this.playingDirection = 1;
-    this.playingIntervalMs = Math.round(1000 / this.playbackSpeedInput.value);
+    this.playingIntervalMs = Math.round(1000 / this.playbackSpeedRangeInput.value);
     this.advanceFrame();
   }
 };

@@ -364,8 +364,6 @@ fmltc.ListModels.prototype.updateButtons = function() {
         }
         if (this.modelEntityArray[i].trained_checkpoint_path == '') {
           canTrainMore = false;
-        }
-        if (this.modelEntityArray[i].trained_checkpoint == '') {
           canDownloadTFLite = false;
         }
       } else {

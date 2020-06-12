@@ -53,7 +53,7 @@ fmltc.UploadVideoFileDialog = function(util, onVideoUploaded) {
 
   this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
   this.videoFileInput.onchange = this.videoFileInput_onchange.bind(this);
-  this.descriptionInput.onchange = this.descriptionInput_onchange.bind(this);
+  this.descriptionInput.oninput = this.descriptionInput_oninput.bind(this);
   this.uploadButton.onclick = this.uploadButton_onclick.bind(this);
 
   this.setState(fmltc.UploadVideoFileDialog.STATE_ZERO);
@@ -107,6 +107,7 @@ fmltc.UploadVideoFileDialog.prototype.dismissButton_onclick = function() {
 
   // Clear event handlers.
   this.videoFileInput.onchange = null;
+  this.descriptionInput.oninput = null;
   this.dismissButton.onclick = null;
   this.uploadButton.onclick = null;
 
@@ -123,7 +124,7 @@ fmltc.UploadVideoFileDialog.prototype.videoFileInput_onchange = function() {
   }
 };
 
-fmltc.UploadVideoFileDialog.prototype.descriptionInput_onchange = function() {
+fmltc.UploadVideoFileDialog.prototype.descriptionInput_oninput = function() {
   this.updateUploadButton();
 };
 
