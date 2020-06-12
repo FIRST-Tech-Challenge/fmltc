@@ -248,7 +248,7 @@ def get_event_summary_image_download_url(team_uuid, model_uuid, folder, step, ta
         __write_string_to_blob(blob_name, encoded_image_string, 'image/png')
     return __get_download_url(blob_name)
 
-def get_trained_checkpoint(team_uuid, model_uuid):
+def get_trained_checkpoint_path(team_uuid, model_uuid):
     client = util.storage_client()
     # We're looking for a file like this: model.ckpt-2000.index
     prefix = '%s/model.ckpt-' % __get_model_folder(team_uuid, model_uuid)
@@ -263,12 +263,6 @@ def get_trained_checkpoint(team_uuid, model_uuid):
     if max_number is not None:
         return __get_path('%s%d' % (prefix, max_number))
     return ''
-
-def get_trained_checkpoint_path(team_uuid, model_uuid):
-    trained_checkpoint = get_trained_checkpoint(team_uuid, model_uuid)
-    if trained_checkpoint is '':
-        return ''
-    return __get_path(trained_checkpoint)
 
 def __get_tflite_folder(team_uuid, model_uuid):
     return '%s/tflite' % (__get_model_folder(team_uuid, model_uuid))

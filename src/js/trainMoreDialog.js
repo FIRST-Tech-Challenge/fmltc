@@ -91,7 +91,7 @@ fmltc.TrainMoreDialog = function(
   this.failedDiv.style.display = 'none';
 
   this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
-  this.descriptionInput.onchange = this.descriptionInput_onchange.bind(this);
+  this.descriptionInput.oninput = this.descriptionInput_oninput.bind(this);
   this.startButton.onclick = this.startButton_onclick.bind(this);
   this.dialog.style.display = 'block';
 };
@@ -108,13 +108,14 @@ fmltc.TrainMoreDialog.prototype.isDatasetInModel = function(datasetEntity) {
 fmltc.TrainMoreDialog.prototype.dismissButton_onclick = function() {
   // Clear event handlers.
   this.dismissButton.onclick = null;
+  this.descriptionInput.oninput = null;
   this.startButton.onclick = null;
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
 };
 
-fmltc.TrainMoreDialog.prototype.descriptionInput_onchange = function() {
+fmltc.TrainMoreDialog.prototype.descriptionInput_oninput = function() {
   this.updateStartButton();
 };
 

@@ -860,7 +860,6 @@ def model_trainer_started(team_uuid, model_uuid, description, dataset_uuids,
             'train_job_elapsed_seconds': 0,
             'eval_consumed_ml_units': 0,
             'eval_job_elapsed_seconds': 0,
-            'trained_checkpoint': '',
             'trained_checkpoint_path': '',
         })
         __update_model_entity(model_entity, train_job, 'train_')
@@ -929,7 +928,10 @@ def __update_model_entity(model_entity, job, prefix):
             dateutil.parser.parse(model_entity[prefix + 'job_end_time']) -
             dateutil.parser.parse(model_entity[prefix + 'job_start_time']))
         model_entity[prefix + 'job_elapsed_seconds'] = elapsed.total_seconds()
-    model_entity[prefix + 'error_message'] = job.get('errorMessage', '')
+    error_message = job.get('errorMessage', '')
+    if len(error_message) > 0:
+      util.log('%s_error_message is %s' % (prefix, error_message))
+    model_entity[prefix + 'error_message'] = (error_message[:200] + '..') if len(error_message) > 200 else error_message
 
 
 def update_model_entity(team_uuid, model_uuid, train_job, eval_job):
@@ -950,9 +952,8 @@ def update_model_entity(team_uuid, model_uuid, train_job, eval_job):
                 transaction.put(team_entity)
         if eval_job is not None:
             __update_model_entity(model_entity, eval_job, 'eval_')
-        # If training was successful, set trained_checkpoint and trained_checkpoint_path.
+        # If training was successful, set trained_checkpoint_path.
         if model_entity['train_job_state'] == 'SUCCEEDED':
-            model_entity['trained_checkpoint'] = blob_storage.get_trained_checkpoint(team_uuid, model_uuid)
             model_entity['trained_checkpoint_path'] = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
         model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
         transaction.put(model_entity)

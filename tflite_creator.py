@@ -44,8 +44,8 @@ def create_tflite_graph_pb(team_uuid, model_uuid):
     pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
     with tf.io.gfile.GFile(pipeline_config_path, 'r') as f:
         text_format.Merge(f.read(), pipeline_config)
-    trained_checkpoint = model_entity['trained_checkpoint']
-    if trained_checkpoint == '':
+    trained_checkpoint_path = model_entity['trained_checkpoint_path']
+    if trained_checkpoint_path == '':
         message = 'Error: Trained checkpoint not found for model_uuid=%s.' % model_uuid
         logging.critical(message)
         raise exceptions.HttpErrorNotFound(message)
@@ -55,7 +55,7 @@ def create_tflite_graph_pb(team_uuid, model_uuid):
     max_classes_per_detection = 1
     use_regular_nms = False
     export_tflite_ssd_graph_lib.export_tflite_graph(
-        pipeline_config, trained_checkpoint, output_directory,
+        pipeline_config, trained_checkpoint_path, output_directory,
         add_postprocessing_op, max_detections,
         max_classes_per_detection, use_regular_nms=use_regular_nms)
 

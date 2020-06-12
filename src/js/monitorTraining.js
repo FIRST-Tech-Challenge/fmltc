@@ -36,9 +36,10 @@ fmltc.MonitorTraining = function(util, modelEntity) {
   this.modelEntity = modelEntity;
   this.modelUuid = modelEntity.model_uuid;
 
+  this.dismissButton = document.getElementById('dismissButton');
   this.activeTrainingDiv = document.getElementById('activeTrainingDiv');
   this.cancelTrainingButton = document.getElementById('cancelTrainingButton');
-  this.refreshIntervalInput = document.getElementById('refreshIntervalInput');
+  this.refreshIntervalRangeInput = document.getElementById('refreshIntervalRangeInput');
   this.modelTabDiv = document.getElementById('modelTabDiv');
   this.dateCreatedTd = document.getElementById('dateCreatedTd');
   this.descriptionTd = document.getElementById('descriptionTd');
@@ -69,14 +70,21 @@ fmltc.MonitorTraining = function(util, modelEntity) {
   this.data.scalars = this.createDataStructure(true, false, document.getElementById('scalarsLoader'));
   this.data.images = this.createDataStructure(false, true, document.getElementById('imagesLoader'));
 
+  document.getElementById('descriptionSpan').textContent = this.modelEntity.description;
+
   this.updateModelUI();
   this.retrieveData();
 
   google.charts.load('current', {'packages':['corechart']});
   google.charts.setOnLoadCallback(this.charts_onload.bind(this));
 
+  this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
   this.cancelTrainingButton.onclick = this.cancelTrainingButton_onclick.bind(this);
-  this.refreshIntervalInput.onchange = this.refreshIntervalInput_onchange.bind(this);
+  this.refreshIntervalRangeInput.onchange = this.refreshIntervalRangeInput_onchange.bind(this);
+};
+
+fmltc.MonitorTraining.prototype.dismissButton_onclick = function() {
+  window.history.back();
 };
 
 fmltc.MonitorTraining.prototype.updateButtons = function() {
@@ -119,10 +127,10 @@ fmltc.MonitorTraining.prototype.xhr_cancelTraining_onreadystatechange = function
   }
 };
 
-fmltc.MonitorTraining.prototype.refreshIntervalInput_onchange = function() {
+fmltc.MonitorTraining.prototype.refreshIntervalRangeInput_onchange = function() {
   if (this.intervalId) {
     clearInterval(this.intervalId);
-    this.intervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalInput.value * 60 * 1000);
+    this.intervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalRangeInput.value * 60 * 1000);
   }
 };
 
@@ -228,7 +236,7 @@ fmltc.MonitorTraining.prototype.modelEntityUpdated = function() {
   } else {
     this.activeTrainingDiv.style.display = 'inline-block';
     if (!this.intervalId) {
-      this.intervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalInput.value * 60 * 1000);
+      this.intervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalRangeInput.value * 60 * 1000);
     }
   }
 };
@@ -350,16 +358,24 @@ fmltc.MonitorTraining.prototype.fillScalarsDiv = function(jobData) {
         data.addRow([step, mapStepToValue[step]]);
       }
       const options = {
+        width: 800,
+        height: 500,
         hAxis: {
           title: 'Step'
         },
         vAxis: {
-          title: 'Value'
+          title: ' ',
         },
         legend: 'none',
         lineWidth: 4,
+        pointSize: 6,
         interpolateNulls: true,
         title: tag,
+        titleTextStyle: {
+          fontName: 'Roboto',
+          fontSize: 24,
+          bold: true,
+        },
       };
 
       var chart = new google.visualization.LineChart(chartDiv);
@@ -401,12 +417,12 @@ fmltc.MonitorTraining.prototype.fillImagesDiv = function(jobData) {
       label.textContent = tag;
       this.imagesTabDiv.appendChild(label);
 
-      const stepInput = document.createElement('input');
-      stepInput.setAttribute('type', 'range');
-      stepInput.min = 0;
-      stepInput.max = sortedSteps.length - 1;
-      stepInput.value = stepInput.max;
-      this.imagesTabDiv.appendChild(stepInput);
+      const stepRangeInput = document.createElement('input');
+      stepRangeInput.setAttribute('type', 'range');
+      stepRangeInput.min = 0;
+      stepRangeInput.max = sortedSteps.length - 1;
+      stepRangeInput.value = stepRangeInput.max;
+      this.imagesTabDiv.appendChild(stepRangeInput);
 
       const stepDiv = document.createElement('div');
       this.imagesTabDiv.appendChild(stepDiv);
@@ -420,7 +436,7 @@ fmltc.MonitorTraining.prototype.fillImagesDiv = function(jobData) {
         imgElements[iStep] = img;
         img.setAttribute('width', image.width / 3);
         img.setAttribute('height', image.height / 3);
-        if (iStep == stepInput.value) {
+        if (iStep == stepRangeInput.value) {
           stepDiv.textContent = 'Step: ' + new Number(step).toLocaleString();
           img.style.display = 'block';
         } else {
@@ -431,7 +447,7 @@ fmltc.MonitorTraining.prototype.fillImagesDiv = function(jobData) {
         delayForImage += 10;
         this.imagesTabDiv.appendChild(img);
       }
-      stepInput.onchange = this.stepInput_onchange.bind(this, sortedSteps, stepInput, stepDiv, imgElements);
+      stepRangeInput.onchange = this.stepRangeInput_onchange.bind(this, sortedSteps, stepRangeInput, stepDiv, imgElements);
       if (iTag + 1 < sortedTags.length) {
         this.imagesTabDiv.appendChild(document.createElement('br'));
         this.imagesTabDiv.appendChild(document.createElement('hr'));
@@ -441,8 +457,8 @@ fmltc.MonitorTraining.prototype.fillImagesDiv = function(jobData) {
   }
 };
 
-fmltc.MonitorTraining.prototype.stepInput_onchange = function(sortedSteps, stepInput, stepDiv, imgElements) {
-  const iStep = stepInput.value;
+fmltc.MonitorTraining.prototype.stepRangeInput_onchange = function(sortedSteps, stepRangeInput, stepDiv, imgElements) {
+  const iStep = stepRangeInput.value;
   const step = sortedSteps[iStep];
   stepDiv.textContent = 'Step: ' + new Number(step).toLocaleString();
 

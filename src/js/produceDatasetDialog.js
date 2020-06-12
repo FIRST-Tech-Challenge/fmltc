@@ -58,7 +58,7 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, onDatasetProduced) {
   this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
   this.trainPercentInput.onchange = this.trainPercentInput_onchange.bind(this);
   this.evalPercentInput.onchange = this.evalPercentInput_onchange.bind(this);
-  this.descriptionInput.onchange = this.descriptionInput_onchange.bind(this);
+  this.descriptionInput.oninput = this.descriptionInput_oninput.bind(this);
   this.startButton.onclick = this.startButton_onclick.bind(this);
   this.dialog.style.display = 'block';
 };
@@ -66,6 +66,7 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, onDatasetProduced) {
 fmltc.ProduceDatasetDialog.prototype.dismissButton_onclick = function() {
   // Clear event handlers.
   this.dismissButton.onclick = null;
+  this.descriptionInput.oninput = null;
   this.trainPercentInput.onchange = null;
   this.evalPercentInput.onchange = null;
   this.startButton.onclick = null;
@@ -74,7 +75,7 @@ fmltc.ProduceDatasetDialog.prototype.dismissButton_onclick = function() {
   this.dialog.style.display = 'none';
 };
 
-fmltc.ProduceDatasetDialog.prototype.descriptionInput_onchange = function() {
+fmltc.ProduceDatasetDialog.prototype.descriptionInput_oninput = function() {
   this.updateStartButton();
 };
 
