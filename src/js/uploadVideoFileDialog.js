@@ -36,6 +36,7 @@ fmltc.UploadVideoFileDialog = function(util, onVideoUploaded) {
   this.dialog = document.getElementById('uploadVideoFileDialog');
   this.dismissButton = document.getElementById('uvfDismissButton');
   this.videoFileInput = document.getElementById('uvfVideoFileInput');
+  this.descriptionInput = document.getElementById('uvfDescriptionInput');
   this.uploadButton = document.getElementById('uvfUploadButton');
   this.uploadingH3 = document.getElementById('uvfUploadingH3');
   this.uploadingProgress = document.getElementById('uvfUploadingProgress');
@@ -48,8 +49,11 @@ fmltc.UploadVideoFileDialog = function(util, onVideoUploaded) {
   this.uploadFinished = false;
   this.uploadFailed = false;
 
-  this.videoFileInput.onchange = this.videoFileInput_onchange.bind(this);
+  this.descriptionInput.value = '';
+
   this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
+  this.videoFileInput.onchange = this.videoFileInput_onchange.bind(this);
+  this.descriptionInput.onchange = this.descriptionInput_onchange.bind(this);
   this.uploadButton.onclick = this.uploadButton_onclick.bind(this);
 
   this.setState(fmltc.UploadVideoFileDialog.STATE_ZERO);
@@ -68,7 +72,7 @@ fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
       this.videoFileInput.value = '';
       this.videoFileInput.disabled = false;
       this.dismissButton.disabled = false;
-      this.uploadButton.disabled = true;
+      this.updateUploadButton();
       this.uploadingH3.style.visibility = 'hidden';
       this.uploadingProgress.style.visibility = 'hidden';
       this.uploadingFinishedDiv.style.display = 'none';
@@ -76,11 +80,11 @@ fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
       this.dialog.style.display = 'block';
       break;
     case fmltc.UploadVideoFileDialog.STATE_FILE_CHOSEN:
-      this.uploadButton.disabled = false;
+      this.updateUploadButton();
       break;
     case fmltc.UploadVideoFileDialog.STATE_UPLOADING:
       this.dismissButton.disabled = true;
-      this.uploadButton.disabled = true;
+      this.updateUploadButton();
       this.uploadingH3.style.visibility = 'visible';
       this.uploadingProgress.style.visibility = 'visible';
       this.videoFileInput.disabled = true;
@@ -119,6 +123,16 @@ fmltc.UploadVideoFileDialog.prototype.videoFileInput_onchange = function() {
   }
 };
 
+fmltc.UploadVideoFileDialog.prototype.descriptionInput_onchange = function() {
+  this.updateUploadButton();
+};
+
+fmltc.UploadVideoFileDialog.prototype.updateUploadButton = function() {
+  this.uploadButton.disabled = (
+      this.state != fmltc.UploadVideoFileDialog.STATE_FILE_CHOSEN ||
+      this.descriptionInput.value.length == 0);
+};
+
 fmltc.UploadVideoFileDialog.prototype.uploadButton_onclick = function() {
   this.uploadStartTime = Date.now();
 
@@ -144,7 +158,8 @@ fmltc.UploadVideoFileDialog.prototype.updateUploadingProgress = function() {
 fmltc.UploadVideoFileDialog.prototype.prepareToUploadVideo = function() {
   const xhr = new XMLHttpRequest();
   const params =
-      'video_filename=' + encodeURIComponent(this.videoFile.name) +
+      'description=' + encodeURIComponent(this.descriptionInput.value) +
+      '&video_filename=' + encodeURIComponent(this.videoFile.name) +
       '&file_size=' + encodeURIComponent(this.videoFile.size) +
       '&content_type=' + encodeURIComponent(this.videoFile.type) +
       '&upload_time_ms=' + this.uploadStartTime;

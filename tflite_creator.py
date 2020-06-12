@@ -36,20 +36,26 @@ def create_tflite_graph_pb(team_uuid, model_uuid):
     if blob_storage.tflite_graph_pb_exists(team_uuid, model_uuid):
         return
 
+    model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
+
     # The following code is inspired by
     # https://github.com/tensorflow/models/tree/e5c9661aadbcb90cb4fd3ef76066f6d1dab116ff/research/object_detection/export_tflite_ssd_graph.py
     pipeline_config_path = blob_storage.get_pipeline_config_path(team_uuid, model_uuid)
     pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
     with tf.io.gfile.GFile(pipeline_config_path, 'r') as f:
         text_format.Merge(f.read(), pipeline_config)
-    trained_checkpoint_prefix = blob_storage.get_trained_checkpoint_prefix(team_uuid, model_uuid)
+    trained_checkpoint = model_entity['trained_checkpoint']
+    if trained_checkpoint == '':
+        message = 'Error: Trained checkpoint not found for model_uuid=%s.' % model_uuid
+        logging.critical(message)
+        raise exceptions.HttpErrorNotFound(message)
     output_directory = blob_storage.get_tflite_folder_path(team_uuid, model_uuid)
     add_postprocessing_op = True
     max_detections = 10
     max_classes_per_detection = 1
     use_regular_nms = False
     export_tflite_ssd_graph_lib.export_tflite_graph(
-        pipeline_config, trained_checkpoint_prefix, output_directory,
+        pipeline_config, trained_checkpoint, output_directory,
         add_postprocessing_op, max_detections,
         max_classes_per_detection, use_regular_nms=use_regular_nms)
 

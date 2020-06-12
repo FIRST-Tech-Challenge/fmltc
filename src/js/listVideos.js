@@ -30,14 +30,11 @@ goog.require('fmltc.Util');
 /**
  * Class for listing videos.
  * @param {!fmltc.Util} util The utility instance
- * @param {!fmltc.ListDatasets} listDatasets The ListDatasets instance
  * @constructor
  */
-fmltc.ListVideos = function(util, listDatasets) {
+fmltc.ListVideos = function(util) {
   /** @type {!fmltc.Util} */
   this.util = util;
-  /** @type {!fmltc.ListDatasets} */
-  this.listDatasets = listDatasets;
 
   this.videosListDiv = document.getElementById('videosListDiv');
   this.videosTable = document.getElementById('videosTable');
@@ -52,7 +49,7 @@ fmltc.ListVideos = function(util, listDatasets) {
   this.frameExtractionComplete = [];
   this.trs = [];
   this.checkboxes = [];
-  this.videoFilenameTds = [];
+  this.descriptionTds = [];
   this.dimensionsTds = [];
   this.durationTds = [];
   this.framesPerSecondTds = [];
@@ -124,12 +121,15 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     checkbox.onclick = this.checkbox_onclick.bind(this);
     checkboxTd.appendChild(checkbox);
 
-    const videoFilenameTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    this.videoFilenameTds[i] = videoFilenameTd
-    videoFilenameTd.appendChild(document.createTextNode(videoEntity.video_filename));
-
     const dateUploadedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     dateUploadedTd.textContent = new Date(videoEntity.upload_time_ms).toLocaleString();
+
+    const descriptionTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    this.descriptionTds[i] = descriptionTd;
+    descriptionTd.appendChild(document.createTextNode(videoEntity.description));
+
+    const videoFilenameTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    videoFilenameTd.appendChild(document.createTextNode(videoEntity.video_filename));
 
     const fileSizeTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     fileSizeTd.setAttribute('align', 'right');
@@ -185,14 +185,14 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
   if (frameExtractionComplete) {
     this.frameExtractionComplete[i] = true;
     this.trs[i].className = 'frameExtractionComplete';
-    // Make the video filename a link to the labelVideo page, if it isn't already a link
-    const videoFilenameElement = this.videoFilenameTds[i].childNodes[0];
-    if (videoFilenameElement.nodeName != 'A') { // A for Anchor
-      const videoFilenameA = document.createElement('a'); // a for anchor
+    // Make the description link to the labelVideo page, if it isn't already a link
+    const descriptionElement = this.descriptionTds[i].childNodes[0];
+    if (descriptionElement.nodeName != 'A') {           // A for Anchor
+      const descriptionA = document.createElement('a'); // a for anchor
       const url = 'labelVideo?video_uuid=' + encodeURIComponent(videoEntity.video_uuid);
-      videoFilenameA.setAttribute('href', url);
-      videoFilenameA.appendChild(document.createTextNode(videoEntity.video_filename));
-      this.videoFilenameTds[i].replaceChild(videoFilenameA, videoFilenameElement);
+      descriptionA.setAttribute('href', url);
+      descriptionA.appendChild(document.createTextNode(videoEntity.description));
+      this.descriptionTds[i].replaceChild(descriptionA, descriptionElement);
     }
 
   } else if (this.didFrameExtractionFailToStart(videoEntity)) {
@@ -433,6 +433,6 @@ fmltc.ListVideos.prototype.produceDatasetButton_onclick = function() {
 };
 
 fmltc.ListVideos.prototype.onDatasetProduced = function(datasetEntity) {
-  this.listDatasets.addNewDataset(datasetEntity);
+  this.util.getListDatasets().addNewDataset(datasetEntity);
   this.util.showDatasetsTab();
 };

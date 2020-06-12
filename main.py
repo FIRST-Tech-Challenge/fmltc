@@ -121,10 +121,12 @@ def label_video():
 def monitor_training():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     model_uuid = flask.request.args.get('model_uuid')
+    model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
+    sanitize(model_entity)
     return flask.render_template('monitorTraining.html', time_time=time.time(), project_id=constants.PROJECT_ID,
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         http_perform_action_url=HTTP_PERFORM_ACTION_URL,
-        model_uuid=model_uuid)
+        model_uuid=model_uuid, model_entity=model_entity)
 
 
 @app.route('/test')
@@ -153,12 +155,13 @@ def set_user_preference():
 def prepare_to_upload_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
+    description = data.get('description')
     video_filename = data.get('video_filename')
     file_size = int(data.get('file_size'))
     content_type = data.get('content_type')
     upload_time_ms = int(data.get('upload_time_ms'))
     video_uuid, upload_url = storage.prepare_to_upload_video(
-        team_uuid, video_filename, file_size, content_type, upload_time_ms)
+        team_uuid, description, video_filename, file_size, content_type, upload_time_ms)
     action_parameters = frame_extractor.make_action_parameters(team_uuid, video_uuid)
     response = {
         'video_uuid': video_uuid,
@@ -366,11 +369,12 @@ def stop_tracking():
 def prepare_to_start_dataset_production():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
+    description = data.get('description')
     video_uuids_json = data.get('video_uuids')
     eval_percent = int(data.get('eval_percent'))
     start_time_ms = int(data.get('start_time_ms'))
     dataset_uuid = dataset_producer.prepare_to_start_dataset_production(
-        team_uuid, eval_percent, start_time_ms)
+        team_uuid, description, eval_percent, start_time_ms)
     action_parameters = dataset_producer.make_action_parameters(
         team_uuid, dataset_uuid, video_uuids_json, eval_percent, start_time_ms)
     response = {
@@ -460,15 +464,14 @@ def delete_dataset_zip():
 def start_training_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
+    description = data.get('description')
     dataset_uuids_json = data.get('dataset_uuids')
     starting_checkpoint = data.get('starting_checkpoint')
-    user_visible_starting_checkpoint = data.get('user_visible_starting_checkpoint')
     max_running_minutes = int(data.get('max_running_minutes'))
     num_training_steps = int(data.get('num_training_steps'))
     start_time_ms = int(data.get('start_time_ms'))
-    model_entity = model_trainer.start_training_model(team_uuid, dataset_uuids_json,
-        starting_checkpoint, user_visible_starting_checkpoint,
-        max_running_minutes, num_training_steps, start_time_ms)
+    model_entity = model_trainer.start_training_model(team_uuid, description, dataset_uuids_json,
+        starting_checkpoint, max_running_minutes, num_training_steps, start_time_ms)
     action_parameters = model_trainer.make_action_parameters(team_uuid, model_entity['model_uuid'])
     team_entity = storage.retrieve_team_entity(team_uuid)
     sanitize(model_entity)

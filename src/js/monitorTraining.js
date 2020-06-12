@@ -30,16 +30,18 @@ goog.require('fmltc.Util');
  * @param {!fmltc.Util} util The utility instance
  * @constructor
  */
-fmltc.MonitorTraining = function(util, modelUuid) {
+fmltc.MonitorTraining = function(util, modelEntity) {
   /** @type {!fmltc.Util} */
   this.util = util;
-  this.modelUuid = modelUuid;
+  this.modelEntity = modelEntity;
+  this.modelUuid = modelEntity.model_uuid;
 
   this.activeTrainingDiv = document.getElementById('activeTrainingDiv');
   this.cancelTrainingButton = document.getElementById('cancelTrainingButton');
   this.refreshIntervalInput = document.getElementById('refreshIntervalInput');
   this.modelTabDiv = document.getElementById('modelTabDiv');
   this.dateCreatedTd = document.getElementById('dateCreatedTd');
+  this.descriptionTd = document.getElementById('descriptionTd');
   this.videoFilenamesTd = document.getElementById('videoFilenamesTd');
   this.trainFrameCountTd = document.getElementById('trainFrameCountTd');
   this.trainNegativeFrameCountTd = document.getElementById('trainNegativeFrameCountTd');
@@ -48,7 +50,9 @@ fmltc.MonitorTraining = function(util, modelUuid) {
   this.evalNegativeFrameCountTd = document.getElementById('evalNegativeFrameCountTd');
   this.evalLabelCountsTable = document.getElementById('evalLabelCountsTable');
   this.startingCheckpointTd = document.getElementById('startingCheckpointTd');
+  this.previousTrainingStepsTd = document.getElementById('previousTrainingStepsTd');
   this.numTrainingStepsTd = document.getElementById('numTrainingStepsTd');
+  this.totalTrainingStepsTd = document.getElementById('totalTrainingStepsTd');
   this.trainStateTd = document.getElementById('trainStateTd');
   this.evalStateTd = document.getElementById('evalStateTd');
   this.trainTimeTd = document.getElementById('trainTimeTd');
@@ -65,6 +69,7 @@ fmltc.MonitorTraining = function(util, modelUuid) {
   this.data.scalars = this.createDataStructure(true, false, document.getElementById('scalarsLoader'));
   this.data.images = this.createDataStructure(false, true, document.getElementById('imagesLoader'));
 
+  this.updateModelUI();
   this.retrieveData();
 
   google.charts.load('current', {'packages':['corechart']});
@@ -232,6 +237,8 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
   if (!this.filledModelUI) {
     this.dateCreatedTd.textContent = new Date(this.modelEntity.creation_time_ms).toLocaleString();
 
+    this.descriptionTd.textContent = this.modelEntity.description;
+
     for (let i = 0; i < this.modelEntity.video_filenames.length; i++) {
       const div = document.createElement('div');
       div.textContent = this.modelEntity.video_filenames[i];
@@ -257,13 +264,11 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
       td.textContent = new Number(this.modelEntity.eval_dict_label_to_count[label]).toLocaleString();
     }
 
-    if (typeof this.modelEntity.user_visible_starting_checkpoint == 'number') {
-      this.startingCheckpointTd.textContent = new Date(this.modelEntity.user_visible_starting_checkpoint).toLocaleString();
-    } else {
-      this.startingCheckpointTd.textContent = this.modelEntity.user_visible_starting_checkpoint;
-    }
+    this.startingCheckpointTd.textContent = this.modelEntity.user_visible_starting_checkpoint;
 
+    this.previousTrainingStepsTd.textContent = new Number(this.modelEntity.previous_training_steps).toLocaleString();
     this.numTrainingStepsTd.textContent = new Number(this.modelEntity.num_training_steps).toLocaleString();
+    this.totalTrainingStepsTd.textContent = new Number(this.modelEntity.total_training_steps).toLocaleString();
 
     this.filledModelUI = true;
   }
@@ -349,7 +354,7 @@ fmltc.MonitorTraining.prototype.fillScalarsDiv = function(jobData) {
           title: 'Step'
         },
         vAxis: {
-          title: ''
+          title: 'Value'
         },
         legend: 'none',
         lineWidth: 4,

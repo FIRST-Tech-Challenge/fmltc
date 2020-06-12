@@ -22,14 +22,15 @@ java -jar $FMLTC_CLOSURE_COMPILER_JAR \
   --entry_point fmltc.Point \
   --entry_point fmltc.ProduceDatasetDialog \
   --entry_point fmltc.StartTrainingDialog \
+  --entry_point fmltc.TrainMoreDialog \
   --entry_point fmltc.UploadVideoFileDialog \
   --entry_point fmltc.Util \
   --js_output_file compiled/js/fmltc_tmp.js
 if [ $? -ne 0 ]; then
   exit 1
 fi
-echo "const BUILD_TIME = '$(date)';" > compiled/js/fmltc.js
-echo "console.log('BUILD_TIME is ' + BUILD_TIME);" >> compiled/js/fmltc.js
+echo "console.log('Build time is ' + new Date($(date +%s%3N)).toLocaleString());" > compiled/js/fmltc.js
+echo "console.log('Load  time is ' + new Date().toLocaleString());" >> compiled/js/fmltc.js
 
 cat compiled/js/fmltc_tmp.js >> compiled/js/fmltc.js
 rm compiled/js/fmltc_tmp.js
