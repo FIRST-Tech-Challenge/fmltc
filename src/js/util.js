@@ -31,7 +31,27 @@ fmltc.Util = function(pageBasename, httpPerformActionUrl, preferences) {
   this.httpPerformActionUrl = httpPerformActionUrl;
   this.preferences = preferences;
 
+  const logoutButton = document.getElementById('logoutButton');
+  if (logoutButton) {
+    logoutButton.onclick = this.logoutButton_onclick.bind(this);
+  }
+
   this.initializeTabs();
+};
+
+fmltc.Util.prototype.logoutButton_onclick = function() {
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/logout', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_logout_onreadystatechange.bind(this, xhr);
+  xhr.send();
+};
+
+fmltc.Util.prototype.xhr_logout_onreadystatechange = function(xhr) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+    window.location.replace('/');
+  }
 };
 
 fmltc.Util.prototype.setListVideos = function(listVideos) {
@@ -292,6 +312,10 @@ fmltc.Util.prototype.formatElapsedSeconds = function(elapsedSeconds) {
 };
 
 fmltc.Util.prototype.checkAllOrNone = function(checkboxAll, checkboxes) {
+  if (checkboxes.length == 0) {
+    return;
+  }
+
   let anyChecked = false;
   for (let i = 0; i < checkboxes.length; i++) {
     if (checkboxes[i].checked) {

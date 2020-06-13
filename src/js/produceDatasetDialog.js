@@ -40,7 +40,8 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, onDatasetProduced) {
   this.trainPercentInput = document.getElementById('pdTrainPercentInput');
   this.evalPercentInput = document.getElementById('pdEvalPercentInput');
   this.startButton = document.getElementById('pdStartButton');
-  this.inProgressDiv = document.getElementById('pdInProgressDiv');
+  this.progressH3 = document.getElementById('pdProgressH3');
+  this.progress = document.getElementById('pdProgress');
   this.finishedDiv = document.getElementById('pdFinishedDiv');
   this.failedDiv = document.getElementById('pdFailedDiv');
 
@@ -51,7 +52,8 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, onDatasetProduced) {
   this.descriptionInput.value = '';
 
   this.updateStartButton();
-  this.inProgressDiv.style.display = 'none';
+  this.progressH3.style.visibility = 'hidden';
+  this.progress.style.visibility = 'hidden';
   this.finishedDiv.style.display = 'none';
   this.failedDiv.style.display = 'none';
 
@@ -100,7 +102,10 @@ fmltc.ProduceDatasetDialog.prototype.evalPercentInput_onchange = function() {
 fmltc.ProduceDatasetDialog.prototype.startButton_onclick = function() {
   this.util.setWaitCursor();
 
-  this.inProgressDiv.style.display = 'block';
+  this.progressH3.style.visibility = 'visible';
+  this.progress.value = 1;
+  this.progress.max = 100; // updated later in xhr_retrieveDataset_onreadystatechange
+  this.progress.style.visibility = 'visible';
 
   this.startDatasetInProgress = true;
   this.updateStartButton();
@@ -125,9 +130,9 @@ fmltc.ProduceDatasetDialog.prototype.xhr_prepareToStartDatasetProduction_onready
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      this.util.callHttpPerformAction(response.action_parameters, 0);
       const datasetUuid = response.dataset_uuid;
-      setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid), 20000);
+      this.util.callHttpPerformAction(response.action_parameters, 0,
+          this.retrieveDatasetEntity.bind(this, datasetUuid));
 
     } else {
       // TODO(lizlooney): handle error properly
@@ -135,7 +140,8 @@ fmltc.ProduceDatasetDialog.prototype.xhr_prepareToStartDatasetProduction_onready
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       this.startDatasetInProgress = false;
       this.updateStartButton();
-      this.inProgressDiv.style.display = 'none';
+      this.progressH3.style.visibility = 'hidden';
+      this.progress.style.visibility = 'hidden';
       this.failedDiv.style.display = 'block';
     }
   }
@@ -163,7 +169,9 @@ fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDataset_onreadystatechange = fu
       if (datasetEntity.dataset_completed) {
         this.startDatasetInProgress = false;
         this.updateStartButton();
-        this.inProgressDiv.style.display = 'none';
+        this.progress.value = this.progress.max;
+        this.progressH3.style.visibility = 'hidden';
+        this.progress.style.visibility = 'hidden';
         this.finishedDiv.style.display = 'block';
         this.util.clearWaitCursor();
 
@@ -171,6 +179,16 @@ fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDataset_onreadystatechange = fu
         setTimeout(this.dismissButton_onclick.bind(this), 1000);
 
       } else {
+        if ('train_frame_count' in datasetEntity && 'eval_frame_count' in datasetEntity) {
+          const datasetRecordWriterEntities = response.dataset_record_writer_entities;
+          let framesWritten = 0
+          for (let i = 0; i < datasetRecordWriterEntities.length; i++) {
+            framesWritten += datasetRecordWriterEntities[i].frames_written;
+          }
+          this.progress.value = 1 + framesWritten;
+          this.progress.max = datasetEntity.train_frame_count + datasetEntity.eval_frame_count + 2;
+        }
+
         setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid), 1000);
       }
     } else {

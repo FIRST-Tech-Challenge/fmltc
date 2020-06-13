@@ -64,6 +64,17 @@ indexes:
   - name: dataset_uuid
   - name: record_number
 
+- kind: DatasetRecordWriter
+  properties:
+  - name: team_uuid
+  - name: dataset_uuid
+
+- kind: DatasetRecordWriter
+  properties:
+  - name: team_uuid
+  - name: dataset_uuid
+  - name: record_number
+
 - kind: Model
   properties:
   - name: team_uuid

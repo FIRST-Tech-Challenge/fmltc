@@ -39,16 +39,17 @@ limitations under the License.
       </button>
       <label for="refreshIntervalRangeInput" class="text-18">Refresh Interval:</label>
       <input type="range" id="refreshIntervalRangeInput" name="refreshIntervalRangeInput" min="1" value="5" max="15">
+      <button id="refreshButton" class="text-24" title="Refresh Now">
+        <span class="material-icons iconVerticalAlign">refresh</span>
+      </button>
     </div>
   </td>
 </tr></table>
 
-<div style="display: inline-block;">
-  <div class="tabButtonsDiv">
-    <button id="modelTabButton" class="tabButton">Model <span id="modelLoader" class="loader"></span></button>
-    <button id="scalarsTabButton" class="tabButton">Scalars <span id="scalarsLoader" class="loader"></span></button>
-    <button id="imagesTabButton" class="tabButton">Images <span id="imagesLoader" class="loader"></span></button>
-  </div>
+<div class="tabButtonsDiv">
+  <button id="modelTabButton" class="tabButton">Model <span id="modelLoader" class="loader"></span></button>
+  <button id="scalarsTabButton" class="tabButton">Scalars <span id="scalarsLoader" class="loader"></span></button>
+  <button id="imagesTabButton" class="tabButton">Images <span id="imagesLoader" class="loader"></span></button>
 </div>
 
 <div id="modelTabDiv" class="tabDiv">
