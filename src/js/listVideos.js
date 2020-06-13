@@ -55,6 +55,7 @@ fmltc.ListVideos = function(util) {
   this.framesPerSecondTds = [];
   this.frameCountTds = [];
   this.extractedFrameCountTds = [];
+  this.labeledFrameCountTds = [];
   this.excludedFrameCountTds = [];
 
   this.waitCursor = false;
@@ -150,6 +151,9 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     this.extractedFrameCountTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
     this.extractedFrameCountTds[i].setAttribute('align', 'right');
 
+    this.labeledFrameCountTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    this.labeledFrameCountTds[i].setAttribute('align', 'right');
+
     this.excludedFrameCountTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
     this.excludedFrameCountTds[i].setAttribute('align', 'right');
   }
@@ -179,10 +183,9 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     frameExtractionComplete = false;
   }
   this.extractedFrameCountTds[i].textContent = videoEntity.extracted_frame_count;
-  if ('included_frame_count' in videoEntity) {
-    this.excludedFrameCountTds[i].textContent =
-        (videoEntity.extracted_frame_count - videoEntity.included_frame_count);
-  }
+  this.labeledFrameCountTds[i].textContent = videoEntity.labeled_frame_count;
+  this.excludedFrameCountTds[i].textContent =
+      (videoEntity.extracted_frame_count - videoEntity.included_frame_count);
   if (frameExtractionComplete) {
     this.frameExtractionComplete[i] = true;
     this.trs[i].className = 'frameExtractionComplete';
@@ -360,6 +363,7 @@ fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, pa
         this.framesPerSecondTds.splice(i, 1);
         this.frameCountTds.splice(i, 1);
         this.extractedFrameCountTds.splice(i, 1);
+        this.labeledFrameCountTds.splice(i, 1);
         this.excludedFrameCountTds.splice(i, 1);
         if (this.videoEntityArray.length == 0) {
           this.videosListDiv.style.display = 'none';

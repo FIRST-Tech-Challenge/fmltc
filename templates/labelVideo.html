@@ -53,8 +53,10 @@ limitations under the License.
       <div><img id="videoFrameImg"></img></div>
     </td>
     <td valign="top">
-      <div id="includedFrameCountDiv" class="text-18" style="visibility: hidden">Included frames: <span id="includedFrameCountSpan"></span></div>
-      <div id="negativeFrameCountDiv" class="text-18" style="visibility: hidden">Negative frames: <span id="negativeFrameCountSpan"></span></div>
+      <div id="includedFrameCountDiv" class="text-18" style="visibility: hidden">
+        Included frames:&nbsp;<span id="includedFrameCountSpan"></span></div>
+      <div id="unlabeledFrameCountDiv" class="text-18" style="visibility: hidden">
+        Unlabeled frames:&nbsp;<span id="unlabeledFrameCountSpan"></span></div>
       <hr>
       <div class="text-18">Frame <span id="currentFrameSpan"></span></div>
       <div><input type="checkbox" id="includeFrameInDatasetCheckbox">
@@ -67,8 +69,9 @@ limitations under the License.
           <th class="cellWithBorder text-18" width="50">Y1</th>
           <th class="cellWithBorder text-18" width="50">X2</th>
           <th class="cellWithBorder text-18" width="50">Y2</th>
-          <th class="cellWithBorder text-18" width="50">Label</th>
-          <th class="cellWithBorder text-18"><!-- delete buttons --></th></tr>
+          <th class="cellWithBorder text-18" width="100">Label</th>
+          <th class="cellWithBorder text-18" width="19"><!-- delete buttons --></th>
+        </tr>
       </table>
       <div id="labelHintDiv" class="hidden">To continue, each bounding box must have a label.</div>
     </td>
@@ -93,11 +96,11 @@ limitations under the License.
           class="material-icons iconVerticalAlign text-24">last_page</button>
       </div>
       <hr>
-      <div class="text-18">Find Negative Frames</div>
+      <div class="text-18">Find Unlabeled Frames</div>
       <div>
-        <button id="previousNegativeFrameButton" title="Go Back to the Previous Negative Frame" disabled="true"
+        <button id="previousUnlabeledFrameButton" title="Go Back to the Previous Unlabeled Frame" disabled="true"
            class="material-icons iconVerticalAlign text-24">skip_previous</button>
-        <button id="nextNegativeFrameButton" title="Go Forward to the Next Negative Frame" disabled="true"
+        <button id="nextUnlabeledFrameButton" title="Go Forward to the Next Unlabeled Frame" disabled="true"
           class="material-icons iconVerticalAlign text-24">skip_next</button>
       </div>
       <hr>

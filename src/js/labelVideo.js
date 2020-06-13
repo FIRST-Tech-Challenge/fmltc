@@ -48,8 +48,8 @@ fmltc.LabelVideo = function(util, videoEntity) {
   this.videoFrameImg = document.getElementById('videoFrameImg');
   this.includedFrameCountDiv = document.getElementById('includedFrameCountDiv');
   this.includedFrameCountSpan = document.getElementById('includedFrameCountSpan');
-  this.negativeFrameCountDiv = document.getElementById('negativeFrameCountDiv');
-  this.negativeFrameCountSpan = document.getElementById('negativeFrameCountSpan');
+  this.unlabeledFrameCountDiv = document.getElementById('unlabeledFrameCountDiv');
+  this.unlabeledFrameCountSpan = document.getElementById('unlabeledFrameCountSpan');
   this.currentFrameSpan = document.getElementById('currentFrameSpan');
   this.includeFrameInDatasetCheckbox = document.getElementById('includeFrameInDatasetCheckbox');
   this.labelingAreaTable = document.getElementById('labelingAreaTable');
@@ -61,8 +61,8 @@ fmltc.LabelVideo = function(util, videoEntity) {
   this.nextFrameButton = document.getElementById('nextFrameButton');
   this.nextTenFrameButton = document.getElementById('nextTenFrameButton');
   this.lastFrameButton = document.getElementById('lastFrameButton');
-  this.previousNegativeFrameButton = document.getElementById('previousNegativeFrameButton');
-  this.nextNegativeFrameButton = document.getElementById('nextNegativeFrameButton');
+  this.previousUnlabeledFrameButton = document.getElementById('previousUnlabeledFrameButton');
+  this.nextUnlabeledFrameButton = document.getElementById('nextUnlabeledFrameButton');
   this.playbackSpeedRangeInput = document.getElementById('playbackSpeedRangeInput');
   this.reversePlayPauseButton = document.getElementById('reversePlayPauseButton');
   this.forwardPlayPauseButton = document.getElementById('forwardPlayPauseButton');
@@ -103,9 +103,9 @@ fmltc.LabelVideo = function(util, videoEntity) {
   this.currentFrameSpan.textContent = String(this.currentFrameNumber + 1);
 
   this.includedFrameCount = 0;
-  this.negativeFrameCount = 0;
+  this.unlabeledFrameCount = 0;
   this.includedFrameCountSpan.textContent = String(this.includedFrameCount);
-  this.negativeFrameCountSpan.textContent = String(this.negativeFrameCount);
+  this.unlabeledFrameCountSpan.textContent = String(this.unlabeledFrameCount);
 
   this.retryingGoToFrame = false;
 
@@ -142,8 +142,8 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
       videoEntity.extracted_frame_count == videoEntity.frame_count) {
     this.videoEntity = videoEntity;
 
-    this.minNegativeFrameNumber = videoEntity.frame_count;
-    this.maxNegativeFrameNumber = -1;
+    this.minUnlabeledFrameNumber = videoEntity.frame_count;
+    this.maxUnlabeledFrameNumber = -1;
 
     this.trackingAlreadyInProgress = this.videoEntity.tracking_in_progress;
 
@@ -170,8 +170,8 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
     this.nextFrameButton.onclick = this.nextFrameButton_onclick.bind(this);
     this.nextTenFrameButton.onclick = this.nextTenFrameButton_onclick.bind(this);
     this.lastFrameButton.onclick = this.lastFrameButton_onclick.bind(this);
-    this.previousNegativeFrameButton.onclick = this.previousNegativeFrameButton_onclick.bind(this);
-    this.nextNegativeFrameButton.onclick = this.nextNegativeFrameButton_onclick.bind(this);
+    this.previousUnlabeledFrameButton.onclick = this.previousUnlabeledFrameButton_onclick.bind(this);
+    this.nextUnlabeledFrameButton.onclick = this.nextUnlabeledFrameButton_onclick.bind(this);
     this.reversePlayPauseButton.onclick = this.reversePlayPauseButton_onclick.bind(this);
     this.forwardPlayPauseButton.onclick = this.forwardPlayPauseButton_onclick.bind(this);
     this.trackingStartButton.onclick = this.trackingStartButton_onclick.bind(this);
@@ -187,7 +187,16 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
 };
 
 fmltc.LabelVideo.prototype.dismissButton_onclick = function() {
-  window.history.back();
+  this.dismissButton.disabled = true;
+  this.saveBboxes(this.dismissAfterSaveBboxes.bind(this));
+};
+
+fmltc.LabelVideo.prototype.dismissAfterSaveBboxes = function(success) {
+  if (success) {
+    window.history.back();
+  } else {
+    this.dismissButton.disabled = false;
+  }
 };
 
 fmltc.LabelVideo.prototype.smallerImageButton_onclick = function() {
@@ -258,8 +267,8 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
-    this.previousNegativeFrameButton.disabled = true;
-    this.nextNegativeFrameButton.disabled = true;
+    this.previousUnlabeledFrameButton.disabled = true;
+    this.nextUnlabeledFrameButton.disabled = true;
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
@@ -288,8 +297,8 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
-    this.previousNegativeFrameButton.disabled = true;
-    this.nextNegativeFrameButton.disabled = true;
+    this.previousUnlabeledFrameButton.disabled = true;
+    this.nextUnlabeledFrameButton.disabled = true;
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
@@ -312,8 +321,8 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
-    this.previousNegativeFrameButton.disabled = true;
-    this.nextNegativeFrameButton.disabled = true;
+    this.previousUnlabeledFrameButton.disabled = true;
+    this.nextUnlabeledFrameButton.disabled = true;
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = (this.playingDirection == 1);
     this.forwardPlayPauseButton.disabled = (this.playingDirection == -1);
@@ -333,8 +342,8 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
-    this.previousNegativeFrameButton.disabled = true;
-    this.nextNegativeFrameButton.disabled = true;
+    this.previousUnlabeledFrameButton.disabled = true;
+    this.nextUnlabeledFrameButton.disabled = true;
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
@@ -354,12 +363,12 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
     this.nextTenFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
     this.lastFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
-    this.previousNegativeFrameButton.disabled = (
+    this.previousUnlabeledFrameButton.disabled = (
         this.loadedFrameEntityCount < this.videoEntity.frame_count ||
-        this.currentFrameNumber <= this.minNegativeFrameNumber);
-    this.nextNegativeFrameButton.disabled = (
+        this.currentFrameNumber <= this.minUnlabeledFrameNumber);
+    this.nextUnlabeledFrameButton.disabled = (
         this.loadedFrameEntityCount < this.videoEntity.frame_count ||
-        this.currentFrameNumber >= this.maxNegativeFrameNumber);
+        this.currentFrameNumber >= this.maxUnlabeledFrameNumber);
     this.playbackSpeedRangeInput.disabled = false;
     this.reversePlayPauseButton.disabled = (this.currentFrameNumber == 0);
     this.forwardPlayPauseButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
@@ -499,7 +508,7 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFramesWithImageUrls_onreadystatechan
         this.loadedFrameEntityCount++;
         if (this.loadedFrameEntityCount == this.videoEntity.frame_count) {
           this.includedFrameCountDiv.style.visibility = 'visible';
-          this.negativeFrameCountDiv.style.visibility = 'visible';
+          this.unlabeledFrameCountDiv.style.visibility = 'visible';
         }
         this.loadingProgress.value++;
         let delayForImage = i + 10;
@@ -560,29 +569,29 @@ fmltc.LabelVideo.prototype.updateFrameCounts = function(frameNumber,
     }
   }
   if (previousIncludeFrameInDataset && previousBboxesText == '') {
-    // This frame was included in the negativeFrameCount.
+    // This frame was included in the unlabeledFrameCount.
     if (!includeFrameInDataset || bboxesText != '') {
-      // This frame is now not included in the negativeFrameCount.
-      this.negativeFrameCount--;
-      this.negativeFrameCountSpan.textContent = String(this.negativeFrameCount);
-      if (frameNumber == this.minNegativeFrameNumber) {
-        this.minNegativeFrameNumber = this.findNextNegativeFrameNumber(frameNumber + 1)
+      // This frame is now not included in the unlabeledFrameCount.
+      this.unlabeledFrameCount--;
+      this.unlabeledFrameCountSpan.textContent = String(this.unlabeledFrameCount);
+      if (frameNumber == this.minUnlabeledFrameNumber) {
+        this.minUnlabeledFrameNumber = this.findNextUnlabeledFrameNumber(frameNumber + 1)
       }
-      if (frameNumber == this.maxNegativeFrameNumber) {
-        this.maxNegativeFrameNumber = this.findPreviousNegativeFrameNumber(frameNumber - 1)
+      if (frameNumber == this.maxUnlabeledFrameNumber) {
+        this.maxUnlabeledFrameNumber = this.findPreviousUnlabeledFrameNumber(frameNumber - 1)
       }
     }
   } else {
-    // This frame was not included in the negativeFrameCount.
+    // This frame was not included in the unlabeledFrameCount.
     if (includeFrameInDataset && bboxesText == '') {
-      // This frame is now included in the negativeFrameCount.
-      this.negativeFrameCount++;
-      this.negativeFrameCountSpan.textContent = String(this.negativeFrameCount);
-      if (frameNumber < this.minNegativeFrameNumber) {
-        this.minNegativeFrameNumber = frameNumber;
+      // This frame is now included in the unlabeledFrameCount.
+      this.unlabeledFrameCount++;
+      this.unlabeledFrameCountSpan.textContent = String(this.unlabeledFrameCount);
+      if (frameNumber < this.minUnlabeledFrameNumber) {
+        this.minUnlabeledFrameNumber = frameNumber;
       }
-      if (frameNumber > this.maxNegativeFrameNumber) {
-        this.maxNegativeFrameNumber = frameNumber;
+      if (frameNumber > this.maxUnlabeledFrameNumber) {
+        this.maxUnlabeledFrameNumber = frameNumber;
       }
     }
   }
@@ -632,15 +641,21 @@ fmltc.LabelVideo.prototype.missingLabelNames = function(bboxes) {
   return false;
 };
 
-fmltc.LabelVideo.prototype.saveBboxes = function() {
+fmltc.LabelVideo.prototype.saveBboxes = function(callback) {
   if (this.bboxes[this.currentFrameNumber] == undefined ||
       this.videoFrameEntity[this.currentFrameNumber] == undefined) {
+    if (callback) {
+      callback(true)
+    }
     return '';
   }
   const previousBboxesText = this.videoFrameEntity[this.currentFrameNumber].bboxes_text;
   const bboxesText = this.convertBboxesToText(this.bboxes[this.currentFrameNumber]);
   if (bboxesText == previousBboxesText) {
     // Don't save them if they haven't changed.
+    if (callback) {
+      callback(true)
+    }
     return bboxesText;
   }
 
@@ -657,18 +672,25 @@ fmltc.LabelVideo.prototype.saveBboxes = function() {
   xhr.open('POST', '/storeVideoFrameBboxesText', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_storeVideoFrameBboxesText_onreadystatechange.bind(this, xhr, params,
-      this.currentFrameNumber);
+      this.currentFrameNumber, callback);
   xhr.send(params);
   return bboxesText;
 };
 
 fmltc.LabelVideo.prototype.xhr_storeVideoFrameBboxesText_onreadystatechange = function(xhr, params,
-    frame_number) {
+    frame_number, callback) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
+      if (callback) {
+        callback(true);
+      }
+
     } else {
+      if (callback) {
+        callback(false);
+      }
       // TODO(lizlooney): handle error properly
       console.log('Failure! /storeVideoFrameBboxesText?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
@@ -701,7 +723,7 @@ fmltc.LabelVideo.prototype.refillLabelingArea = function(optLastLabelInputFocus)
 
   const fields = ['x1', 'y1', 'x2', 'y2', 'label'];
   const types = ['number', 'number', 'number', 'number', 'text'];
-  const widths = ['7ch', '7ch', '7ch', '7ch', '10ch'];
+  const widths = ['7ch', '7ch', '7ch', '7ch', '113px'];
 
   let lastLabelInput = null;
   for (let i = 0; i < this.bboxes[this.currentFrameNumber].length; i++) {
@@ -883,14 +905,14 @@ fmltc.LabelVideo.prototype.lastFrameButton_onclick = function() {
   this.goToFrame(this.videoEntity.frame_count - 1);
 };
 
-fmltc.LabelVideo.prototype.previousNegativeFrameButton_onclick = function() {
-  const i = this.findPreviousNegativeFrameNumber(this.currentFrameNumber - 1);
+fmltc.LabelVideo.prototype.previousUnlabeledFrameButton_onclick = function() {
+  const i = this.findPreviousUnlabeledFrameNumber(this.currentFrameNumber - 1);
   if (i >= 0) {
     this.goToFrame(i);
   }
 };
 
-fmltc.LabelVideo.prototype.findPreviousNegativeFrameNumber = function(start) {
+fmltc.LabelVideo.prototype.findPreviousUnlabeledFrameNumber = function(start) {
   for (let i = start; i >= 0; i++) {
     if (this.videoFrameEntity[i].bboxes_text == '') {
       return i;
@@ -899,14 +921,14 @@ fmltc.LabelVideo.prototype.findPreviousNegativeFrameNumber = function(start) {
   return -1;
 };
 
-fmltc.LabelVideo.prototype.nextNegativeFrameButton_onclick = function() {
-  const i = this.findNextNegativeFrameNumber(this.currentFrameNumber + 1);
+fmltc.LabelVideo.prototype.nextUnlabeledFrameButton_onclick = function() {
+  const i = this.findNextUnlabeledFrameNumber(this.currentFrameNumber + 1);
   if (i < this.videoEntity.frame_count) {
     this.goToFrame(i);
   }
 };
 
-fmltc.LabelVideo.prototype.findNextNegativeFrameNumber = function(start) {
+fmltc.LabelVideo.prototype.findNextUnlabeledFrameNumber = function(start) {
   for (let i = start; i < this.videoEntity.frame_count; i++) {
     if (this.videoFrameEntity[i].bboxes_text == '') {
       return i;
