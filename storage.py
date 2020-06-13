@@ -125,6 +125,7 @@ def prepare_to_upload_video(team_uuid, description, video_filename, file_size, c
             'frame_extraction_end_time_utc_ms': 0,
             'extracted_frame_count': 0,
             'included_frame_count': 0,
+            'labeled_frame_count': 0,
             'tracking_in_progress': False,
             'tracker_uuid': '',
             'delete_in_progress': False,
@@ -408,10 +409,23 @@ def retrieve_video_frame_image(team_uuid, video_uuid, frame_number):
 def store_video_frame_bboxes_text(team_uuid, video_uuid, frame_number, bboxes_text):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
-        video_frame_entity = __retrieve_video_frame_entity(team_uuid, video_uuid, frame_number)
-        video_frame_entity['bboxes_text'] = bboxes_text
-        transaction.put(video_frame_entity)
-        return video_frame_entity
+        return __store_video_frame_bboxes_text(transaction, team_uuid, video_uuid, frame_number, bboxes_text)
+
+def __store_video_frame_bboxes_text(transaction, team_uuid, video_uuid, frame_number, bboxes_text):
+    video_frame_entity = __retrieve_video_frame_entity(team_uuid, video_uuid, frame_number)
+    previously_had_labels = len(video_frame_entity['bboxes_text']) > 0
+    now_has_labels = len(bboxes_text) > 0
+    video_frame_entity['bboxes_text'] = bboxes_text
+    transaction.put(video_frame_entity)
+    if previously_had_labels != now_has_labels:
+        # Also update the video_entity in the same transaction.
+        video_entity = retrieve_video_entity(team_uuid, video_uuid)
+        if now_has_labels:
+            video_entity['labeled_frame_count'] += 1
+        else:
+            video_entity['labeled_frame_count'] -= 1
+        transaction.put(video_entity)
+    return video_frame_entity
 
 def store_video_frame_include_in_dataset(team_uuid, video_uuid, frame_number, include_frame_in_dataset):
     datastore_client = datastore.Client()
@@ -423,11 +437,10 @@ def store_video_frame_include_in_dataset(team_uuid, video_uuid, frame_number, in
             transaction.put(video_frame_entity)
             # Also update the video_entity in the same transaction.
             video_entity = retrieve_video_entity(team_uuid, video_uuid)
-            if 'included_frame_count' in video_entity:
-                if include_frame_in_dataset:
-                    video_entity['included_frame_count'] += 1
-                else:
-                    video_entity['included_frame_count'] -= 1
+            if include_frame_in_dataset:
+                video_entity['included_frame_count'] += 1
+            else:
+                video_entity['included_frame_count'] -= 1
             transaction.put(video_entity)
         return video_frame_entity
 
@@ -552,10 +565,8 @@ def continue_tracking(team_uuid, video_uuid, tracker_uuid, frame_number, bboxes_
     with datastore_client.transaction() as transaction:
         tracker_client_entity = retrieve_tracker_client_entity(video_uuid, tracker_uuid)
         if tracker_client_entity is not None:
-            # Update the video_frame_entity.
-            video_frame_entity = __retrieve_video_frame_entity(team_uuid, video_uuid, frame_number)
-            video_frame_entity['bboxes_text'] = bboxes_text
-            transaction.put(video_frame_entity)
+            # Update the video_frame_entity (and the video_entity if necessary)
+            __store_video_frame_bboxes_text(transaction, team_uuid, video_uuid, frame_number, bboxes_text)
             # Update the tracker_client_entity
             tracker_client_entity['frame_number'] = frame_number
             tracker_client_entity['bboxes_text'] = bboxes_text
