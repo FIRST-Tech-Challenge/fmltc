@@ -309,12 +309,15 @@ def __write_record(team_uuid, sorted_label_list, frame_data_dict,
         dataset_uuid, record_number, record_id, is_eval, temp_record_filename):
     negative_frame_count = 0
     label_counter = collections.Counter()
+    frames_written = 0
     with tf.io.TFRecordWriter(temp_record_filename) as writer:
         for frame_number, frame_data in frame_data_dict.items():
             tf_example, label_counter_for_frame, is_negative = __create_tf_example(frame_data, sorted_label_list)
             writer.write(tf_example.SerializeToString())
             negative_frame_count += is_negative
             label_counter += label_counter_for_frame
+            frames_written += 1
+            storage.update_dataset_record_writer(team_uuid, dataset_uuid, record_number, frames_written)
     tf_record_blob_name = blob_storage.store_dataset_record(team_uuid, dataset_uuid, record_id, temp_record_filename)
     os.remove(temp_record_filename)
     dict_label_to_count = dict(label_counter)

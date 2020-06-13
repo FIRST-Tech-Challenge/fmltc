@@ -89,13 +89,6 @@ def login():
         time_time=time.time(), project_id=constants.PROJECT_ID,
         program=program, team_number=team_number)
 
-# TODO(lizlooney): add logout button to all pages.
-@app.route('/logout')
-def logout():
-    # Remove the team information from the flask.session if it's there.
-    team_info.clear(flask.session)
-    return flask.redirect(flask.url_for('index'))
-
 @app.route('/')
 @redirect_to_login_if_needed
 def index():
@@ -139,6 +132,12 @@ def test():
 
 
 # requests
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    # Remove the team information from the flask.session if it's there.
+    team_info.clear(flask.session)
+    return 'OK'
 
 @app.route('/setUserPreference', methods=['POST'])
 @login_required
@@ -402,10 +401,17 @@ def retrieve_dataset():
     data = flask.request.form.to_dict(flat=True)
     dataset_uuid = data.get('dataset_uuid')
     dataset_entity = storage.retrieve_dataset_entity(team_uuid, dataset_uuid)
+    if dataset_entity['dataset_completed']:
+        dataset_record_writer_entities = None
+    else:
+        dataset_record_writer_entities = storage.retrieve_dataset_record_writers(dataset_entity)
     sanitize(dataset_entity)
     response = {
         'dataset_entity': dataset_entity,
     }
+    if dataset_record_writer_entities is not None:
+        sanitize(dataset_record_writer_entities)
+        response['dataset_record_writer_entities'] = dataset_record_writer_entities
     return flask.jsonify(response)
 
 @app.route('/deleteDataset', methods=['POST'])

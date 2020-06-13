@@ -40,6 +40,7 @@ ACTION_NAME = 'action_name'
 ACTION_NAME_SLEEP = 'sleep' # For testing purposes
 ACTION_NAME_DATASET_PRODUCE = 'dataset_produce'
 ACTION_NAME_DATASET_PRODUCE_RECORD = 'dataset_produce_record'
+ACTION_NAME_DELETE_DATASET_RECORD_WRITERS = 'delete_dataset_record_writers'
 ACTION_NAME_DATASET_ZIP = 'dataset_zip'
 ACTION_NAME_DATASET_ZIP_PARTITION = 'dataset_zip_partition'
 ACTION_NAME_DELETE_DATASET = 'delete_dataset'
@@ -86,6 +87,7 @@ def perform_action(action_parameters, time_limit, active_memory_limit):
         ACTION_NAME_SLEEP: __sleep_a_bit,
         ACTION_NAME_DATASET_PRODUCE: dataset_producer.produce_dataset,
         ACTION_NAME_DATASET_PRODUCE_RECORD: dataset_producer.produce_dataset_record,
+        ACTION_NAME_DELETE_DATASET_RECORD_WRITERS: storage.finish_delete_dataset_record_writers,
         ACTION_NAME_DATASET_ZIP: dataset_zipper.zip_dataset,
         ACTION_NAME_DATASET_ZIP_PARTITION: dataset_zipper.zip_dataset_partition,
         ACTION_NAME_DELETE_DATASET: storage.finish_delete_dataset,

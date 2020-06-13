@@ -85,6 +85,7 @@ fmltc.ListModels.prototype.xhr_retrieveModelList_onreadystatechange = function(x
       for (let i = 0; i < modelEntityArray.length; i++) {
         this.onModelEntityUpdated(modelEntityArray[i]);
       }
+      document.getElementById('modelsLoader').style.visibility = 'hidden';
 
     } else {
       // TODO(lizlooney): handle error properly

@@ -75,8 +75,11 @@ fmltc.ListDatasets.prototype.xhr_retrieveDatasetList_onreadystatechange = functi
       const response = JSON.parse(xhr.responseText);
       const datasetEntityArray = response.dataset_entities;
       for (let i = 0; i < datasetEntityArray.length; i++) {
-        this.addDataset(datasetEntityArray[i]);
+        if (datasetEntityArray[i].dataset_completed) {
+          this.addDataset(datasetEntityArray[i]);
+        }
       }
+      document.getElementById('datasetsLoader').style.visibility = 'hidden';
 
     } else {
       // TODO(lizlooney): handle error properly

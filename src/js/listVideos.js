@@ -92,6 +92,7 @@ fmltc.ListVideos.prototype.xhr_retrieveVideoList_onreadystatechange = function(x
       if (this.videoEntityArray.length > 0) {
         this.videosListDiv.style.display = 'block';
       }
+      document.getElementById('videosLoader').style.visibility = 'hidden';
 
     } else {
       // TODO(lizlooney): handle error properly

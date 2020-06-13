@@ -37,6 +37,7 @@ DS_KIND_VIDEO_FRAME = 'VideoFrame'
 DS_KIND_TRACKER = 'Tracker'
 DS_KIND_TRACKER_CLIENT = 'TrackerClient'
 DS_KIND_DATASET = 'Dataset'
+DS_KIND_DATASET_RECORD_WRITER = 'DatasetRecordWriter'
 DS_KIND_DATASET_RECORD = 'DatasetRecord'
 DS_KIND_MODEL = 'Model'
 
@@ -639,6 +640,18 @@ def dataset_producer_starting(team_uuid, dataset_uuid, video_filenames, sorted_l
         dataset_entity['label_map_blob_name'] = label_map_blob_name
         dataset_entity['label_map_path'] = label_map_path
         transaction.put(dataset_entity)
+        # Create dataset_record_writer_entities.
+        for record_number in range(train_record_count + eval_record_count):
+            incomplete_key = datastore_client.key(DS_KIND_DATASET_RECORD_WRITER)
+            dataset_record_writer_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+            dataset_record_writer_entity.update({
+                'team_uuid': team_uuid,
+                'dataset_uuid': dataset_uuid,
+                'record_number': record_number,
+                'frames_written': 0,
+                'update_time_utc_ms': util.time_now_utc_millis(),
+            })
+            transaction.put(dataset_record_writer_entity)
 
 
 def dataset_producer_maybe_done(team_uuid, dataset_uuid):
@@ -676,6 +689,7 @@ def dataset_producer_maybe_done(team_uuid, dataset_uuid):
                 dataset_entity['eval_negative_frame_count'] = eval_negative_frame_count
                 dataset_entity['eval_dict_label_to_count'] = eval_dict_label_to_count
                 transaction.put(dataset_entity)
+                __delete_dataset_record_writers(dataset_entity)
 
 # Retrieves the dataset entity associated with the given team_uuid and dataset_uuid. If no such
 # entity exists, raises HttpErrorNotFound.
@@ -788,6 +802,8 @@ def store_dataset_record(team_uuid, dataset_uuid, record_number, record_id, is_e
         transaction.put(dataset_record_entity)
 
 def retrieve_dataset_records(dataset_entity):
+    if 'total_record_count' not in dataset_entity:
+        return []
     datastore_client = datastore.Client()
     query = datastore_client.query(kind=DS_KIND_DATASET_RECORD)
     query.add_filter('team_uuid', '=', dataset_entity['team_uuid'])
@@ -795,6 +811,72 @@ def retrieve_dataset_records(dataset_entity):
     query.order = ['record_number']
     dataset_record_entities = list(query.fetch(dataset_entity['total_record_count']))
     return dataset_record_entities
+
+# dataset record writer - public methods
+
+def __retrieve_dataset_record_writer(team_uuid, dataset_uuid, record_number):
+    datastore_client = datastore.Client()
+    query = datastore_client.query(kind=DS_KIND_DATASET_RECORD_WRITER)
+    query.add_filter('team_uuid', '=', team_uuid)
+    query.add_filter('dataset_uuid', '=', dataset_uuid)
+    query.add_filter('record_number', '=', record_number)
+    dataset_record_writer_entities = list(query.fetch(1))
+    if len(dataset_record_writer_entities) == 0:
+        return None
+    return dataset_record_writer_entities[0]
+
+def update_dataset_record_writer(team_uuid, dataset_uuid, record_number, frames_written):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        dataset_record_writer_entity = __retrieve_dataset_record_writer(team_uuid, dataset_uuid, record_number)
+        if dataset_record_writer_entity is not None:
+            dataset_record_writer_entity['frames_written'] = frames_written
+            dataset_record_writer_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            transaction.put(dataset_record_writer_entity)
+
+def retrieve_dataset_record_writers(dataset_entity):
+    if 'total_record_count' not in dataset_entity:
+        return []
+    datastore_client = datastore.Client()
+    query = datastore_client.query(kind=DS_KIND_DATASET_RECORD_WRITER)
+    query.add_filter('team_uuid', '=', dataset_entity['team_uuid'])
+    query.add_filter('dataset_uuid', '=', dataset_entity['dataset_uuid'])
+    query.order = ['record_number']
+    dataset_record_writer_entities = list(query.fetch(dataset_entity['total_record_count']))
+    return dataset_record_writer_entities
+
+def __delete_dataset_record_writers(dataset_entity):
+    action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_DATASET_RECORD_WRITERS)
+    action_parameters['team_uuid'] = dataset_entity['team_uuid']
+    action_parameters['dataset_uuid'] = dataset_entity['dataset_uuid']
+    action.trigger_action_via_blob(action_parameters)
+
+def finish_delete_dataset_record_writers(action_parameters, time_limit, active_memory_limit):
+    team_uuid = action_parameters['team_uuid']
+    dataset_uuid = action_parameters['dataset_uuid']
+    datastore_client = datastore.Client()
+    # Delete the dataset record writers, 500 at a time.
+    while True:
+        if action.is_near_limit(time_limit, active_memory_limit):
+            # Time or memory is running out. Trigger the action again to restart.
+            action.trigger_action_via_blob(action_parameters)
+            return
+        query = datastore_client.query(kind=DS_KIND_DATASET_RECORD_WRITER)
+        query.add_filter('team_uuid', '=', team_uuid)
+        query.add_filter('dataset_uuid', '=', dataset_uuid)
+        dataset_record_writer_entities = list(query.fetch(500))
+        if len(dataset_record_writer_entities) == 0:
+            return
+        if action.is_near_limit(time_limit, active_memory_limit):
+            # Time or memory is running out. Trigger the action again to restart.
+            action.trigger_action_via_blob(action_parameters)
+            return
+        keys = []
+        while len(dataset_record_writer_entities) > 0:
+            dataset_record_writer_entity = dataset_record_writer_entities.pop()
+            keys.append(dataset_record_writer_entity.key)
+        # Then, delete the dataset record entities.
+        datastore_client.delete_multi(keys)
 
 # model - public methods
 

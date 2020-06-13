@@ -28,11 +28,21 @@ limitations under the License.
 </head>
 <body>
 
-<div class="tabButtonsDiv">
-  <button id='videosTabButton' class="tabButton">Videos</button>
-  <button id='datasetsTabButton' class="tabButton">Datasets</button>
-  <button id='modelsTabButton' class="tabButton">Models</button>
-</div>
+<table style="width: 100%">
+  <tr>
+    <td>
+      <div class="tabButtonsDiv">
+        <button id="videosTabButton" class="tabButton">Videos <span id="videosLoader" class="loader"></span></button>
+        <button id="datasetsTabButton" class="tabButton">Datasets <span id="datasetsLoader" class="loader"></span></button>
+        <button id="modelsTabButton" class="tabButton">Models <span id="modelsLoader" class="loader"></span></button>
+      </div>
+    </td>
+    <td align="right" valign="top">
+      <button id="logoutButton" class="text-18">Log Out</button>
+    </td>
+  </tr>
+</table>
+
 
 <div id="videosTabDiv" class="tabDiv">
   <table class="collapsedBorder">
@@ -137,10 +147,10 @@ limitations under the License.
     <input type="text" maxlength="30" id="pdDescriptionInput" class="text-18" style="width: 100%">
     <br><br>
     <button id="pdStartButton" class="text-24">Produce Dataset</button>
-    <br>
-    <div id="pdInProgressDiv" style="display: none;">In Progress...</div>
-    <div id="pdFinishedDiv" style="display: none;">Finished.</div>
-    <div id="pdFailedDiv" style="display: none;">Failed!</div>
+    <h3 id="pdProgressH3" style="visibility: hidden;">Progress</h3>
+    <div><progress id="pdProgress" style="visibility: hidden;"></progress></div>
+    <div id="pdFinishedDiv" class="text-24" style="display: none;">Finished.</div>
+    <div id="pdFailedDiv" class="text-24" style="display: none;">Failed!</div>
   </div>
 </div></div>
 

@@ -40,6 +40,7 @@ fmltc.MonitorTraining = function(util, modelEntity) {
   this.activeTrainingDiv = document.getElementById('activeTrainingDiv');
   this.cancelTrainingButton = document.getElementById('cancelTrainingButton');
   this.refreshIntervalRangeInput = document.getElementById('refreshIntervalRangeInput');
+  this.refreshButton = document.getElementById('refreshButton');
   this.modelTabDiv = document.getElementById('modelTabDiv');
   this.dateCreatedTd = document.getElementById('dateCreatedTd');
   this.descriptionTd = document.getElementById('descriptionTd');
@@ -66,11 +67,15 @@ fmltc.MonitorTraining = function(util, modelEntity) {
 
   this.modelLoader = document.getElementById('modelLoader');
 
+  this.refreshButtonDisabledCounter = 0;
+
   this.data = {};
   this.data.scalars = this.createDataStructure(true, false, document.getElementById('scalarsLoader'));
   this.data.images = this.createDataStructure(false, true, document.getElementById('imagesLoader'));
 
   document.getElementById('descriptionSpan').textContent = this.modelEntity.description;
+
+  this.refreshIntervalRangeInput.title = this.refreshIntervalRangeInput.value + ' minutes';
 
   this.updateModelUI();
   this.retrieveData();
@@ -81,6 +86,7 @@ fmltc.MonitorTraining = function(util, modelEntity) {
   this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
   this.cancelTrainingButton.onclick = this.cancelTrainingButton_onclick.bind(this);
   this.refreshIntervalRangeInput.onchange = this.refreshIntervalRangeInput_onchange.bind(this);
+  this.refreshButton.onclick = this.refreshButton_onclick.bind(this);
 };
 
 fmltc.MonitorTraining.prototype.dismissButton_onclick = function() {
@@ -128,10 +134,18 @@ fmltc.MonitorTraining.prototype.xhr_cancelTraining_onreadystatechange = function
 };
 
 fmltc.MonitorTraining.prototype.refreshIntervalRangeInput_onchange = function() {
+  this.refreshIntervalRangeInput.title = this.refreshIntervalRangeInput.value + ' minutes';
+
   if (this.intervalId) {
     clearInterval(this.intervalId);
     this.intervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalRangeInput.value * 60 * 1000);
   }
+};
+
+fmltc.MonitorTraining.prototype.refreshButton_onclick = function() {
+  // call refreshIntervalRangeInput_onchange to reset the interval timer.
+  this.refreshIntervalRangeInput_onchange();
+  this.retrieveData();
 };
 
 fmltc.MonitorTraining.prototype.createDataStructure = function(retrieveScalars, retrieveImages, loader) {
@@ -171,6 +185,9 @@ fmltc.MonitorTraining.prototype.retrieveData = function() {
 };
 
 fmltc.MonitorTraining.prototype.retrieveSummaries = function(dataStructure, failureCount) {
+  this.refreshButtonDisabledCounter++;
+  this.refreshButton.disabled = (this.refreshButtonDisabledCounter > 0);
+
   const xhr = new XMLHttpRequest();
   const params =
       'model_uuid=' + encodeURIComponent(this.modelUuid) +
@@ -187,6 +204,10 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
     dataStructure, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
+
+    this.refreshButtonDisabledCounter--;
+    this.refreshButton.disabled = (this.refreshButtonDisabledCounter > 0);
+
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
 
