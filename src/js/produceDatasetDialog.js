@@ -29,10 +29,11 @@ goog.require('fmltc.Util');
  * @param {!fmltc.Util} util The utility instance
  * @constructor
  */
-fmltc.ProduceDatasetDialog = function(util, videoUuids, onDatasetProduced) {
+fmltc.ProduceDatasetDialog = function(util, videoUuids, totalFrameCount, onDatasetProduced) {
   /** @type {!fmltc.Util} */
   this.util = util;
   this.videoUuids = videoUuids;
+  this.totalFrameCount = totalFrameCount;
   this.onDatasetProduced = onDatasetProduced;
   this.dialog = document.getElementById('produceDatasetDialog');
   this.dismissButton = document.getElementById('pdDismissButton');
@@ -50,6 +51,9 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, onDatasetProduced) {
   this.trainPercentInput.value = 80;
   this.evalPercentInput.value = 100 - this.trainPercentInput.value;
   this.descriptionInput.value = '';
+
+  this.progressStartValue = 0.10 * this.totalFrameCount;
+  this.progressMaxValue = this.totalFrameCount + this.progressStartValue;
 
   this.updateStartButton();
   this.progressH3.style.visibility = 'hidden';
@@ -103,8 +107,8 @@ fmltc.ProduceDatasetDialog.prototype.startButton_onclick = function() {
   this.util.setWaitCursor();
 
   this.progressH3.style.visibility = 'visible';
-  this.progress.value = 1;
-  this.progress.max = 100; // updated later in xhr_retrieveDataset_onreadystatechange
+  this.progress.value = this.progressStartValue;
+  this.progress.max = this.progressMaxValue;
   this.progress.style.visibility = 'visible';
 
   this.startDatasetInProgress = true;
@@ -179,17 +183,14 @@ fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDataset_onreadystatechange = fu
         setTimeout(this.dismissButton_onclick.bind(this), 1000);
 
       } else {
-        if ('train_frame_count' in datasetEntity && 'eval_frame_count' in datasetEntity) {
-          const datasetRecordWriterEntities = response.dataset_record_writer_entities;
-          let framesWritten = 0
-          for (let i = 0; i < datasetRecordWriterEntities.length; i++) {
-            framesWritten += datasetRecordWriterEntities[i].frames_written;
-          }
-          this.progress.value = 1 + framesWritten;
-          this.progress.max = datasetEntity.train_frame_count + datasetEntity.eval_frame_count + 2;
+        const datasetRecordWriterEntities = response.dataset_record_writer_entities;
+        let framesWritten = 0
+        for (let i = 0; i < datasetRecordWriterEntities.length; i++) {
+          framesWritten += datasetRecordWriterEntities[i].frames_written;
         }
+        this.progress.value = this.progressStartValue + framesWritten;
 
-        setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid), 1000);
+        setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid), 5000);
       }
     } else {
       // TODO(lizlooney): handle error properly. Currently we try again in 3 seconds, but that

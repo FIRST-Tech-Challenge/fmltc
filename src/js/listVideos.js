@@ -429,7 +429,15 @@ fmltc.ListVideos.prototype.getCheckedVideoUuids = function() {
 };
 
 fmltc.ListVideos.prototype.produceDatasetButton_onclick = function() {
-  new fmltc.ProduceDatasetDialog(this.util, this.getCheckedVideoUuids(),
+  const videoUuids = [];
+  let totalFrameCount = 0;
+  for (let i = 0; i < this.checkboxes.length; i++) {
+    if (this.checkboxes[i].checked) {
+      videoUuids.push(this.videoEntityArray[i].video_uuid);
+      totalFrameCount += this.videoEntityArray[i].included_frame_count;
+    }
+  }
+  new fmltc.ProduceDatasetDialog(this.util, videoUuids, totalFrameCount,
       this.onDatasetProduced.bind(this));
 };
 
