@@ -39,6 +39,7 @@ DS_KIND_TRACKER_CLIENT = 'TrackerClient'
 DS_KIND_DATASET = 'Dataset'
 DS_KIND_DATASET_RECORD_WRITER = 'DatasetRecordWriter'
 DS_KIND_DATASET_RECORD = 'DatasetRecord'
+DS_KIND_DATASET_ZIPPER = 'DatasetZipper'
 DS_KIND_MODEL = 'Model'
 
 # teams - public methods
@@ -845,16 +846,19 @@ def update_dataset_record_writer(team_uuid, dataset_uuid, record_number, frames_
             dataset_record_writer_entity['update_time_utc_ms'] = util.time_now_utc_millis()
             transaction.put(dataset_record_writer_entity)
 
-def retrieve_dataset_record_writers(dataset_entity):
+def retrieve_dataset_record_writer_frames_written(dataset_entity):
     if 'total_record_count' not in dataset_entity:
-        return []
+        return 0
     datastore_client = datastore.Client()
     query = datastore_client.query(kind=DS_KIND_DATASET_RECORD_WRITER)
     query.add_filter('team_uuid', '=', dataset_entity['team_uuid'])
     query.add_filter('dataset_uuid', '=', dataset_entity['dataset_uuid'])
     query.order = ['record_number']
     dataset_record_writer_entities = list(query.fetch(dataset_entity['total_record_count']))
-    return dataset_record_writer_entities
+    frames_written = 0
+    for dataset_record_writer_entity in dataset_record_writer_entities:
+        frames_written += dataset_record_writer_entity['frames_written']
+    return frames_written
 
 def __delete_dataset_record_writers(dataset_entity):
     action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_DATASET_RECORD_WRITERS)
@@ -888,6 +892,64 @@ def finish_delete_dataset_record_writers(action_parameters, time_limit, active_m
             keys.append(dataset_record_writer_entity.key)
         # Then, delete the dataset record entities.
         datastore_client.delete_multi(keys)
+
+# dataset zipper - public methods
+
+def create_dataset_zippers(team_uuid, dataset_zip_uuid, partition_count):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        for partition_index in range(partition_count):
+            incomplete_key = datastore_client.key(DS_KIND_DATASET_ZIPPER)
+            dataset_zipper_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+            dataset_zipper_entity.update({
+                'team_uuid': team_uuid,
+                'dataset_zip_uuid': dataset_zip_uuid,
+                'partition_index': partition_index,
+                'file_count': 0,
+                'files_written': 0,
+                'update_time_utc_ms': util.time_now_utc_millis(),
+            })
+            transaction.put(dataset_zipper_entity)
+
+def __retrieve_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index):
+    datastore_client = datastore.Client()
+    query = datastore_client.query(kind=DS_KIND_DATASET_ZIPPER)
+    query.add_filter('team_uuid', '=', team_uuid)
+    query.add_filter('dataset_zip_uuid', '=', dataset_zip_uuid)
+    query.add_filter('partition_index', '=', partition_index)
+    dataset_zipper_entities = list(query.fetch(1))
+    if len(dataset_zipper_entities) == 0:
+        return None
+    return dataset_zipper_entities[0]
+
+def update_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index, file_count, files_written):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        dataset_zipper_entity = __retrieve_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index)
+        if dataset_zipper_entity is not None:
+            dataset_zipper_entity['file_count'] = file_count
+            dataset_zipper_entity['files_written'] = files_written
+            dataset_zipper_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            transaction.put(dataset_zipper_entity)
+
+def retrieve_dataset_zipper_files_written(team_uuid, dataset_zip_uuid, partition_count):
+    datastore_client = datastore.Client()
+    query = datastore_client.query(kind=DS_KIND_DATASET_ZIPPER)
+    query.add_filter('team_uuid', '=', team_uuid)
+    query.add_filter('dataset_zip_uuid', '=', dataset_zip_uuid)
+    query.order = ['partition_index']
+    dataset_zipper_entities = list(query.fetch(partition_count))
+    file_count_array = []
+    files_written_array = []
+    for dataset_zipper_entity in dataset_zipper_entities:
+        file_count_array.append(dataset_zipper_entity['file_count'])
+        files_written_array.append(dataset_zipper_entity['files_written'])
+    return file_count_array, files_written_array
+
+def delete_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index):
+    datastore_client = datastore.Client()
+    dataset_zipper_entity =__retrieve_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index)
+    datastore_client.delete(dataset_zipper_entity.key)
 
 # model - public methods
 

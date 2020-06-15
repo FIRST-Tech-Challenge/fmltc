@@ -104,6 +104,7 @@ limitations under the License.
         <td valign="top"><span class="modal_dialog_title">Upload Video File</span></td>
       </tr>
     </table>
+    <br><br>
     <input type="file" id="uvfVideoFileInput" accept="video/*" class="text-18" style="width: 100%">
     <br><br>
     <label for="uvfDescriptionInput">Description:</label><br>
@@ -126,11 +127,12 @@ limitations under the License.
     <table>
       <tr>
         <td valign="top">
-          <button id="pdDismissButton" class="material-icons iconVerticalAlign text-18">close</button>
+          <button id="pdDismissButton" class="material-icons iconVerticalAlign text-24">close</button>
         </td>
         <td valign="top"><span class="modal_dialog_title">Produce Dataset</span></td>
       </tr>
     </table>
+    <br><br>
     <table class="text-18">
       <tr>
         <td><label for="pdTrainPercentInput">Percentage of Frames for Training:</label></td>
@@ -221,16 +223,46 @@ limitations under the License.
   </div>
 </div>
 
+<div id="downloadDatasetDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <table>
+      <tr>
+        <td valign="top">
+          <button id="ddDismissButton" class="material-icons iconVerticalAlign text-24">close</button>
+        </td>
+        <td valign="top"><span class="modal_dialog_title">Download Dataset</span></td>
+      </tr>
+    </table>
+    <br><br>
+    <div>
+      <span class="text-18">This dataset consists of 1 labels file and </span>
+      <span id="ddRecordCountSpan" class="text-18"></span>
+      <span class="text-18"> records files.</span>
+    </div>
+    <br>
+    <div id="ddPartitionCountDiv" style="visibility: hidden;">
+      <span id="ddPartitionCountSpan" class="text-18"></span><span class="text-18">&nbsp;will be
+        created and then downloaded.</span>
+    </div>
+    <br>
+    <div id="ddProgressDiv">
+      <h3>Progress</h3>
+    </div>
+    <div id="ddFinishedDiv" class="text-24" style="visibility: hidden;">Finished.</div>
+  </div>
+</div></div>
+
 <div id="startTrainingDialog" class="modal_dialog"><div class="modal_dialog_container">
   <div class="modal_dialog_content">
     <table>
       <tr>
         <td valign="top">
-          <button id="stDismissButton" class="material-icons iconVerticalAlign text-18">close</button>
+          <button id="stDismissButton" class="material-icons iconVerticalAlign text-24">close</button>
         </td>
         <td valign="top"><span class="modal_dialog_title">Start Training a Model</span></td>
       </tr>
     </table>
+    <br><br>
     <table class="text-18">
       <tr>
         <td colspan="2">
@@ -238,6 +270,9 @@ limitations under the License.
           time.<br>Your team has <span id="stRemainingTrainingMinutesSpan"></span> minutes of training
           time remaining.
         </td>
+      </tr>
+      <tr>
+        <td colspan="2"></td>
       </tr>
       <tr>
         <td><label for="stMaxRunningMinutesInput">Maximum Training Time:</label></td>
@@ -322,11 +357,12 @@ limitations under the License.
     <table>
       <tr>
         <td valign="top">
-          <button id="tmDismissButton" class="material-icons iconVerticalAlign text-18">close</button>
+          <button id="tmDismissButton" class="material-icons iconVerticalAlign text-24">close</button>
         </td>
         <td valign="top"><span class="modal_dialog_title">Train More</span></td>
       </tr>
     </table>
+    <br><br>
     <table class="text-18">
       <tr>
         <td colspan="2">
@@ -334,6 +370,9 @@ limitations under the License.
           time.<br>Your team has <span id="tmRemainingTrainingMinutesSpan"></span> minutes of training
           time remaining.
         </td>
+      </tr>
+      <tr>
+        <td colspan="2"></td>
       </tr>
       <tr>
         <td><label for="tmMaxRunningMinutesInput">Maximum Training Time:</label></td>

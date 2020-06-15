@@ -48,6 +48,11 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, totalFrameCount, onDatas
 
   this.startDatasetInProgress = false;
 
+  this.dismissButton.disabled = false;
+  this.descriptionInput.disabled = false;
+  this.trainPercentInput.disabled = false;
+  this.evalPercentInput.disabled = false;
+
   this.trainPercentInput.value = 80;
   this.evalPercentInput.value = 100 - this.trainPercentInput.value;
   this.descriptionInput.value = '';
@@ -104,7 +109,10 @@ fmltc.ProduceDatasetDialog.prototype.evalPercentInput_onchange = function() {
 };
 
 fmltc.ProduceDatasetDialog.prototype.startButton_onclick = function() {
-  this.util.setWaitCursor();
+  this.dismissButton.disabled = true;
+  this.descriptionInput.disabled = true;
+  this.trainPercentInput.disabled = true;
+  this.evalPercentInput.disabled = true;
 
   this.progressH3.style.visibility = 'visible';
   this.progress.value = this.progressStartValue;
@@ -134,9 +142,9 @@ fmltc.ProduceDatasetDialog.prototype.xhr_prepareToStartDatasetProduction_onready
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      const datasetUuid = response.dataset_uuid;
+
       this.util.callHttpPerformAction(response.action_parameters, 0,
-          this.retrieveDatasetEntity.bind(this, datasetUuid));
+          this.retrieveDatasetEntity.bind(this, response.dataset_uuid));
 
     } else {
       // TODO(lizlooney): handle error properly
@@ -172,33 +180,33 @@ fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDataset_onreadystatechange = fu
 
       if (datasetEntity.dataset_completed) {
         this.startDatasetInProgress = false;
+        this.startButton.onclick = null;
         this.updateStartButton();
         this.progress.value = this.progress.max;
         this.progressH3.style.visibility = 'hidden';
         this.progress.style.visibility = 'hidden';
         this.finishedDiv.style.display = 'block';
-        this.util.clearWaitCursor();
+
+        this.dismissButton.disabled = false;
+        this.descriptionInput.disabled = false;
+        this.trainPercentInput.disabled = false;
+        this.evalPercentInput.disabled = false;
 
         this.onDatasetProduced(datasetEntity);
         setTimeout(this.dismissButton_onclick.bind(this), 1000);
 
       } else {
-        const datasetRecordWriterEntities = response.dataset_record_writer_entities;
-        let framesWritten = 0
-        for (let i = 0; i < datasetRecordWriterEntities.length; i++) {
-          framesWritten += datasetRecordWriterEntities[i].frames_written;
-        }
-        this.progress.value = this.progressStartValue + framesWritten;
+        this.progress.value = this.progressStartValue + response.frames_written;
 
-        setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid), 5000);
+        setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid), 2000);
       }
     } else {
-      // TODO(lizlooney): handle error properly. Currently we try again in 3 seconds, but that
+      // TODO(lizlooney): handle error properly. Currently we try again in 5 seconds, but that
       // might not be the best idea.
       console.log('Failure! /retrieveDataset?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      console.log('Will retry /retrieveDataset?' + params + ' in 3 seconds.');
-      setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid), 3000);
+      console.log('Will retry /retrieveDataset?' + params + ' in 5 seconds.');
+      setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid), 5000);
     }
   }
 };

@@ -190,9 +190,15 @@ def store_dataset_zip(team_uuid, dataset_zip_uuid, partition_index, zip_data):
     __write_string_to_blob(blob_name, zip_data, 'application/zip')
     return blob_name
 
-def get_dataset_zip_download_url(team_uuid, dataset_zip_uuid, partition_index):
-    return __get_download_url(
-        __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index))
+def get_dataset_zip_download_url(team_uuid, dataset_zip_uuid, partition_count):
+    exists_array = []
+    download_url_array = []
+    for partition_index in range(partition_count):
+        exists, download_url =  __get_download_url(
+            __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index))
+        exists_array.append(exists)
+        download_url_array.append(download_url)
+    return exists_array, download_url_array
 
 def delete_dataset_zip(team_uuid, dataset_zip_uuid, partition_index):
     blob_name = __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index)

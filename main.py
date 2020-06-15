@@ -402,16 +402,15 @@ def retrieve_dataset():
     dataset_uuid = data.get('dataset_uuid')
     dataset_entity = storage.retrieve_dataset_entity(team_uuid, dataset_uuid)
     if dataset_entity['dataset_completed']:
-        dataset_record_writer_entities = None
+        frames_written = None
     else:
-        dataset_record_writer_entities = storage.retrieve_dataset_record_writers(dataset_entity)
+        frames_written = storage.retrieve_dataset_record_writer_frames_written(dataset_entity)
     sanitize(dataset_entity)
     response = {
         'dataset_entity': dataset_entity,
     }
-    if dataset_record_writer_entities is not None:
-        sanitize(dataset_record_writer_entities)
-        response['dataset_record_writer_entities'] = dataset_record_writer_entities
+    if frames_written is not None:
+        response['frames_written'] = frames_written
     return flask.jsonify(response)
 
 @app.route('/deleteDataset', methods=['POST'])
@@ -429,9 +428,10 @@ def prepare_to_zip_dataset():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     dataset_uuid = data.get('dataset_uuid')
-    dataset_zip_uuid = dataset_zipper.prepare_to_zip_dataset(team_uuid, dataset_uuid)
-    partition_count, action_parameters = dataset_zipper.make_action_parameters(
-        team_uuid, dataset_uuid, dataset_zip_uuid)
+    dataset_zip_uuid, partition_count = dataset_zipper.prepare_to_zip_dataset(
+        team_uuid, dataset_uuid)
+    action_parameters = dataset_zipper.make_action_parameters(
+        team_uuid, dataset_uuid, dataset_zip_uuid, partition_count)
     response = {
         'dataset_zip_uuid': dataset_zip_uuid,
         'partition_count': partition_count,
@@ -446,11 +446,16 @@ def get_dataset_zip_status():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     dataset_zip_uuid = data.get('dataset_zip_uuid')
-    partition_index = int(data.get('partition_index'))
-    exists, download_url = blob_storage.get_dataset_zip_download_url(team_uuid, dataset_zip_uuid, partition_index)
+    partition_count = int(data.get('partition_count'))
+    exists_array, download_url_array = blob_storage.get_dataset_zip_download_url(
+        team_uuid, dataset_zip_uuid, partition_count)
+    file_count_array, files_written_array = storage.retrieve_dataset_zipper_files_written(
+        team_uuid, dataset_zip_uuid, partition_count)
     response = {
-        'is_ready': exists,
-        'download_url': download_url,
+        'is_ready_array': exists_array,
+        'download_url_array': download_url_array,
+        'file_count_array': file_count_array,
+        'files_written_array': files_written_array,
     }
     blob_storage.set_cors_policy_for_get()
     return flask.jsonify(response)
@@ -463,6 +468,7 @@ def delete_dataset_zip():
     dataset_zip_uuid = data.get('dataset_zip_uuid')
     partition_index = int(data.get('partition_index'))
     blob_storage.delete_dataset_zip(team_uuid, dataset_zip_uuid, partition_index)
+    storage.delete_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index)
     return 'OK'
 
 @app.route('/startTrainingModel', methods=['POST'])

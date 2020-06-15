@@ -75,6 +75,17 @@ indexes:
   - name: dataset_uuid
   - name: record_number
 
+- kind: DatasetZipper
+  properties:
+  - name: team_uuid
+  - name: dataset_zip_uuid
+
+- kind: DatasetZipper
+  properties:
+  - name: team_uuid
+  - name: dataset_zip_uuid
+  - name: partition_index
+
 - kind: Model
   properties:
   - name: team_uuid
