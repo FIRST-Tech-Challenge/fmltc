@@ -188,7 +188,7 @@ fmltc.Util.prototype.callHttpPerformAction = function(actionParameters, retryCou
   xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.onreadystatechange = this.xhr_httpPerformAction_onreadystatechange.bind(this, xhr,
       actionParameters, retryCount, onSuccess);
-  console.log('Sending action "' + actionParameters.action_name + '".')
+  //console.log('Sending action "' + actionParameters.action_name + '".')
   xhr.send(JSON.stringify(actionParameters));
 };
 
@@ -199,7 +199,7 @@ fmltc.Util.prototype.xhr_httpPerformAction_onreadystatechange = function(xhr,
 
     if (xhr.status === 200) {
       // Success.
-      console.log('Action "' + actionParameters.action_name + '" was successful.');
+      //console.log('Action "' + actionParameters.action_name + '" was successful.');
       if (onSuccess) {
         onSuccess();
       }
