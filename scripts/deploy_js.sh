@@ -14,6 +14,7 @@ java -jar $FMLTC_CLOSURE_COMPILER_JAR \
   --only_closure_dependencies \
   --entry_point fmltc.Box \
   --entry_point fmltc.DeleteConfirmationDialog \
+  --entry_point fmltc.DeleteForbiddenDialog \
   --entry_point fmltc.DownloadDatasetDialog \
   --entry_point fmltc.LabelVideo \
   --entry_point fmltc.ListDatasets \

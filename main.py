@@ -209,12 +209,31 @@ def retrieve_video():
     }
     return flask.jsonify(response)
 
+@app.route('/canDeleteVideo', methods=['POST'])
+@login_required
+def can_delete_video():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    video_uuid = data.get('video_uuid')
+    dataset_entity_array = storage.retrieve_incomplete_datasets_using_video(team_uuid, video_uuid)
+    can_delete_video = len(dataset_entity_array) == 0
+    response = {
+        'can_delete_video': can_delete_video,
+        'dataset_entity_array': dataset_entity_array,
+    }
+    return flask.jsonify(response)
+
 @app.route('/deleteVideo', methods=['POST'])
 @login_required
 def delete_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     video_uuid = data.get('video_uuid')
+    dataset_entity_array = storage.retrieve_incomplete_datasets_using_video(team_uuid, video_uuid)
+    if len(dataset_entity_array) > 0:
+        message = 'Error: One or more incomplete datasets uses video_uuid=%s.' % video_uuid
+        logging.critical(message)
+        raise exceptions.HttpErrorConflict(message)
     storage.delete_video(team_uuid, video_uuid)
     return 'OK'
 
@@ -373,7 +392,7 @@ def prepare_to_start_dataset_production():
     eval_percent = int(data.get('eval_percent'))
     start_time_ms = int(data.get('start_time_ms'))
     dataset_uuid = dataset_producer.prepare_to_start_dataset_production(
-        team_uuid, description, eval_percent, start_time_ms)
+        team_uuid, description, video_uuids_json, eval_percent, start_time_ms)
     action_parameters = dataset_producer.make_action_parameters(
         team_uuid, dataset_uuid, video_uuids_json, eval_percent, start_time_ms)
     response = {
@@ -411,6 +430,20 @@ def retrieve_dataset():
     }
     if frames_written is not None:
         response['frames_written'] = frames_written
+    return flask.jsonify(response)
+
+@app.route('/canDeleteDataset', methods=['POST'])
+@login_required
+def can_delete_dataset():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    dataset_uuid = data.get('dataset_uuid')
+    model_entity_array = storage.retrieve_models_using_dataset(team_uuid, dataset_uuid)
+    can_delete_dataset = len(model_entity_array) == 0
+    response = {
+        'can_delete_dataset': can_delete_dataset,
+        'model_entity_array': model_entity_array,
+    }
     return flask.jsonify(response)
 
 @app.route('/deleteDataset', methods=['POST'])
