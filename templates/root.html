@@ -62,7 +62,7 @@ limitations under the License.
       </td>
       <td width="10px"></td>
       <td align="center" valign="top">
-        <button id="deleteVideosButton" class="text-24">
+        <button id="deleteVideoButton" class="text-24">
           <span class="material-icons iconVerticalAlign">delete</span>
           <span class="iconVerticalAlign">Delete Video</span>
         </button>
@@ -150,8 +150,11 @@ limitations under the License.
     <input type="text" maxlength="30" id="pdDescriptionInput" class="text-18" style="width: 100%">
     <br><br>
     <button id="pdStartButton" class="text-24">Produce Dataset</button>
-    <h3 id="pdProgressH3" style="visibility: hidden;">Progress</h3>
-    <div><progress id="pdProgress" style="visibility: hidden;"></progress></div>
+    <div id="pdProgressDiv" style="visibility: hidden;">
+      <h3>Progress</h3>
+      <progress id="pdProgress"></progress>
+      <span id="pdProgressSpan"></span>
+    </div>
     <div id="pdFinishedDiv" class="text-24" style="display: none;">Finished.</div>
     <div id="pdFailedDiv" class="text-24" style="display: none;">Failed!</div>
   </div>
@@ -159,9 +162,9 @@ limitations under the License.
 
 <div id="deleteConfirmationDialog" class="modal_dialog"><div class="modal_dialog_container">
   <div class="modal_dialog_content"><center>
-    <div id="dcTitle" class="modal_dialog_title"></div>
+    <div id="dcTitleDiv" class="modal_dialog_title"></div>
     <br>
-    <div id="dcMessage"></div>
+    <div id="dcMessageDiv"></div>
     <br>
     <table width="100%">
       <tr>
@@ -170,6 +173,22 @@ limitations under the License.
       </tr>
     </table>
   </center></div>
+</div></div>
+
+<div id="deleteForbiddenDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <center>
+      <div id="dfTitleDiv" class="modal_dialog_title"></div>
+    </center>
+    <br>
+    <div id="dfMessageDiv"></div>
+    <br>
+    <div id="dfListDiv" style="margin-left: 50px;"></div>
+    <br><br>
+    <center>
+      <button id="dfOKButton">OK</button>
+    </center>
+  </div>
 </div></div>
 
 <div id="datasetsTabDiv" class="tabDiv">
@@ -190,7 +209,7 @@ limitations under the License.
       </td>
       <td width="10px"></td>
       <td align="center" valign="top">
-        <button id="deleteDatasetsButton" class="text-24">
+        <button id="deleteDatasetButton" class="text-24">
           <span class="material-icons iconVerticalAlign">delete</span>
           <span class="iconVerticalAlign">Delete Dataset</span>
         </button>

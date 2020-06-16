@@ -20,44 +20,40 @@
  * @author lizlooney@google.com (Liz Looney)
  */
 'use strict';
-goog.provide('fmltc.DeleteConfirmationDialog');
+goog.provide('fmltc.DeleteForbiddenDialog');
 
 goog.require('fmltc.Util');
 
 /**
- * Class for a dialog that allows the user to confirm (or reject) a delete operation.
+ * Class for a dialog that tells the user that a delete operation is forbidden.
  * @param {!fmltc.Util} util The utility instance
  * @constructor
  */
-fmltc.DeleteConfirmationDialog = function(util, title, message, onYes) {
+fmltc.DeleteForbiddenDialog = function(util, title, message, list) {
   /** @type {!fmltc.Util} */
   this.util = util;
-  this.onYes = onYes;
-  this.dialog = document.getElementById('deleteConfirmationDialog');
-  this.yesButton = document.getElementById('dcYesButton');
-  this.noButton = document.getElementById('dcNoButton');
+  this.dialog = document.getElementById('deleteForbiddenDialog');
+  this.okButton = document.getElementById('dfOKButton');
 
-  document.getElementById('dcTitleDiv').textContent = title;
-  document.getElementById('dcMessageDiv').textContent = message;
+  document.getElementById('dfTitleDiv').textContent = title;
+  document.getElementById('dfMessageDiv').textContent = message;
+  if (list) {
+    const listDiv = document.getElementById('dfListDiv');
+    listDiv.innerHTML = ''; // Remove previous children.
+    for (let i = 0; i < list.length; i++) {
+      const div = document.createElement('div');
+      div.textContent = list[i];
+      listDiv.append(div);
+    }
+  }
 
-  this.yesButton.onclick = this.yesButton_onclick.bind(this);
-  this.noButton.onclick = this.noButton_onclick.bind(this);
+  this.okButton.onclick = this.okButton_onclick.bind(this);
   this.dialog.style.display = 'block';
 };
 
-fmltc.DeleteConfirmationDialog.prototype.noButton_onclick = function() {
-  this.dismiss();
-};
-
-fmltc.DeleteConfirmationDialog.prototype.yesButton_onclick = function() {
-  this.dismiss();
-  this.onYes();
-};
-
-fmltc.DeleteConfirmationDialog.prototype.dismiss = function() {
+fmltc.DeleteForbiddenDialog.prototype.okButton_onclick = function() {
   // Clear event handlers.
-  this.yesButton.onclick = null;
-  this.noButton.onclick = null;
+  this.okButton.onclick = null;
 
   // Hide the dialog.
   this.dialog.style.display = 'none';

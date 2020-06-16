@@ -38,7 +38,7 @@ fmltc.ListDatasets = function(util) {
   this.datasetCheckboxAll = document.getElementById('datasetCheckboxAll');
   this.downloadDatasetButton = document.getElementById('downloadDatasetButton');
   this.startTrainingButton = document.getElementById('startTrainingButton');
-  this.deleteDatasetsButton = document.getElementById('deleteDatasetsButton');
+  this.deleteDatasetButton = document.getElementById('deleteDatasetButton');
 
   this.headerRowCount = this.datasetsTable.rows.length;
 
@@ -48,7 +48,6 @@ fmltc.ListDatasets = function(util) {
   this.checkboxes = [];
 
   this.waitCursor = false;
-  this.deleteDatasetCounter = 0;
 
   this.retrieveDatasets();
   this.updateButtons();
@@ -56,7 +55,7 @@ fmltc.ListDatasets = function(util) {
   this.datasetCheckboxAll.onclick = this.datasetCheckboxAll_onclick.bind(this);
   this.downloadDatasetButton.onclick = this.downloadDatasetButton_onclick.bind(this);
   this.startTrainingButton.onclick = this.startTrainingButton_onclick.bind(this);
-  this.deleteDatasetsButton.onclick = this.deleteDatasetsButton_onclick.bind(this);
+  this.deleteDatasetButton.onclick = this.deleteDatasetButton_onclick.bind(this);
 };
 
 fmltc.ListDatasets.prototype.retrieveDatasets = function() {
@@ -151,30 +150,70 @@ fmltc.ListDatasets.prototype.checkbox_onclick = function() {
   this.updateButtons();
 };
 
-fmltc.ListDatasets.prototype.deleteDatasetsButton_onclick = function() {
-  const datasetUuids = this.getCheckedDatasetUuids();
-  new fmltc.DeleteConfirmationDialog(this.util, 'Delete Datasets',
-      'Are you sure you want to delete the selected datasets?',
-			this.deleteDatasets.bind(this, datasetUuids));
+fmltc.ListDatasets.prototype.deleteDatasetButton_onclick = function() {
+  let datasetEntity = null;
+  for (let i = 0; i < this.checkboxes.length; i++) {
+    if (this.checkboxes[i].checked) {
+      datasetEntity = this.datasetEntityArray[i];
+      break;
+    }
+  }
+  if (datasetEntity == null) {
+    return;
+  }
+
+  const xhr = new XMLHttpRequest();
+  const params = 'dataset_uuid=' + encodeURIComponent(datasetEntity.dataset_uuid);
+  xhr.open('POST', '/canDeleteDataset', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_canDeleteDataset_onreadystatechange.bind(this, xhr, params,
+      datasetEntity);
+  xhr.send(params);
 };
 
-fmltc.ListDatasets.prototype.deleteDatasets = function(datasetUuids) {
+fmltc.ListDatasets.prototype.xhr_canDeleteDataset_onreadystatechange = function(xhr, params,
+    datasetEntity) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+      if (response.can_delete_dataset) {
+        new fmltc.DeleteConfirmationDialog(this.util, 'Delete Dataset',
+            'Are you sure you want to delete the selected dataset?',
+            this.deleteDataset.bind(this, datasetEntity.dataset_uuid));
+      } else {
+        const title = 'Cannot Delete Dataset';
+        const message = 'The dataset "' + datasetEntity.description +
+            '" cannot be deleted because the following ' +
+            ((response.model_entity_array.length == 1) ? 'model is' : 'models are') +
+            ' using it.';
+        const modelDescriptions = [];
+        for (let i = 0; i < response.model_entity_array.length; i++) {
+          modelDescriptions[i] = response.model_entity_array[i].description;
+        }
+        new fmltc.DeleteForbiddenDialog(this.util, title, message, modelDescriptions);
+      }
+    } else {
+      // TODO(lizlooney): handle error properly
+      console.log('Failure! /canDeleteDataset?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+    }
+  }
+};
+
+fmltc.ListDatasets.prototype.deleteDataset = function(datasetUuid) {
   this.waitCursor = true;
   this.util.setWaitCursor();
   this.updateButtons();
 
-  this.deleteDatasetCounter = 0;
-  for (let i = 0; i < datasetUuids.length; i++) {
-    const datasetUuid = datasetUuids[i];
-    const xhr = new XMLHttpRequest();
-    const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
-    xhr.open('POST', '/deleteDataset', true);
-    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    xhr.onreadystatechange = this.xhr_deleteDataset_onreadystatechange.bind(this, xhr, params,
-        datasetUuid);
-    xhr.send(params);
-    this.deleteDatasetCounter++;
-  }
+  const xhr = new XMLHttpRequest();
+  const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
+  xhr.open('POST', '/deleteDataset', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_deleteDataset_onreadystatechange.bind(this, xhr, params,
+      datasetUuid);
+  xhr.send(params);
 };
 
 fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr, params,
@@ -182,12 +221,9 @@ fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
-    this.deleteDatasetCounter--;
-    if (this.deleteDatasetCounter == 0) {
-      this.util.clearWaitCursor();
-      this.waitCursor = false;
-      this.updateButtons();
-    }
+    this.util.clearWaitCursor();
+    this.waitCursor = false;
+    this.updateButtons();
 
     if (xhr.status === 200) {
       const i = this.indexOfDataset(datasetUuid);
@@ -233,7 +269,7 @@ fmltc.ListDatasets.prototype.updateButtons = function() {
 
   this.downloadDatasetButton.disabled = this.waitCursor || countChecked != 1;
   this.startTrainingButton.disabled = this.waitCursor || countChecked == 0 || !labelsMatch;
-  this.deleteDatasetsButton.disabled = this.waitCursor || countChecked == 0;
+  this.deleteDatasetButton.disabled = this.waitCursor || countChecked != 1;
 };
 
 fmltc.ListDatasets.prototype.getCheckedDatasetUuids = function() {

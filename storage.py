@@ -257,6 +257,15 @@ def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
                     transaction.delete(tracker_client_entity.key)
         return video_entity
 
+def retrieve_incomplete_datasets_using_video(team_uuid, video_uuid):
+    dataset_entities = []
+    all_dataset_entities = retrieve_dataset_list(team_uuid)
+    for dataset_entity in all_dataset_entities:
+        if not dataset_entity['dataset_completed']:
+            if video_uuid in dataset_entity['video_uuids']:
+                dataset_entities.append(dataset_entity)
+    return dataset_entities
+
 def delete_video(team_uuid, video_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -610,7 +619,7 @@ def __query_dataset(team_uuid, dataset_uuid):
 
 # dataset - public methods
 
-def prepare_to_start_dataset_production(team_uuid, description, eval_percent, start_time_ms):
+def prepare_to_start_dataset_production(team_uuid, description, video_uuids, eval_percent, start_time_ms):
     dataset_uuid = str(uuid.uuid4().hex)
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -620,6 +629,7 @@ def prepare_to_start_dataset_production(team_uuid, description, eval_percent, st
             'team_uuid': team_uuid,
             'dataset_uuid': dataset_uuid,
             'description': description,
+            'video_uuids': video_uuids,
             'eval_percent': eval_percent,
             'creation_time_ms': start_time_ms,
             'dataset_completed': False,
@@ -1121,6 +1131,14 @@ def retrieve_model_list(team_uuid):
     query.add_filter('delete_in_progress', '=', False)
     query.order = ['creation_time_ms']
     model_entities = list(query.fetch())
+    return model_entities
+
+def retrieve_models_using_dataset(team_uuid, dataset_uuid):
+    model_entities = []
+    all_model_entities = retrieve_model_list(team_uuid)
+    for model_entity in all_model_entities:
+        if dataset_uuid in model_entity['dataset_uuids']:
+            model_entities.append(model_entity)
     return model_entities
 
 def delete_model(team_uuid, model_uuid):
