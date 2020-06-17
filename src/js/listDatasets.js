@@ -261,7 +261,7 @@ fmltc.ListDatasets.prototype.updateButtons = function() {
       countChecked++;
       if (labels == null) {
         labels = this.datasetEntityArray[i].sorted_label_list;
-      } else if (this.util.sortedLabelListsEqual(labels, this.datasetEntityArray[i].sorted_label_list)) {
+      } else if (!this.util.sortedLabelListsEqual(labels, this.datasetEntityArray[i].sorted_label_list)) {
         labelsMatch = false;
       }
     }

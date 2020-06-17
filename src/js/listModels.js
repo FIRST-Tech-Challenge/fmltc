@@ -49,6 +49,9 @@ fmltc.ListModels = function(util) {
   this.trainStateTds = [];
   this.evalStateTds = [];
   this.trainTimeTds = [];
+  this.trainingDone = [];
+
+  this.trainTimeIntervalId = 0;
 
   this.waitCursor = false;
   this.deleteModelCounter = 0;
@@ -152,22 +155,59 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
   this.evalStateTds[i].textContent = this.util.formatJobState(
       modelEntity.cancel_requested, modelEntity.eval_job_state);
 
-  if (modelEntity['train_job_elapsed_seconds'] > 0) {
+  if (modelEntity.train_job_elapsed_seconds > 0) {
     this.trainTimeTds[i].textContent =
         this.util.formatElapsedSeconds(modelEntity.train_job_elapsed_seconds);
   }
 
   if (this.util.isTrainingDone(modelEntity)) {
     this.trs[i].className = 'trainingDone';
+    this.trainingDone[i] = true;
+    this.clearTrainTimeIntervalIfNecessary();
 
   } else {
     this.trs[i].className = 'trainingNotDone';
+    this.trainingDone[i] = false;
     setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid), 60 * 1000);
+    if (!this.trainTimeIntervalId) {
+      this.trainTimeIntervalId = setInterval(this.updateTrainTime.bind(this), 500);
+    }
   }
 
 
   this.updateButtons();
 };
+
+fmltc.ListModels.prototype.updateTrainTime = function() {
+  for (let i = 0; i < this.trainingDone.length; i++) {
+    if (!this.trainingDone[i]) {
+      if (this.modelEntityArray[i] &&
+          this.modelEntityArray[i].train_job_elapsed_seconds == 0) {
+        if ('train_job_start_time' in this.modelEntityArray[i]) {
+          this.trainTimeTds[i].textContent = this.util.formatElapsedSeconds(
+              this.util.calculateSecondsSince(this.modelEntityArray[i].train_job_start_time));
+        }
+      }
+    }
+  }
+};
+
+fmltc.ListModels.prototype.clearTrainTimeIntervalIfNecessary = function() {
+  if (this.trainTimeIntervalId) {
+    let allTrainingDone = true;
+    for (let i = 0; i < this.trainingDone.length; i++) {
+      if (!this.trainingDone[i]) {
+        allTrainingDone = false;
+        break;
+      }
+    }
+    if (allTrainingDone) {
+      clearInterval(this.trainTimeIntervalId);
+      this.trainTimeIntervalId = 0;
+    }
+  }
+};
+
 
 fmltc.ListModels.prototype.retrieveModelEntity = function(modelUuid) {
   if (this.indexOfModel(modelUuid) == -1) {

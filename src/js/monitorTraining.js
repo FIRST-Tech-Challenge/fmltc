@@ -76,8 +76,10 @@ fmltc.MonitorTraining = function(util, modelEntity) {
 
   document.getElementById('descriptionSpan').textContent = this.modelEntity.description;
 
-  this.refreshIntervalRangeInput.title = this.refreshIntervalRangeInput.value + ' minutes';
+  this.refreshIntervalId = 0;
+  this.trainTimeIntervalId = 0;
 
+  this.setRefreshIntervalRangeInputTitle();
   this.updateModelUI();
   this.retrieveData();
 
@@ -134,12 +136,20 @@ fmltc.MonitorTraining.prototype.xhr_cancelTraining_onreadystatechange = function
   }
 };
 
-fmltc.MonitorTraining.prototype.refreshIntervalRangeInput_onchange = function() {
-  this.refreshIntervalRangeInput.title = this.refreshIntervalRangeInput.value + ' minutes';
+fmltc.MonitorTraining.prototype.setRefreshIntervalRangeInputTitle = function() {
+  if (this.refreshIntervalRangeInput.value == 1) {
+    this.refreshIntervalRangeInput.title = this.refreshIntervalRangeInput.value + ' minute';
+  } else {
+    this.refreshIntervalRangeInput.title = this.refreshIntervalRangeInput.value + ' minutes';
+  }
+};
 
-  if (this.intervalId) {
-    clearInterval(this.intervalId);
-    this.intervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalRangeInput.value * 60 * 1000);
+fmltc.MonitorTraining.prototype.refreshIntervalRangeInput_onchange = function() {
+  this.setRefreshIntervalRangeInputTitle();
+
+  if (this.refreshIntervalId) {
+    clearInterval(this.refreshIntervalId);
+    this.refreshIntervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalRangeInput.value * 60 * 1000);
   }
 };
 
@@ -234,7 +244,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
 
     } else {
       failureCount++;
-      if (!this.intervalId && failureCount < 5) {
+      if (!this.refreshIntervalId && failureCount < 5) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveSummaries?' + params + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveSummaries.bind(this, dataStructure, failureCount), delay * 1000);
@@ -252,13 +262,21 @@ fmltc.MonitorTraining.prototype.modelEntityUpdated = function() {
 
   if (this.util.isTrainingDone(this.modelEntity)) {
     this.activeTrainingDiv.style.display = 'none';
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+    if (this.refreshIntervalId) {
+      clearInterval(this.refreshIntervalId);
+      this.refreshIntervalId = 0;
+    }
+    if (this.trainTimeIntervalId) {
+      clearInterval(this.trainTimeIntervalId);
+      this.trainTimeIntervalId = 0;
     }
   } else {
     this.activeTrainingDiv.style.display = 'inline-block';
-    if (!this.intervalId) {
-      this.intervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalRangeInput.value * 60 * 1000);
+    if (!this.refreshIntervalId) {
+      this.refreshIntervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalRangeInput.value * 60 * 1000);
+    }
+    if (!this.trainTimeIntervalId) {
+      this.trainTimeIntervalId = setInterval(this.updateTrainTime.bind(this), 500);
     }
   }
 };
@@ -309,12 +327,21 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
   this.evalStateTd.textContent = this.util.formatJobState(
       this.modelEntity.cancel_requested, this.modelEntity.eval_job_state);
 
-  if (this.modelEntity['train_job_elapsed_seconds'] > 0) {
+  if (this.modelEntity.train_job_elapsed_seconds > 0) {
     this.trainTimeTd.textContent =
         this.util.formatElapsedSeconds(this.modelEntity.train_job_elapsed_seconds);
   }
 
   this.modelLoader.style.visibility = 'hidden';
+};
+
+fmltc.MonitorTraining.prototype.updateTrainTime = function() {
+  if (this.modelEntity.train_job_elapsed_seconds == 0) {
+    if ('train_job_start_time' in this.modelEntity) {
+      this.trainTimeTd.textContent = this.util.formatElapsedSeconds(
+          this.util.calculateSecondsSince(this.modelEntity.train_job_start_time));
+    }
+  }
 };
 
 fmltc.MonitorTraining.prototype.updateSummariesUI = function(dataStructure) {
@@ -384,6 +411,8 @@ fmltc.MonitorTraining.prototype.fillScalarsDiv = function(jobData) {
         width: 800,
         height: 500,
         hAxis: {
+          minValue: 0,
+          maxValue: this.modelEntity.num_training_steps,
           title: 'Step'
         },
         vAxis: {
