@@ -95,7 +95,8 @@ def index():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     return flask.render_template('root.html', time_time=time.time(), project_id=constants.PROJECT_ID,
         team_preferences=storage.retrieve_user_preferences(team_uuid),
-        http_perform_action_url=HTTP_PERFORM_ACTION_URL)
+        http_perform_action_url=HTTP_PERFORM_ACTION_URL,
+        starting_models=model_trainer.get_starting_model_names())
 
 @app.route('/labelVideo')
 @redirect_to_login_if_needed
@@ -478,12 +479,12 @@ def start_training_model():
     data = flask.request.form.to_dict(flat=True)
     description = data.get('description')
     dataset_uuids_json = data.get('dataset_uuids')
-    starting_checkpoint = data.get('starting_checkpoint')
+    starting_model = data.get('starting_model')
     max_running_minutes = int(data.get('max_running_minutes'))
     num_training_steps = int(data.get('num_training_steps'))
     start_time_ms = int(data.get('start_time_ms'))
     model_entity = model_trainer.start_training_model(team_uuid, description, dataset_uuids_json,
-        starting_checkpoint, max_running_minutes, num_training_steps, start_time_ms)
+        starting_model, max_running_minutes, num_training_steps, start_time_ms)
     action_parameters = model_trainer.make_action_parameters(team_uuid, model_entity['model_uuid'])
     team_entity = storage.retrieve_team_entity(team_uuid)
     sanitize(model_entity)

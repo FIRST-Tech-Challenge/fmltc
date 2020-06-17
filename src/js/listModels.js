@@ -125,6 +125,9 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
     descriptionA.appendChild(descriptionTextNode);
     descriptionTd.appendChild(descriptionA);
 
+    const originalStartingModelTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    originalStartingModelTd.textContent = modelEntity.original_starting_model;
+
     const videoFilenamesTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     for (let i = 0; i < modelEntity.video_filenames.length; i++) {
       const div = document.createElement('div');
@@ -132,12 +135,6 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
       videoFilenamesTd.appendChild(div);
     }
 
-    const previousTrainingStepsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    previousTrainingStepsTd.setAttribute('align', 'right');
-    previousTrainingStepsTd.textContent = modelEntity.previous_training_steps;
-    const newTrainingStepsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    newTrainingStepsTd.setAttribute('align', 'right');
-    newTrainingStepsTd.textContent = modelEntity.num_training_steps;
     const totalTrainingStepsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     totalTrainingStepsTd.setAttribute('align', 'right');
     totalTrainingStepsTd.textContent = modelEntity.total_training_steps;

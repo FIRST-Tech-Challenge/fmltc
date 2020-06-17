@@ -40,6 +40,7 @@ fmltc.StartTrainingDialog = function(
   this.maxRunningMinutesInput = document.getElementById('stMaxRunningMinutesInput');
   this.totalTrainingMinutesSpan = document.getElementById('stTotalTrainingMinutesSpan');
   this.remainingTrainingMinutesSpan = document.getElementById('stRemainingTrainingMinutesSpan');
+  this.startingModelSelect = document.getElementById('stStartingModelSelect');
   this.numTrainingStepsInput = document.getElementById('stNumTrainingStepsInput');
   this.descriptionInput = document.getElementById('stDescriptionInput');
   this.startButton = document.getElementById('stStartButton');
@@ -52,6 +53,16 @@ fmltc.StartTrainingDialog = function(
   this.maxRunningMinutesInput.min = Math.min(20, remainingTrainingMinutes);
   this.maxRunningMinutesInput.max = remainingTrainingMinutes;
   this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
+
+  if (this.startingModelSelect.options.length == 0) {
+    const startingModels = this.util.startingModels;
+    for (let i = 0; i < startingModels.length; i++) {
+      const option = document.createElement("option");
+      option.text = startingModels[i];
+      this.startingModelSelect.add(option);
+    }
+  }
+
   this.numTrainingStepsInput.min = 100;
   this.numTrainingStepsInput.max = 4000;
   this.numTrainingStepsInput.value = 2000;
@@ -100,13 +111,13 @@ fmltc.StartTrainingDialog.prototype.startButton_onclick = function() {
 
   const datasetUuidsJson = JSON.stringify(this.datasetUuids);
 
-  const startingCheckpoint = 'SSD MobileNet';
+  const startingModel = encodeURIComponent(this.startingModelSelect.options[this.startingModelSelect.selectedIndex].value);
 
   const xhr = new XMLHttpRequest();
   const params =
       'description=' + encodeURIComponent(this.descriptionInput.value) +
       '&dataset_uuids=' + encodeURIComponent(datasetUuidsJson) +
-      '&starting_checkpoint=' + encodeURIComponent(startingCheckpoint) +
+      '&starting_model=' + encodeURIComponent(startingModel) +
       '&max_running_minutes=' + this.maxRunningMinutesInput.value +
       '&num_training_steps=' + this.numTrainingStepsInput.value +
       '&start_time_ms=' + Date.now();

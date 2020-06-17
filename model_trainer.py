@@ -37,30 +37,52 @@ import util
 
 BUCKET = ('%s' % constants.PROJECT_ID)
 
-SSD_MOBILENET = 'SSD MobileNet'
+STARTING_MODELS = {
+    #Takes too long 'ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync': 'ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync_2018_07_03',
+    'ssd_mobilenet_v1_0.75_depth_quantized_300x300_coco14_sync': 'ssd_mobilenet_v1_0.75_depth_quantized_300x300_coco14_sync_2018_07_18',
+    'ssd_mobilenet_v1_fpn_shared_box_predictor_640x640_coco14_sync': 'ssd_mobilenet_v1_fpn_shared_box_predictor_640x640_coco14_sync_2018_07_03',
+    #'ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync': 'ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03',
+    #'ssd_mobilenet_v1_quantized_300x300_coco14_sync': 'ssd_mobilenet_v1_quantized_300x300_coco14_sync_2018_07_18',
+}
+
+def get_starting_model_names():
+    names = list(STARTING_MODELS.keys())
+    names.sort()
+    return names
+
+def get_normalized_input_image_tensor(starting_model_name):
+    if starting_model_name == 'ssd_mobilenet_v1_fpn_shared_box_predictor_640x640_coco14_sync':
+        return [1, 640, 640, 3]
+    return [1, 300, 300, 3]
 
 def start_training_model(team_uuid, description, dataset_uuids_json,
-        starting_checkpoint, max_running_minutes, num_training_steps, start_time_ms):
+        starting_model, max_running_minutes, num_training_steps, start_time_ms):
     # Call retrieve_model_list to update all models (which may have finished training) and update
     # the team_entity.
     model_entities = retrieve_model_list(team_uuid)
 
-    if starting_checkpoint == SSD_MOBILENET:
-        starting_model_uuid = None
-        starting_model_entity = None
-        user_visible_starting_checkpoint = SSD_MOBILENET
-        fine_tune_checkpoint = 'gs://%s/static/training/models/%s/model.ckpt' % (
-            BUCKET, 'ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync_2018_07_03')
-    else:
-        # starting_checkpoint is the model_uuid of one of the user's own models.
-        # user_visible_starting_checkpoint is the description of that model.
-        starting_model_uuid = starting_checkpoint
+    found_starting_model = False
+    for starting_model_name, starting_model_checkpoint in STARTING_MODELS.items():
+        if starting_model == starting_model_name:
+            found_starting_model = True
+            starting_model_uuid = None
+            starting_model_entity = None
+            user_visible_starting_model = starting_model
+            original_starting_model = starting_model
+            fine_tune_checkpoint = 'gs://%s/static/training/models/%s/model.ckpt' % (
+                BUCKET, starting_model_checkpoint)
+            break
+    if not found_starting_model:
+        # starting_model is the model_uuid of one of the user's own models.
+        starting_model_uuid = starting_model
         starting_model_entity = retrieve_model_entity(team_uuid, starting_model_uuid)
         if starting_model_entity['trained_checkpoint_path'] == '':
             message = 'Error: Trained checkpoint not found for model_uuid=%s.' % starting_model_uuid
             logging.critical(message)
             raise exceptions.HttpErrorNotFound(message)
-        user_visible_starting_checkpoint = starting_model_entity['description']
+        # user_visible_starting_model is the description of that model.
+        user_visible_starting_model = starting_model_entity['description']
+        original_starting_model = starting_model_entity['original_starting_model']
         fine_tune_checkpoint = starting_model_entity['trained_checkpoint_path']
 
     # storage.model_trainer_starting will raise an exception if the team doesn't have enough
@@ -127,7 +149,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
 
         # Create the pipeline.config file and store it in cloud storage.
         bucket = util.storage_client().get_bucket(BUCKET)
-        config_template_blob_name = 'static/training/models/configs/ssd_mobilenet_v1_0.75_depth_quantized_300x300_pets_sync.config'
+        config_template_blob_name = 'static/training/models/configs/%s.config' % original_starting_model
+        quantization_delay = max(0, num_training_steps - 200)
         pipeline_config = (bucket.blob(config_template_blob_name).download_as_string().decode('utf-8')
             .replace('TO_BE_CONFIGURED/num_classes', str(len(sorted_label_list)))
             .replace('TO_BE_CONFIGURED/fine_tune_checkpoint', fine_tune_checkpoint)
@@ -135,6 +158,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             .replace('TO_BE_CONFIGURED/label_map_path', label_map_path)
             .replace('TO_BE_CONFIGURED/eval_input_path', json.dumps(eval_input_path))
             .replace('TO_BE_CONFIGURED/num_examples', str(eval_frame_count))
+            .replace('TO_BE_CONFIGURED/num_training_steps', str(num_training_steps))
+            .replace('TO_BE_CONFIGURED/quantization_delay', str(quantization_delay))
             )
         pipeline_config_path = blob_storage.store_pipeline_config(team_uuid, model_uuid, pipeline_config)
 
@@ -222,11 +247,10 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         raise
     model_entity = storage.model_trainer_started(team_uuid, model_uuid, description,
         dataset_uuids, start_time_ms, max_running_minutes, num_training_steps,
-        previous_training_steps, starting_checkpoint, user_visible_starting_checkpoint,
-        fine_tune_checkpoint, video_filenames, sorted_label_list, label_map_path,
-        train_input_path, eval_input_path,
-        train_frame_count, eval_frame_count,
-        train_negative_frame_count, eval_negative_frame_count,
+        previous_training_steps, starting_model, user_visible_starting_model,
+        original_starting_model, fine_tune_checkpoint, video_filenames,
+        sorted_label_list, label_map_path, train_input_path, eval_input_path,
+        train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
         train_dict_label_to_count, eval_dict_label_to_count,
         train_job_response, eval_job_response)
     return model_entity
