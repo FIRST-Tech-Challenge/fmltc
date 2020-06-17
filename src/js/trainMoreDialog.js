@@ -142,14 +142,14 @@ fmltc.TrainMoreDialog.prototype.startButton_onclick = function() {
   }
   const datasetUuidsJson = JSON.stringify(datasetUuids);
 
-  // Use the model_uuid for startingCheckpoint.
-  const startingCheckpoint = this.modelEntity.model_uuid;
+  // Use the model_uuid for startingModel.
+  const startingModel = this.modelEntity.model_uuid;
 
   const xhr = new XMLHttpRequest();
   const params =
       'description=' + encodeURIComponent(this.descriptionInput.value) +
       '&dataset_uuids=' + encodeURIComponent(datasetUuidsJson) +
-      '&starting_checkpoint=' + encodeURIComponent(startingCheckpoint) +
+      '&starting_model=' + encodeURIComponent(startingModel) +
       '&max_running_minutes=' + this.maxRunningMinutesInput.value +
       '&num_training_steps=' + this.numTrainingStepsInput.value +
       '&start_time_ms=' + Date.now();

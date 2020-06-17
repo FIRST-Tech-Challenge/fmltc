@@ -26,10 +26,11 @@ goog.provide('fmltc.Util');
  * Class for utilities.
  * @constructor
  */
-fmltc.Util = function(pageBasename, httpPerformActionUrl, preferences) {
+fmltc.Util = function(pageBasename, httpPerformActionUrl, preferences, startingModels) {
   this.pageBasename = pageBasename;
   this.httpPerformActionUrl = httpPerformActionUrl;
   this.preferences = preferences;
+  this.startingModels = startingModels;
 
   const logoutButton = document.getElementById('logoutButton');
   if (logoutButton) {

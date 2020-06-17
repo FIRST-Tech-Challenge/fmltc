@@ -65,6 +65,8 @@ def create_tflite(team_uuid, model_uuid):
     if exists:
         return download_url
 
+    model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
+
     # Write the tflite_graph.pb to a local file.
     graph_def_file = '/tmp/%s.pb' % str(uuid.uuid4().hex)
     os.makedirs(os.path.dirname(graph_def_file), exist_ok=True)
@@ -82,7 +84,11 @@ def create_tflite(team_uuid, model_uuid):
             'TFLite_Detection_PostProcess:2',
             'TFLite_Detection_PostProcess:3'
         ]
-        input_shapes = {'normalized_input_image_tensor': [1, 300, 300, 3]}
+        normalized_input_image_tensor = model_trainer.get_normalized_input_image_tensor(
+            model_entity['original_starting_model'])
+        input_shapes = {
+            'normalized_input_image_tensor': normalized_input_image_tensor,
+        }
         converter = tf.lite.TFLiteConverter.from_frozen_graph(
             graph_def_file, input_arrays, output_arrays, input_shapes=input_shapes)
         converter.inference_type = lite_constants.QUANTIZED_UINT8

@@ -985,10 +985,11 @@ def model_trainer_failed_to_start(team_uuid, max_running_minutes):
         team_entity['remaining_training_minutes'] += max_running_minutes
         transaction.put(team_entity)
 
-def model_trainer_started(team_uuid, model_uuid, description, dataset_uuids,
-        start_time_ms, max_running_minutes, num_training_steps, previous_training_steps,
-        starting_checkpoint, user_visible_starting_checkpoint, fine_tune_checkpoint,
-        video_filenames, sorted_label_list, label_map_path, train_input_path, eval_input_path,
+def model_trainer_started(team_uuid, model_uuid, description,
+        dataset_uuids, start_time_ms, max_running_minutes, num_training_steps,
+        previous_training_steps, starting_model, user_visible_starting_model,
+        original_starting_model, fine_tune_checkpoint, video_filenames,
+        sorted_label_list, label_map_path, train_input_path, eval_input_path,
         train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
         train_dict_label_to_count, eval_dict_label_to_count, train_job, eval_job):
     datastore_client = datastore.Client()
@@ -1012,8 +1013,9 @@ def model_trainer_started(team_uuid, model_uuid, description, dataset_uuids,
             'eval_negative_frame_count': eval_negative_frame_count,
             'train_dict_label_to_count': train_dict_label_to_count,
             'eval_dict_label_to_count': eval_dict_label_to_count,
-            'starting_checkpoint': starting_checkpoint,
-            'user_visible_starting_checkpoint': user_visible_starting_checkpoint,
+            'starting_model': starting_model,
+            'user_visible_starting_model': user_visible_starting_model,
+            'original_starting_model': original_starting_model,
             'fine_tune_checkpoint': fine_tune_checkpoint,
             'max_running_minutes': max_running_minutes,
             'num_training_steps': num_training_steps,
@@ -1117,9 +1119,8 @@ def update_model_entity(team_uuid, model_uuid, train_job, eval_job):
                 transaction.put(team_entity)
         if eval_job is not None:
             __update_model_entity(model_entity, eval_job, 'eval_')
-        # If training was successful, set trained_checkpoint_path.
-        if model_entity['train_job_state'] == 'SUCCEEDED':
-            model_entity['trained_checkpoint_path'] = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
+        # Set trained_checkpoint_path.
+        model_entity['trained_checkpoint_path'] = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
         model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
         transaction.put(model_entity)
         return model_entity

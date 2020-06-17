@@ -204,7 +204,7 @@ limitations under the License.
       <td align="center" valign="top">
         <button id="startTrainingButton" class="text-24">
           <span class="material-icons iconVerticalAlign">model_training</span>
-          <span class="iconVerticalAlign">Produce Model</span>
+          <span class="iconVerticalAlign">Start Training</span>
         </button>
       </td>
       <td width="10px"></td>
@@ -278,7 +278,7 @@ limitations under the License.
         <td valign="top">
           <button id="stDismissButton" class="material-icons iconVerticalAlign text-24">close</button>
         </td>
-        <td valign="top"><span class="modal_dialog_title">Start Training a Model</span></td>
+        <td valign="top"><span class="modal_dialog_title">Start Training</span></td>
       </tr>
     </table>
     <br><br>
@@ -297,6 +297,10 @@ limitations under the License.
         <td><label for="stMaxRunningMinutesInput">Maximum Training Time:</label></td>
         <td><input id="stMaxRunningMinutesInput" type="number" class="rightText text-18"
         style="width: 5ch">&nbsp;Minutes</td>
+      </tr>
+      <tr>
+        <td><label for="stStartingModelSelect">Starting Model:</label></td>
+        <td><select id="stStartingModelSelect" class="text-18"></td>
       </tr>
       <tr>
         <td><label for="stNumTrainingStepsInput">Number of Training Steps:</label></td>
@@ -355,15 +359,13 @@ limitations under the License.
         <th rowspan="2" class="cellWithBorder"><input type="checkbox" id="modelCheckboxAll"></th>
         <th rowspan="2" class="cellWithBorder">Date Created</th>
         <th rowspan="2" class="cellWithBorder" width="200px">Description</th>
+        <th rowspan="2" class="cellWithBorder">Starting Model</th>
         <th rowspan="2" class="cellWithBorder">Video Filenames</th>
-        <th colspan="3" class="cellWithBorder">Training Steps</th>
+        <th rowspan="2" class="cellWithBorder">Training Steps</th>
         <th colspan="2" class="cellWithBorder">State</th>
         <th rowspan="2" class="cellWithBorder">Training Time</th>
       </tr>
       <tr>
-        <th class="cellWithBorder">Previous</th>
-        <th class="cellWithBorder">New</th>
-        <th class="cellWithBorder">Total</th>
         <th class="cellWithBorder">Training</th>
         <th class="cellWithBorder">Evaluation</th>
       </tr>
@@ -421,7 +423,10 @@ limitations under the License.
 
 <script type="text/javascript">
   window.addEventListener('load', function() {
-    const util = new fmltc.Util('root', {{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
+    const util = new fmltc.Util('root',
+        {{ http_perform_action_url|tojson }},
+        {{ team_preferences|tojson }},
+        {{ starting_models|tojson }});
     util.setListModels(new fmltc.ListModels(util));
     util.setListDatasets(new fmltc.ListDatasets(util));
     util.setListVideos(new fmltc.ListVideos(util));

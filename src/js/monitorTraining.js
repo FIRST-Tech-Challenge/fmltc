@@ -51,7 +51,8 @@ fmltc.MonitorTraining = function(util, modelEntity) {
   this.evalFrameCountTd = document.getElementById('evalFrameCountTd');
   this.evalNegativeFrameCountTd = document.getElementById('evalNegativeFrameCountTd');
   this.evalLabelCountsTable = document.getElementById('evalLabelCountsTable');
-  this.startingCheckpointTd = document.getElementById('startingCheckpointTd');
+  this.originalModelTd = document.getElementById('originalModelTd');
+  this.startingModelTd = document.getElementById('startingModelTd');
   this.previousTrainingStepsTd = document.getElementById('previousTrainingStepsTd');
   this.numTrainingStepsTd = document.getElementById('numTrainingStepsTd');
   this.totalTrainingStepsTd = document.getElementById('totalTrainingStepsTd');
@@ -293,7 +294,8 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
       td.textContent = new Number(this.modelEntity.eval_dict_label_to_count[label]).toLocaleString();
     }
 
-    this.startingCheckpointTd.textContent = this.modelEntity.user_visible_starting_checkpoint;
+    this.originalModelTd.textContent = this.modelEntity.original_starting_model;
+    this.startingModelTd.textContent = this.modelEntity.user_visible_starting_model;
 
     this.previousTrainingStepsTd.textContent = new Number(this.modelEntity.previous_training_steps).toLocaleString();
     this.numTrainingStepsTd.textContent = new Number(this.modelEntity.num_training_steps).toLocaleString();
