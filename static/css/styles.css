@@ -169,6 +169,7 @@ body {
   background-color: #f1f1f1;
   float: left;
   border: none;
+  border-right: 1px solid #ccc;
   outline: none;
   cursor: pointer;
   padding: 14px 16px;

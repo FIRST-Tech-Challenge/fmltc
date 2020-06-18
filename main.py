@@ -68,12 +68,23 @@ def login_required(func):
         return flask.redirect('/403')
     return wrapper
 
+def handle_exceptions(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except exceptions.HttpError as e:
+            return e.status_description, e.status_code
+    return wrapper
+
 def sanitize(o):
     if isinstance(o, list):
         for item in o:
             sanitize(item)
     if isinstance(o, dict):
         o.pop('team_uuid', None)
+        for key, value in o.items():
+            sanitize(value)
     return o
 
 # pages
@@ -90,6 +101,7 @@ def login():
         program=program, team_number=team_number)
 
 @app.route('/')
+@handle_exceptions
 @redirect_to_login_if_needed
 def index():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -99,6 +111,7 @@ def index():
         starting_models=model_trainer.get_starting_model_names())
 
 @app.route('/labelVideo')
+@handle_exceptions
 @redirect_to_login_if_needed
 def label_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -111,19 +124,27 @@ def label_video():
         video_uuid=video_uuid, video_entity=video_entity)
 
 @app.route('/monitorTraining')
+@handle_exceptions
 @redirect_to_login_if_needed
 def monitor_training():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     model_uuid = flask.request.args.get('model_uuid')
-    model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
-    sanitize(model_entity)
+    model_entities_by_uuid, dataset_entities_by_uuid, video_entities_by_uuid = storage.retrieve_entities_for_monitor_training(
+        team_uuid, model_uuid, model_trainer.retrieve_model_list(team_uuid))
+    sanitize(model_entities_by_uuid)
+    sanitize(dataset_entities_by_uuid)
+    sanitize(video_entities_by_uuid)
     return flask.render_template('monitorTraining.html', time_time=time.time(), project_id=constants.PROJECT_ID,
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         http_perform_action_url=HTTP_PERFORM_ACTION_URL,
-        model_uuid=model_uuid, model_entity=model_entity)
+        model_uuid=model_uuid,
+        model_entities_by_uuid=model_entities_by_uuid,
+        dataset_entities_by_uuid=dataset_entities_by_uuid,
+        video_entities_by_uuid=video_entities_by_uuid)
 
 
 @app.route('/test')
+@handle_exceptions
 @redirect_to_login_if_needed
 def test():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -135,12 +156,14 @@ def test():
 # requests
 
 @app.route('/logout', methods=['POST'])
+@handle_exceptions
 def logout():
     # Remove the team information from the flask.session if it's there.
     team_info.clear(flask.session)
     return 'OK'
 
 @app.route('/setUserPreference', methods=['POST'])
+@handle_exceptions
 @login_required
 def set_user_preference():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -151,6 +174,7 @@ def set_user_preference():
     return 'OK'
 
 @app.route('/prepareToUploadVideo', methods=['POST'])
+@handle_exceptions
 @login_required
 def prepare_to_upload_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -173,6 +197,7 @@ def prepare_to_upload_video():
     return flask.jsonify(response)
 
 @app.route('/triggerFrameExtraction', methods=['POST'])
+@handle_exceptions
 @login_required
 def trigger_frame_extraction():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -187,6 +212,7 @@ def trigger_frame_extraction():
     return flask.jsonify(response)
 
 @app.route('/retrieveVideoList', methods=['POST'])
+@handle_exceptions
 @login_required
 def retrieve_video_list():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -198,6 +224,7 @@ def retrieve_video_list():
     return flask.jsonify(response)
 
 @app.route('/retrieveVideo', methods=['POST'])
+@handle_exceptions
 @login_required
 def retrieve_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -211,12 +238,13 @@ def retrieve_video():
     return flask.jsonify(response)
 
 @app.route('/canDeleteVideo', methods=['POST'])
+@handle_exceptions
 @login_required
 def can_delete_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     video_uuid = data.get('video_uuid')
-    dataset_entity_array = storage.retrieve_incomplete_datasets_using_video(team_uuid, video_uuid)
+    dataset_entity_array = storage.retrieve_datasets_using_video(team_uuid, video_uuid)
     can_delete_video = len(dataset_entity_array) == 0
     response = {
         'can_delete_video': can_delete_video,
@@ -225,20 +253,22 @@ def can_delete_video():
     return flask.jsonify(response)
 
 @app.route('/deleteVideo', methods=['POST'])
+@handle_exceptions
 @login_required
 def delete_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     video_uuid = data.get('video_uuid')
-    dataset_entity_array = storage.retrieve_incomplete_datasets_using_video(team_uuid, video_uuid)
+    dataset_entity_array = storage.retrieve_datasets_using_video(team_uuid, video_uuid)
     if len(dataset_entity_array) > 0:
-        message = 'Error: One or more incomplete datasets uses video_uuid=%s.' % video_uuid
+        message = 'Error: One or more datasets uses video_uuid=%s.' % video_uuid
         logging.critical(message)
         raise exceptions.HttpErrorConflict(message)
     storage.delete_video(team_uuid, video_uuid)
     return 'OK'
 
 @app.route('/retrieveVideoFrameImage', methods=['GET'])
+@handle_exceptions
 @login_required
 def retrieve_video_frame_image():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -249,6 +279,7 @@ def retrieve_video_frame_image():
     return Response(image_data, mimetype=content_type)
 
 @app.route('/retrieveVideoFrames', methods=['POST'])
+@handle_exceptions
 @login_required
 def retrieve_video_frames():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -265,6 +296,7 @@ def retrieve_video_frames():
     return flask.jsonify(response)
 
 @app.route('/retrieveVideoFramesWithImageUrls', methods=['POST'])
+@handle_exceptions
 @login_required
 def retrieve_video_frames_with_image_urls():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -283,6 +315,7 @@ def retrieve_video_frames_with_image_urls():
 
 
 @app.route('/storeVideoFrameBboxesText', methods=['POST'])
+@handle_exceptions
 @login_required
 def store_video_frame_bboxes_text():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -294,6 +327,7 @@ def store_video_frame_bboxes_text():
     return 'ok'
 
 @app.route('/storeVideoFrameIncludeInDataset', methods=['POST'])
+@handle_exceptions
 @login_required
 def store_video_frame_include_in_dataset():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -305,6 +339,7 @@ def store_video_frame_include_in_dataset():
     return 'ok'
 
 @app.route('/prepareToStartTracking', methods=['POST'])
+@handle_exceptions
 @login_required
 def prepare_to_start_tracking():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -325,6 +360,7 @@ def prepare_to_start_tracking():
     return flask.jsonify(response)
 
 @app.route('/retrieveTrackedBboxes', methods=['POST'])
+@handle_exceptions
 @login_required
 def retrieve_tracked_bboxes():
     time_limit = datetime.now() + timedelta(seconds=25)
@@ -342,6 +378,7 @@ def retrieve_tracked_bboxes():
     return flask.jsonify(response)
 
 @app.route('/continueTracking', methods=['POST'])
+@handle_exceptions
 @login_required
 def continue_tracking():
     time_limit = datetime.now() + timedelta(seconds=25)
@@ -366,6 +403,7 @@ def continue_tracking():
     return 'OK'
 
 @app.route('/trackingClientStillAlive', methods=['POST'])
+@handle_exceptions
 @login_required
 def tracking_client_still_alive():
     data = flask.request.form.to_dict(flat=True)
@@ -375,6 +413,7 @@ def tracking_client_still_alive():
     return 'OK'
 
 @app.route('/stopTracking', methods=['POST'])
+@handle_exceptions
 @login_required
 def stop_tracking():
     data = flask.request.form.to_dict(flat=True)
@@ -384,6 +423,7 @@ def stop_tracking():
     return 'OK'
 
 @app.route('/prepareToStartDatasetProduction', methods=['POST'])
+@handle_exceptions
 @login_required
 def prepare_to_start_dataset_production():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -404,6 +444,7 @@ def prepare_to_start_dataset_production():
     return flask.jsonify(response)
 
 @app.route('/retrieveDatasetList', methods=['POST'])
+@handle_exceptions
 @login_required
 def retrieve_dataset_list():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -415,6 +456,7 @@ def retrieve_dataset_list():
     return flask.jsonify(response)
 
 @app.route('/retrieveDataset', methods=['POST'])
+@handle_exceptions
 @login_required
 def retrieve_dataset():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -434,6 +476,7 @@ def retrieve_dataset():
     return flask.jsonify(response)
 
 @app.route('/canDeleteDataset', methods=['POST'])
+@handle_exceptions
 @login_required
 def can_delete_dataset():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -448,6 +491,7 @@ def can_delete_dataset():
     return flask.jsonify(response)
 
 @app.route('/deleteDataset', methods=['POST'])
+@handle_exceptions
 @login_required
 def delete_dataset():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -457,6 +501,7 @@ def delete_dataset():
     return 'OK'
 
 @app.route('/prepareToZipDataset', methods=['POST'])
+@handle_exceptions
 @login_required
 def prepare_to_zip_dataset():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -475,6 +520,7 @@ def prepare_to_zip_dataset():
     return flask.jsonify(response)
 
 @app.route('/getDatasetZipStatus', methods=['POST'])
+@handle_exceptions
 @login_required
 def get_dataset_zip_status():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -495,6 +541,7 @@ def get_dataset_zip_status():
     return flask.jsonify(response)
 
 @app.route('/deleteDatasetZip', methods=['POST'])
+@handle_exceptions
 @login_required
 def delete_dataset_zip():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -506,6 +553,7 @@ def delete_dataset_zip():
     return 'OK'
 
 @app.route('/startTrainingModel', methods=['POST'])
+@handle_exceptions
 @login_required
 def start_training_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -529,6 +577,7 @@ def start_training_model():
     return flask.jsonify(response)
 
 @app.route('/retrieveSummaries', methods=['POST'])
+@handle_exceptions
 @login_required
 def retrieve_summaries():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -557,6 +606,7 @@ def retrieve_summaries():
     return flask.jsonify(response)
 
 @app.route('/cancelTrainingModel', methods=['POST'])
+@handle_exceptions
 @login_required
 def cancel_training_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -570,6 +620,7 @@ def cancel_training_model():
     return flask.jsonify(response)
 
 @app.route('/retrieveModelList', methods=['POST'])
+@handle_exceptions
 @login_required
 def retrieve_model_list():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -584,6 +635,7 @@ def retrieve_model_list():
     return flask.jsonify(response)
 
 @app.route('/retrieveModel', methods=['POST'])
+@handle_exceptions
 @login_required
 def retrieve_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -599,6 +651,7 @@ def retrieve_model():
     return flask.jsonify(response)
 
 @app.route('/deleteModel', methods=['POST'])
+@handle_exceptions
 @login_required
 def delete_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -608,6 +661,7 @@ def delete_model():
     return 'OK'
 
 @app.route('/createTFLiteGraphPb', methods=['POST'])
+@handle_exceptions
 @login_required
 def create_tflite_graph_pb():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -617,6 +671,7 @@ def create_tflite_graph_pb():
     return 'OK'
 
 @app.route('/createTFLite', methods=['POST'])
+@handle_exceptions
 @login_required
 def create_tflite():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -630,6 +685,7 @@ def create_tflite():
     return flask.jsonify(response)
 
 @app.route('/performActionGAE', methods=['POST'])
+@handle_exceptions
 @login_required
 def perform_action_gae():
     # time_limit and active_memory_limit are wrong for GAE, but this request is only for debugging.

@@ -17,37 +17,38 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 class HttpError(Exception):
   """Class for exceptions with an HTTP error code."""
 
-  def __init__(self, message, status_code):
+  def __init__(self, message, status_code, status_description):
     Exception.__init__(self)
     self.message = message
     self.status_code = status_code
+    self.status_description = status_description
 
 
 class HttpErrorBadRequest(HttpError):
   """Class for 400 Bad Request exceptions."""
   def __init__(self, message, status_code=400):
-    HttpError.__init__(self, message, status_code)
+    HttpError.__init__(self, message, status_code, 'Bad Request')
 
 
 class HttpErrorNotFound(HttpError):
   """Class for 404 Not Found exceptions."""
   def __init__(self, message, status_code=404):
-    HttpError.__init__(self, message, status_code)
+    HttpError.__init__(self, message, status_code, 'Not Found')
 
 
 class HttpErrorConflict(HttpError):
   """Class for 409 Conflict exceptions."""
   def __init__(self, message, status_code=409):
-    HttpError.__init__(self, message, status_code)
+    HttpError.__init__(self, message, status_code, 'Conflict')
 
 
 class HttpErrorUnprocessableEntity(HttpError):
   """Class for 422 Unprocessable Entity exceptions."""
   def __init__(self, message, status_code=422):
-    HttpError.__init__(self, message, status_code)
+    HttpError.__init__(self, message, status_code, 'Unprocessable Entity')
 
 
 class HttpErrorInternalServerError(HttpError):
   """Class for 500 Internal Server Error exceptions."""
   def __init__(self, message, status_code=500):
-    HttpError.__init__(self, message, status_code)
+    HttpError.__init__(self, message, status_code, 'Internal Server Error')

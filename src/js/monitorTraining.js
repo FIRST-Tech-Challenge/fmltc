@@ -30,34 +30,20 @@ goog.require('fmltc.Util');
  * @param {!fmltc.Util} util The utility instance
  * @constructor
  */
-fmltc.MonitorTraining = function(util, modelEntity) {
+fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEntitiesByUuid) {
   /** @type {!fmltc.Util} */
   this.util = util;
-  this.modelEntity = modelEntity;
-  this.modelUuid = modelEntity.model_uuid;
+  console.log(modelEntitiesByUuid);
+  console.log(datasetEntitiesByUuid);
+  this.modelUuid = modelUuid;
+  this.modelEntity = modelEntitiesByUuid[modelUuid];
+  this.modelEntitiesByUuid = modelEntitiesByUuid;
+  this.datasetEntitiesByUuid = datasetEntitiesByUuid;
 
-  this.dismissButton = document.getElementById('dismissButton');
   this.activeTrainingDiv = document.getElementById('activeTrainingDiv');
   this.cancelTrainingButton = document.getElementById('cancelTrainingButton');
   this.refreshIntervalRangeInput = document.getElementById('refreshIntervalRangeInput');
   this.refreshButton = document.getElementById('refreshButton');
-  this.modelTabDiv = document.getElementById('modelTabDiv');
-  this.dateCreatedTd = document.getElementById('dateCreatedTd');
-  this.descriptionTd = document.getElementById('descriptionTd');
-  this.videoFilenamesTd = document.getElementById('videoFilenamesTd');
-  this.trainFrameCountTd = document.getElementById('trainFrameCountTd');
-  this.trainNegativeFrameCountTd = document.getElementById('trainNegativeFrameCountTd');
-  this.trainLabelCountsTable = document.getElementById('trainLabelCountsTable');
-  this.evalFrameCountTd = document.getElementById('evalFrameCountTd');
-  this.evalNegativeFrameCountTd = document.getElementById('evalNegativeFrameCountTd');
-  this.evalLabelCountsTable = document.getElementById('evalLabelCountsTable');
-  this.originalModelTd = document.getElementById('originalModelTd');
-  this.startingModelTd = document.getElementById('startingModelTd');
-  this.previousTrainingStepsTd = document.getElementById('previousTrainingStepsTd');
-  this.numTrainingStepsTd = document.getElementById('numTrainingStepsTd');
-  this.totalTrainingStepsTd = document.getElementById('totalTrainingStepsTd');
-  this.trainStateTd = document.getElementById('trainStateTd');
-  this.evalStateTd = document.getElementById('evalStateTd');
   this.trainTimeTd = document.getElementById('trainTimeTd');
   this.scalarsTabDiv = document.getElementById('scalarsTabDiv');
   this.imagesTabDiv = document.getElementById('imagesTabDiv');
@@ -86,7 +72,7 @@ fmltc.MonitorTraining = function(util, modelEntity) {
   google.charts.load('current', {'packages':['corechart']});
   google.charts.setOnLoadCallback(this.charts_onload.bind(this));
 
-  this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
+  document.getElementById('dismissButton').onclick = this.dismissButton_onclick.bind(this);
   this.cancelTrainingButton.onclick = this.cancelTrainingButton_onclick.bind(this);
   this.refreshIntervalRangeInput.onchange = this.refreshIntervalRangeInput_onchange.bind(this);
   this.refreshButton.onclick = this.refreshButton_onclick.bind(this);
@@ -283,54 +269,91 @@ fmltc.MonitorTraining.prototype.modelEntityUpdated = function() {
 
 fmltc.MonitorTraining.prototype.updateModelUI = function() {
   if (!this.filledModelUI) {
-    this.dateCreatedTd.textContent = new Date(this.modelEntity.creation_time_ms).toLocaleString();
+    // This block fills in the parts that don't change.
+    document.getElementById('dateCreatedTd').textContent =
+        new Date(this.modelEntity.creation_time_ms).toLocaleString();
 
-    this.descriptionTd.textContent = this.modelEntity.description;
+    document.getElementById('originalModelTd').textContent =
+        this.modelEntity.original_starting_model;
 
-    for (let i = 0; i < this.modelEntity.video_filenames.length; i++) {
-      const div = document.createElement('div');
-      div.textContent = this.modelEntity.video_filenames[i];
-      this.videoFilenamesTd.appendChild(div);
+    let addedDatasetUuids = this.modelEntity.dataset_uuids.slice();
+    if (this.modelEntity.original_starting_model != this.modelEntity.starting_model) {
+      document.getElementById('previousModelTd').textContent =
+          this.modelEntity.user_visible_starting_model;
+
+      const previousModelEntity = this.modelEntitiesByUuid[this.modelEntity.starting_model];
+      document.getElementById('previousTrainingStepsTd').textContent =
+          new Number(previousModelEntity.total_training_steps).toLocaleString();
+
+      addedDatasetUuids = addedDatasetUuids.filter(function(datasetUuid) {
+        return !previousModelEntity.dataset_uuids.includes(datasetUuid);
+      });
+
+      const previousDatasetsTd = document.getElementById('previousDatasetsTd');
+      for (let i = 0; i < previousModelEntity.dataset_uuids.length; i++) {
+        const previousDatasetUuid = previousModelEntity.dataset_uuids[i];
+        const previousDatasetEntity = this.datasetEntitiesByUuid[previousDatasetUuid];
+        const div = document.createElement('div');
+        div.textContent = previousDatasetEntity.description;
+        previousDatasetsTd.appendChild(div);
+      }
+
+    } else {
+      this.util.deleteRowById('previousModelTr');
+      this.util.deleteRowById('previousTrainingStepsTr');
+      this.util.deleteRowById('previousDatasetsTr');
     }
-    this.trainFrameCountTd.textContent = new Number(this.modelEntity.train_frame_count).toLocaleString();
-    this.trainNegativeFrameCountTd.textContent = new Number(this.modelEntity.train_negative_frame_count).toLocaleString();
+
+    const addedDatasetsTd = document.getElementById('addedDatasetsTd');
+    for (let i = 0; i < addedDatasetUuids.length; i++) {
+      const addedDatasetEntity = this.datasetEntitiesByUuid[addedDatasetUuids[i]];
+      const div = document.createElement('div');
+      div.textContent = addedDatasetEntity.description;
+      addedDatasetsTd.appendChild(div);
+    }
+
+    document.getElementById('trainFrameCountTd').textContent =
+        new Number(this.modelEntity.train_frame_count).toLocaleString();
+    document.getElementById('trainNegativeFrameCountTd').textContent =
+        new Number(this.modelEntity.train_negative_frame_count).toLocaleString();
+    const trainLabelCountsTable = document.getElementById('trainLabelCountsTable');
     for (const label in this.modelEntity.train_dict_label_to_count) {
-      const tr = this.trainLabelCountsTable.insertRow(-1);
+      const tr = trainLabelCountsTable.insertRow(-1);
       let td = tr.insertCell(-1);
       td.textContent = label;
       td = tr.insertCell(-1);
       td.textContent = new Number(this.modelEntity.train_dict_label_to_count[label]).toLocaleString();
     }
 
-    this.evalFrameCountTd.textContent = new Number(this.modelEntity.eval_frame_count).toLocaleString();
-    this.evalNegativeFrameCountTd.textContent = new Number(this.modelEntity.eval_negative_frame_count).toLocaleString();
+    document.getElementById('numTrainingStepsTd').textContent =
+        new Number(this.modelEntity.num_training_steps).toLocaleString();
+
+    document.getElementById('evalFrameCountTd').textContent =
+        new Number(this.modelEntity.eval_frame_count).toLocaleString();
+    document.getElementById('evalNegativeFrameCountTd').textContent =
+        new Number(this.modelEntity.eval_negative_frame_count).toLocaleString();
+    const evalLabelCountsTable = document.getElementById('evalLabelCountsTable');
     for (const label in this.modelEntity.eval_dict_label_to_count) {
-      const tr = this.evalLabelCountsTable.insertRow(-1);
+      const tr = evalLabelCountsTable.insertRow(-1);
       let td = tr.insertCell(-1);
       td.textContent = label;
       td = tr.insertCell(-1);
       td.textContent = new Number(this.modelEntity.eval_dict_label_to_count[label]).toLocaleString();
     }
 
-    this.originalModelTd.textContent = this.modelEntity.original_starting_model;
-    this.startingModelTd.textContent = this.modelEntity.user_visible_starting_model;
-
-    this.previousTrainingStepsTd.textContent = new Number(this.modelEntity.previous_training_steps).toLocaleString();
-    this.numTrainingStepsTd.textContent = new Number(this.modelEntity.num_training_steps).toLocaleString();
-    this.totalTrainingStepsTd.textContent = new Number(this.modelEntity.total_training_steps).toLocaleString();
-
     this.filledModelUI = true;
   }
 
-  this.trainStateTd.textContent = this.util.formatJobState(
+  document.getElementById('trainStateTd').textContent = this.util.formatJobState(
       this.modelEntity.cancel_requested, this.modelEntity.train_job_state);
-  this.evalStateTd.textContent = this.util.formatJobState(
-      this.modelEntity.cancel_requested, this.modelEntity.eval_job_state);
 
   if (this.modelEntity.train_job_elapsed_seconds > 0) {
     this.trainTimeTd.textContent =
         this.util.formatElapsedSeconds(this.modelEntity.train_job_elapsed_seconds);
   }
+
+  document.getElementById('evalStateTd').textContent = this.util.formatJobState(
+      this.modelEntity.cancel_requested, this.modelEntity.eval_job_state);
 
   this.modelLoader.style.visibility = 'hidden';
 };

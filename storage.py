@@ -258,13 +258,12 @@ def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
                     transaction.delete(tracker_client_entity.key)
         return video_entity
 
-def retrieve_incomplete_datasets_using_video(team_uuid, video_uuid):
+def retrieve_datasets_using_video(team_uuid, video_uuid):
     dataset_entities = []
     all_dataset_entities = retrieve_dataset_list(team_uuid)
     for dataset_entity in all_dataset_entities:
-        if not dataset_entity['dataset_completed']:
-            if video_uuid in dataset_entity['video_uuids']:
-                dataset_entities.append(dataset_entity)
+        if video_uuid in dataset_entity['video_uuids']:
+            dataset_entities.append(dataset_entity)
     return dataset_entities
 
 def delete_video(team_uuid, video_uuid):
@@ -643,7 +642,7 @@ def prepare_to_start_dataset_production(team_uuid, description, video_uuids, eva
         transaction.put(dataset_entity)
         return dataset_uuid
 
-def dataset_producer_starting(team_uuid, dataset_uuid, video_filenames, sorted_label_list,
+def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
         train_frame_count, train_record_count, train_input_path,
         eval_frame_count, eval_record_count, eval_input_path):
     dataset_folder_path = blob_storage.get_dataset_folder_path(team_uuid, dataset_uuid)
@@ -651,7 +650,6 @@ def dataset_producer_starting(team_uuid, dataset_uuid, video_filenames, sorted_l
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         dataset_entity = retrieve_dataset_entity(team_uuid, dataset_uuid)
-        dataset_entity['video_filenames'] = video_filenames
         dataset_entity['sorted_label_list'] = sorted_label_list
         dataset_entity['train_record_count'] = train_record_count
         dataset_entity['train_frame_count'] = train_frame_count
@@ -989,7 +987,7 @@ def model_trainer_failed_to_start(team_uuid, max_running_minutes):
 def model_trainer_started(team_uuid, model_uuid, description,
         dataset_uuids, start_time_ms, max_running_minutes, num_training_steps,
         previous_training_steps, starting_model, user_visible_starting_model,
-        original_starting_model, fine_tune_checkpoint, video_filenames,
+        original_starting_model, fine_tune_checkpoint,
         sorted_label_list, label_map_path, train_input_path, eval_input_path,
         train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
         train_dict_label_to_count, eval_dict_label_to_count, train_job, eval_job):
@@ -1003,7 +1001,6 @@ def model_trainer_started(team_uuid, model_uuid, description,
             'description': description,
             'dataset_uuids': dataset_uuids,
             'creation_time_ms': start_time_ms,
-            'video_filenames': video_filenames,
             'sorted_label_list': sorted_label_list,
             'label_map_path': label_map_path,
             'train_input_path': train_input_path,
@@ -1080,6 +1077,53 @@ def retrieve_model_entity(team_uuid, model_uuid):
         logging.critical(message)
         raise exceptions.HttpErrorNotFound(message)
     return model_entities[0]
+
+def retrieve_entities_for_monitor_training(team_uuid, model_uuid, all_model_entities):
+    model_entities_by_uuid = {}
+    dataset_entities_by_uuid = {}
+    video_entities_by_uuid = {}
+    all_dataset_entities = retrieve_dataset_list(team_uuid)
+    all_video_entities = retrieve_video_list(team_uuid)
+    __add_entities_for_model(model_uuid,
+        all_model_entities, model_entities_by_uuid,
+        all_dataset_entities, dataset_entities_by_uuid,
+        all_video_entities, video_entities_by_uuid)
+    if not model_entities_by_uuid:
+        message = 'Error: Model entity for model_uuid=%s not found.' % model_uuid
+        logging.critical(message)
+        raise exceptions.HttpErrorNotFound(message)
+    return model_entities_by_uuid, dataset_entities_by_uuid, video_entities_by_uuid
+
+def __add_entities_for_model(model_uuid,
+        all_model_entities, model_entities_by_uuid,
+        all_dataset_entities, dataset_entities_by_uuid,
+        all_video_entities, video_entities_by_uuid):
+    for model_entity in all_model_entities:
+        if model_entity['model_uuid'] == model_uuid:
+            model_entities_by_uuid[model_uuid] = model_entity
+            if model_entity['starting_model'] != model_entity['original_starting_model']:
+                __add_entities_for_model(model_entity['starting_model'],
+                    all_model_entities, model_entities_by_uuid,
+                    all_dataset_entities, dataset_entities_by_uuid,
+                    all_video_entities, video_entities_by_uuid)
+            __add_entities_for_datasets(model_entity['dataset_uuids'],
+                all_dataset_entities, all_video_entities,
+                dataset_entities_by_uuid, video_entities_by_uuid)
+
+def __add_entities_for_datasets(dataset_uuids,
+        all_dataset_entities, all_video_entities,
+        dataset_entities_by_uuid, video_entities_by_uuid):
+    for dataset_entity in all_dataset_entities:
+        if dataset_entity['dataset_uuid'] in dataset_uuids:
+            dataset_entities_by_uuid[dataset_entity['dataset_uuid']] = dataset_entity
+            __add_entities_for_videos(dataset_entity['video_uuids'],
+                all_video_entities, video_entities_by_uuid)
+
+def __add_entities_for_videos(video_uuids,
+        all_video_entities, video_entities_by_uuid):
+    for video_entity in all_video_entities:
+        if video_entity['video_uuid'] in video_uuids:
+            video_entities_by_uuid[video_entity['video_uuid']] = video_entity
 
 def __update_model_entity(model_entity, job, prefix):
     model_entity[prefix + 'job_state'] = job['state']

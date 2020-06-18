@@ -84,7 +84,6 @@ def produce_dataset(action_parameters, time_limit, active_memory_limit):
         logging.critical(message)
         raise exceptions.HttpErrorNotFound(message)
 
-    video_filenames = []
     dict_video_uuid_to_split = {}
     train_frame_count = 0
     train_record_count = 0
@@ -94,7 +93,6 @@ def produce_dataset(action_parameters, time_limit, active_memory_limit):
 
     for video_entity in video_entities:
         video_uuid = video_entity['video_uuid']
-        video_filenames.append(video_entity['video_filename'])
         # Read the video_frame entities from storage. They contain the labels.
         video_frame_entities = storage.retrieve_video_frame_entities(
              team_uuid, video_uuid, 0, video_entity['frame_count'] - 1)
@@ -114,7 +112,7 @@ def produce_dataset(action_parameters, time_limit, active_memory_limit):
     eval_input_path = 'eval_dataset.record-?????-%05d' % eval_record_count
 
     storage.dataset_producer_starting(
-        team_uuid, dataset_uuid, video_filenames, sorted_label_list,
+        team_uuid, dataset_uuid, sorted_label_list,
         train_frame_count, train_record_count, train_input_path,
         eval_frame_count, eval_record_count, eval_input_path)
 

@@ -375,3 +375,16 @@ fmltc.Util.prototype.sortedLabelListsEqual = function(a1, a2) {
   }
   return true;
 };
+
+fmltc.Util.prototype.getTable = function(tr) {
+  let table = tr.parentNode;
+  while (table && table.tagName != "TABLE") {
+    table = table.parentNode;
+  }
+  return table;
+};
+
+fmltc.Util.prototype.deleteRowById = function(id) {
+  const tr = document.getElementById(id);
+  this.getTable(tr).deleteRow(tr.rowIndex);
+};

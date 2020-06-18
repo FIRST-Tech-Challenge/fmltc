@@ -47,101 +47,111 @@ limitations under the License.
 </tr></table>
 
 <div class="tabButtonsDiv">
-  <button id="modelTabButton" class="tabButton">Model <span id="modelLoader" class="loader"></span></button>
-  <button id="scalarsTabButton" class="tabButton">Scalars <span id="scalarsLoader" class="loader"></span></button>
-  <button id="imagesTabButton" class="tabButton">Images <span id="imagesLoader" class="loader"></span></button>
+  <button id="modelTabButton" class="tabButton">
+    <span class="material-icons iconVerticalAlign">info</span>
+    <span>Details</span>
+    <span id="modelLoader" class="loader"></span>
+  </button>
+  <button id="scalarsTabButton" class="tabButton">
+    <span title="insights" class="material-icons iconVerticalAlign">insights</span>
+    <span>Graphs</span>
+    <span id="scalarsLoader" class="loader"></span>
+  </button>
+  <button id="imagesTabButton" class="tabButton">
+    <span title="image" class="material-icons iconVerticalAlign">image</span>
+    <span>Images</span>
+    <span id="imagesLoader" class="loader"></span>
+  </button>
 </div>
 
 <div id="modelTabDiv" class="tabDiv">
-  <table width="100%">
+  <table class="collapsedBorder">
     <tr>
-      <td valign="top" width="33%">
+      <td valign="top" class="cellWithBorder">
         <table>
           <tr>
-            <th class="labelCellInModelTable">Date Created</th>
+            <th align="left" class="labelCellInModelTable">Date Created</th>
             <td class="valueCellInModelTable" id="dateCreatedTd"></td>
           </tr>
           <tr>
-            <th class="labelCellInModelTable">Description</th>
-            <td class="valueCellInModelTable" id="descriptionTd"></td>
+            <th align="left" class="labelCellInModelTable">Original Model</th>
+            <td class="valueCellInModelTable" id="originalModelTd"></td>
+          </tr>
+          <tr id="previousModelTr">
+            <th align="left" class="labelCellInModelTable">Previous Model</th>
+            <td class="valueCellInModelTable" id="previousModelTd"></td>
+          </tr>
+          <tr id="previousTrainingStepsTr">
+            <th align="left" class="labelCellInModelTable">Previous Steps</th>
+            <td class="valueCellInModelTable" id="previousTrainingStepsTd"></td>
+          </tr>
+          <tr id="previousDatasetsTr">
+            <th align="left" class="labelCellInModelTable">Previous Datasets</th>
+            <td class="valueCellInModelTable" id="previousDatasetsTd"></td>
           </tr>
           <tr>
-            <th class="labelCellInModelTable">Video Filenames</th>
-            <td class="valueCellInModelTable" id="videoFilenamesTd"></td>
+            <th align="left" class="labelCellInModelTable">Added Datasets</th>
+            <td class="valueCellInModelTable" id="addedDatasetsTd"></td>
           </tr>
+        </table>
+      </td>
+      <td valign="top" class="cellWithBorder">
+        <div class="text-18">Training</div>
+        <table>
           <tr>
-          <tr>
-            <th class="labelCellInModelTable">Total Training Frames</th>
+            <th align="left" class="labelCellInModelTable">Total Frames</th>
             <td class="valueCellInModelTable" id="trainFrameCountTd"></td>
           </tr>
           <tr>
-            <th class="labelCellInModelTable">Negative Training Frames</th>
+            <th align="left" class="labelCellInModelTable">Negative Frames</th>
             <td class="valueCellInModelTable" id="trainNegativeFrameCountTd"></td>
           </tr>
           <tr>
-            <th class="labelCellInModelTable">Training Label Counts</th>
+            <th align="left" class="labelCellInModelTable">Label Counts</th>
             <td class="valueCellInModelTable">
-              <table id="trainLabelCountsTable"><tr><th>Label</th><th>Count</th></tr></table>
+              <table id="trainLabelCountsTable"><tr>
+                <th align="left">Label</th>
+                <th align="left">Count</th>
+              </tr></table>
             </td>
           </tr>
           <tr>
-            <th class="labelCellInModelTable">Total Evaluation Frames</th>
-            <td class="valueCellInModelTable" id="evalFrameCountTd"></td>
-          </tr>
-          <tr>
-            <th class="labelCellInModelTable">Negative Evaluation Frames</th>
-            <td class="valueCellInModelTable" id="evalNegativeFrameCountTd"></td>
-          </tr>
-          <tr>
-            <th class="labelCellInModelTable">Evaluation Label Counts</th>
-            <td class="valueCellInModelTable">
-              <table id="evalLabelCountsTable"><tr><th>Label</th><th>Count</th></tr></table>
-            </td>
-          </tr>
-        </table>
-      </td>
-      <td valign="top" width="33%">
-        <table>
-          <tr>
-            <th class="labelCellInModelTable">Original Model</th>
-            <td class="valueCellInModelTable" id="originalModelTd"></td>
-          </tr>
-          <tr>
-            <th class="labelCellInModelTable">Starting Model</th>
-            <td class="valueCellInModelTable" id="startingModelTd"></td>
-          </tr>
-          <tr>
-            <td colspan="2">
-              <table>
-                <tr>
-                  <th class="labelCellInModelTable">Previous Training Steps</th>
-                  <td class="valueCellInModelTable" id="previousTrainingStepsTd"></td>
-                </tr>
-                <tr>
-                  <th class="labelCellInModelTable">Current Training Steps</th>
-                  <td class="valueCellInModelTable" id="numTrainingStepsTd"></td>
-                </tr>
-                <tr>
-                  <th class="labelCellInModelTable">Total Training Steps</th>
-                  <td class="valueCellInModelTable" id="totalTrainingStepsTd"></td>
-                </tr>
-              </table>
-            </td>
-        </table>
-      </td>
-      <td valign="top" width="33%">
-        <table>
-          <tr>
-            <th class="labelCellInModelTable">Training State</th>
+            <th align="left" class="labelCellInModelTable">Job State</th>
             <td class="valueCellInModelTable" id="trainStateTd"></td>
           </tr>
           <tr>
-            <th class="labelCellInModelTable">Eval State</th>
-            <td class="valueCellInModelTable" id="evalStateTd"></td>
+            <th align="left" class="labelCellInModelTable">Training Time</th>
+            <td class="valueCellInModelTable" id="trainTimeTd"></td>
           </tr>
           <tr>
-            <th class="labelCellInModelTable">Training Time</th>
-            <td class="valueCellInModelTable" id="trainTimeTd"></td>
+            <th align="left" class="labelCellInModelTable">Training Steps</th>
+            <td class="valueCellInModelTable" id="numTrainingStepsTd"></td>
+          </tr>
+        </table>
+      </td>
+      <td valign="top" class="cellWithBorder">
+        <div class="text-18">Evaluation</div>
+        <table>
+          <tr>
+            <th align="left" class="labelCellInModelTable">Total Frames</th>
+            <td class="valueCellInModelTable" id="evalFrameCountTd"></td>
+          </tr>
+          <tr>
+            <th align="left" class="labelCellInModelTable">Negative Frames</th>
+            <td class="valueCellInModelTable" id="evalNegativeFrameCountTd"></td>
+          </tr>
+          <tr>
+            <th align="left" class="labelCellInModelTable">Label Counts</th>
+            <td class="valueCellInModelTable">
+              <table id="evalLabelCountsTable"><tr>
+                <th align="left">Label</th>
+                <th align="left">Count</th>
+              </tr></table>
+            </td>
+          </tr>
+          <tr>
+            <th align="left" class="labelCellInModelTable">Job State</th>
+            <td class="valueCellInModelTable" id="evalStateTd"></td>
           </tr>
         </table>
       </td>
@@ -159,7 +169,9 @@ limitations under the License.
   window.addEventListener('load', function() {
     const util = new fmltc.Util('monitorTraining',
         {{ http_perform_action_url|tojson }}, {{ team_preferences|tojson }});
-    new fmltc.MonitorTraining(util, {{ model_entity|tojson }});
+    new fmltc.MonitorTraining(util, '{{model_uuid}}',
+        {{ model_entities_by_uuid|tojson }},
+        {{ dataset_entities_by_uuid|tojson }});
   });
 </script>
 </body>
