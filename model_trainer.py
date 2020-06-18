@@ -40,7 +40,7 @@ BUCKET = ('%s' % constants.PROJECT_ID)
 STARTING_MODELS = {
     #Takes too long 'ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync': 'ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync_2018_07_03',
     'ssd_mobilenet_v1_0.75_depth_quantized_300x300_coco14_sync': 'ssd_mobilenet_v1_0.75_depth_quantized_300x300_coco14_sync_2018_07_18',
-    'ssd_mobilenet_v1_fpn_shared_box_predictor_640x640_coco14_sync': 'ssd_mobilenet_v1_fpn_shared_box_predictor_640x640_coco14_sync_2018_07_03',
+    #Model never detects any objects 'ssd_mobilenet_v1_fpn_shared_box_predictor_640x640_coco14_sync': 'ssd_mobilenet_v1_fpn_shared_box_predictor_640x640_coco14_sync_2018_07_03',
     #'ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync': 'ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03',
     #'ssd_mobilenet_v1_quantized_300x300_coco14_sync': 'ssd_mobilenet_v1_quantized_300x300_coco14_sync_2018_07_18',
 }
@@ -51,9 +51,14 @@ def get_starting_model_names():
     return names
 
 def get_normalized_input_image_tensor(starting_model_name):
-    if starting_model_name == 'ssd_mobilenet_v1_fpn_shared_box_predictor_640x640_coco14_sync':
+    if '640x640' in starting_model_name:
         return [1, 640, 640, 3]
-    return [1, 300, 300, 3]
+    elif '300x300' in starting_model_name:
+        return [1, 300, 300, 3]
+    else:
+        message = 'Error: cannot determine normalized_input_image_tensor for %s.' % starting_model_name
+        logging.critical(message)
+        raise exceptions.HttpErrorInternalServerError(message)
 
 def start_training_model(team_uuid, description, dataset_uuids_json,
         starting_model, max_running_minutes, num_training_steps, start_time_ms):

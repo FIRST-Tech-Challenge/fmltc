@@ -27,9 +27,10 @@ from google.cloud import datastore
 import action
 import blob_storage
 import exceptions
+import frame_extractor
 import logging
 import util
-import frame_extractor
+import team_info
 
 DS_KIND_TEAM = 'Team'
 DS_KIND_VIDEO = 'Video'

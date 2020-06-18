@@ -300,6 +300,10 @@ fmltc.Util.prototype.tabDiv_onclick = function(idPrefix) {
   this.setPreference(this.pageBasename + '.currentTab', idPrefix);
 };
 
+fmltc.Util.prototype.calculateSecondsSince = function(dateString) {
+  return (Date.now() - Date.parse(dateString)) / 1000;
+};
+
 fmltc.Util.prototype.formatElapsedSeconds = function(elapsedSeconds) {
   const hours = Math.floor(elapsedSeconds / 3600);
   elapsedSeconds -= hours * 3600;
