@@ -33,8 +33,6 @@ goog.require('fmltc.Util');
 fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEntitiesByUuid) {
   /** @type {!fmltc.Util} */
   this.util = util;
-  console.log(modelEntitiesByUuid);
-  console.log(datasetEntitiesByUuid);
   this.modelUuid = modelUuid;
   this.modelEntity = modelEntitiesByUuid[modelUuid];
   this.modelEntitiesByUuid = modelEntitiesByUuid;
