@@ -752,7 +752,7 @@ fmltc.LabelVideo.prototype.refillLabelingArea = function(optLastLabelInputFocus)
     this.util.addClass(deleteButton, 'buttonWithoutBorder');
     deleteButton.textContent = 'delete';
     deleteButton.title = 'Delete this box';
-    deleteButton.onclick = this.deleteButton_onclick.bind(this, i);
+    deleteButton.onclick = this.deleteButton_onclick.bind(this, tr);
     td.appendChild(deleteButton);
   }
 
@@ -781,7 +781,8 @@ fmltc.LabelVideo.prototype.bboxFieldInput_oninput = function(i, input, field) {
   this.updateUI();
 };
 
-fmltc.LabelVideo.prototype.deleteButton_onclick = function(i) {
+fmltc.LabelVideo.prototype.deleteButton_onclick = function(tr) {
+  const i = tr.rowIndex - 1;
   if (i < this.bboxes[this.currentFrameNumber].length) {
     this.bboxes[this.currentFrameNumber].splice(i, 1);
     this.redrawBboxes();
