@@ -343,10 +343,9 @@ fmltc.ListVideos.prototype.xhr_canDeleteVideo_onreadystatechange = function(xhr,
       } else {
         const title = 'Cannot Delete Video';
         const message = 'The video "' + videoEntity.description +
-            '" cannot be deleted at this time because the following ' +
+            '" cannot be deleted because the following ' +
             ((response.dataset_entity_array.length == 1) ? 'dataset is' : 'datasets are') +
-            ' using it to create TensorFlow records. After dataset production is finished, ' +
-            'the video can be deleted.';
+            ' using it.';
         const datasetDescriptions = [];
         for (let i = 0; i < response.dataset_entity_array.length; i++) {
           datasetDescriptions[i] = response.dataset_entity_array[i].description;

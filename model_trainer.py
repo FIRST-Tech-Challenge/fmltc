@@ -107,7 +107,6 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
 
         previous_training_steps = 0
         dataset_uuids = []
-        video_filenames = []
         train_input_path = []
         eval_input_path = []
         train_frame_count = 0
@@ -121,7 +120,6 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         if starting_model_entity is not None:
             previous_training_steps += starting_model_entity['previous_training_steps']
             dataset_uuids.extend(starting_model_entity['dataset_uuids'])
-            video_filenames.extend(starting_model_entity['video_filenames'])
             train_input_path.extend(starting_model_entity['train_input_path'])
             eval_input_path.extend(starting_model_entity['eval_input_path'])
             train_frame_count += starting_model_entity['train_frame_count']
@@ -135,7 +133,6 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
 
         for dataset_entity in dataset_entities:
             dataset_uuids.append(dataset_entity['dataset_uuid'])
-            video_filenames.extend(dataset_entity['video_filenames'])
             train_input_path.append(dataset_entity['train_input_path'])
             eval_input_path.append(dataset_entity['eval_input_path'])
             train_frame_count += dataset_entity['train_frame_count']
@@ -253,7 +250,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
     model_entity = storage.model_trainer_started(team_uuid, model_uuid, description,
         dataset_uuids, start_time_ms, max_running_minutes, num_training_steps,
         previous_training_steps, starting_model, user_visible_starting_model,
-        original_starting_model, fine_tune_checkpoint, video_filenames,
+        original_starting_model, fine_tune_checkpoint,
         sorted_label_list, label_map_path, train_input_path, eval_input_path,
         train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
         train_dict_label_to_count, eval_dict_label_to_count,

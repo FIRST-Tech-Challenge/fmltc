@@ -47,7 +47,6 @@ fmltc.ListModels = function(util) {
   this.trs = [];
   this.checkboxes = [];
   this.trainStateTds = [];
-  this.evalStateTds = [];
   this.trainTimeTds = [];
   this.trainingDone = [];
 
@@ -131,20 +130,11 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
     const originalStartingModelTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     originalStartingModelTd.textContent = modelEntity.original_starting_model;
 
-    const videoFilenamesTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    for (let i = 0; i < modelEntity.video_filenames.length; i++) {
-      const div = document.createElement('div');
-      div.textContent = modelEntity.video_filenames[i];
-      videoFilenamesTd.appendChild(div);
-    }
-
     const totalTrainingStepsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     totalTrainingStepsTd.setAttribute('align', 'right');
     totalTrainingStepsTd.textContent = modelEntity.total_training_steps;
 
     this.trainStateTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
-
-    this.evalStateTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
 
     this.trainTimeTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
     this.trainTimeTds[i].setAttribute('align', 'right');
@@ -152,8 +142,6 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
 
   this.trainStateTds[i].textContent = this.util.formatJobState(
       modelEntity.cancel_requested, modelEntity.train_job_state);
-  this.evalStateTds[i].textContent = this.util.formatJobState(
-      modelEntity.cancel_requested, modelEntity.eval_job_state);
 
   if (modelEntity.train_job_elapsed_seconds > 0) {
     this.trainTimeTds[i].textContent =
@@ -364,7 +352,6 @@ fmltc.ListModels.prototype.xhr_deleteModel_onreadystatechange = function(xhr, pa
         this.checkboxes[i].onclick = null;
         this.checkboxes.splice(i, 1);
         this.trainStateTds.splice(i, 1);
-        this.evalStateTds.splice(i, 1);
         this.trainTimeTds.splice(i, 1);
       }
 

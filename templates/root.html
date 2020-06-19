@@ -32,9 +32,21 @@ limitations under the License.
   <tr>
     <td>
       <div class="tabButtonsDiv">
-        <button id="videosTabButton" class="tabButton">Videos <span id="videosLoader" class="loader"></span></button>
-        <button id="datasetsTabButton" class="tabButton">Datasets <span id="datasetsLoader" class="loader"></span></button>
-        <button id="modelsTabButton" class="tabButton">Models <span id="modelsLoader" class="loader"></span></button>
+        <button id="videosTabButton" class="tabButton">
+          <span class="material-icons iconVerticalAlign">video_library</span>
+          <span>Videos</span>
+          <span id="videosLoader" class="loader"></span>
+        </button>
+        <button id="datasetsTabButton" class="tabButton">
+          <span class="material-icons iconVerticalAlign">perm_media</span>
+          <span>Datasets</span>
+          <span id="datasetsLoader" class="loader"></span>
+        </button>
+        <button id="modelsTabButton" class="tabButton">
+          <span title="pages" class="material-icons iconVerticalAlign">pages</span>
+          <span>Models</models>
+          <span id="modelsLoader" class="loader"></span>
+        </button>
       </div>
     </td>
     <td align="right" valign="top">
@@ -224,7 +236,6 @@ limitations under the License.
         <th rowspan="3" class="cellWithBorder"><input type="checkbox" id="datasetCheckboxAll"></th>
         <th rowspan="3" class="cellWithBorder">Date Produced</th>
         <th rowspan="3" class="cellWithBorder" width="200px">Description</th>
-        <th rowspan="3" class="cellWithBorder">Video Filenames</th>
         <th colspan="4" class="cellWithBorder">Number of Frames</th>
         <th rowspan="3" class="cellWithBorder">Labels</th>
       </tr>
@@ -356,18 +367,13 @@ limitations under the License.
   <div id="modelsListDiv">
     <table id="modelsTable" class="collapsedBorder">
       <tr>
-        <th rowspan="2" class="cellWithBorder"><input type="checkbox" id="modelCheckboxAll"></th>
-        <th rowspan="2" class="cellWithBorder">Date Created</th>
-        <th rowspan="2" class="cellWithBorder" width="200px">Description</th>
-        <th rowspan="2" class="cellWithBorder">Starting Model</th>
-        <th rowspan="2" class="cellWithBorder">Video Filenames</th>
-        <th rowspan="2" class="cellWithBorder">Training Steps</th>
-        <th colspan="2" class="cellWithBorder">State</th>
-        <th rowspan="2" class="cellWithBorder">Training Time</th>
-      </tr>
-      <tr>
-        <th class="cellWithBorder">Training</th>
-        <th class="cellWithBorder">Evaluation</th>
+        <th class="cellWithBorder"><input type="checkbox" id="modelCheckboxAll"></th>
+        <th class="cellWithBorder">Date Created</th>
+        <th class="cellWithBorder" width="200px">Description</th>
+        <th class="cellWithBorder">Starting Model</th>
+        <th class="cellWithBorder">Total Steps</th>
+        <th class="cellWithBorder">Job State</th>
+        <th class="cellWithBorder">Training Time</th>
       </tr>
     </table>
   </div>

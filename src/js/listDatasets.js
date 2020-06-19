@@ -106,13 +106,6 @@ fmltc.ListDatasets.prototype.addDataset = function(datasetEntity) {
   const descriptionTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   descriptionTd.textContent = datasetEntity.description;
 
-  const videoFilenamesTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-  for (let i = 0; i < datasetEntity.video_filenames.length; i++) {
-    const div = document.createElement('div');
-    div.textContent = datasetEntity.video_filenames[i];
-    videoFilenamesTd.appendChild(div);
-  }
-
   const trainFrameCountTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   trainFrameCountTd.setAttribute('align', 'right');
   trainFrameCountTd.textContent = new Number(datasetEntity.train_frame_count).toLocaleString();
