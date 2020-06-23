@@ -51,7 +51,6 @@ def retrieve_team_uuid(program, team_number, team_code):
         query = datastore_client.query(kind=DS_KIND_TEAM)
         query.add_filter('program', '=', program)
         query.add_filter('team_number', '=', team_number)
-        query.add_filter('team_code', '=', team_code)
         team_entities = list(query.fetch(1))
         if len(team_entities) == 0:
             team_uuid = str(uuid.uuid4().hex)
@@ -61,7 +60,6 @@ def retrieve_team_uuid(program, team_number, team_code):
                 'team_uuid': team_uuid,
                 'program': program,
                 'team_number': team_number,
-                'team_code': team_code,
                 'remaining_training_minutes': team_info.TOTAL_TRAINING_MINUTES_PER_TEAM,
                 'last_time_utc_ms': datetime.now(timezone.utc),
                 'preferences': {},
