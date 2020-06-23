@@ -3,7 +3,6 @@ indexes:
   properties:
   - name: program
   - name: team_number
-  - name: team_code
 
 - kind: Team
   properties:
