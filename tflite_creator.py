@@ -51,7 +51,7 @@ def create_tflite_graph_pb(team_uuid, model_uuid):
         raise exceptions.HttpErrorNotFound(message)
     output_directory = blob_storage.get_tflite_folder_path(team_uuid, model_uuid)
     add_postprocessing_op = True
-    max_detections = 10
+    max_detections = 10  # This matches the default for TFObjectDetector.Parameters.maxNumDetections in the the FTC SDK.
     max_classes_per_detection = 1
     use_regular_nms = False
     export_tflite_ssd_graph_lib.export_tflite_graph(
