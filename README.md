@@ -91,17 +91,10 @@ FRC, 67,    8bfef8bf
 FRC, 254,   f929a006
 FRC, 1678,  f67145cf
 ```
-2. Go to https://console.cloud.google.com/storage/browser/my_project_id?project=my_project_id (replace my_project_id with your actual project ID)
+2. Go to https://console.cloud.google.com/storage/browser/my_project_id-blobs?project=my_project_id (replace my_project_id with your actual project ID)
 3. Click `Create folder`. Enter `team_info` and click `CREATE`.
-4. Click `team_info` to go to https://console.cloud.google.com/storage/browser/my_project_id/team_info/?project=my_project_id (replace my_project_id with your actual project ID)
+4. Click `team_info` to go to https://console.cloud.google.com/storage/browser/my_project_id-blobs/team_info/?project=my_project_id (replace my_project_id with your actual project ID)
 5. Click `Upload files`. In the file chooser, select your `teams` file.
-6. After the file is uploaded, click on the vertical ellipsis and choose `Edit permissions`.
-7. Remove `allUsers` by clicking the X at the end of that row.
-8. Click `Add item`.
-   For Entity, select `User`.
-   For Name, enter `my_project_id-service-account@my_project_id.iam.gserviceaccount.com`. (replace my_project_id with your actual project ID)
-   For Access, select `Reader`.
-   Click `Save`
 
 ## Install the Google Closure Compiler
 **Important!** Make sure the current working directory is the fmltc directory when you run these

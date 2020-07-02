@@ -1185,6 +1185,14 @@ def retrieve_models_using_dataset(team_uuid, dataset_uuid):
             model_entities.append(model_entity)
     return model_entities
 
+def retrieve_models_using_model(team_uuid, model_uuid):
+    model_entities = []
+    all_model_entities = retrieve_model_list(team_uuid)
+    for model_entity in all_model_entities:
+        if model_uuid in model_entity['starting_model']:
+            model_entities.append(model_entity)
+    return model_entities
+
 def delete_model(team_uuid, model_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:

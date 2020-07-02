@@ -38,7 +38,7 @@ fmltc.ListModels = function(util) {
   this.trainMoreButton = document.getElementById('trainMoreButton');
   this.downloadTFLiteButton = document.getElementById('downloadTFLiteButton');
   this.cancelTrainingButton = document.getElementById('cancelTrainingButton');
-  this.deleteModelsButton = document.getElementById('deleteModelsButton');
+  this.deleteModelButton = document.getElementById('deleteModelButton');
 
   this.headerRowCount = this.modelsTable.rows.length;
 
@@ -53,7 +53,6 @@ fmltc.ListModels = function(util) {
   this.trainTimeIntervalId = 0;
 
   this.waitCursor = false;
-  this.deleteModelCounter = 0;
 
   this.totalTrainingMinutes = 0;     // Updated when we get a response from /retrieveModelList
   this.remainingTrainingMinutes = 0; // Updated when we get a response from /retrieveModelList
@@ -64,7 +63,7 @@ fmltc.ListModels = function(util) {
   this.trainMoreButton.onclick = this.trainMoreButton_onclick.bind(this);
   this.downloadTFLiteButton.onclick = this.downloadTFLiteButton_onclick.bind(this);
   this.cancelTrainingButton.onclick = this.cancelTrainingButton_onclick.bind(this);
-  this.deleteModelsButton.onclick = this.deleteModelsButton_onclick.bind(this);
+  this.deleteModelButton.onclick = this.deleteModelButton_onclick.bind(this);
 };
 
 fmltc.ListModels.prototype.retrieveModels = function() {
@@ -297,32 +296,63 @@ fmltc.ListModels.prototype.xhr_cancelTraining_onreadystatechange = function(xhr,
   }
 };
 
-fmltc.ListModels.prototype.deleteModelsButton_onclick = function() {
-  const modelUuids = this.getCheckedModelUuids();
-  new fmltc.DeleteConfirmationDialog(this.util, 'Delete Models',
-      'Are you sure you want to delete the selected models?',
-      this.startToDeleteModels.bind(this, modelUuids));
+fmltc.ListModels.prototype.deleteModelButton_onclick = function() {
+  let modelEntity = null;
+  for (let i = 0; i < this.checkboxes.length; i++) {
+    if (this.checkboxes[i].checked) {
+      modelEntity = this.modelEntityArray[i];
+      break;
+    }
+  }
+  if (modelEntity == null) {
+    return;
+  }
+
+  const xhr = new XMLHttpRequest();
+  const params = 'model_uuid=' + encodeURIComponent(modelEntity.model_uuid);
+  xhr.open('POST', '/canDeleteModel', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_canDeleteModel_onreadystatechange.bind(this, xhr, params,
+      modelEntity);
+  xhr.send(params);
 };
 
-fmltc.ListModels.prototype.startToDeleteModels = function(modelUuids) {
-  this.waitCursor = true;
-  this.util.setWaitCursor();
-  this.updateButtons();
+fmltc.ListModels.prototype.xhr_canDeleteModel_onreadystatechange = function(xhr, params,
+    modelEntity) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
 
-  this.deleteModelCounter = 0;
-  for (let i = 0; i < modelUuids.length; i++) {
-    const modelUuid = modelUuids[i];
-    const index = this.indexOfModel(modelUuid);
-    if (index != -1) {
-      if (this.util.isTrainingDone(this.modelEntityArray[index])) {
-        this.deleteModel(modelUuid);
-        this.deleteModelCounter++;
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+      if (response.can_delete_model) {
+        new fmltc.DeleteConfirmationDialog(this.util, 'Delete Model',
+            'Are you sure you want to delete the selected model?',
+            this.deleteModel.bind(this, modelEntity.model_uuid));
+      } else {
+        const title = 'Cannot Delete Model';
+        const message = 'The model "' + modelEntity.description +
+            '" cannot be deleted because the following ' +
+            ((response.model_entity_array.length == 1) ? 'model is' : 'models are') +
+            ' using it.';
+        const modelDescriptions = [];
+        for (let i = 0; i < response.model_entity_array.length; i++) {
+          modelDescriptions[i] = response.model_entity_array[i].description;
+        }
+        new fmltc.DeleteForbiddenDialog(this.util, title, message, modelDescriptions);
       }
+    } else {
+      // TODO(lizlooney): handle error properly
+      console.log('Failure! /canDeleteModel?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };
 
 fmltc.ListModels.prototype.deleteModel = function(modelUuid) {
+  this.waitCursor = true;
+  this.util.setWaitCursor();
+  this.updateButtons();
+
   const xhr = new XMLHttpRequest();
   const params = 'model_uuid=' + encodeURIComponent(modelUuid);
   xhr.open('POST', '/deleteModel', true);
@@ -337,11 +367,9 @@ fmltc.ListModels.prototype.xhr_deleteModel_onreadystatechange = function(xhr, pa
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
-    this.deleteModelCounter--;
-    if (this.deleteModelCounter == 0) {
-      this.util.clearWaitCursor();
-      this.waitCursor = false;
-    }
+    this.util.clearWaitCursor();
+    this.waitCursor = false;
+    this.updateButtons();
 
     if (xhr.status === 200) {
       const i = this.indexOfModel(modelUuid);
@@ -353,6 +381,7 @@ fmltc.ListModels.prototype.xhr_deleteModel_onreadystatechange = function(xhr, pa
         this.checkboxes.splice(i, 1);
         this.trainStateTds.splice(i, 1);
         this.trainTimeTds.splice(i, 1);
+        this.updateButtons();
       }
 
     } else {
@@ -377,7 +406,7 @@ fmltc.ListModels.prototype.updateButtons = function() {
   let canTrainMore = true;
   let canDownloadTFLite = true;
   let canCancelTraining = true;
-  let canDeleteModels = true;
+  let canDeleteModel = true;
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
       if (this.util.isTrainingDone(this.modelEntityArray[i])) {
@@ -394,7 +423,7 @@ fmltc.ListModels.prototype.updateButtons = function() {
       } else {
         canTrainMore = false;
         canDownloadTFLite = false;
-        canDeleteModels = false;
+        canDeleteModel = false;
         if (this.modelEntityArray[i].cancel_requested) {
           canCancelTaraining = false;
         }
@@ -405,7 +434,7 @@ fmltc.ListModels.prototype.updateButtons = function() {
   this.trainMoreButton.disabled = this.waitCursor || countChecked != 1 || !canTrainMore;
   this.downloadTFLiteButton.disabled = this.waitCursor || countChecked != 1 || !canDownloadTFLite;
   this.cancelTrainingButton.disabled = this.waitCursor || countChecked != 1 || !canCancelTraining;
-  this.deleteModelsButton.disabled = this.waitCursor || countChecked == 0 || !canDeleteModels;
+  this.deleteModelButton.disabled = this.waitCursor || countChecked != 1 || !canDeleteModel;
 };
 
 fmltc.ListModels.prototype.getCheckedModelUuids = function() {

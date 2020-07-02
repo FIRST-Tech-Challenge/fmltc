@@ -650,6 +650,21 @@ def retrieve_model():
     }
     return flask.jsonify(response)
 
+@app.route('/canDeleteModel', methods=['POST'])
+@handle_exceptions
+@login_required
+def can_delete_model():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    model_uuid = data.get('model_uuid')
+    model_entity_array = storage.retrieve_models_using_model(team_uuid, model_uuid)
+    can_delete_model = len(model_entity_array) == 0
+    response = {
+        'can_delete_model': can_delete_model,
+        'model_entity_array': model_entity_array,
+    }
+    return flask.jsonify(response)
+
 @app.route('/deleteModel', methods=['POST'])
 @handle_exceptions
 @login_required

@@ -22,7 +22,7 @@ import constants
 import storage
 import util
 
-BUCKET = ('%s' % constants.PROJECT_ID)
+BUCKET_BLOBS = ('%s-blobs' % constants.PROJECT_ID)
 
 TOTAL_TRAINING_MINUTES_PER_TEAM = 120
 
@@ -48,7 +48,7 @@ def validate_team_info(session):
     return False
 
 def __validate_team_info(program, team_number, team_code):
-    bucket = util.storage_client().get_bucket(BUCKET)
+    bucket = util.storage_client().get_bucket(BUCKET_BLOBS)
     teams = bucket.blob('team_info/teams').download_as_string().decode('utf-8')
     for line in teams.split('\n'):
         line = line.strip()
