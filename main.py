@@ -237,18 +237,17 @@ def retrieve_video():
     }
     return flask.jsonify(response)
 
-@app.route('/canDeleteVideo', methods=['POST'])
+@app.route('/canDeleteVideos', methods=['POST'])
 @handle_exceptions
 @login_required
-def can_delete_video():
+def can_delete_videos():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
-    dataset_entity_array = storage.retrieve_datasets_using_video(team_uuid, video_uuid)
-    can_delete_video = len(dataset_entity_array) == 0
+    video_uuids_json = data.get('video_uuids')
+    can_delete_videos, messages = storage.can_delete_videos(team_uuid, video_uuids_json)
     response = {
-        'can_delete_video': can_delete_video,
-        'dataset_entity_array': dataset_entity_array,
+        'can_delete_videos': can_delete_videos,
+        'messages': messages,
     }
     return flask.jsonify(response)
 
@@ -259,11 +258,6 @@ def delete_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     video_uuid = data.get('video_uuid')
-    dataset_entity_array = storage.retrieve_datasets_using_video(team_uuid, video_uuid)
-    if len(dataset_entity_array) > 0:
-        message = 'Error: One or more datasets uses video_uuid=%s.' % video_uuid
-        logging.critical(message)
-        raise exceptions.HttpErrorConflict(message)
     storage.delete_video(team_uuid, video_uuid)
     return 'OK'
 
@@ -475,18 +469,17 @@ def retrieve_dataset():
         response['frames_written'] = frames_written
     return flask.jsonify(response)
 
-@app.route('/canDeleteDataset', methods=['POST'])
+@app.route('/canDeleteDatasets', methods=['POST'])
 @handle_exceptions
 @login_required
-def can_delete_dataset():
+def can_delete_datasets():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
-    dataset_uuid = data.get('dataset_uuid')
-    model_entity_array = storage.retrieve_models_using_dataset(team_uuid, dataset_uuid)
-    can_delete_dataset = len(model_entity_array) == 0
+    dataset_uuids_json = data.get('dataset_uuids')
+    can_delete_datasets, messages = storage.can_delete_datasets(team_uuid, dataset_uuids_json)
     response = {
-        'can_delete_dataset': can_delete_dataset,
-        'model_entity_array': model_entity_array,
+        'can_delete_datasets': can_delete_datasets,
+        'messages': messages,
     }
     return flask.jsonify(response)
 
@@ -650,18 +643,17 @@ def retrieve_model():
     }
     return flask.jsonify(response)
 
-@app.route('/canDeleteModel', methods=['POST'])
+@app.route('/canDeleteModels', methods=['POST'])
 @handle_exceptions
 @login_required
-def can_delete_model():
+def can_delete_models():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
-    model_uuid = data.get('model_uuid')
-    model_entity_array = storage.retrieve_models_using_model(team_uuid, model_uuid)
-    can_delete_model = len(model_entity_array) == 0
+    model_uuids_json = data.get('model_uuids')
+    can_delete_models, messages = storage.can_delete_models(team_uuid, model_uuids_json)
     response = {
-        'can_delete_model': can_delete_model,
-        'model_entity_array': model_entity_array,
+        'can_delete_models': can_delete_models,
+        'messages': messages,
     }
     return flask.jsonify(response)
 

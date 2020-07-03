@@ -206,13 +206,15 @@ fmltc.Util.prototype.xhr_httpPerformAction_onreadystatechange = function(xhr,
       }
 
     } else {
-      // TODO(lizlooney): handle error properly. Currently we try again, but that might not be the best idea.
-      console.log('Failure! calling http_perform_action xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      // TODO(lizlooney): handle error properly. Currently we try again in 1 second, but that
+      // might not be the best idea.
+      console.log('Failure! calling http_perform_action' +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       console.log('Action ' + actionParameters.action_name + ' failed.')
-      //if (retryCount < 3) {
-      //  console.log('Will retry http_perform_action in 1 second.');
-      //  setTimeout(this.callHttpPerformAction.bind(this, actionParameters, retryCount + 1), 1000);
-      //}
+      if (retryCount < 3) {
+        console.log('Will retry http_perform_action in 1 second.');
+        setTimeout(this.callHttpPerformAction.bind(this, actionParameters, retryCount + 1), 1000);
+      }
     }
   }
 };
@@ -359,8 +361,21 @@ fmltc.Util.prototype.isJobDone = function(jobState) {
   return jobState == '' || jobState == 'SUCCEEDED' || jobState == 'FAILED' || jobState == 'CANCELLED';
 };
 
-fmltc.Util.prototype.formatJobState = function(cancel_requested, jobState) {
-  return (cancel_requested && !jobState.startsWith('CANCEL'))
+fmltc.Util.prototype.isStateChangingSoon = function(cancelRequested, jobState) {
+  return (
+      jobState == 'STATE_UNSPECIFIED' ||
+      jobState == 'QUEUED' ||
+      jobState == 'PREPARING' ||
+      jobState == 'CANCELLING' ||
+      this.isStateCancelRequested(cancelRequested, jobState));
+};
+
+fmltc.Util.prototype.isStateCancelRequested = function(cancelRequested, jobState) {
+  return cancelRequested && !jobState.startsWith('CANCEL');
+};
+
+fmltc.Util.prototype.formatJobState = function(cancelRequested, jobState) {
+  return this.isStateCancelRequested(cancelRequested, jobState)
       ? 'CANCEL REQUESTED' : jobState;
 };
 
