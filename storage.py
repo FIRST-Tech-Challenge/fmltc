@@ -17,6 +17,7 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timedelta, timezone
 import dateutil.parser
+import json
 import time
 import uuid
 
@@ -256,13 +257,42 @@ def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
                     transaction.delete(tracker_client_entity.key)
         return video_entity
 
-def retrieve_datasets_using_video(team_uuid, video_uuid):
-    dataset_entities = []
+def can_delete_videos(team_uuid, video_uuids_json):
+    can_delete_videos = True
+    messages = []
+    video_uuid_list = json.loads(video_uuids_json)
+    all_video_entities = retrieve_video_list(team_uuid)
+    # Build a dictionary to hold the descriptions of the videos that might be deleted.
+    dict_video_uuid_to_description = {}
+    # Build a dictionary to hold the descriptions of the datasets that use the videos that might be deleted.
+    dict_video_uuid_to_dataset_descriptions = {}
+    for video_entity in all_video_entities:
+        if video_entity['video_uuid'] in video_uuid_list:
+            dict_video_uuid_to_description[video_entity['video_uuid']] = video_entity['description']
+            dict_video_uuid_to_dataset_descriptions[video_entity['video_uuid']] = []
     all_dataset_entities = retrieve_dataset_list(team_uuid)
+    # Check whether any datasets are using any of the the videos that might be deleted.
     for dataset_entity in all_dataset_entities:
-        if video_uuid in dataset_entity['video_uuids']:
-            dataset_entities.append(dataset_entity)
-    return dataset_entities
+        for video_uuid in dataset_entity['video_uuids']:
+            if video_uuid in video_uuid_list:
+                can_delete_videos = False
+                dict_video_uuid_to_dataset_descriptions[video_uuid].append(dataset_entity['description'])
+    if not can_delete_videos:
+        for video_uuid, dataset_descriptions in dict_video_uuid_to_dataset_descriptions.items():
+            if len(dataset_descriptions) > 0:
+                description = dict_video_uuid_to_description[video_uuid]
+                message = 'The video "' + description + '" cannot be deleted because it is used by '
+                if len(dataset_descriptions) == 1:
+                    message += 'the dataset "' + dataset_descriptions[0] + '".'
+                elif len(dataset_descriptions) == 2:
+                    message += 'the datasets "' + dataset_descriptions[0] + '" and  "' + dataset_descriptions[1] + '".'
+                else:
+                    message += 'the datasets '
+                    for i in range(len(dataset_descriptions) - 1):
+                        message += '"' + dataset_descriptions[i] + '", '
+                    message += 'and "' + dataset_descriptions[len(other_descriptions) - 1] + '".'
+                messages.append(message)
+    return can_delete_videos, messages
 
 def delete_video(team_uuid, video_uuid):
     datastore_client = datastore.Client()
@@ -1177,21 +1207,81 @@ def retrieve_model_list(team_uuid):
     model_entities = list(query.fetch())
     return model_entities
 
-def retrieve_models_using_dataset(team_uuid, dataset_uuid):
-    model_entities = []
+def can_delete_datasets(team_uuid, dataset_uuids_json):
+    can_delete_datasets = True
+    messages = []
+    dataset_uuid_list = json.loads(dataset_uuids_json)
+    all_dataset_entities = retrieve_dataset_list(team_uuid)
+    # Build a dictionary to hold the descriptions of the datasets that might be deleted.
+    dict_dataset_uuid_to_description = {}
+    # Build a dictionary to hold the descriptions of the models that use the datasets that might be deleted.
+    dict_dataset_uuid_to_model_descriptions = {}
+    for dataset_entity in all_dataset_entities:
+        if dataset_entity['dataset_uuid'] in dataset_uuid_list:
+            dict_dataset_uuid_to_description[dataset_entity['dataset_uuid']] = dataset_entity['description']
+            dict_dataset_uuid_to_model_descriptions[dataset_entity['dataset_uuid']] = []
     all_model_entities = retrieve_model_list(team_uuid)
+    # Check whether any models are using any of the the datasets that might be deleted.
     for model_entity in all_model_entities:
-        if dataset_uuid in model_entity['dataset_uuids']:
-            model_entities.append(model_entity)
-    return model_entities
+        for dataset_uuid in model_entity['dataset_uuids']:
+            if dataset_uuid in dataset_uuid_list:
+                can_delete_datasets = False
+                dict_dataset_uuid_to_model_descriptions[dataset_uuid].append(model_entity['description'])
+    if not can_delete_datasets:
+        for dataset_uuid, model_descriptions in dict_dataset_uuid_to_model_descriptions.items():
+            if len(model_descriptions) > 0:
+                description = dict_dataset_uuid_to_description[dataset_uuid]
+                message = 'The dataset "' + description + '" cannot be deleted because it is used by '
+                if len(model_descriptions) == 1:
+                    message += 'the model "' + model_descriptions[0] + '".'
+                elif len(model_descriptions) == 2:
+                    message += 'the models "' + model_descriptions[0] + '" and  "' + model_descriptions[1] + '".'
+                else:
+                    message += 'the models '
+                    for i in range(len(model_descriptions) - 1):
+                        message += '"' + model_descriptions[i] + '", '
+                    message += 'and "' + model_descriptions[len(other_descriptions) - 1] + '".'
+                messages.append(message)
+    return can_delete_datasets, messages
 
-def retrieve_models_using_model(team_uuid, model_uuid):
-    model_entities = []
+def can_delete_models(team_uuid, model_uuids_json):
+    can_delete_models = True
+    messages = []
+    model_uuid_list = json.loads(model_uuids_json)
     all_model_entities = retrieve_model_list(team_uuid)
+    # Build a dictionary to hold the descriptions of the models that might be deleted.
+    dict_model_uuid_to_description = {}
+    # Build a dictionary to hold the descriptions of the models that use the models that might be deleted.
+    dict_model_uuid_to_other_model_descriptions = {}
     for model_entity in all_model_entities:
-        if model_uuid in model_entity['starting_model']:
-            model_entities.append(model_entity)
-    return model_entities
+        if model_entity['model_uuid'] in model_uuid_list:
+            dict_model_uuid_to_description[model_entity['model_uuid']] = model_entity['description']
+            dict_model_uuid_to_other_model_descriptions[model_entity['model_uuid']] = []
+    # Check whether any models (not being deleted) are using one of the models that might be
+    # deleted.
+    for model_entity in all_model_entities:
+        # We don't need to check the models that are being deleted.
+        if model_entity['model_uuid'] in model_uuid_list:
+            continue;
+        if model_entity['starting_model'] in model_uuid_list:
+            can_delete_models = False
+            dict_model_uuid_to_other_model_descriptions[model_entity['starting_model']].append(model_entity['description'])
+    if not can_delete_models:
+        for model_uuid, other_descriptions in dict_model_uuid_to_other_model_descriptions.items():
+            if len(other_descriptions) > 0:
+                description = dict_model_uuid_to_description[model_uuid]
+                message = 'The model "' + description + '" cannot be deleted because it is used by '
+                if len(other_descriptions) == 1:
+                    message += 'the model "' + other_descriptions[0] + '".'
+                elif len(other_descriptions) == 2:
+                    message += 'the models "' + other_descriptions[0] + '" and  "' + other_descriptions[1] + '".'
+                else:
+                    message += 'the models '
+                    for i in range(len(other_descriptions) - 1):
+                        message += '"' + other_descriptions[i] + '", '
+                    message += 'and "' + other_descriptions[len(other_descriptions) - 1] + '".'
+                messages.append(message)
+    return can_delete_models, messages
 
 def delete_model(team_uuid, model_uuid):
     datastore_client = datastore.Client()

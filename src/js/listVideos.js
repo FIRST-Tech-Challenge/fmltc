@@ -40,7 +40,7 @@ fmltc.ListVideos = function(util) {
   this.videosTable = document.getElementById('videosTable');
   this.videoCheckboxAll = document.getElementById('videoCheckboxAll');
   this.produceDatasetButton = document.getElementById('produceDatasetButton');
-  this.deleteVideoButton = document.getElementById('deleteVideoButton');
+  this.deleteVideosButton = document.getElementById('deleteVideosButton');
 
   this.headerRowCount = this.videosTable.rows.length;
 
@@ -59,6 +59,7 @@ fmltc.ListVideos = function(util) {
   this.excludedFrameCountTds = [];
 
   this.waitCursor = false;
+  this.deleteVideoCounter = 0;
 
   this.retrieveVideos();
 
@@ -68,7 +69,7 @@ fmltc.ListVideos = function(util) {
   uploadVideoFileButton.onclick = this.uploadVideoFileButton_onclick.bind(this);
   this.videoCheckboxAll.onclick = this.videoCheckboxAll_onclick.bind(this);
   this.produceDatasetButton.onclick = this.produceDatasetButton_onclick.bind(this);
-  this.deleteVideoButton.onclick = this.deleteVideoButton_onclick.bind(this);
+  this.deleteVideosButton.onclick = this.deleteVideosButton_onclick.bind(this);
 };
 
 fmltc.ListVideos.prototype.retrieveVideos = function() {
@@ -305,73 +306,64 @@ fmltc.ListVideos.prototype.updateButtons = function() {
   this.produceDatasetButton.disabled = this.waitCursor || countChecked == 0 || frameExtractionIsNotComplete;
   // TODO(lizlooney): Allow videos with incomplete frame extraction to be deleted (we'll need to
   // cancel the frame extraction).
-  this.deleteVideoButton.disabled = this.waitCursor || countChecked != 1 || frameExtractionIsNotComplete;
+  this.deleteVideosButton.disabled = this.waitCursor || countChecked == 0 || frameExtractionIsNotComplete;
 };
 
 
-fmltc.ListVideos.prototype.deleteVideoButton_onclick = function() {
-  let videoEntity = null;
-  for (let i = 0; i < this.checkboxes.length; i++) {
-    if (this.checkboxes[i].checked) {
-      videoEntity = this.videoEntityArray[i];
-      break;
-    }
-  }
-  if (videoEntity == null) {
-    return;
-  }
+fmltc.ListVideos.prototype.deleteVideosButton_onclick = function() {
+  const videoUuids = this.getCheckedVideoUuids();
+  const videoUuidsJson = JSON.stringify(videoUuids);
+
   const xhr = new XMLHttpRequest();
-  const params = 'video_uuid=' + encodeURIComponent(videoEntity.video_uuid);
-  xhr.open('POST', '/canDeleteVideo', true);
+  const params = 'video_uuids=' + encodeURIComponent(videoUuidsJson);
+  xhr.open('POST', '/canDeleteVideos', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_canDeleteVideo_onreadystatechange.bind(this, xhr, params,
-      videoEntity);
+  xhr.onreadystatechange = this.xhr_canDeleteVideos_onreadystatechange.bind(this, xhr, params,
+      videoUuids);
   xhr.send(params);
 };
 
-fmltc.ListVideos.prototype.xhr_canDeleteVideo_onreadystatechange = function(xhr, params,
-    videoEntity) {
+fmltc.ListVideos.prototype.xhr_canDeleteVideos_onreadystatechange = function(xhr, params,
+    videoUuids) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      if (response.can_delete_video) {
-        new fmltc.DeleteConfirmationDialog(this.util, 'Delete Video',
-            'Are you sure you want to delete the selected video?',
-            this.deleteVideo.bind(this, videoEntity.video_uuid));
+      if (response.can_delete_videos) {
+        new fmltc.DeleteConfirmationDialog(this.util, 'Delete Videos',
+            'Are you sure you want to delete the selected videos?',
+            this.deleteVideos.bind(this, videoUuids));
       } else {
-        const title = 'Cannot Delete Video';
-        const message = 'The video "' + videoEntity.description +
-            '" cannot be deleted because the following ' +
-            ((response.dataset_entity_array.length == 1) ? 'dataset is' : 'datasets are') +
-            ' using it.';
-        const datasetDescriptions = [];
-        for (let i = 0; i < response.dataset_entity_array.length; i++) {
-          datasetDescriptions[i] = response.dataset_entity_array[i].description;
-        }
-        new fmltc.DeleteForbiddenDialog(this.util, title, message, datasetDescriptions);
+        const title = 'Delete Videos';
+        const message = 'The selected videos cannot be deleted.';
+        new fmltc.DeleteForbiddenDialog(this.util, title, message, response.messages);
       }
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /canDeleteVideo?' + params +
+      console.log('Failure! /canDeleteVideos?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };
 
-fmltc.ListVideos.prototype.deleteVideo = function(videoUuid) {
+fmltc.ListVideos.prototype.deleteVideos = function(videoUuids) {
   this.waitCursor = true;
   this.util.setWaitCursor();
   this.updateButtons();
 
-  const xhr = new XMLHttpRequest();
-  const params = 'video_uuid=' + encodeURIComponent(videoUuid);
-  xhr.open('POST', '/deleteVideo', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_deleteVideo_onreadystatechange.bind(this, xhr, params,
-      videoUuid);
-  xhr.send(params);
+  this.deleteVideoCounter = 0;
+  for (let i = 0; i < videoUuids.length; i++) {
+    const videoUuid = videoUuids[i];
+    const xhr = new XMLHttpRequest();
+    const params = 'video_uuid=' + encodeURIComponent(videoUuid);
+    xhr.open('POST', '/deleteVideo', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onreadystatechange = this.xhr_deleteVideo_onreadystatechange.bind(this, xhr, params,
+        videoUuid);
+    xhr.send(params);
+    this.deleteVideoCounter++;
+  }
 };
 
 fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, params,
@@ -379,9 +371,12 @@ fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, pa
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
-    this.util.clearWaitCursor();
-    this.waitCursor = false;
-    this.updateButtons();
+    this.deleteVideoCounter--;
+    if (this.deleteVideoCounter == 0) {
+      this.util.clearWaitCursor();
+      this.waitCursor = false;
+      this.updateButtons();
+    }
 
     if (xhr.status === 200) {
       const i = this.indexOfVideo(videoUuid);
