@@ -15,7 +15,7 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
-from datetime import datetime, timedelta
+from datetime import timedelta
 import json
 import logging
 import os
@@ -367,7 +367,7 @@ def make_action_parameters(team_uuid, model_uuid):
     action_parameters['model_uuid'] = model_uuid
     return action_parameters
 
-def extract_summary_images(action_parameters, time_limit, active_memory_limit):
+def extract_summary_images(action_parameters):
     team_uuid = action_parameters['team_uuid']
     model_uuid = action_parameters['model_uuid']
 
@@ -380,50 +380,34 @@ def extract_summary_images(action_parameters, time_limit, active_memory_limit):
         training_folder, training_event_file_path, training_updated = blob_storage.get_training_event_file_path(
                 team_uuid, model_uuid)
         if training_event_file_path is not None and training_updated != previous_training_updated:
-            need_restart = extract_summary_images_for_event_file(team_uuid, model_uuid,
-                training_folder, training_event_file_path,
-                action_parameters, time_limit, active_memory_limit)
-            if need_restart:
-                action.trigger_action_via_blob(action_parameters)
-                return
+            __extract_summary_images_for_event_file(team_uuid, model_uuid,
+                training_folder, training_event_file_path, action_parameters)
         previous_training_updated = training_updated
 
         eval_folder, eval_event_file_path, eval_updated = blob_storage.get_eval_event_file_path(
                 team_uuid, model_uuid)
         if eval_event_file_path is not None and eval_updated != previous_eval_updated:
-            need_restart = extract_summary_images_for_event_file(team_uuid, model_uuid,
-                eval_folder, eval_event_file_path,
-                action_parameters, time_limit, active_memory_limit)
-            if need_restart:
-                action.trigger_action_via_blob(action_parameters)
-                return
+            __extract_summary_images_for_event_file(team_uuid, model_uuid,
+                eval_folder, eval_event_file_path, action_parameters)
         previous_eval_updated = eval_updated
 
         if is_done(model_entity):
             return
 
-        if datetime.now() < time_limit - timedelta(minutes=3):
-            time.sleep(150)
-        elif datetime.now() < time_limit - timedelta(minutes=2):
-            time.sleep(90)
-        elif datetime.now() < time_limit - timedelta(minutes=1):
-            time.sleep(30)
-
-        if action.is_near_limit(time_limit, active_memory_limit):
-            action.trigger_action_via_blob(action_parameters)
-            return
+        if action.remaining_timedelta(action_parameters) > timedelta(minutes=2):
+            time.sleep(60)
+        action.retrigger_if_necessary(action_parameters)
 
 
-def extract_summary_images_for_event_file(team_uuid, model_uuid, folder, event_file_path,
-        action_parameters, time_limit, active_memory_limit):
+def __extract_summary_images_for_event_file(team_uuid, model_uuid, folder, event_file_path,
+        action_parameters):
     for event in summary_iterator(event_file_path):
-        if action.is_near_limit(time_limit, active_memory_limit):
-            return True
+        action.retrigger_if_necessary(action_parameters)
         for value in event.summary.value:
             if value.HasField('image'):
                 blob_storage.store_event_summary_image(team_uuid, model_uuid,
                     folder, event.step, value.tag, value.image.encoded_image_string)
-    return False
+
 
 def retrieve_training_summaries(team_uuid, model_uuid, retrieve_scalars, retrieve_images):
     training_folder, training_event_file_path, training_updated = blob_storage.get_training_event_file_path(

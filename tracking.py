@@ -58,7 +58,7 @@ def make_action_parameters(video_uuid, tracker_uuid):
     action_parameters['tracker_uuid'] = tracker_uuid
     return action_parameters
 
-def start_tracking(action_parameters, time_limit, active_memory_limit):
+def start_tracking(action_parameters):
     video_uuid = action_parameters['video_uuid']
     tracker_uuid = action_parameters['tracker_uuid']
 
@@ -119,7 +119,7 @@ def start_tracking(action_parameters, time_limit, active_memory_limit):
             # Wait for the bboxes to be approved/adjusted.
             while tracker_client_entity['frame_number'] != frame_number:
                 if __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity,
-                        time_limit, active_memory_limit, action_parameters):
+                        action_parameters):
                     return
                 time.sleep(0.1)
                 tracker_client_entity = storage.retrieve_tracker_client_entity(video_uuid, tracker_uuid)
@@ -156,7 +156,7 @@ def start_tracking(action_parameters, time_limit, active_memory_limit):
                 storage.store_tracked_bboxes(video_uuid, tracker_uuid, frame_number, tracked_bboxes_text)
 
                 if __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity,
-                        time_limit, active_memory_limit, action_parameters):
+                        action_parameters):
                     return
 
                 # Wait for the bboxes to be approved/adjusted.
@@ -166,7 +166,7 @@ def start_tracking(action_parameters, time_limit, active_memory_limit):
                     return
                 while tracker_client_entity['frame_number'] != frame_number:
                     if __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity,
-                            time_limit, active_memory_limit, action_parameters):
+                            action_parameters):
                         return
                     time.sleep(0.1)
                     tracker_client_entity = storage.retrieve_tracker_client_entity(video_uuid, tracker_uuid)
@@ -187,16 +187,12 @@ def start_tracking(action_parameters, time_limit, active_memory_limit):
         # Delete the temporary file.
         os.remove(video_filename)
 
-def __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity,
-        time_limit, active_memory_limit, action_parameters):
+def __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity, action_parameters):
     if (tracker_client_entity['tracking_stop_requested'] or
             util.time_now_utc_millis() - tracker_client_entity['update_time_utc_ms'] > TWO_MINUTES_IN_MS):
         storage.tracker_stopping(team_uuid, video_uuid, tracker_uuid)
         return True
-    if action.is_near_limit(time_limit, active_memory_limit):
-        # Time or memory is running out. Trigger the action again to restart.
-        action.trigger_action_via_blob(action_parameters)
-        return True
+    action.retrigger_if_necessary(action_parameters)
     return False
 
 def __create_trackers(tracker_fn, frame, init_bboxes, classes):

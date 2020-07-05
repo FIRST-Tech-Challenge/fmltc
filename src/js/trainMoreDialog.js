@@ -168,7 +168,6 @@ fmltc.TrainMoreDialog.prototype.xhr_startTrainingModel_onreadystatechange = func
       const response = JSON.parse(xhr.responseText);
       const remainingTrainingMinutes = Math.floor(response.remaining_training_minutes);
       const modelEntity = response.model_entity;
-      this.util.callHttpPerformAction(response.action_parameters, 0);
 
       this.startTrainingInProgress = false;
       this.updateStartButton();

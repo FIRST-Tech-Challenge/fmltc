@@ -36,8 +36,14 @@ import util
 
 BUCKET_ACTION_PARAMETERS = ('%s-action-parameters' % constants.PROJECT_ID)
 
+ACTIVE_MEMORY_LIMIT = 2000000000
+
 ACTION_NAME = 'action_name'
-ACTION_NAME_SLEEP = 'sleep' # For testing purposes
+ACTION_RETRIGGERED = 'action_retriggered'
+ACTION_TIME_LIMIT = 'action_time_limit'
+ACTION_UUID = 'action_uuid'
+
+ACTION_NAME_TEST = 'test' # For testing purposes
 ACTION_NAME_DATASET_PRODUCE = 'dataset_produce'
 ACTION_NAME_DATASET_PRODUCE_RECORD = 'dataset_produce_record'
 ACTION_NAME_DELETE_DATASET_RECORD_WRITERS = 'delete_dataset_record_writers'
@@ -58,33 +64,39 @@ def create_action_parameters(action_name):
 
 
 def trigger_action_via_blob(action_parameters):
-    action_parameters_blob_name= '%s/%s' % (action_parameters[ACTION_NAME], str(uuid.uuid4().hex))
-    action_parameters_json = json.dumps(action_parameters)
+    # Copy the given action_parameters and remove the action_time_limit entry from the copy
+    action_parameters_copy = action_parameters.copy()
+    action_parameters_copy.pop(ACTION_TIME_LIMIT, 0)
+    action_parameters_copy.pop(ACTION_RETRIGGERED, False)
+    # Write the copied action_parameters to trigger the cloud function.
+    action_parameters_blob_name= '%s/%s' % (action_parameters_copy[ACTION_NAME], str(uuid.uuid4().hex))
+    action_parameters_json = json.dumps(action_parameters_copy)
     blob = util.storage_client().bucket(BUCKET_ACTION_PARAMETERS).blob(action_parameters_blob_name)
+    util.log('action.trigger_action_via_blob - %s' % action_parameters_copy[ACTION_NAME])
     blob.upload_from_string(action_parameters_json, content_type="text/json")
-    return action_parameters
 
 
-def perform_action_from_blob(action_parameters_blob_name, time_limit, active_memory_limit):
+def perform_action_from_blob(action_parameters_blob_name, time_limit):
     blob = util.storage_client().get_bucket(BUCKET_ACTION_PARAMETERS).blob(action_parameters_blob_name)
     # If the blob no longer exists, this event is a duplicate and is ignored.
     if blob.exists():
         action_parameters_json = blob.download_as_string()
         blob.delete()
         action_parameters = json.loads(action_parameters_json)
-        perform_action(action_parameters, time_limit, active_memory_limit)
+        perform_action(action_parameters, time_limit)
 
 
-def perform_action(action_parameters, time_limit, active_memory_limit):
-    if ACTION_NAME not in action_parameters:
-        util.log('action.perform_action - start')
-        util.log('action.perform_action - end')
-        return
-
+def perform_action(action_parameters, time_limit):
+    action_parameters[ACTION_TIME_LIMIT] = time_limit
+    if ACTION_UUID not in action_parameters:
+        util.log('action.perform_action - %s - create' % action_parameters[ACTION_NAME])
+        action_parameters[ACTION_UUID] = storage.action_on_create(action_parameters[ACTION_NAME])
     util.log('action.perform_action - %s - start' % action_parameters[ACTION_NAME])
+    storage.action_on_start(action_parameters[ACTION_UUID])
+
 
     action_fns = {
-        ACTION_NAME_SLEEP: __sleep_a_bit,
+        ACTION_NAME_TEST: test,
         ACTION_NAME_DATASET_PRODUCE: dataset_producer.produce_dataset,
         ACTION_NAME_DATASET_PRODUCE_RECORD: dataset_producer.produce_dataset_record,
         ACTION_NAME_DELETE_DATASET_RECORD_WRITERS: storage.finish_delete_dataset_record_writers,
@@ -100,23 +112,50 @@ def perform_action(action_parameters, time_limit, active_memory_limit):
     action_fn = action_fns.get(action_parameters[ACTION_NAME], None)
     if action_fn is not None:
         try:
-            action_fn(action_parameters, time_limit, active_memory_limit)
+            action_fn(action_parameters)
+        except Stop as e:
+            pass
         except:
             util.log('action.perform_action - %s except %s' %
                 (action_parameters[ACTION_NAME], traceback.format_exc().replace('\n', ' ... ')))
-            #raise
     else:
         util.log('action.perform_action - %s - action_fn is None' % action_parameters[ACTION_NAME])
 
-    util.log('action.perform_action - %s - end' % action_parameters[ACTION_NAME])
+    util.log('action.perform_action - %s - stop' % action_parameters[ACTION_NAME])
+    storage.action_on_stop(action_parameters[ACTION_UUID])
+    if ACTION_RETRIGGERED not in action_parameters:
+        util.log('action.perform_action - %s - destroy' % action_parameters[ACTION_NAME])
+        storage.action_on_destroy(action_parameters[ACTION_UUID])
 
 
-def is_near_limit(time_limit, active_memory_limit):
-    if datetime.now() >= time_limit - timedelta(seconds=30):
-        return True
-    if psutil.virtual_memory().active >= active_memory_limit:
-        return True
-    return False
+def __retrigger_action(action_parameters):
+    if ACTION_RETRIGGERED not in action_parameters:
+        trigger_action_via_blob(action_parameters)
+        action_parameters[ACTION_RETRIGGERED] = True
 
-def __sleep_a_bit(action_parameters, time_limit, active_memory_limit):
-    time.sleep(20)
+
+def retrigger_if_necessary(action_parameters):
+    if remaining_timedelta(action_parameters) <= timedelta(seconds=70):
+        __retrigger_action(action_parameters)
+        if remaining_timedelta(action_parameters) <= timedelta(seconds=30):
+            raise Stop()
+        # If there's more than 30 seconds remaining, let this function keep running.
+    if psutil.virtual_memory().active >= ACTIVE_MEMORY_LIMIT:
+        __retrigger_action(action_parameters)
+        raise Stop()
+
+
+class Stop(Exception):
+  def __init__(self):
+    Exception.__init__(self)
+
+
+def remaining_timedelta(action_parameters):
+    return action_parameters[ACTION_TIME_LIMIT] - datetime.now()
+
+
+def test(action_parameters):
+    action_finish_time = action_parameters['action_finish_time']
+    while util.time_now_utc_millis() < action_finish_time:
+        time.sleep(20)
+        retrigger_if_necessary(action_parameters)

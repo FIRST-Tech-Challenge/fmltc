@@ -427,8 +427,6 @@ fmltc.ListVideos.prototype.xhr_triggerFrameExtraction_onreadystatechange = funct
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      const response = JSON.parse(xhr.responseText);
-      this.util.callHttpPerformAction(response.action_parameters, 0);
       const i = this.indexOfVideo(videoUuid);
       if (i != -1) {
         this.trs[i].className = 'frameExtractionIncomplete';

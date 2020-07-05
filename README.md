@@ -156,17 +156,12 @@ scripts/deploy_static.sh
 source env_setup.sh
 scripts/deploy_js.sh
 ```
-4. Deploy the Cloud Functions.
+4. Deploy the Cloud Function.
 ```
 source env_setup.sh
-scripts/deploy_cloud_functions.sh
+scripts/deploy_cloud_function.sh
 ```
-   - If you see the following, enter y.
-```
-Allow unauthenticated invocations of new function 
-[http_perform_action]? (y/N)? 
-```
-   - If you see the following, enter y.
+   - If you see the following, enter N.
 ```
 Allow unauthenticated invocations of new function 
 [perform_action]? (y/N)? 
@@ -175,16 +170,6 @@ Allow unauthenticated invocations of new function
 ```
 ERROR: (gcloud.functions.deploy) OperationError: code=3, message=Function failed on loading user code. Error message: Error: memory limit exceeded.
 ```
-   - Edit settings for Cloud Function http_perform_action
-      - [ ] Go to https://console.cloud.google.com/functions/list?project=my_project_id (replace my_project_id with your actual project ID)
-      - [ ] Click `http_perform_action`
-      - [ ] Look for `Region`. Make a note of the `Region` value shown here.
-      - [ ] Click `Edit`
-      - [ ] Change Memory allocated to 2 GiB
-      - [ ] Click `ENVIRONMENT VARIABLES, NETWORKING, TIMEOUTS AND MORE`
-      - [ ] Change Timeout to 540
-      - [ ] Click `DEPLOY`
-      - [ ] Go to https://console.cloud.google.com/functions/list?project=my_project_id (replace my_project_id with your actual project ID)
    - Edit settings for Cloud Function perform_action
       - [ ] Click `perform_action`
       - [ ] Click `Edit`
@@ -192,12 +177,7 @@ ERROR: (gcloud.functions.deploy) OperationError: code=3, message=Function failed
       - [ ] Click `ENVIRONMENT VARIABLES, NETWORKING, TIMEOUTS AND MORE`
       - [ ] Change Timeout to 540
       - [ ] Click `DEPLOY`
-5. Update the REGION value in constants.py
-   - In the Deploy the Cloud Functions step above, you made a note of the `Region` value for the
-     http_perform_action Cloud Function shown in the Google Cloud Platform console.
-   - **Important!** If the value was not `us-central1`, you must modify constants.py before deploying the App Engine code.
-   - [ ] In constants.py, look for `REGION = 'us-central1'` and replace `us-central1` with the correct region.
-6. Deploy the App Engine code.
+5. Deploy the App Engine code.
 ```
 source env_setup.sh
 scripts/deploy_gae.sh

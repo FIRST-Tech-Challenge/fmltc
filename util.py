@@ -22,7 +22,7 @@ import logging
 import google.cloud.storage
 
 
-LOG_MESSAGE_PREFIX = 'FMLTC - '
+LOG_MESSAGE_PREFIX = 'FMLTC_LOG - '
 
 def log(message):
     logging.critical('%s%s' % (LOG_MESSAGE_PREFIX, message))

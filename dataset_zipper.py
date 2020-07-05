@@ -46,7 +46,7 @@ def make_action_parameters(team_uuid, dataset_uuid, dataset_zip_uuid, partition_
     action_parameters['partition_count']  = partition_count
     return action_parameters
 
-def zip_dataset(action_parameters, time_limit, active_memory_limit):
+def zip_dataset(action_parameters):
     team_uuid = action_parameters['team_uuid']
     dataset_zip_uuid = action_parameters['dataset_zip_uuid']
     dataset_uuid = action_parameters['dataset_uuid']
@@ -66,12 +66,11 @@ def zip_dataset(action_parameters, time_limit, active_memory_limit):
     for partition_index, partition_list in enumerate(partition_lists):
         file_count = len(partition_list)
         storage.update_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index, file_count, 0)
-        action_parameters_copy = action_parameters.copy()
-        action_parameters_copy['partition_list'] = partition_list
-        action_parameters_copy['partition_index'] = partition_index
-        action.trigger_action_via_blob(action_parameters_copy)
+        action_parameters['partition_list'] = partition_list
+        action_parameters['partition_index'] = partition_index
+        action.trigger_action_via_blob(action_parameters)
 
-def zip_dataset_partition(action_parameters, time_limit, active_memory_limit):
+def zip_dataset_partition(action_parameters):
     team_uuid = action_parameters['team_uuid']
     dataset_zip_uuid = action_parameters['dataset_zip_uuid']
     partition_list = action_parameters['partition_list']

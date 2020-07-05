@@ -177,7 +177,6 @@ fmltc.UploadVideoFileDialog.prototype.xhr_prepareToUploadVideo_onreadystatechang
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
       this.uploadVideoFile(response.upload_url, response.video_uuid);
-      this.util.callHttpPerformAction(response.action_parameters, 0);
 
     } else {
       // TODO(lizlooney): handle error properly. We should retry

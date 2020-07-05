@@ -65,7 +65,7 @@ def make_action_parameters(team_uuid, dataset_uuid, video_uuids_json, eval_perce
     action_parameters['start_time_ms'] = start_time_ms
     return action_parameters
 
-def produce_dataset(action_parameters, time_limit, active_memory_limit):
+def produce_dataset(action_parameters):
     team_uuid = action_parameters['team_uuid']
     dataset_uuid = action_parameters['dataset_uuid']
     video_uuids_json = action_parameters['video_uuids_json']
@@ -120,22 +120,22 @@ def produce_dataset(action_parameters, time_limit, active_memory_limit):
     train_record_number = 0
     eval_record_number = 0
 
+    action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCE_RECORD)
+    action_parameters['team_uuid'] = team_uuid
+    action_parameters['dataset_uuid'] = dataset_uuid
+    action_parameters['sorted_label_list'] = sorted_label_list
+
     # Trigger actions for the train records
     for video_entity in video_entities:
         video_uuid = video_entity['video_uuid']
         split = dict_video_uuid_to_split[video_uuid]
-        action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCE_RECORD)
-        action_parameters['team_uuid'] = team_uuid
-        action_parameters['dataset_uuid'] = dataset_uuid
         action_parameters['video_uuid'] = video_uuid
-        action_parameters['sorted_label_list'] = sorted_label_list
         for i, train_frame_number_list in enumerate(split.train_frame_number_lists):
-            action_parameters_copy = action_parameters.copy()
-            action_parameters_copy['frame_number_list'] = train_frame_number_list
-            action_parameters_copy['record_number'] = record_number
-            action_parameters_copy['record_id'] = train_record_id_format % (train_record_number, train_record_count)
-            action_parameters_copy['is_eval'] = False
-            action.trigger_action_via_blob(action_parameters_copy)
+            action_parameters['frame_number_list'] = train_frame_number_list
+            action_parameters['record_number'] = record_number
+            action_parameters['record_id'] = train_record_id_format % (train_record_number, train_record_count)
+            action_parameters['is_eval'] = False
+            action.trigger_action_via_blob(action_parameters)
             train_record_number += 1
             record_number += 1
 
@@ -143,18 +143,13 @@ def produce_dataset(action_parameters, time_limit, active_memory_limit):
     for video_entity in video_entities:
         video_uuid = video_entity['video_uuid']
         split = dict_video_uuid_to_split[video_uuid]
-        action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCE_RECORD)
-        action_parameters['team_uuid'] = team_uuid
-        action_parameters['dataset_uuid'] = dataset_uuid
         action_parameters['video_uuid'] = video_uuid
-        action_parameters['sorted_label_list'] = sorted_label_list
         for i, eval_frame_number_list in enumerate(split.eval_frame_number_lists):
-            action_parameters_copy = action_parameters.copy()
-            action_parameters_copy['frame_number_list'] = eval_frame_number_list
-            action_parameters_copy['record_number'] = record_number
-            action_parameters_copy['record_id'] = eval_record_id_format % (eval_record_number, eval_record_count)
-            action_parameters_copy['is_eval'] = True
-            action.trigger_action_via_blob(action_parameters_copy)
+            action_parameters['frame_number_list'] = eval_frame_number_list
+            action_parameters['record_number'] = record_number
+            action_parameters['record_id'] = eval_record_id_format % (eval_record_number, eval_record_count)
+            action_parameters['is_eval'] = True
+            action.trigger_action_via_blob(action_parameters)
             eval_record_number += 1
             record_number += 1
 
@@ -219,7 +214,7 @@ def __split_for_records(video_frame_entities, eval_percent, max_frames_per_recor
         eval_frame_count, eval_frame_number_lists, label_set)
 
 
-def produce_dataset_record(action_parameters, time_limit, active_memory_limit):
+def produce_dataset_record(action_parameters):
     team_uuid = action_parameters['team_uuid']
     dataset_uuid = action_parameters['dataset_uuid']
     video_uuid = action_parameters['video_uuid']
