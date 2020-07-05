@@ -18,6 +18,7 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # https://github.com/google/ftc-object-detection/tree/46197ce4ecaee954c2164d257d7dc24e85678285/training/tracking.py
 
 # Python Standard Library
+from datetime import datetime, timedelta, timezone
 import logging
 import os
 import time
@@ -73,7 +74,7 @@ def start_tracking(action_parameters):
         util.log('Unexpected: storage.retrieve_tracker_client_entity returned None')
         return
     if (tracker_client_entity['tracking_stop_requested'] or
-            util.time_now_utc_millis() - tracker_client_entity['update_time_utc_ms'] > TWO_MINUTES_IN_MS):
+            datetime.now(timezone.utc) - tracker_client_entity['update_time'] > timedelta(minutes=2)):
         storage.tracker_stopping(team_uuid, video_uuid, tracker_uuid)
         return
 
@@ -189,7 +190,7 @@ def start_tracking(action_parameters):
 
 def __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity, action_parameters):
     if (tracker_client_entity['tracking_stop_requested'] or
-            util.time_now_utc_millis() - tracker_client_entity['update_time_utc_ms'] > TWO_MINUTES_IN_MS):
+            datetime.now(timezone.utc) - tracker_client_entity['update_time'] > timedelta(minutes=2)):
         storage.tracker_stopping(team_uuid, video_uuid, tracker_uuid)
         return True
     action.retrigger_if_necessary(action_parameters)

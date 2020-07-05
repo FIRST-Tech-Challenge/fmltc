@@ -129,7 +129,7 @@ fmltc.ProduceDatasetDialog.prototype.startButton_onclick = function() {
       'description=' + encodeURIComponent(this.descriptionInput.value) +
       '&video_uuids=' + encodeURIComponent(videoUuidsJson) +
       '&eval_percent=' + this.evalPercentInput.value +
-      '&start_time_ms=' + Date.now();
+      '&create_time_ms=' + Date.now();
   xhr.open('POST', '/prepareToStartDatasetProduction', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_prepareToStartDatasetProduction_onreadystatechange.bind(this, xhr, params);

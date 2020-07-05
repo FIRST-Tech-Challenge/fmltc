@@ -51,18 +51,18 @@ FrameData = collections.namedtuple('FrameData', [
     'video_filename', 'frame_number', 'filename', 'image', 'format', 'bboxes_text'])
 
 
-def prepare_to_start_dataset_production(team_uuid, description, video_uuids_json, eval_percent, start_time_ms):
+def prepare_to_start_dataset_production(team_uuid, description, video_uuids_json, eval_percent, create_time_ms):
     dataset_uuid = storage.prepare_to_start_dataset_production(team_uuid, description,
-        json.loads(video_uuids_json), eval_percent, start_time_ms)
+        json.loads(video_uuids_json), eval_percent, create_time_ms)
     return dataset_uuid
 
-def make_action_parameters(team_uuid, dataset_uuid, video_uuids_json, eval_percent, start_time_ms):
+def make_action_parameters(team_uuid, dataset_uuid, video_uuids_json, eval_percent, create_time_ms):
     action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCE)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['dataset_uuid'] = dataset_uuid
     action_parameters['video_uuids_json'] = video_uuids_json
     action_parameters['eval_percent'] = eval_percent
-    action_parameters['start_time_ms'] = start_time_ms
+    action_parameters['create_time_ms'] = create_time_ms
     return action_parameters
 
 def produce_dataset(action_parameters):
@@ -70,7 +70,7 @@ def produce_dataset(action_parameters):
     dataset_uuid = action_parameters['dataset_uuid']
     video_uuids_json = action_parameters['video_uuids_json']
     eval_percent = action_parameters['eval_percent']
-    start_time_ms = action_parameters['start_time_ms']
+    create_time_ms = action_parameters['create_time_ms']
 
     video_uuid_list = json.loads(video_uuids_json)
     if len(video_uuid_list) == 0:

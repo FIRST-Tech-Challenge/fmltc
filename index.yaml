@@ -7,7 +7,7 @@ indexes:
 - kind: Team
   properties:
   - name: team_uuid
-  - name: last_time_utc_ms
+  - name: last_time
 
 - kind: Video
   properties:
@@ -17,13 +17,13 @@ indexes:
 - kind: Video
   properties:
   - name: team_uuid
-  - name: upload_time_ms
+  - name: create_time
 
 - kind: Video
   properties:
   - name: team_uuid
   - name: delete_in_progress
-  - name: upload_time_ms
+  - name: create_time
 
 - kind: VideoFrame
   properties:
@@ -54,13 +54,13 @@ indexes:
 - kind: Dataset
   properties:
   - name: team_uuid
-  - name: creation_time_ms
+  - name: create_time
 
 - kind: Dataset
   properties:
   - name: team_uuid
   - name: delete_in_progress
-  - name: creation_time_ms
+  - name: create_time
 
 - kind: DatasetRecord
   properties:
@@ -103,13 +103,13 @@ indexes:
 - kind: Model
   properties:
   - name: team_uuid
-  - name: creation_time_ms
+  - name: create_time
 
 - kind: Model
   properties:
   - name: team_uuid
   - name: delete_in_progress
-  - name: creation_time_ms
+  - name: create_time
 
 - kind: Action
   properties:

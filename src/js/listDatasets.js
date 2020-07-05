@@ -34,6 +34,7 @@ fmltc.ListDatasets = function(util) {
   /** @type {!fmltc.Util} */
   this.util = util;
 
+  this.datasetsListDiv = document.getElementById('datasetsListDiv');
   this.datasetsTable = document.getElementById('datasetsTable');
   this.datasetCheckboxAll = document.getElementById('datasetCheckboxAll');
   this.downloadDatasetButton = document.getElementById('downloadDatasetButton');
@@ -102,7 +103,7 @@ fmltc.ListDatasets.prototype.addDataset = function(datasetEntity) {
   checkboxTd.appendChild(checkbox);
 
   const dateCreatedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-  dateCreatedTd.textContent = new Date(datasetEntity.creation_time_ms).toLocaleString();
+  dateCreatedTd.textContent = new Date(datasetEntity.create_time_ms).toLocaleString();
 
   const descriptionTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
   descriptionTd.textContent = datasetEntity.description;
@@ -128,6 +129,9 @@ fmltc.ListDatasets.prototype.addDataset = function(datasetEntity) {
     const div = document.createElement('div');
     div.textContent = datasetEntity.sorted_label_list[i];
     labelsTd.appendChild(div);
+  }
+  if (this.datasetEntityArray.length == 1) {
+    this.datasetsListDiv.style.display = 'block';
   }
 };
 
@@ -220,6 +224,9 @@ fmltc.ListDatasets.prototype.xhr_deleteDataset_onreadystatechange = function(xhr
         this.checkboxes[i].onclick = null;
         this.checkboxes.splice(i, 1);
         this.updateButtons();
+        if (this.datasetEntityArray.length == 0) {
+          this.datasetsListDiv.style.display = 'none';
+        }
       }
 
     } else {

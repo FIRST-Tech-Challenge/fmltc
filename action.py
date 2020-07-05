@@ -15,7 +15,7 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import time
 import traceback
@@ -66,8 +66,8 @@ def create_action_parameters(action_name):
 def trigger_action_via_blob(action_parameters):
     # Copy the given action_parameters and remove the action_time_limit entry from the copy
     action_parameters_copy = action_parameters.copy()
-    action_parameters_copy.pop(ACTION_TIME_LIMIT, 0)
-    action_parameters_copy.pop(ACTION_RETRIGGERED, False)
+    action_parameters_copy.pop(ACTION_TIME_LIMIT, None)
+    action_parameters_copy.pop(ACTION_RETRIGGERED, None)
     # Write the copied action_parameters to trigger the cloud function.
     action_parameters_blob_name= '%s/%s' % (action_parameters_copy[ACTION_NAME], str(uuid.uuid4().hex))
     action_parameters_json = json.dumps(action_parameters_copy)
@@ -156,6 +156,6 @@ def remaining_timedelta(action_parameters):
 
 def test(action_parameters):
     action_finish_time = action_parameters['action_finish_time']
-    while util.time_now_utc_millis() < action_finish_time:
+    while util.ms_from_datetime(datetime.now(timezone.utc)) < action_finish_time:
         time.sleep(20)
         retrigger_if_necessary(action_parameters)

@@ -33,6 +33,7 @@ fmltc.ListModels = function(util) {
   /** @type {!fmltc.Util} */
   this.util = util;
 
+  this.modelsListDiv = document.getElementById('modelsListDiv');
   this.modelsTable = document.getElementById('modelsTable');
   this.modelCheckboxAll = document.getElementById('modelCheckboxAll');
   this.trainMoreButton = document.getElementById('trainMoreButton');
@@ -116,7 +117,7 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
     checkboxTd.appendChild(checkbox);
 
     const dateCreatedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    dateCreatedTd.textContent = new Date(modelEntity.creation_time_ms).toLocaleString();
+    dateCreatedTd.textContent = new Date(modelEntity.create_time_ms).toLocaleString();
 
     // Make the description link to the monitorTraining page.
     const descriptionTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
@@ -138,6 +139,10 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
 
     this.trainTimeTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
     this.trainTimeTds[i].setAttribute('align', 'right');
+
+    if (this.modelEntityArray.length == 1) {
+      this.modelsListDiv.style.display = 'block';
+    }
   }
 
   this.trainStateTds[i].textContent = this.util.formatJobState(
@@ -389,6 +394,9 @@ fmltc.ListModels.prototype.xhr_deleteModel_onreadystatechange = function(xhr, pa
         this.trainStateTds.splice(i, 1);
         this.trainTimeTds.splice(i, 1);
         this.updateButtons();
+        if (this.modelEntityArray.length == 0) {
+          this.modelsListDiv.style.display = 'none';
+        }
       }
 
     } else {

@@ -175,9 +175,10 @@ def prepare_to_upload_video():
     video_filename = data.get('video_filename')
     file_size = int(data.get('file_size'))
     content_type = data.get('content_type')
-    upload_time_ms = int(data.get('upload_time_ms'))
+    create_time_ms = int(data.get('create_time_ms'))
     video_uuid, upload_url = storage.prepare_to_upload_video(
-        team_uuid, description, video_filename, file_size, content_type, upload_time_ms)
+        team_uuid, description, video_filename, file_size, content_type, create_time_ms)
+    storage.prepare_to_trigger_frame_extractor(team_uuid, video_uuid)
     action_parameters = frame_extractor.make_action_parameters(team_uuid, video_uuid)
     action.trigger_action_via_blob(action_parameters)
     response = {
@@ -412,11 +413,11 @@ def prepare_to_start_dataset_production():
     description = data.get('description')
     video_uuids_json = data.get('video_uuids')
     eval_percent = int(data.get('eval_percent'))
-    start_time_ms = int(data.get('start_time_ms'))
+    create_time_ms = int(data.get('create_time_ms'))
     dataset_uuid = dataset_producer.prepare_to_start_dataset_production(
-        team_uuid, description, video_uuids_json, eval_percent, start_time_ms)
+        team_uuid, description, video_uuids_json, eval_percent, create_time_ms)
     action_parameters = dataset_producer.make_action_parameters(
-        team_uuid, dataset_uuid, video_uuids_json, eval_percent, start_time_ms)
+        team_uuid, dataset_uuid, video_uuids_json, eval_percent, create_time_ms)
     action.trigger_action_via_blob(action_parameters)
     response = {
         'dataset_uuid': dataset_uuid,
@@ -541,9 +542,9 @@ def start_training_model():
     starting_model = data.get('starting_model')
     max_running_minutes = int(data.get('max_running_minutes'))
     num_training_steps = int(data.get('num_training_steps'))
-    start_time_ms = int(data.get('start_time_ms'))
+    create_time_ms = int(data.get('create_time_ms'))
     model_entity = model_trainer.start_training_model(team_uuid, description, dataset_uuids_json,
-        starting_model, max_running_minutes, num_training_steps, start_time_ms)
+        starting_model, max_running_minutes, num_training_steps, create_time_ms)
     action_parameters = model_trainer.make_action_parameters(team_uuid, model_entity['model_uuid'])
     action.trigger_action_via_blob(action_parameters)
     team_entity = storage.retrieve_team_entity(team_uuid)

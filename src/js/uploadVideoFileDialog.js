@@ -45,7 +45,7 @@ fmltc.UploadVideoFileDialog = function(util, onVideoUploaded) {
 
   this.videoFile = null;
   this.videoUuid = '';
-  this.uploadStartTime = 0;
+  this.createTimeMs = 0;
   this.uploadFinished = false;
   this.uploadFailed = false;
 
@@ -135,26 +135,14 @@ fmltc.UploadVideoFileDialog.prototype.updateUploadButton = function() {
 };
 
 fmltc.UploadVideoFileDialog.prototype.uploadButton_onclick = function() {
-  this.uploadStartTime = Date.now();
+  this.createTimeMs = Date.now();
 
-  // The progress bar is set based on the size of the file, but is updated based on elapsed time.
   this.uploadingProgress.value = 0;
-  this.uploadingProgress.max = Math.max(5, this.videoFile.size / 650000);
+  this.uploadingProgress.max = this.videoFile.size;
   this.setState(fmltc.UploadVideoFileDialog.STATE_UPLOADING);
-  this.updateUploadingProgress();
 
   this.prepareToUploadVideo();
 }
-
-fmltc.UploadVideoFileDialog.prototype.updateUploadingProgress = function() {
-  if (!this.uploadFinished && !this.uploadFailed) {
-    const elapsedSeconds = (Date.now() - this.uploadStartTime) / 1000;
-    this.uploadingProgress.value = Math.min(elapsedSeconds, this.uploadingProgress.max * 0.99);
-    if (this.uploadingProgress.value < this.uploadingProgress.max * 0.99) {
-      setTimeout(this.updateUploadingProgress.bind(this), 200);
-    }
-  }
-};
 
 fmltc.UploadVideoFileDialog.prototype.prepareToUploadVideo = function() {
   const xhr = new XMLHttpRequest();
@@ -163,7 +151,7 @@ fmltc.UploadVideoFileDialog.prototype.prepareToUploadVideo = function() {
       '&video_filename=' + encodeURIComponent(this.videoFile.name) +
       '&file_size=' + encodeURIComponent(this.videoFile.size) +
       '&content_type=' + encodeURIComponent(this.videoFile.type) +
-      '&upload_time_ms=' + this.uploadStartTime;
+      '&create_time_ms=' + this.createTimeMs;
   xhr.open('POST', '/prepareToUploadVideo', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_prepareToUploadVideo_onreadystatechange.bind(this, xhr, params);
@@ -192,14 +180,20 @@ fmltc.UploadVideoFileDialog.prototype.uploadVideoFile = function(signedUrl, vide
   const xhr = new XMLHttpRequest();
   xhr.open('PUT', signedUrl, true);
   xhr.setRequestHeader('Content-Type', this.videoFile.type);
+  xhr.upload.onprogress = this.xhr_uploadVideoFile_onprogress.bind(this);
   xhr.onreadystatechange = this.xhr_uploadVideoFile_onreadystatechange.bind(this, xhr,
       videoUuid);
   xhr.send(this.videoFile);
 };
 
+fmltc.UploadVideoFileDialog.prototype.xhr_uploadVideoFile_onprogress = function(event) {
+  this.uploadingProgress.value = event.loaded;
+};
+
 fmltc.UploadVideoFileDialog.prototype.xhr_uploadVideoFile_onreadystatechange = function(xhr,
     videoUuid) {
   if (xhr.readyState === 4) {
+    xhr.upload.onprogress = null;
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
