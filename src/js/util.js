@@ -26,9 +26,8 @@ goog.provide('fmltc.Util');
  * Class for utilities.
  * @constructor
  */
-fmltc.Util = function(pageBasename, httpPerformActionUrl, preferences, startingModels) {
+fmltc.Util = function(pageBasename, preferences, startingModels) {
   this.pageBasename = pageBasename;
-  this.httpPerformActionUrl = httpPerformActionUrl;
   this.preferences = preferences;
   this.startingModels = startingModels;
 
@@ -182,42 +181,6 @@ fmltc.Util.prototype.getDateTimeString = function(millis) {
       '_' +
       hours + minutes + seconds;
 }
-
-fmltc.Util.prototype.callHttpPerformAction = function(actionParameters, retryCount, onSuccess) {
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', this.httpPerformActionUrl, true);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.onreadystatechange = this.xhr_httpPerformAction_onreadystatechange.bind(this, xhr,
-      actionParameters, retryCount, onSuccess);
-  //console.log('Sending action "' + actionParameters.action_name + '".')
-  xhr.send(JSON.stringify(actionParameters));
-};
-
-fmltc.Util.prototype.xhr_httpPerformAction_onreadystatechange = function(xhr,
-    actionParameters, retryCount, onSuccess) {
-  if (xhr.readyState === 4) {
-    xhr.onreadystatechange = null;
-
-    if (xhr.status === 200) {
-      // Success.
-      //console.log('Action "' + actionParameters.action_name + '" was successful.');
-      if (onSuccess) {
-        onSuccess();
-      }
-
-    } else {
-      // TODO(lizlooney): handle error properly. Currently we try again in 1 second, but that
-      // might not be the best idea.
-      console.log('Failure! calling http_perform_action' +
-          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      console.log('Action ' + actionParameters.action_name + ' failed.')
-      if (retryCount < 3) {
-        console.log('Will retry http_perform_action in 1 second.');
-        setTimeout(this.callHttpPerformAction.bind(this, actionParameters, retryCount + 1), 1000);
-      }
-    }
-  }
-};
 
 fmltc.Util.prototype.initializeTabs = function() {
   let foundTabs = false;

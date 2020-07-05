@@ -109,8 +109,7 @@ fmltc.DownloadDatasetDialog.prototype.xhr_prepareToZipDataset_onreadystatechange
       }
       this.partitionCountDiv.style.visibility = 'visible';
 
-      this.util.callHttpPerformAction(response.action_parameters, 0,
-          this.getDatasetZipStatus.bind(this, response.dataset_zip_uuid));
+      setTimeout(this.getDatasetZipStatus.bind(this, response.dataset_zip_uuid), 2000);
 
     } else {
       // TODO(lizlooney): handle error properly

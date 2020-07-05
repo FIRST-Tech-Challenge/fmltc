@@ -146,9 +146,7 @@ fmltc.ProduceDatasetDialog.prototype.xhr_prepareToStartDatasetProduction_onready
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-
-      this.util.callHttpPerformAction(response.action_parameters, 0,
-          this.retrieveDatasetEntity.bind(this, response.dataset_uuid));
+      setTimeout(this.retrieveDatasetEntity.bind(this, response.dataset_uuid), 1000);
 
     } else {
       // TODO(lizlooney): handle error properly

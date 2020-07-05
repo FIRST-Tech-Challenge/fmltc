@@ -25,7 +25,3 @@ SECRET_KEY = '<Secret Key>'
 # In many cases, this will be https://<Project ID>.appspot.com 
 # The value should not end with a / and should not contain a path.
 ORIGIN = '<Origin>'
-
-# TODO: If necessary, replace us-central1 with the region of the http_perform_action
-# Google Cloud Function shown in https://console.cloud.google.com/functions/list
-REGION = 'us-central1'

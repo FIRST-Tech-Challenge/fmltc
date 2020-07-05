@@ -49,8 +49,6 @@ app.config.update(
 app.debug = False
 app.testing = False
 
-HTTP_PERFORM_ACTION_URL = 'https://%s-%s.cloudfunctions.net/http_perform_action' % (constants.REGION, constants.PROJECT_ID)
-
 
 def redirect_to_login_if_needed(func):
     @wraps(func)
@@ -107,7 +105,6 @@ def index():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     return flask.render_template('root.html', time_time=time.time(), project_id=constants.PROJECT_ID,
         team_preferences=storage.retrieve_user_preferences(team_uuid),
-        http_perform_action_url=HTTP_PERFORM_ACTION_URL,
         starting_models=model_trainer.get_starting_model_names())
 
 @app.route('/labelVideo')
@@ -120,7 +117,6 @@ def label_video():
     sanitize(video_entity)
     return flask.render_template('labelVideo.html', time_time=time.time(), project_id=constants.PROJECT_ID,
         team_preferences=storage.retrieve_user_preferences(team_uuid),
-        http_perform_action_url=HTTP_PERFORM_ACTION_URL,
         video_uuid=video_uuid, video_entity=video_entity)
 
 @app.route('/monitorTraining')
@@ -136,7 +132,6 @@ def monitor_training():
     sanitize(video_entities_by_uuid)
     return flask.render_template('monitorTraining.html', time_time=time.time(), project_id=constants.PROJECT_ID,
         team_preferences=storage.retrieve_user_preferences(team_uuid),
-        http_perform_action_url=HTTP_PERFORM_ACTION_URL,
         model_uuid=model_uuid,
         model_entities_by_uuid=model_entities_by_uuid,
         dataset_entities_by_uuid=dataset_entities_by_uuid,
@@ -147,10 +142,7 @@ def monitor_training():
 @handle_exceptions
 @redirect_to_login_if_needed
 def test():
-    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
-        team_preferences=storage.retrieve_user_preferences(team_uuid),
-        http_perform_action_url=HTTP_PERFORM_ACTION_URL)
+    return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID)
 
 
 # requests
@@ -187,11 +179,10 @@ def prepare_to_upload_video():
     video_uuid, upload_url = storage.prepare_to_upload_video(
         team_uuid, description, video_filename, file_size, content_type, upload_time_ms)
     action_parameters = frame_extractor.make_action_parameters(team_uuid, video_uuid)
+    action.trigger_action_via_blob(action_parameters)
     response = {
         'video_uuid': video_uuid,
         'upload_url': upload_url,
-        # TODO(lizlooney): encrypt the action_parameters
-        'action_parameters': action_parameters,
     }
     blob_storage.set_cors_policy_for_put()
     return flask.jsonify(response)
@@ -205,11 +196,8 @@ def trigger_frame_extraction():
     video_uuid = data.get('video_uuid')
     storage.prepare_to_trigger_frame_extractor(team_uuid, video_uuid)
     action_parameters = frame_extractor.make_action_parameters(team_uuid, video_uuid)
-    response = {
-        # TODO(lizlooney): encrypt the action_parameters
-        'action_parameters': action_parameters,
-    }
-    return flask.jsonify(response)
+    action.trigger_action_via_blob(action_parameters)
+    return 'OK'
 
 @app.route('/retrieveVideoList', methods=['POST'])
 @handle_exceptions
@@ -346,10 +334,9 @@ def prepare_to_start_tracking():
     tracker_uuid = tracking.prepare_to_start_tracking(team_uuid, video_uuid,
         tracker_name, scale, init_frame_number, init_bboxes_text)
     action_parameters = tracking.make_action_parameters(video_uuid, tracker_uuid)
+    action.trigger_action_via_blob(action_parameters)
     response = {
         'tracker_uuid': tracker_uuid,
-        # TODO(lizlooney): encrypt the action_parameters
-        'action_parameters': action_parameters,
     }
     return flask.jsonify(response)
 
@@ -430,10 +417,9 @@ def prepare_to_start_dataset_production():
         team_uuid, description, video_uuids_json, eval_percent, start_time_ms)
     action_parameters = dataset_producer.make_action_parameters(
         team_uuid, dataset_uuid, video_uuids_json, eval_percent, start_time_ms)
+    action.trigger_action_via_blob(action_parameters)
     response = {
         'dataset_uuid': dataset_uuid,
-        # TODO(lizlooney): encrypt the action_parameters
-        'action_parameters': action_parameters,
     }
     return flask.jsonify(response)
 
@@ -504,11 +490,10 @@ def prepare_to_zip_dataset():
         team_uuid, dataset_uuid)
     action_parameters = dataset_zipper.make_action_parameters(
         team_uuid, dataset_uuid, dataset_zip_uuid, partition_count)
+    action.trigger_action_via_blob(action_parameters)
     response = {
         'dataset_zip_uuid': dataset_zip_uuid,
         'partition_count': partition_count,
-        # TODO(lizlooney): encrypt the action_parameters
-        'action_parameters': action_parameters,
     }
     return flask.jsonify(response)
 
@@ -560,12 +545,12 @@ def start_training_model():
     model_entity = model_trainer.start_training_model(team_uuid, description, dataset_uuids_json,
         starting_model, max_running_minutes, num_training_steps, start_time_ms)
     action_parameters = model_trainer.make_action_parameters(team_uuid, model_entity['model_uuid'])
+    action.trigger_action_via_blob(action_parameters)
     team_entity = storage.retrieve_team_entity(team_uuid)
     sanitize(model_entity)
     response = {
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entity': model_entity,
-        'action_parameters': action_parameters,
     }
     return flask.jsonify(response)
 
@@ -695,11 +680,19 @@ def create_tflite():
 @handle_exceptions
 @login_required
 def perform_action_gae():
-    # time_limit and active_memory_limit are wrong for GAE, but this request is only for debugging.
-    time_limit = datetime.now() + timedelta(seconds=500)
+    start_time = datetime.now()
     action_parameters = flask.request.get_json()
-    active_memory_limit = 2000000000
-    action.perform_action(action_parameters, time_limit, active_memory_limit)
+    # time_limit is wrong for GAE, but this request is only for debugging.
+    time_limit = start_time + timedelta(seconds=500)
+    action.perform_action(action_parameters, time_limit)
+    return 'OK'
+
+@app.route('/performActionGCF', methods=['POST'])
+@handle_exceptions
+@login_required
+def perform_action_gcf():
+    action_parameters = flask.request.get_json()
+    action.trigger_action_via_blob(action_parameters)
     return 'OK'
 
 # errors
@@ -714,42 +707,13 @@ def server_error(e):
     logging.exception('An internal error occurred.')
     return "An internal error occurred: <pre>{}</pre>".format(e), 500
 
-# functions
-
-def http_perform_action(request):
-    time_limit = datetime.now() + timedelta(seconds=500)
-    if request.headers.get('Origin') != constants.ORIGIN:
-       return flask.abort(403)
-    # Set CORS headers for the preflight request
-    if request.method == 'OPTIONS':
-        # Allows POST requests from any origin with the Content-Type
-        # header and caches preflight response for an 3600s.
-        if request.headers.get('Access-Control-Request-Method') != 'POST':
-            return flask.abort(405)
-        headers = {
-            'Access-Control-Allow-Origin': constants.ORIGIN,
-            'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'content-type',
-            'Access-Control-Max-Age': '3600',
-        }
-        return flask.make_response('', 204, headers) # 204 means success with no content
-    if request.method != 'POST':
-        return flask.abort(405)
-
-    # Set CORS headers for the main request
-    headers = {
-        'Access-Control-Allow-Origin': constants.ORIGIN,
-    }
-    action_parameters = request.get_json()
-    active_memory_limit = 2000000000
-    action.perform_action(action_parameters, time_limit, active_memory_limit)
-    return flask.make_response('OK', 200, headers)
+# cloud functions
 
 def perform_action(data, context):
-    time_limit = datetime.now() + timedelta(seconds=500)
+    start_time = datetime.now()
     if data['bucket'] == action.BUCKET_ACTION_PARAMETERS:
-        active_memory_limit = 2000000000
-        action.perform_action_from_blob(data['name'], time_limit, active_memory_limit)
+        time_limit = start_time + timedelta(seconds=500)
+        action.perform_action_from_blob(data['name'], time_limit)
     return 'OK'
 
 # For running locally:

@@ -43,6 +43,7 @@ DS_KIND_DATASET_RECORD_WRITER = 'DatasetRecordWriter'
 DS_KIND_DATASET_RECORD = 'DatasetRecord'
 DS_KIND_DATASET_ZIPPER = 'DatasetZipper'
 DS_KIND_MODEL = 'Model'
+DS_KIND_ACTION = 'Action'
 
 # teams - public methods
 
@@ -311,7 +312,7 @@ def delete_video(team_uuid, video_uuid):
             action.trigger_action_via_blob(action_parameters)
 
 
-def finish_delete_video(action_parameters, time_limit, active_memory_limit):
+def finish_delete_video(action_parameters):
     team_uuid = action_parameters['team_uuid']
     video_uuid = action_parameters['video_uuid']
     datastore_client = datastore.Client()
@@ -324,20 +325,14 @@ def finish_delete_video(action_parameters, time_limit, active_memory_limit):
         datastore_client.delete(video_entity.key)
     # Delete the video frames, 500 at a time.
     while True:
-        if action.is_near_limit(time_limit, active_memory_limit):
-            # Time or memory is running out. Trigger the action again to restart.
-            action.trigger_action_via_blob(action_parameters)
-            return
+        action.retrigger_if_necessary(action_parameters)
         query = datastore_client.query(kind=DS_KIND_VIDEO_FRAME)
         query.add_filter('team_uuid', '=', team_uuid)
         query.add_filter('video_uuid', '=', video_uuid)
         video_frame_entities = list(query.fetch(500))
         if len(video_frame_entities) == 0:
             return
-        if action.is_near_limit(time_limit, active_memory_limit):
-            # Time or memory is running out. Trigger the action again to restart.
-            action.trigger_action_via_blob(action_parameters)
-            return
+        action.retrigger_if_necessary(action_parameters)
         blob_names = []
         keys = []
         while len(video_frame_entities) > 0:
@@ -347,10 +342,7 @@ def finish_delete_video(action_parameters, time_limit, active_memory_limit):
             keys.append(video_frame_entity.key)
         # Delete the blobs.
         blob_storage.delete_video_frame_images(blob_names)
-        if action.is_near_limit(time_limit, active_memory_limit):
-            # Time or memory is running out. Trigger the action again to restart.
-            action.trigger_action_via_blob(action_parameters)
-            return
+        action.retrigger_if_necessary(action_parameters)
         # Then, delete the video frame entities.
         datastore_client.delete_multi(keys)
 
@@ -786,7 +778,7 @@ def delete_dataset(team_uuid, dataset_uuid):
             action.trigger_action_via_blob(action_parameters)
 
 
-def finish_delete_dataset(action_parameters, time_limit, active_memory_limit):
+def finish_delete_dataset(action_parameters):
     team_uuid = action_parameters['team_uuid']
     dataset_uuid = action_parameters['dataset_uuid']
     datastore_client = datastore.Client()
@@ -799,20 +791,14 @@ def finish_delete_dataset(action_parameters, time_limit, active_memory_limit):
     blob_storage.delete_dataset_blob(dataset_entity['label_map_blob_name'])
     # Delete the dataset records, 500 at a time.
     while True:
-        if action.is_near_limit(time_limit, active_memory_limit):
-            # Time or memory is running out. Trigger the action again to restart.
-            action.trigger_action_via_blob(action_parameters)
-            return
+        action.retrigger_if_necessary(action_parameters)
         query = datastore_client.query(kind=DS_KIND_DATASET_RECORD)
         query.add_filter('team_uuid', '=', team_uuid)
         query.add_filter('dataset_uuid', '=', dataset_uuid)
         dataset_record_entities = list(query.fetch(500))
         if len(dataset_record_entities) == 0:
             return
-        if action.is_near_limit(time_limit, active_memory_limit):
-            # Time or memory is running out. Trigger the action again to restart.
-            action.trigger_action_via_blob(action_parameters)
-            return
+        action.retrigger_if_necessary(action_parameters)
         blob_names = []
         keys = []
         while len(dataset_record_entities) > 0:
@@ -822,10 +808,7 @@ def finish_delete_dataset(action_parameters, time_limit, active_memory_limit):
             keys.append(dataset_record_entity.key)
         # Delete the blobs.
         blob_storage.delete_dataset_blobs(blob_names)
-        if action.is_near_limit(time_limit, active_memory_limit):
-            # Time or memory is running out. Trigger the action again to restart.
-            action.trigger_action_via_blob(action_parameters)
-            return
+        action.retrigger_if_necessary(action_parameters)
         # Then, delete the dataset record entities.
         datastore_client.delete_multi(keys)
 
@@ -903,26 +886,20 @@ def __delete_dataset_record_writers(dataset_entity):
     action_parameters['dataset_uuid'] = dataset_entity['dataset_uuid']
     action.trigger_action_via_blob(action_parameters)
 
-def finish_delete_dataset_record_writers(action_parameters, time_limit, active_memory_limit):
+def finish_delete_dataset_record_writers(action_parameters):
     team_uuid = action_parameters['team_uuid']
     dataset_uuid = action_parameters['dataset_uuid']
     datastore_client = datastore.Client()
     # Delete the dataset record writers, 500 at a time.
     while True:
-        if action.is_near_limit(time_limit, active_memory_limit):
-            # Time or memory is running out. Trigger the action again to restart.
-            action.trigger_action_via_blob(action_parameters)
-            return
+        action.retrigger_if_necessary(action_parameters)
         query = datastore_client.query(kind=DS_KIND_DATASET_RECORD_WRITER)
         query.add_filter('team_uuid', '=', team_uuid)
         query.add_filter('dataset_uuid', '=', dataset_uuid)
         dataset_record_writer_entities = list(query.fetch(500))
         if len(dataset_record_writer_entities) == 0:
             return
-        if action.is_near_limit(time_limit, active_memory_limit):
-            # Time or memory is running out. Trigger the action again to restart.
-            action.trigger_action_via_blob(action_parameters)
-            return
+        action.retrigger_if_necessary(action_parameters)
         keys = []
         while len(dataset_record_writer_entities) > 0:
             dataset_record_writer_entity = dataset_record_writer_entities.pop()
@@ -1299,14 +1276,76 @@ def delete_model(team_uuid, model_uuid):
             action_parameters['model_uuid'] = model_uuid
             action.trigger_action_via_blob(action_parameters)
 
-def finish_delete_model(action_parameters, time_limit, active_memory_limit):
+def finish_delete_model(action_parameters):
     team_uuid = action_parameters['team_uuid']
     model_uuid = action_parameters['model_uuid']
     datastore_client = datastore.Client()
     # Delete the blobs.
-    blob_storage.delete_model_blobs(team_uuid, model_uuid)
+    blob_storage.delete_model_blobs(team_uuid, model_uuid, action_parameters)
     # Delete the model entity.
     model_entities = __query_model_entity(team_uuid, model_uuid)
     if len(model_entities) != 0:
         model_entity = model_entities[0]
         datastore_client.delete(model_entity.key)
+
+# action
+
+def action_on_create(action_name):
+    action_uuid = str(uuid.uuid4().hex)
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        incomplete_key = datastore_client.key(DS_KIND_ACTION)
+        action_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+        action_entity.update({
+            'action_uuid': action_uuid,
+            'action_name': action_name,
+            'create_time': datetime.now(timezone.utc),
+            'state': 'created',
+            'start_times': [],
+            'stop_times': [],
+        })
+        transaction.put(action_entity)
+        return action_uuid
+
+
+def __retrieve_action_entity(action_uuid):
+    datastore_client = datastore.Client()
+    query = datastore_client.query(kind=DS_KIND_ACTION)
+    query.add_filter('action_uuid', '=', action_uuid)
+    query.order = ['create_time']
+    action_entities = list(query.fetch(1))
+    if len(action_entities) == 0:
+        message = 'Error: Action entity for action_uuid=%s not found.' % action_uuid
+        logging.critical(message)
+        raise exceptions.HttpErrorNotFound(message)
+    return action_entities[0]
+
+
+def action_on_start(action_uuid):
+    # If necessary, we will wait until the state is 'created' or 'stopped'. Then we will change the
+    # state to 'started'.
+    datastore_client = datastore.Client()
+    while True:
+        with datastore_client.transaction() as transaction:
+            action_entity = __retrieve_action_entity(action_uuid)
+            if action_entity['state'] == 'created' or action_entity['state'] == 'stopped':
+                action_entity['state'] = 'started'
+                action_entity['start_times'].append(datetime.now(timezone.utc))
+                transaction.put(action_entity)
+                break
+            time.sleep(1)
+
+
+def action_on_stop(action_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        action_entity = __retrieve_action_entity(action_uuid)
+        action_entity['state'] = 'stopped'
+        action_entity['stop_times'].append(datetime.now(timezone.utc))
+        transaction.put(action_entity)
+
+
+def action_on_destroy(action_uuid):
+    datastore_client = datastore.Client()
+    action_entity = __retrieve_action_entity(action_uuid)
+    datastore_client.delete(action_entity.key)

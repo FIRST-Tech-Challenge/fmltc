@@ -21,6 +21,7 @@ import re
 import uuid
 
 # My Modules
+import action
 import constants
 import util
 
@@ -295,8 +296,9 @@ def store_tflite(team_uuid, model_uuid, tflite_model):
 def get_tflite_download_url(team_uuid, model_uuid):
     return __get_download_url(__get_tflite_blob_name(team_uuid, model_uuid))
 
-def delete_model_blobs(team_uuid, model_uuid):
+def delete_model_blobs(team_uuid, model_uuid, action_parameters):
     client = util.storage_client()
     prefix = '%s/' % __get_model_folder(team_uuid, model_uuid)
     for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
         __delete_blob(blob.name)
+        action.retrigger_if_necessary(action_parameters)

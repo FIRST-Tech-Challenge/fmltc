@@ -1162,9 +1162,8 @@ fmltc.LabelVideo.prototype.xhr_prepareToStartTracking_onreadystatechange = funct
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
       this.trackerUuid = response.tracker_uuid;
-      this.util.callHttpPerformAction(response.action_parameters, 0);
 
-      setTimeout(this.retrieveTrackedBboxes.bind(this, initFrameNumber + 1, 0, 0), 1000);
+      setTimeout(this.retrieveTrackedBboxes.bind(this, initFrameNumber + 1, 0), 1000);
 
       setTimeout(this.trackingClientStillAlive.bind(this), 30 * 1000);
 
@@ -1217,7 +1216,7 @@ fmltc.LabelVideo.prototype.xhr_trackingClientStillAlive_onreadystatechange = fun
   }
 };
 
-fmltc.LabelVideo.prototype.retrieveTrackedBboxes = function(frameNumber, retryCount, failureCount) {
+fmltc.LabelVideo.prototype.retrieveTrackedBboxes = function(frameNumber, failureCount) {
   const xhr = new XMLHttpRequest();
   const params =
       'video_uuid=' + encodeURIComponent(this.videoUuid) +
@@ -1226,13 +1225,13 @@ fmltc.LabelVideo.prototype.retrieveTrackedBboxes = function(frameNumber, retryCo
   xhr.open('POST', '/retrieveTrackedBboxes', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_retrieveTrackedBboxes_onreadystatechange.bind(this, xhr, params,
-      frameNumber, retryCount, failureCount);
+      frameNumber, failureCount);
   xhr.send(params);
   this.trackingRequestSent();
 };
 
 fmltc.LabelVideo.prototype.xhr_retrieveTrackedBboxes_onreadystatechange = function(xhr, params,
-    frameNumber, retryCount, failureCount) {
+    frameNumber, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -1268,14 +1267,14 @@ fmltc.LabelVideo.prototype.xhr_retrieveTrackedBboxes_onreadystatechange = functi
 
       } else {
         // The tracked bboxes are not ready yet. Try again in a moment.
-        setTimeout(this.retrieveTrackedBboxes.bind(this, frameNumber, retryCount + 1, 0), 100);
+        setTimeout(this.retrieveTrackedBboxes.bind(this, frameNumber, 0), 100);
       }
 
     } else {
       failureCount++;
       if (failureCount < 5) {
         const delay = Math.pow(2, failureCount);
-        setTimeout(this.retrieveTrackedBboxes.bind(this, frameNumber, retryCount + 1, failureCount), delay * 1000);
+        setTimeout(this.retrieveTrackedBboxes.bind(this, frameNumber, failureCount), delay * 1000);
       } else {
         this.util.clearWaitCursor();
         this.trackingInProgress = false;
@@ -1317,7 +1316,7 @@ fmltc.LabelVideo.prototype.sendContinueTracking = function(failureCount) {
     const retrieveFrameNumber = this.currentFrameNumber + 1;
     params += '&retrieve_frame_number=' + encodeURIComponent(retrieveFrameNumber);
     xhr.onreadystatechange = this.xhr_retrieveTrackedBboxes_onreadystatechange.bind(this, xhr, params,
-        retrieveFrameNumber, 0, 0);
+        retrieveFrameNumber, 0);
   } else {
     xhr.onreadystatechange = this.xhr_continueTracking_onreadystatechange.bind(this, xhr, params,
         failureCount);

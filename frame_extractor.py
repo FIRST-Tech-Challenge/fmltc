@@ -36,7 +36,7 @@ def make_action_parameters(team_uuid, video_uuid):
     action_parameters['video_uuid'] = video_uuid
     return action_parameters
 
-def extract_frames(action_parameters, time_limit, active_memory_limit):
+def extract_frames(action_parameters):
     team_uuid = action_parameters['team_uuid']
     video_uuid = action_parameters['video_uuid']
 
@@ -52,10 +52,7 @@ def extract_frames(action_parameters, time_limit, active_memory_limit):
     if not blob_storage.write_video_to_file(video_blob_name, video_filename):
         # The video blob hasn't been uploaded yet. Wait until it has.
         while True:
-            if action.is_near_limit(time_limit, active_memory_limit):
-                # Time or memory is running out. Trigger the action again to restart.
-                action.trigger_action_via_blob(action_parameters)
-                return
+            action.retrigger_if_necessary(action_parameters)
             time.sleep(1)
             if blob_storage.write_video_to_file(video_blob_name, video_filename):
                 break
@@ -83,10 +80,7 @@ def extract_frames(action_parameters, time_limit, active_memory_limit):
                 # vid.read().
                 frame_count = 0
                 while True:
-                    if action.is_near_limit(time_limit, active_memory_limit):
-                        # Time or memory is running out. Trigger the action again to restart.
-                        action.trigger_action_via_blob(action_parameters)
-                        return
+                    action.retrigger_if_necessary(action_parameters)
                     success = vid.grab()
                     if not success:
                         # We've reached the end of the video. All finished counting!
@@ -108,10 +102,7 @@ def extract_frames(action_parameters, time_limit, active_memory_limit):
 
             frame_number = previously_extracted_frame_count
 
-            if action.is_near_limit(time_limit, active_memory_limit):
-                # Time or memory is running out. Trigger the action again to restart.
-                action.trigger_action_via_blob(action_parameters)
-                return
+            action.retrigger_if_necessary(action_parameters)
 
             while True:
                 success, frame = vid.read()
@@ -127,10 +118,7 @@ def extract_frames(action_parameters, time_limit, active_memory_limit):
                     frame_number += 1
                 else:
                     logging.error('cv2.imencode() returned %s' % success)
-                if action.is_near_limit(time_limit, active_memory_limit):
-                    # Time or memory is running out. Trigger the action again to restart.
-                    action.trigger_action_via_blob(action_parameters)
-                    break
+                action.retrigger_if_necessary(action_parameters)
 
         finally:
             # Release the cv2 video.
