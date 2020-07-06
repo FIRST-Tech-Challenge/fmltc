@@ -61,7 +61,7 @@ fmltc.ListVideos = function(util) {
   this.waitCursor = false;
   this.deleteVideoCounter = 0;
 
-  this.retrieveVideos();
+  this.retrieveVideoEntities();
 
   this.updateButtons();
 
@@ -72,15 +72,15 @@ fmltc.ListVideos = function(util) {
   this.deleteVideosButton.onclick = this.deleteVideosButton_onclick.bind(this);
 };
 
-fmltc.ListVideos.prototype.retrieveVideos = function() {
+fmltc.ListVideos.prototype.retrieveVideoEntities = function() {
   const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/retrieveVideoList', true);
+  xhr.open('POST', '/retrieveVideoEntities', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveVideoList_onreadystatechange.bind(this, xhr);
+  xhr.onreadystatechange = this.xhr_retrieveVideoEntities_onreadystatechange.bind(this, xhr);
   xhr.send();
 };
 
-fmltc.ListVideos.prototype.xhr_retrieveVideoList_onreadystatechange = function(xhr) {
+fmltc.ListVideos.prototype.xhr_retrieveVideoEntities_onreadystatechange = function(xhr) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -94,7 +94,7 @@ fmltc.ListVideos.prototype.xhr_retrieveVideoList_onreadystatechange = function(x
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /retrieveVideoList? xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /retrieveVideoEntities? xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };
@@ -241,14 +241,14 @@ fmltc.ListVideos.prototype.retrieveVideoEntity = function(videoUuid, checkDelete
 
   const xhr = new XMLHttpRequest();
   const params = 'video_uuid=' + encodeURIComponent(videoUuid);
-  xhr.open('POST', '/retrieveVideo', true);
+  xhr.open('POST', '/retrieveVideoEntity', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveVideo_onreadystatechange.bind(this, xhr, params,
+  xhr.onreadystatechange = this.xhr_retrieveVideoEntity_onreadystatechange.bind(this, xhr, params,
       videoUuid, checkDeleted);
   xhr.send(params);
 };
 
-fmltc.ListVideos.prototype.xhr_retrieveVideo_onreadystatechange = function(xhr, params,
+fmltc.ListVideos.prototype.xhr_retrieveVideoEntity_onreadystatechange = function(xhr, params,
     videoUuid, checkDeleted) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
@@ -266,9 +266,9 @@ fmltc.ListVideos.prototype.xhr_retrieveVideo_onreadystatechange = function(xhr, 
     } else {
       // TODO(lizlooney): handle error properly. Currently we try again in 3 seconds, but that
       // might not be the best idea.
-      console.log('Failure! /retrieveVideo?' + params +
+      console.log('Failure! /retrieveVideoEntity?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      console.log('Will retry /retrieveVideo?' + params + ' in 3 seconds.');
+      console.log('Will retry /retrieveVideoEntity?' + params + ' in 3 seconds.');
       setTimeout(this.retrieveVideoEntity.bind(this, videoUuid, checkDeleted), 3000);
     }
   }

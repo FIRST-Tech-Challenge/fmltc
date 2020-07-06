@@ -32,13 +32,12 @@ goog.require('fmltc.Util');
  * @param {!fmltc.Util} util The utility instance
  * @constructor
  */
-fmltc.LabelVideo = function(util, videoEntity) {
+fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   /** @type {!fmltc.Util} */
   this.util = util;
   this.videoUuid = videoEntity.video_uuid;
 
-  // Retrieve the first frame.
-  this.retrieveVideoFramesWithImageUrls(0, 0, 0);
+  this.startTime = Date.now();
 
   this.dismissButton = document.getElementById('dismissButton');
   this.smallerImageButton = document.getElementById('smallerImageButton');
@@ -75,13 +74,6 @@ fmltc.LabelVideo = function(util, videoEntity) {
   this.trackingStoppedDiv = document.getElementById('trackingStoppedDiv');
   this.trackingFinishedDiv = document.getElementById('trackingFinishedDiv');
   this.trackingFailedDiv = document.getElementById('trackingFailedDiv');
-
-  this.button1 = document.getElementById('button1');
-  this.button2 = document.getElementById('button2');
-  this.button3 = document.getElementById('button3');
-  this.button4 = document.getElementById('button4');
-  this.button5 = document.getElementById('button5');
-  this.button6 = document.getElementById('button6');
 
   this.loadingProgress.value = 0;
 
@@ -131,59 +123,63 @@ fmltc.LabelVideo = function(util, videoEntity) {
 
   this.updateUI();
   this.setVideoEntity(videoEntity);
+  this.videoFrameEntityLoaded(videoFrameEntity0, 0);
+
+  // Retrieve the rest of the frames 100 at a time.
+  let minFrameNumber = 1;
+  let delayForEntities = 10;
+  while (minFrameNumber < this.videoEntity.frame_count) {
+    const maxFrameNumber = Math.min(minFrameNumber + 99, this.videoEntity.frame_count - 1);
+    setTimeout(this.retrieveVideoFrameEntitiesWithImageUrls.bind(this, minFrameNumber, maxFrameNumber, 0), delayForEntities);
+    minFrameNumber = maxFrameNumber + 1;
+    delayForEntities += 10;
+  }
 };
 
 fmltc.LabelVideo.MIN_CANVAS_WIDTH = 500;
 fmltc.LabelVideo.MAX_CANVAS_WIDTH = 2000;
 
 fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
-  if ('frame_count' in videoEntity &&
-      'extracted_frame_count' in videoEntity &&
-      videoEntity.extracted_frame_count == videoEntity.frame_count) {
-    this.videoEntity = videoEntity;
+  this.videoEntity = videoEntity;
 
-    this.minUnlabeledFrameNumber = videoEntity.frame_count;
-    this.maxUnlabeledFrameNumber = -1;
+  this.minUnlabeledFrameNumber = videoEntity.frame_count;
+  this.maxUnlabeledFrameNumber = -1;
 
-    this.trackingAlreadyInProgress = this.videoEntity.tracking_in_progress;
+  this.trackingAlreadyInProgress = this.videoEntity.tracking_in_progress;
 
-    this.loadingProgress.value++;
-    this.loadingProgress.max = 1 + 2 * this.videoEntity.frame_count;
+  this.loadingProgress.value++;
+  this.loadingProgress.max = 1 + 2 * this.videoEntity.frame_count;
 
-    document.getElementById('descriptionSpan').textContent = this.videoEntity.description;
-    document.getElementById('videoFrameCountSpan').textContent = String(this.videoEntity.frame_count);
+  document.getElementById('descriptionSpan').textContent = this.videoEntity.description;
+  document.getElementById('videoFrameCountSpan').textContent = String(this.videoEntity.frame_count);
 
-    this.rescaleCanvas();
-    window.addEventListener('resize', this.repositionCanvas.bind(this));
+  this.rescaleCanvas();
+  window.addEventListener('resize', this.repositionCanvas.bind(this));
 
-    this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
-    this.smallerImageButton.onclick = this.smallerImageButton_onclick.bind(this);
-    this.largerImageButton.onclick = this.largerImageButton_onclick.bind(this);
-    this.bboxCanvas.onmousedown = this.bboxCanvas_onmousedown.bind(this);
-    this.bboxCanvas.onmousemove = this.bboxCanvas_onmousemove.bind(this);
-    this.bboxCanvas.onmouseleave = this.bboxCanvas_onmouseleave.bind(this);
-    this.bboxCanvas.onmouseup = this.bboxCanvas_onmouseup.bind(this);
-    this.includeFrameInDatasetCheckbox.onclick = this.includeFrameInDatasetCheckbox_onclick.bind(this);
-    this.firstFrameButton.onclick = this.firstFrameButton_onclick.bind(this);
-    this.previousTenFrameButton.onclick = this.previousTenFrameButton_onclick.bind(this);
-    this.previousFrameButton.onclick = this.previousFrameButton_onclick.bind(this);
-    this.nextFrameButton.onclick = this.nextFrameButton_onclick.bind(this);
-    this.nextTenFrameButton.onclick = this.nextTenFrameButton_onclick.bind(this);
-    this.lastFrameButton.onclick = this.lastFrameButton_onclick.bind(this);
-    this.previousUnlabeledFrameButton.onclick = this.previousUnlabeledFrameButton_onclick.bind(this);
-    this.nextUnlabeledFrameButton.onclick = this.nextUnlabeledFrameButton_onclick.bind(this);
-    this.reversePlayPauseButton.onclick = this.reversePlayPauseButton_onclick.bind(this);
-    this.forwardPlayPauseButton.onclick = this.forwardPlayPauseButton_onclick.bind(this);
-    this.trackingStartButton.onclick = this.trackingStartButton_onclick.bind(this);
-    this.trackingPauseButton.onclick = this.trackingPauseButton_onclick.bind(this);
-    this.trackingContinueButton.onclick = this.trackingContinueButton_onclick.bind(this);
-    this.trackingStopButton.onclick = this.trackingStopButton_onclick.bind(this);
+  this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
+  this.smallerImageButton.onclick = this.smallerImageButton_onclick.bind(this);
+  this.largerImageButton.onclick = this.largerImageButton_onclick.bind(this);
+  this.bboxCanvas.onmousedown = this.bboxCanvas_onmousedown.bind(this);
+  this.bboxCanvas.onmousemove = this.bboxCanvas_onmousemove.bind(this);
+  this.bboxCanvas.onmouseleave = this.bboxCanvas_onmouseleave.bind(this);
+  this.bboxCanvas.onmouseup = this.bboxCanvas_onmouseup.bind(this);
+  this.includeFrameInDatasetCheckbox.onclick = this.includeFrameInDatasetCheckbox_onclick.bind(this);
+  this.firstFrameButton.onclick = this.firstFrameButton_onclick.bind(this);
+  this.previousTenFrameButton.onclick = this.previousTenFrameButton_onclick.bind(this);
+  this.previousFrameButton.onclick = this.previousFrameButton_onclick.bind(this);
+  this.nextFrameButton.onclick = this.nextFrameButton_onclick.bind(this);
+  this.nextTenFrameButton.onclick = this.nextTenFrameButton_onclick.bind(this);
+  this.lastFrameButton.onclick = this.lastFrameButton_onclick.bind(this);
+  this.previousUnlabeledFrameButton.onclick = this.previousUnlabeledFrameButton_onclick.bind(this);
+  this.nextUnlabeledFrameButton.onclick = this.nextUnlabeledFrameButton_onclick.bind(this);
+  this.reversePlayPauseButton.onclick = this.reversePlayPauseButton_onclick.bind(this);
+  this.forwardPlayPauseButton.onclick = this.forwardPlayPauseButton_onclick.bind(this);
+  this.trackingStartButton.onclick = this.trackingStartButton_onclick.bind(this);
+  this.trackingPauseButton.onclick = this.trackingPauseButton_onclick.bind(this);
+  this.trackingContinueButton.onclick = this.trackingContinueButton_onclick.bind(this);
+  this.trackingStopButton.onclick = this.trackingStopButton_onclick.bind(this);
 
-    this.updateUI();
-
-  } else {
-    setTimeout(this.retrieveVideoEntity.bind(this, 0), 1000);
-  }
+  this.updateUI();
 };
 
 fmltc.LabelVideo.prototype.dismissButton_onclick = function() {
@@ -387,99 +383,25 @@ fmltc.LabelVideo.prototype.updateUI = function() {
   }
 };
 
-fmltc.LabelVideo.prototype.retrieveVideoEntity = function(failureCount) {
-  const xhr = new XMLHttpRequest();
-  const params = 'video_uuid=' + encodeURIComponent(this.videoUuid);
-  xhr.open('POST', '/retrieveVideo', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveVideo_onreadystatechange.bind(this, xhr, params,
-      failureCount);
-  xhr.send(params);
-};
-
-fmltc.LabelVideo.prototype.xhr_retrieveVideo_onreadystatechange = function(xhr, params,
-    failureCount) {
-  if (xhr.readyState === 4) {
-    xhr.onreadystatechange = null;
-    if (xhr.status === 200) {
-      const response = JSON.parse(xhr.responseText);
-      const videoEntity = response.video_entity;
-      this.setVideoEntity(videoEntity);
-
-    } else {
-      failureCount++;
-      if (failureCount < 5) {
-        const delay = Math.pow(2, failureCount);
-        console.log('Will retry /retrieveVideo?' + params + ' in ' + delay + ' seconds.');
-        setTimeout(this.retrieveVideoEntity.bind(this, failureCount), delay * 1000);
-      } else {
-        this.loadFailure();
-      }
-    }
-  }
-};
-
 fmltc.LabelVideo.prototype.loadFailure = function() {
   this.loadFailed = true;
   document.getElementById('loadingFailedSpan').style.display = 'inline';
 };
 
-fmltc.LabelVideo.prototype.retrieveVideoFrameImage = function(frameNumber, imageUrl, failureCount) {
-  const xhr = new XMLHttpRequest();
-  if (!imageUrl) {
-    imageUrl = '/retrieveVideoFrameImage?video_uuid=' + encodeURIComponent(this.videoUuid) +
-        '&frame_number=' + encodeURIComponent(frameNumber);
-  }
-  xhr.open('GET', imageUrl, true);
-  xhr.responseType = 'blob';
-  xhr.onreadystatechange = this.xhr_retrieveVideoFrameImage_onreadystatechange.bind(this, xhr,
-      frameNumber, imageUrl, failureCount);
-  xhr.send(null);
-};
-
-fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameImage_onreadystatechange = function(xhr,
-    frameNumber, imageUrl, failureCount) {
-  if (xhr.readyState === 4) {
-    xhr.onreadystatechange = null;
-
-    if (xhr.status === 200) {
-      this.videoFrameImage[frameNumber] = window.URL.createObjectURL(xhr.response);
-      this.loadingProgress.value++;
-
-      if (frameNumber == this.currentFrameNumber) {
-        this.updateVideoFrameImg();
-        this.redrawBboxes();
-      }
-
-    } else {
-      failureCount++;
-      if (failureCount < 5) {
-        const delay = Math.pow(2, failureCount);
-        console.log('Will retry ' + imageUrl + ' in ' + delay + ' seconds.');
-        setTimeout(this.retrieveVideoFrameImage.bind(this, frameNumber, imageUrl, failureCount), delay * 1000);
-      } else {
-        this.loadFailure();
-      }
-    }
-
-    this.updateUI();
-  }
-};
-
-fmltc.LabelVideo.prototype.retrieveVideoFramesWithImageUrls = function(minFrameNumber, maxFrameNumber, failureCount) {
+fmltc.LabelVideo.prototype.retrieveVideoFrameEntitiesWithImageUrls = function(minFrameNumber, maxFrameNumber, failureCount) {
   const xhr = new XMLHttpRequest();
   const params =
       'video_uuid=' + encodeURIComponent(this.videoUuid) +
       '&min_frame_number=' + encodeURIComponent(minFrameNumber) +
       '&max_frame_number=' + encodeURIComponent(maxFrameNumber);
-  xhr.open('POST', '/retrieveVideoFramesWithImageUrls', true);
+  xhr.open('POST', '/retrieveVideoFrameEntitiesWithImageUrls', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveVideoFramesWithImageUrls_onreadystatechange.bind(this, xhr, params,
+  xhr.onreadystatechange = this.xhr_retrieveVideoFrameEntitiesWithImageUrls_onreadystatechange.bind(this, xhr, params,
       minFrameNumber, maxFrameNumber, failureCount);
   xhr.send(params);
 };
 
-fmltc.LabelVideo.prototype.xhr_retrieveVideoFramesWithImageUrls_onreadystatechange = function(xhr, params,
+fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameEntitiesWithImageUrls_onreadystatechange = function(xhr, params,
     minFrameNumber, maxFrameNumber, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
@@ -489,43 +411,15 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFramesWithImageUrls_onreadystatechan
       const videoFrameEntityArray = response.video_frame_entities;
 
       for (let i = 0; i < videoFrameEntityArray.length; i++) {
-        const videoFrameEntity = videoFrameEntityArray[i];
-        const frameNumber = videoFrameEntity.frame_number;
-
-        if (frameNumber == 0) {
-          // Retrieve the rest of the frames 100 at a time.
-          let nextMinFrameNumber = 1;
-          let delayForEntities = 10;
-          while (nextMinFrameNumber < this.videoEntity.frame_count) {
-            const nextMaxFrameNumber = Math.min(nextMinFrameNumber + 99, this.videoEntity.frame_count - 1);
-            setTimeout(this.retrieveVideoFramesWithImageUrls.bind(this, nextMinFrameNumber, nextMaxFrameNumber, 0), delayForEntities);
-            nextMinFrameNumber = nextMaxFrameNumber + 1;
-            delayForEntities += 10;
-          }
-        }
-
-        this.setVideoFrameEntity(frameNumber, videoFrameEntity);
-        this.loadedFrameEntityCount++;
-        if (this.loadedFrameEntityCount == this.videoEntity.frame_count) {
-          this.includedFrameCountDiv.style.visibility = 'visible';
-          this.unlabeledFrameCountDiv.style.visibility = 'visible';
-        }
-        this.loadingProgress.value++;
-        let delayForImage = i + 10;
-        setTimeout(this.retrieveVideoFrameImage.bind(this, frameNumber, videoFrameEntity.image_url, 0), delayForImage);
-
-        if (frameNumber == this.currentFrameNumber) {
-          this.redrawBboxes();
-          this.refillLabelingArea();
-        }
+        this.videoFrameEntityLoaded(videoFrameEntityArray[i]);
       }
 
     } else {
       failureCount++;
       if (failureCount < 5) {
         const delay = Math.pow(2, failureCount);
-        console.log('Will retry /retrieveVideoFramesWithImageUrls?' + params + ' in ' + delay + ' seconds.');
-        setTimeout(this.retrieveVideoFramesWithImageUrls.bind(this, minFrameNumber, maxFrameNumber, failureCount), delay * 1000);
+        console.log('Will retry /retrieveVideoFrameEntitiesWithImageUrls?' + params + ' in ' + delay + ' seconds.');
+        setTimeout(this.retrieveVideoFrameEntitiesWithImageUrls.bind(this, minFrameNumber, maxFrameNumber, failureCount), delay * 1000);
       } else {
         this.loadFailure();
       }
@@ -535,7 +429,8 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFramesWithImageUrls_onreadystatechan
   }
 };
 
-fmltc.LabelVideo.prototype.setVideoFrameEntity = function(frameNumber, videoFrameEntity) {
+fmltc.LabelVideo.prototype.videoFrameEntityLoaded = function(videoFrameEntity) {
+  frameNumber = videoFrameEntity.frame_number
   const previousIncludeFrameInDataset = this.videoFrameEntity[frameNumber]
       ? this.videoFrameEntity[frameNumber].include_frame_in_dataset : false;
   const previousBboxesText = this.videoFrameEntity[frameNumber]
@@ -548,6 +443,20 @@ fmltc.LabelVideo.prototype.setVideoFrameEntity = function(frameNumber, videoFram
       includeFrameInDataset, bboxesText);
   this.videoFrameEntity[frameNumber] = videoFrameEntity;
   this.bboxes[frameNumber] = this.convertTextToBboxes(videoFrameEntity.bboxes_text);
+
+  this.loadedFrameEntityCount++;
+  if (this.loadedFrameEntityCount == this.videoEntity.frame_count) {
+    this.includedFrameCountDiv.style.visibility = 'visible';
+    this.unlabeledFrameCountDiv.style.visibility = 'visible';
+  }
+  this.loadingProgress.value++;
+
+  setTimeout(this.retrieveVideoFrameImage.bind(this, frameNumber, videoFrameEntity.image_url, 0), 0);
+
+  if (frameNumber == this.currentFrameNumber) {
+    this.redrawBboxes();
+    this.refillLabelingArea();
+  }
 };
 
 fmltc.LabelVideo.prototype.updateFrameCounts = function(frameNumber,
@@ -594,6 +503,53 @@ fmltc.LabelVideo.prototype.updateFrameCounts = function(frameNumber,
         this.maxUnlabeledFrameNumber = frameNumber;
       }
     }
+  }
+};
+
+fmltc.LabelVideo.prototype.retrieveVideoFrameImage = function(frameNumber, imageUrl, failureCount) {
+  const xhr = new XMLHttpRequest();
+  if (!imageUrl) {
+    imageUrl = '/retrieveVideoFrameImage?video_uuid=' + encodeURIComponent(this.videoUuid) +
+        '&frame_number=' + encodeURIComponent(frameNumber);
+  }
+  xhr.open('GET', imageUrl, true);
+  xhr.responseType = 'blob';
+  xhr.onreadystatechange = this.xhr_retrieveVideoFrameImage_onreadystatechange.bind(this, xhr,
+      frameNumber, imageUrl, failureCount);
+  xhr.send(null);
+};
+
+fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameImage_onreadystatechange = function(xhr,
+    frameNumber, imageUrl, failureCount) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      this.videoFrameImage[frameNumber] = window.URL.createObjectURL(xhr.response);
+      this.loadingProgress.value++;
+
+      if (this.loadingProgress.value == this.loadingProgress.max) {
+        const elapsedTime = Date.now() - this.startTime;
+        console.log('Loading all frames took ' + elapsedTime + ' ms');
+      }
+
+      if (frameNumber == this.currentFrameNumber) {
+        this.updateVideoFrameImg();
+        this.redrawBboxes();
+      }
+
+    } else {
+      failureCount++;
+      if (failureCount < 5) {
+        const delay = Math.pow(2, failureCount);
+        console.log('Will retry ' + imageUrl + ' in ' + delay + ' seconds.');
+        setTimeout(this.retrieveVideoFrameImage.bind(this, frameNumber, imageUrl, failureCount), delay * 1000);
+      } else {
+        this.loadFailure();
+      }
+    }
+
+    this.updateUI();
   }
 };
 
@@ -777,6 +733,7 @@ fmltc.LabelVideo.prototype.bboxFieldInput_oninput = function(i, input, field) {
     const box = this.bboxes[this.currentFrameNumber][i];
     box[field] = input.value;
     this.redrawBboxes();
+    this.saveBboxes()
   }
   this.updateUI();
 };
@@ -1110,6 +1067,7 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseup = function(e) {
     this.definingBbox = null;
     this.redrawBboxes();
     this.refillLabelingArea(true);
+    this.saveBboxes()
 
   } else if (this.resizingBbox) {
     // Erase the previous temporary box.
@@ -1122,6 +1080,7 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseup = function(e) {
     this.resizingBbox = null;
     this.redrawBboxes();
     this.refillLabelingArea();
+    this.saveBboxes()
   }
 };
 

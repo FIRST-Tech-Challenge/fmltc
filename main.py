@@ -114,10 +114,13 @@ def label_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     video_uuid = flask.request.args.get('video_uuid')
     video_entity = storage.retrieve_video_entity_for_labeling(team_uuid, video_uuid)
+    video_frame_entity_0 = storage.retrieve_video_frame_entities_with_image_urls(
+        team_uuid, video_uuid, 0, 0)[0]
     sanitize(video_entity)
+    sanitize(video_frame_entity_0)
     return flask.render_template('labelVideo.html', time_time=time.time(), project_id=constants.PROJECT_ID,
         team_preferences=storage.retrieve_user_preferences(team_uuid),
-        video_uuid=video_uuid, video_entity=video_entity)
+        video_uuid=video_uuid, video_entity=video_entity, video_frame_entity_0=video_frame_entity_0)
 
 @app.route('/monitorTraining')
 @handle_exceptions
@@ -138,11 +141,12 @@ def monitor_training():
         video_entities_by_uuid=video_entities_by_uuid)
 
 
-@app.route('/test')
-@handle_exceptions
-@redirect_to_login_if_needed
-def test():
-    return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID)
+#test is for debugging purposes only.
+#@app.route('/test')
+#@handle_exceptions
+#@redirect_to_login_if_needed
+#def test():
+#    return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID)
 
 
 # requests
@@ -200,10 +204,10 @@ def trigger_frame_extraction():
     action.trigger_action_via_blob(action_parameters)
     return 'OK'
 
-@app.route('/retrieveVideoList', methods=['POST'])
+@app.route('/retrieveVideoEntities', methods=['POST'])
 @handle_exceptions
 @login_required
-def retrieve_video_list():
+def retrieve_video_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     video_entities = storage.retrieve_video_list(team_uuid)
     sanitize(video_entities)
@@ -212,10 +216,10 @@ def retrieve_video_list():
     }
     return flask.jsonify(response)
 
-@app.route('/retrieveVideo', methods=['POST'])
+@app.route('/retrieveVideoEntity', methods=['POST'])
 @handle_exceptions
 @login_required
-def retrieve_video():
+def retrieve_video_entity():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     video_uuid = data.get('video_uuid')
@@ -261,27 +265,10 @@ def retrieve_video_frame_image():
     image_data, content_type = storage.retrieve_video_frame_image(team_uuid, video_uuid, frame_number)
     return Response(image_data, mimetype=content_type)
 
-@app.route('/retrieveVideoFrames', methods=['POST'])
+@app.route('/retrieveVideoFrameEntitiesWithImageUrls', methods=['POST'])
 @handle_exceptions
 @login_required
-def retrieve_video_frames():
-    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
-    min_frame_number = int(data.get('min_frame_number'))
-    max_frame_number = int(data.get('max_frame_number'))
-    video_frame_entities = storage.retrieve_video_frame_entities(
-        team_uuid, video_uuid, min_frame_number, max_frame_number)
-    sanitize(video_frame_entities)
-    response = {
-        'video_frame_entities': video_frame_entities,
-    }
-    return flask.jsonify(response)
-
-@app.route('/retrieveVideoFramesWithImageUrls', methods=['POST'])
-@handle_exceptions
-@login_required
-def retrieve_video_frames_with_image_urls():
+def retrieve_video_frame_entities_with_image_urls():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     video_uuid = data.get('video_uuid')
@@ -424,10 +411,10 @@ def prepare_to_start_dataset_production():
     }
     return flask.jsonify(response)
 
-@app.route('/retrieveDatasetList', methods=['POST'])
+@app.route('/retrieveDatasetEntities', methods=['POST'])
 @handle_exceptions
 @login_required
-def retrieve_dataset_list():
+def retrieve_dataset_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     dataset_entities = storage.retrieve_dataset_list(team_uuid)
     sanitize(dataset_entities)
@@ -436,10 +423,10 @@ def retrieve_dataset_list():
     }
     return flask.jsonify(response)
 
-@app.route('/retrieveDataset', methods=['POST'])
+@app.route('/retrieveDatasetEntity', methods=['POST'])
 @handle_exceptions
 @login_required
-def retrieve_dataset():
+def retrieve_dataset_entity():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     dataset_uuid = data.get('dataset_uuid')
@@ -555,10 +542,10 @@ def start_training_model():
     }
     return flask.jsonify(response)
 
-@app.route('/retrieveSummaries', methods=['POST'])
+@app.route('/retrieveTrainingSummaries', methods=['POST'])
 @handle_exceptions
 @login_required
-def retrieve_summaries():
+def retrieve_training_summaries():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
@@ -598,10 +585,10 @@ def cancel_training_model():
     }
     return flask.jsonify(response)
 
-@app.route('/retrieveModelList', methods=['POST'])
+@app.route('/retrieveModelEntities', methods=['POST'])
 @handle_exceptions
 @login_required
-def retrieve_model_list():
+def retrieve_model_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     model_entities = model_trainer.retrieve_model_list(team_uuid)
     team_entity = storage.retrieve_team_entity(team_uuid)
@@ -613,10 +600,10 @@ def retrieve_model_list():
     }
     return flask.jsonify(response)
 
-@app.route('/retrieveModel', methods=['POST'])
+@app.route('/retrieveModelEntity', methods=['POST'])
 @handle_exceptions
 @login_required
-def retrieve_model():
+def retrieve_model_entity():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
@@ -677,24 +664,25 @@ def create_tflite():
     blob_storage.set_cors_policy_for_get()
     return flask.jsonify(response)
 
-@app.route('/performActionGAE', methods=['POST'])
-@handle_exceptions
-@login_required
-def perform_action_gae():
-    start_time = datetime.now()
-    action_parameters = flask.request.get_json()
-    # time_limit is wrong for GAE, but this request is only for debugging.
-    time_limit = start_time + timedelta(seconds=500)
-    action.perform_action(action_parameters, time_limit)
-    return 'OK'
-
-@app.route('/performActionGCF', methods=['POST'])
-@handle_exceptions
-@login_required
-def perform_action_gcf():
-    action_parameters = flask.request.get_json()
-    action.trigger_action_via_blob(action_parameters)
-    return 'OK'
+#performActionGAE and performActionGCF are for debugging purposes only.
+#@app.route('/performActionGAE', methods=['POST'])
+#@handle_exceptions
+#@login_required
+#def perform_action_gae():
+#    start_time = datetime.now()
+#    action_parameters = flask.request.get_json()
+#    # time_limit is wrong for GAE, but this request is only for debugging.
+#    time_limit = start_time + timedelta(seconds=500)
+#    action.perform_action(action_parameters, time_limit)
+#    return 'OK'
+#
+#@app.route('/performActionGCF', methods=['POST'])
+#@handle_exceptions
+#@login_required
+#def perform_action_gcf():
+#    action_parameters = flask.request.get_json()
+#    action.trigger_action_via_blob(action_parameters)
+#    return 'OK'
 
 # errors
 
