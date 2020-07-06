@@ -61,7 +61,7 @@ def get_normalized_input_image_tensor(starting_model_name):
         raise exceptions.HttpErrorInternalServerError(message)
 
 def start_training_model(team_uuid, description, dataset_uuids_json,
-        starting_model, max_running_minutes, num_training_steps, start_time_ms):
+        starting_model, max_running_minutes, num_training_steps, create_time_ms):
     # Call retrieve_model_list to update all models (which may have finished training) and update
     # the team_entity.
     model_entities = retrieve_model_list(team_uuid)
@@ -248,7 +248,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         ml.projects().jobs().cancel(name=__get_train_job_name(model_uuid)).execute()
         raise
     model_entity = storage.model_trainer_started(team_uuid, model_uuid, description,
-        dataset_uuids, start_time_ms, max_running_minutes, num_training_steps,
+        dataset_uuids, create_time_ms, max_running_minutes, num_training_steps,
         previous_training_steps, starting_model, user_visible_starting_model,
         original_starting_model, fine_tune_checkpoint,
         sorted_label_list, label_map_path, train_input_path, eval_input_path,

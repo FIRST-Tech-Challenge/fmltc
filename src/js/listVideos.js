@@ -90,9 +90,6 @@ fmltc.ListVideos.prototype.xhr_retrieveVideoList_onreadystatechange = function(x
       for (let i = 0; i < videoEntityArray.length; i++) {
         this.onVideoEntityUpdated(videoEntityArray[i]);
       }
-      if (this.videoEntityArray.length > 0) {
-        this.videosListDiv.style.display = 'block';
-      }
       document.getElementById('videosLoader').style.visibility = 'hidden';
 
     } else {
@@ -124,7 +121,7 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     checkboxTd.appendChild(checkbox);
 
     const dateUploadedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    dateUploadedTd.textContent = new Date(videoEntity.upload_time_ms).toLocaleString();
+    dateUploadedTd.textContent = new Date(videoEntity.create_time_ms).toLocaleString();
 
     const descriptionTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     this.descriptionTds[i] = descriptionTd;
@@ -156,6 +153,10 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
 
     this.excludedFrameCountTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
     this.excludedFrameCountTds[i].setAttribute('align', 'right');
+
+    if (this.videoEntityArray.length == 1) {
+      this.videosListDiv.style.display = 'block';
+    }
   }
 
   let frameExtractionComplete = true;
@@ -261,9 +262,6 @@ fmltc.ListVideos.prototype.xhr_retrieveVideo_onreadystatechange = function(xhr, 
       const response = JSON.parse(xhr.responseText);
       const videoEntity = response.video_entity;
       this.onVideoEntityUpdated(videoEntity);
-      if (this.videoEntityArray.length > 0) {
-        this.videosListDiv.style.display = 'block';
-      }
 
     } else {
       // TODO(lizlooney): handle error properly. Currently we try again in 3 seconds, but that

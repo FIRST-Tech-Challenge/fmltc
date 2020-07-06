@@ -63,12 +63,13 @@ def retrieve_team_uuid(program, team_number, team_code):
                 'program': program,
                 'team_number': team_number,
                 'remaining_training_minutes': team_info.TOTAL_TRAINING_MINUTES_PER_TEAM,
-                'last_time_utc_ms': datetime.now(timezone.utc),
+                'create_time': datetime.now(timezone.utc),
+                'last_time': datetime.now(timezone.utc),
                 'preferences': {},
             })
         else:
             team_entity = team_entities[0]
-        team_entity['last_time_utc_ms'] = datetime.now(timezone.utc)
+        team_entity['last_time'] = datetime.now(timezone.utc)
         if 'preferences' not in team_entity:
             team_entity['preferences'] = {}
         transaction.put(team_entity)
@@ -79,14 +80,14 @@ def retrieve_team_entity(team_uuid):
     with datastore_client.transaction() as transaction:
         query = datastore_client.query(kind=DS_KIND_TEAM)
         query.add_filter('team_uuid', '=', team_uuid)
-        query.add_filter('last_time_utc_ms', '>', 0)
+        query.add_filter('last_time', '>', 0)
         team_entities = list(query.fetch(1))
         if len(team_entities) == 0:
             message = 'Error: Team entity for team_uuid=%s not found.' % (team_uuid)
             logging.critical(message)
             raise exceptions.HttpErrorNotFound(message)
         team_entity = team_entities[0]
-        team_entity['last_time_utc_ms'] = datetime.now(timezone.utc)
+        team_entity['last_time'] = datetime.now(timezone.utc)
         transaction.put(team_entity)
         return team_entity
 
@@ -95,7 +96,7 @@ def store_user_preference(team_uuid, key, value):
     with datastore_client.transaction() as transaction:
         team_entity = retrieve_team_entity(team_uuid)
         team_entity['preferences'][key] = value
-        team_entity['last_time_utc_ms'] = datetime.now(timezone.utc)
+        team_entity['last_time'] = datetime.now(timezone.utc)
         transaction.put(team_entity)
 
 def retrieve_user_preferences(team_uuid):
@@ -104,7 +105,7 @@ def retrieve_user_preferences(team_uuid):
 
 # video - public methods
 
-def prepare_to_upload_video(team_uuid, description, video_filename, file_size, content_type, upload_time_ms):
+def prepare_to_upload_video(team_uuid, description, video_filename, file_size, content_type, create_time_ms):
     video_uuid = str(uuid.uuid4().hex)
     video_blob_name, upload_url = blob_storage.prepare_to_upload_video(team_uuid, video_uuid, content_type)
     datastore_client = datastore.Client()
@@ -118,13 +119,11 @@ def prepare_to_upload_video(team_uuid, description, video_filename, file_size, c
             'video_filename': video_filename,
             'file_size': file_size,
             'video_content_type': content_type,
-            'upload_time_ms': upload_time_ms,
+            'create_time_ms': create_time_ms,
+            'create_time': util.datetime_from_ms(create_time_ms),
             'video_blob_name': video_blob_name,
-            'create_time_utc_ms': util.time_now_utc_millis(),
-            'frame_extractor_triggered_time_utc_ms': util.time_now_utc_millis(),
-            'frame_extractor_active_time_utc_ms': 0,
-            'frame_extraction_start_time_utc_ms': 0,
-            'frame_extraction_end_time_utc_ms': 0,
+            'frame_extractor_triggered_time_ms': 0,
+            'frame_extractor_active_time_ms': 0,
             'extracted_frame_count': 0,
             'included_frame_count': 0,
             'labeled_frame_count': 0,
@@ -139,7 +138,8 @@ def prepare_to_trigger_frame_extractor(team_uuid, video_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
-        video_entity['frame_extractor_triggered_time_utc_ms'] = util.time_now_utc_millis()
+        video_entity['frame_extractor_triggered_time'] = datetime.now(timezone.utc)
+        video_entity['frame_extractor_triggered_time_ms'] = util.ms_from_datetime(video_entity['frame_extractor_triggered_time'])
         transaction.put(video_entity)
         return video_entity
 
@@ -147,7 +147,8 @@ def frame_extractor_active(team_uuid, video_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
-        video_entity['frame_extractor_active_time_utc_ms'] = util.time_now_utc_millis()
+        video_entity['frame_extractor_active_time'] = datetime.now(timezone.utc)
+        video_entity['frame_extractor_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extractor_active_time'])
         transaction.put(video_entity)
         return video_entity
 
@@ -160,9 +161,9 @@ def frame_extraction_starting(team_uuid, video_uuid, width, height, fps, frame_c
         video_entity['height'] = height
         video_entity['fps'] = fps
         video_entity['frame_count'] = frame_count
-        time_now_utc_millis = util.time_now_utc_millis()
-        video_entity['frame_extraction_start_time_utc_ms'] = time_now_utc_millis
-        video_entity['frame_extractor_active_time_utc_ms'] = time_now_utc_millis
+        video_entity['frame_extraction_start_time'] = datetime.now(timezone.utc)
+        video_entity['frame_extractor_active_time'] = video_entity['frame_extraction_start_time']
+        video_entity['frame_extractor_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extractor_active_time'])
         transaction.put(video_entity)
         return video_entity
 
@@ -172,9 +173,9 @@ def frame_extraction_done(team_uuid, video_uuid, frame_count):
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
         if frame_count > 0:
             video_entity['frame_count'] = frame_count
-        time_now_utc_millis = util.time_now_utc_millis()
-        video_entity['frame_extraction_end_time_utc_ms'] = time_now_utc_millis
-        video_entity['frame_extractor_active_time_utc_ms'] = time_now_utc_millis
+        video_entity['frame_extraction_end_time'] = datetime.now(timezone.utc)
+        video_entity['frame_extractor_active_time'] = video_entity['frame_extraction_end_time']
+        video_entity['frame_extractor_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extractor_active_time'])
         transaction.put(video_entity)
         return video_entity
 
@@ -205,7 +206,7 @@ def retrieve_video_list(team_uuid):
     query = datastore_client.query(kind=DS_KIND_VIDEO)
     query.add_filter('team_uuid', '=', team_uuid)
     query.add_filter('delete_in_progress', '=', False)
-    query.order = ['upload_time_ms']
+    query.order = ['create_time']
     video_entities = list(query.fetch())
     return video_entities
 
@@ -230,24 +231,22 @@ def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
                 util.log('Tracker is not in progress. Tracker entity is missing.')
             else:
                 # If it's been more than two minutes, assume the tracker has died.
-                millis_since_last_update = util.time_now_utc_millis() - tracker_entity['update_time_utc_ms']
-                two_minutes_in_ms = 2 * 60 * 1000
-                if millis_since_last_update > two_minutes_in_ms:
+                timedelta_since_last_update = datetime.now(timezone.utc) - tracker_entity['update_time']
+                if timedelta_since_last_update > timedelta(minutes=2):
+                    util.log('Tracker is not in progress. Elapsed time since last tracker update: %f seconds' %
+                        timedelta_since_last_update.total_seconds())
                     tracking_in_progress = False
-                    util.log('Tracker is not in progress. Elapsed time since last tracker update: %d ms' %
-                        millis_since_last_update)
             tracker_client_entity = retrieve_tracker_client_entity(video_uuid, tracker_uuid)
             if tracker_client_entity is None:
                 tracking_in_progress = False
                 util.log('Tracker is not in progress. Tracker client entity is missing.')
             else:
                 # If it's been more than two minutes, assume the tracker client is not connected.
-                millis_since_last_update = util.time_now_utc_millis() - tracker_client_entity['update_time_utc_ms']
-                two_minutes_in_ms = 2 * 60 * 1000
-                if millis_since_last_update > two_minutes_in_ms:
+                timedelta_since_last_update = datetime.now(timezone.utc) - tracker_client_entity['update_time']
+                if timedelta_since_last_update > timedelta(minutes=2):
+                    util.log('Tracker is not in progress. Elapsed time since last tracker client update: %f seconds' %
+                        timedelta_since_last_update.total_seconds())
                     tracking_in_progress = False
-                    util.log('Tracker is not in progress. Elapsed time since last tracker client update: %d ms' %
-                        millis_since_last_update)
             if not tracker_in_progress:
                 video_entity['tracking_in_progress'] = False
                 video_entity['tracker_uuid'] = ''
@@ -417,7 +416,8 @@ def store_frame_image(team_uuid, video_uuid, frame_number, content_type, image_d
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
         video_entity['extracted_frame_count'] = frame_number + 1
         video_entity['included_frame_count'] = frame_number + 1
-        video_entity['frame_extractor_active_time_utc_ms'] = util.time_now_utc_millis()
+        video_entity['frame_extractor_active_time'] = datetime.now(timezone.utc)
+        video_entity['frame_extractor_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extractor_active_time'])
         if frame_number == 0:
             video_entity['image_content_type'] = content_type
             video_entity['image_blob_name'] = image_blob_name
@@ -502,7 +502,7 @@ def tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_numb
             'team_uuid': team_uuid,
             'video_uuid': video_uuid,
             'tracker_uuid': tracker_uuid,
-            'update_time_utc_ms': util.time_now_utc_millis(),
+            'update_time': datetime.now(timezone.utc),
             'video_blob_name': video_entity['video_blob_name'],
             'tracker_name': tracker_name,
             'scale': scale,
@@ -517,7 +517,7 @@ def tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_numb
             'team_uuid': team_uuid,
             'video_uuid': video_uuid,
             'tracker_uuid': tracker_uuid,
-            'update_time_utc_ms': util.time_now_utc_millis(),
+            'update_time': datetime.now(timezone.utc),
             'frame_number': init_frame_number,
             'bboxes_text': init_bboxes_text,
             'tracking_stop_requested': False,
@@ -556,7 +556,7 @@ def store_tracked_bboxes(video_uuid, tracker_uuid, frame_number, bboxes_text):
         if tracker_entity is not None:
             tracker_entity['frame_number'] = frame_number
             tracker_entity['bboxes_text'] = bboxes_text
-            tracker_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            tracker_entity['update_time'] = datetime.now(timezone.utc)
             transaction.put(tracker_entity)
 
 def retrieve_tracked_bboxes(video_uuid, tracker_uuid, retrieve_frame_number, time_limit):
@@ -571,10 +571,10 @@ def retrieve_tracked_bboxes(video_uuid, tracker_uuid, retrieve_frame_number, tim
         if datetime.now() >= time_limit - timedelta(seconds=5):
             break
         # If it's been more than two minutes, assume the tracker has died.
-        millis_since_last_update = util.time_now_utc_millis() - tracker_entity['update_time_utc_ms']
-        two_minutes_in_ms = 2 * 60 * 1000
-        if millis_since_last_update > two_minutes_in_ms:
-            util.log('Tracker appears to have failed. Elapsed time since last update: %d ms' % millis_since_last_update)
+        timedelta_since_last_update = datetime.now(timezone.utc) - tracker_entity['update_time']
+        if timedelta_since_last_update > timedelta(minutes=2):
+            util.log('Tracker appears to have failed. Elapsed time since last tracker update: %f seconds' %
+                timedelta_since_last_update.total_seconds())
             tracker_stopping(tracker_entity['team_uuid'], tracker_entity['video_uuid'], tracker_uuid)
             tracker_entity['tracker_failed'] = True
             break
@@ -587,7 +587,7 @@ def tracking_client_still_alive(video_uuid, tracker_uuid):
     with datastore_client.transaction() as transaction:
         tracker_client_entity = retrieve_tracker_client_entity(video_uuid, tracker_uuid)
         if tracker_client_entity is not None:
-            tracker_client_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            tracker_client_entity['update_time'] = datetime.now(timezone.utc)
             transaction.put(tracker_client_entity)
 
 def continue_tracking(team_uuid, video_uuid, tracker_uuid, frame_number, bboxes_text):
@@ -600,7 +600,7 @@ def continue_tracking(team_uuid, video_uuid, tracker_uuid, frame_number, bboxes_
             # Update the tracker_client_entity
             tracker_client_entity['frame_number'] = frame_number
             tracker_client_entity['bboxes_text'] = bboxes_text
-            tracker_client_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            tracker_client_entity['update_time'] = datetime.now(timezone.utc)
             transaction.put(tracker_client_entity)
 
 def set_tracking_stop_requested(video_uuid, tracker_uuid):
@@ -609,7 +609,7 @@ def set_tracking_stop_requested(video_uuid, tracker_uuid):
         tracker_client_entity = retrieve_tracker_client_entity(video_uuid, tracker_uuid)
         if tracker_client_entity is not None:
             tracker_client_entity['tracking_stop_requested'] = True
-            tracker_client_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            tracker_client_entity['update_time'] = datetime.now(timezone.utc)
             transaction.put(tracker_client_entity)
 
 def tracker_stopping(team_uuid, video_uuid, tracker_uuid):
@@ -639,7 +639,7 @@ def __query_dataset(team_uuid, dataset_uuid):
 
 # dataset - public methods
 
-def prepare_to_start_dataset_production(team_uuid, description, video_uuids, eval_percent, start_time_ms):
+def prepare_to_start_dataset_production(team_uuid, description, video_uuids, eval_percent, create_time_ms):
     dataset_uuid = str(uuid.uuid4().hex)
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -651,7 +651,8 @@ def prepare_to_start_dataset_production(team_uuid, description, video_uuids, eva
             'description': description,
             'video_uuids': video_uuids,
             'eval_percent': eval_percent,
-            'creation_time_ms': start_time_ms,
+            'create_time_ms': create_time_ms,
+            'create_time': util.datetime_from_ms(create_time_ms),
             'dataset_completed': False,
             'train_negative_frame_count': 0,
             'train_dict_label_to_count': {},
@@ -690,7 +691,7 @@ def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
                 'dataset_uuid': dataset_uuid,
                 'record_number': record_number,
                 'frames_written': 0,
-                'update_time_utc_ms': util.time_now_utc_millis(),
+                'update_time': datetime.now(timezone.utc),
             })
             transaction.put(dataset_record_writer_entity)
 
@@ -747,7 +748,7 @@ def retrieve_dataset_list(team_uuid):
     query = datastore_client.query(kind=DS_KIND_DATASET)
     query.add_filter('team_uuid', '=', team_uuid)
     query.add_filter('delete_in_progress', '=', False)
-    query.order = ['creation_time_ms']
+    query.order = ['create_time']
     dataset_entities = list(query.fetch())
     return dataset_entities
 
@@ -863,7 +864,7 @@ def update_dataset_record_writer(team_uuid, dataset_uuid, record_number, frames_
         dataset_record_writer_entity = __retrieve_dataset_record_writer(team_uuid, dataset_uuid, record_number)
         if dataset_record_writer_entity is not None:
             dataset_record_writer_entity['frames_written'] = frames_written
-            dataset_record_writer_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            dataset_record_writer_entity['update_time'] = datetime.now(timezone.utc)
             transaction.put(dataset_record_writer_entity)
 
 def retrieve_dataset_record_writer_frames_written(dataset_entity):
@@ -921,7 +922,7 @@ def create_dataset_zippers(team_uuid, dataset_zip_uuid, partition_count):
                 'partition_index': partition_index,
                 'file_count': 0,
                 'files_written': 0,
-                'update_time_utc_ms': util.time_now_utc_millis(),
+                'update_time': datetime.now(timezone.utc),
             })
             transaction.put(dataset_zipper_entity)
 
@@ -943,7 +944,7 @@ def update_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index, file_cou
         if dataset_zipper_entity is not None:
             dataset_zipper_entity['file_count'] = file_count
             dataset_zipper_entity['files_written'] = files_written
-            dataset_zipper_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+            dataset_zipper_entity['update_time'] = datetime.now(timezone.utc)
             transaction.put(dataset_zipper_entity)
 
 def retrieve_dataset_zipper_files_written(team_uuid, dataset_zip_uuid, partition_count):
@@ -990,7 +991,7 @@ def model_trainer_failed_to_start(team_uuid, max_running_minutes):
         transaction.put(team_entity)
 
 def model_trainer_started(team_uuid, model_uuid, description,
-        dataset_uuids, start_time_ms, max_running_minutes, num_training_steps,
+        dataset_uuids, create_time_ms, max_running_minutes, num_training_steps,
         previous_training_steps, starting_model, user_visible_starting_model,
         original_starting_model, fine_tune_checkpoint,
         sorted_label_list, label_map_path, train_input_path, eval_input_path,
@@ -1005,7 +1006,8 @@ def model_trainer_started(team_uuid, model_uuid, description,
             'model_uuid': model_uuid,
             'description': description,
             'dataset_uuids': dataset_uuids,
-            'creation_time_ms': start_time_ms,
+            'create_time_ms': create_time_ms,
+            'create_time': util.datetime_from_ms(create_time_ms),
             'sorted_label_list': sorted_label_list,
             'label_map_path': label_map_path,
             'train_input_path': train_input_path,
@@ -1049,7 +1051,7 @@ def model_trainer_started(team_uuid, model_uuid, description,
         else:
             model_entity['eval_job'] = True
             __update_model_entity(model_entity, eval_job, 'eval_')
-        model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+        model_entity['update_time'] = datetime.now(timezone.utc)
         transaction.put(model_entity)
         return model_entity
 
@@ -1058,7 +1060,7 @@ def cancel_training_requested(team_uuid, model_uuid):
     with datastore_client.transaction() as transaction:
         model_entity = retrieve_model_entity(team_uuid, model_uuid)
         model_entity['cancel_requested'] = True
-        model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+        model_entity['update_time'] = datetime.now(timezone.utc)
         transaction.put(model_entity)
         return model_entity
 
@@ -1171,7 +1173,7 @@ def update_model_entity(team_uuid, model_uuid, train_job, eval_job):
             __update_model_entity(model_entity, eval_job, 'eval_')
         # Set trained_checkpoint_path.
         model_entity['trained_checkpoint_path'] = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
-        model_entity['update_time_utc_ms'] = util.time_now_utc_millis()
+        model_entity['update_time'] = datetime.now(timezone.utc)
         transaction.put(model_entity)
         return model_entity
 
@@ -1180,7 +1182,7 @@ def retrieve_model_list(team_uuid):
     query = datastore_client.query(kind=DS_KIND_MODEL)
     query.add_filter('team_uuid', '=', team_uuid)
     query.add_filter('delete_in_progress', '=', False)
-    query.order = ['creation_time_ms']
+    query.order = ['create_time']
     model_entities = list(query.fetch())
     return model_entities
 

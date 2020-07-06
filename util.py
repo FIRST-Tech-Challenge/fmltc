@@ -28,12 +28,12 @@ def log(message):
     logging.critical('%s%s' % (LOG_MESSAGE_PREFIX, message))
 
 
-def time_now_utc_seconds():
-    return datetime.now(timezone.utc).timestamp()
+def ms_from_datetime(dt):
+    return round(dt.timestamp() * 1000)
 
 
-def time_now_utc_millis():
-    return round(time_now_utc_seconds() * 1000)
+def datetime_from_ms(ms):
+    return datetime.fromtimestamp(ms / 1000, timezone.utc)
 
 
 def make_label_map(sorted_label_list):
@@ -41,6 +41,7 @@ def make_label_map(sorted_label_list):
     for i, label in enumerate(sorted_label_list):
         label_map = "%sitem {\n  id: %d\n  name:'%s'\n}\n" % (label_map, i + 1, label)
     return label_map
+
 
 def storage_client():
     return google.cloud.storage.Client.from_service_account_json('key.json')

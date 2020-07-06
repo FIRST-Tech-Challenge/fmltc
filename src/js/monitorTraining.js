@@ -269,7 +269,7 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
   if (!this.filledModelUI) {
     // This block fills in the parts that don't change.
     document.getElementById('dateCreatedTd').textContent =
-        new Date(this.modelEntity.creation_time_ms).toLocaleString();
+        new Date(this.modelEntity.create_time_ms).toLocaleString();
 
     document.getElementById('originalModelTd').textContent =
         this.modelEntity.original_starting_model;

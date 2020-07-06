@@ -120,7 +120,7 @@ fmltc.StartTrainingDialog.prototype.startButton_onclick = function() {
       '&starting_model=' + encodeURIComponent(startingModel) +
       '&max_running_minutes=' + this.maxRunningMinutesInput.value +
       '&num_training_steps=' + this.numTrainingStepsInput.value +
-      '&start_time_ms=' + Date.now();
+      '&create_time_ms=' + Date.now();
   xhr.open('POST', '/startTrainingModel', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_startTrainingModel_onreadystatechange.bind(this, xhr, params);
