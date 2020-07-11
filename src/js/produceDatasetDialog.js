@@ -163,14 +163,14 @@ fmltc.ProduceDatasetDialog.prototype.xhr_prepareToStartDatasetProduction_onready
 fmltc.ProduceDatasetDialog.prototype.retrieveDatasetEntity = function(datasetUuid) {
   const xhr = new XMLHttpRequest();
   const params = 'dataset_uuid=' + encodeURIComponent(datasetUuid);
-  xhr.open('POST', '/retrieveDataset', true);
+  xhr.open('POST', '/retrieveDatasetEntity', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveDataset_onreadystatechange.bind(this, xhr, params,
+  xhr.onreadystatechange = this.xhr_retrieveDatasetEntity_onreadystatechange.bind(this, xhr, params,
       datasetUuid);
   xhr.send(params);
 };
 
-fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDataset_onreadystatechange = function(xhr, params,
+fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDatasetEntity_onreadystatechange = function(xhr, params,
     datasetUuid) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
@@ -204,9 +204,9 @@ fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDataset_onreadystatechange = fu
     } else {
       // TODO(lizlooney): handle error properly. Currently we try again in 5 seconds, but that
       // might not be the best idea.
-      console.log('Failure! /retrieveDataset?' + params +
+      console.log('Failure! /retrieveDatasetEntity?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      console.log('Will retry /retrieveDataset?' + params + ' in 5 seconds.');
+      console.log('Will retry /retrieveDatasetEntity?' + params + ' in 5 seconds.');
       setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid), 5000);
     }
   }

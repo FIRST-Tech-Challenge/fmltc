@@ -127,7 +127,6 @@ popd
 1. Replace `<Project ID>` with the Google Cloud Project ID for our project.
 2. Replace `<Secret Key>` with the secret key you want to use to configure flask.
 3. Replace `<Origin>` with the base URL that will serve the website.
-4. For now, leave `REGION` set to `us-central1`.
 
 
 ## Setup the environment.

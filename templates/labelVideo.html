@@ -25,6 +25,7 @@ limitations under the License.
   <script type="text/javascript"
       src="https://storage.googleapis.com/{{project_id}}/compiled/js/fmltc.js?ignoreCache={{time_time}}">
   </script>
+  <title>Video Frame Labeling</title>
 </head>
 <body>
 
@@ -151,7 +152,7 @@ limitations under the License.
 <script type="text/javascript">
   window.addEventListener('load', function() {
     const util = new fmltc.Util('labelVideo', {{ team_preferences|tojson }});
-    new fmltc.LabelVideo(util, {{ video_entity|tojson }});
+    new fmltc.LabelVideo(util, {{ video_entity|tojson }}, {{ video_frame_entity_0|tojson }});
   });
 </script>
 </body>

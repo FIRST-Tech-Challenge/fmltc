@@ -175,11 +175,11 @@ fmltc.MonitorTraining.prototype.charts_onload = function() {
 };
 
 fmltc.MonitorTraining.prototype.retrieveData = function() {
-  this.retrieveSummaries(this.data.scalars, 0);
-  this.retrieveSummaries(this.data.images, 0);
+  this.retrieveTrainingSummaries(this.data.scalars, 0);
+  this.retrieveTrainingSummaries(this.data.images, 0);
 };
 
-fmltc.MonitorTraining.prototype.retrieveSummaries = function(dataStructure, failureCount) {
+fmltc.MonitorTraining.prototype.retrieveTrainingSummaries = function(dataStructure, failureCount) {
   this.refreshButtonDisabledCounter++;
   this.refreshButton.disabled = (this.refreshButtonDisabledCounter > 0);
 
@@ -188,14 +188,14 @@ fmltc.MonitorTraining.prototype.retrieveSummaries = function(dataStructure, fail
       'model_uuid=' + encodeURIComponent(this.modelUuid) +
       '&retrieve_scalars=' + encodeURIComponent(dataStructure.retrieveScalars) +
       '&retrieve_images=' + encodeURIComponent(dataStructure.retrieveImages);
-  xhr.open('POST', '/retrieveSummaries', true);
+  xhr.open('POST', '/retrieveTrainingSummaries', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveSummaries_onreadystatechange.bind(this, xhr, params,
+  xhr.onreadystatechange = this.xhr_retrieveTrainingSummaries_onreadystatechange.bind(this, xhr, params,
       dataStructure, failureCount);
   xhr.send(params);
 };
 
-fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = function(xhr, params,
+fmltc.MonitorTraining.prototype.xhr_retrieveTrainingSummaries_onreadystatechange = function(xhr, params,
     dataStructure, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
@@ -230,8 +230,8 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaries_onreadystatechange = funct
       failureCount++;
       if (!this.refreshIntervalId && failureCount < 5) {
         const delay = Math.pow(2, failureCount);
-        console.log('Will retry /retrieveSummaries?' + params + ' in ' + delay + ' seconds.');
-        setTimeout(this.retrieveSummaries.bind(this, dataStructure, failureCount), delay * 1000);
+        console.log('Will retry /retrieveTrainingSummaries?' + params + ' in ' + delay + ' seconds.');
+        setTimeout(this.retrieveTrainingSummaries.bind(this, dataStructure, failureCount), delay * 1000);
       } else {
         console.log('Unable to retrieve the summaries.');
       }

@@ -56,9 +56,9 @@ fmltc.ListModels = function(util) {
   this.waitCursor = false;
   this.deleteModelCounter = 0;
 
-  this.totalTrainingMinutes = 0;     // Updated when we get a response from /retrieveModelList
-  this.remainingTrainingMinutes = 0; // Updated when we get a response from /retrieveModelList
-  this.retrieveModels();
+  this.totalTrainingMinutes = 0;     // Updated when we get a response from /retrieveModelEntities
+  this.remainingTrainingMinutes = 0; // Updated when we get a response from /retrieveModelEntities
+  this.retrieveModelEntities();
   this.updateButtons();
 
   this.modelCheckboxAll.onclick = this.modelCheckboxAll_onclick.bind(this);
@@ -68,15 +68,15 @@ fmltc.ListModels = function(util) {
   this.deleteModelsButton.onclick = this.deleteModelsButton_onclick.bind(this);
 };
 
-fmltc.ListModels.prototype.retrieveModels = function() {
+fmltc.ListModels.prototype.retrieveModelEntities = function() {
   const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/retrieveModelList', true);
+  xhr.open('POST', '/retrieveModelEntities', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveModelList_onreadystatechange.bind(this, xhr);
+  xhr.onreadystatechange = this.xhr_retrieveModelEntities_onreadystatechange.bind(this, xhr);
   xhr.send();
 };
 
-fmltc.ListModels.prototype.xhr_retrieveModelList_onreadystatechange = function(xhr) {
+fmltc.ListModels.prototype.xhr_retrieveModelEntities_onreadystatechange = function(xhr) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -92,7 +92,7 @@ fmltc.ListModels.prototype.xhr_retrieveModelList_onreadystatechange = function(x
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /retrieveModelList?' +
+      console.log('Failure! /retrieveModelEntities?' +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
@@ -215,7 +215,7 @@ fmltc.ListModels.prototype.retrieveModelEntity = function(modelUuid) {
 
   const xhr = new XMLHttpRequest();
   const params = 'model_uuid=' + encodeURIComponent(modelUuid);
-  xhr.open('POST', '/retrieveModel', true);
+  xhr.open('POST', '/retrieveModelEntity', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_retrieveModelEntity_onreadystatechange.bind(this, xhr, params,
       modelUuid);
@@ -242,9 +242,9 @@ fmltc.ListModels.prototype.xhr_retrieveModelEntity_onreadystatechange = function
     } else {
       // TODO(lizlooney): handle error properly. Currently we try again in 1 second, but that
       // might not be the best idea.
-      console.log('Failure! /retrieveModel?' + params +
+      console.log('Failure! /retrieveModelEntity?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      console.log('Will retry /retrieveModel?' + params + ' in 1 second.');
+      console.log('Will retry /retrieveModelEntity?' + params + ' in 1 second.');
       setTimeout(this.retrieveModelEntity.bind(this, modelUuid), 1000);
     }
   }

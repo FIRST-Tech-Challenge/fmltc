@@ -51,7 +51,7 @@ fmltc.ListDatasets = function(util) {
   this.waitCursor = false;
   this.deleteDatasetCounter = 0;
 
-  this.retrieveDatasets();
+  this.retrieveDatasetEntities();
   this.updateButtons();
 
   this.datasetCheckboxAll.onclick = this.datasetCheckboxAll_onclick.bind(this);
@@ -60,15 +60,15 @@ fmltc.ListDatasets = function(util) {
   this.deleteDatasetsButton.onclick = this.deleteDatasetsButton_onclick.bind(this);
 };
 
-fmltc.ListDatasets.prototype.retrieveDatasets = function() {
+fmltc.ListDatasets.prototype.retrieveDatasetEntities = function() {
   const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/retrieveDatasetList', true);
+  xhr.open('POST', '/retrieveDatasetEntities', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveDatasetList_onreadystatechange.bind(this, xhr);
+  xhr.onreadystatechange = this.xhr_retrieveDatasetEntities_onreadystatechange.bind(this, xhr);
   xhr.send();
 };
 
-fmltc.ListDatasets.prototype.xhr_retrieveDatasetList_onreadystatechange = function(xhr) {
+fmltc.ListDatasets.prototype.xhr_retrieveDatasetEntities_onreadystatechange = function(xhr) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -84,7 +84,7 @@ fmltc.ListDatasets.prototype.xhr_retrieveDatasetList_onreadystatechange = functi
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /retrieveDatasetList? xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      console.log('Failure! /retrieveDatasetEntities? xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };
