@@ -51,13 +51,11 @@ TWO_MINUTES_IN_MS = 2 * 60 * 1000
 
 def prepare_to_start_tracking(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text):
     tracker_uuid = storage.tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text)
-    return tracker_uuid
-
-def make_action_parameters(video_uuid, tracker_uuid):
     action_parameters = action.create_action_parameters(action.ACTION_NAME_TRACKING)
     action_parameters['video_uuid'] = video_uuid
     action_parameters['tracker_uuid'] = tracker_uuid
-    return action_parameters
+    action.trigger_action_via_blob(action_parameters)
+    return tracker_uuid
 
 def start_tracking(action_parameters):
     video_uuid = action_parameters['video_uuid']

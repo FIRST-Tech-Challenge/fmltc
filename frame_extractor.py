@@ -30,34 +30,35 @@ import exceptions
 import storage
 import util
 
-def make_action_parameters(team_uuid, video_uuid):
+def start_frame_extraction(team_uuid, video_uuid):
+    storage.prepare_to_start_frame_extraction(team_uuid, video_uuid)
     action_parameters = action.create_action_parameters(action.ACTION_NAME_FRAME_EXTRACTION)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['video_uuid'] = video_uuid
+    action.trigger_action_via_blob(action_parameters)
     return action_parameters
 
 def extract_frames(action_parameters):
     team_uuid = action_parameters['team_uuid']
     video_uuid = action_parameters['video_uuid']
 
-    # Read the video_entity from storage and store the fact that the frame extractor is now/still
+    # Read the video_entity from storage and store the fact that frame extraction is now/still
     # active.
-    video_entity = storage.frame_extractor_active(team_uuid, video_uuid)
+    video_entity = storage.frame_extraction_active(team_uuid, video_uuid)
 
     # Write the video out to a temporary file.
     video_blob_name = video_entity['video_blob_name']
     video_filename = '/tmp/%s' % str(uuid.uuid4().hex)
     os.makedirs(os.path.dirname(video_filename), exist_ok=True)
 
-    if not blob_storage.write_video_to_file(video_blob_name, video_filename):
-        # The video blob hasn't been uploaded yet. Wait until it has.
-        while True:
-            action.retrigger_if_necessary(action_parameters)
-            time.sleep(1)
-            if blob_storage.write_video_to_file(video_blob_name, video_filename):
-                break
+    while True:
+        if blob_storage.write_video_to_file(video_blob_name, video_filename):
+            break
+        # The video blob hasn't been uploaded yet. Wait a second and try again.
+        action.retrigger_if_necessary(action_parameters)
+        time.sleep(1)
 
-    storage.frame_extractor_active(team_uuid, video_uuid)
+    storage.frame_extraction_active(team_uuid, video_uuid)
 
     try:
         # Open the video file with cv2.

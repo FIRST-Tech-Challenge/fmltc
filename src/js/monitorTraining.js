@@ -47,6 +47,8 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.imagesTabDiv = document.getElementById('imagesTabDiv');
 
   this.chartsLoaded = false;
+  this.scalarsTabDivVisible = false;
+  this.scalarsTabDivUpdated = '';
 
   this.filledModelUI = false;
 
@@ -163,14 +165,15 @@ fmltc.MonitorTraining.prototype.createDataStructure = function(retrieveScalars, 
 
 fmltc.MonitorTraining.prototype.charts_onload = function() {
   this.chartsLoaded = true;
+  this.scalarsTabDivVisible = (this.util.getCurrentTabDivId() == 'scalarsTabDiv');
+  this.util.addTabListener(this.onTabShown.bind(this));
+  this.fillScalarsDiv(this.data.scalars);
+};
 
-  if (this.data.scalars.training.updated != '' ||
-      this.data.scalars.eval.updated != '') {
-    this.updateSummariesUI(this.data.scalars);
-  }
-  if (this.data.images.training.updated != '' ||
-      this.data.images.eval.updated != '') {
-    this.updateSummariesUI(this.data.images);
+fmltc.MonitorTraining.prototype.onTabShown = function(tabDivId) {
+  this.scalarsTabDivVisible = (tabDivId == 'scalarsTabDiv');
+  if (this.scalarsTabDivVisible) {
+    this.fillScalarsDiv(this.data.scalars);
   }
 };
 
@@ -221,9 +224,16 @@ fmltc.MonitorTraining.prototype.xhr_retrieveTrainingSummaries_onreadystatechange
         dataStructure.eval.sortedSteps = response.eval_sorted_steps;
         dataStructure.eval.summaries = response.eval_summaries;
 
-        if (this.chartsLoaded) {
-          this.updateSummariesUI(dataStructure);
+        dataStructure.loader.style.visibility = 'visible';
+
+        if (dataStructure.retrieveScalars) {
+          this.fillScalarsDiv(dataStructure);
         }
+        if (dataStructure.retrieveImages) {
+          this.fillImagesDiv(dataStructure);
+        }
+
+        dataStructure.loader.style.visibility = 'hidden';
       }
 
     } else {
@@ -365,30 +375,33 @@ fmltc.MonitorTraining.prototype.updateTrainTime = function() {
   }
 };
 
-fmltc.MonitorTraining.prototype.updateSummariesUI = function(dataStructure) {
-  dataStructure.loader.style.visibility = 'visible';
-
-  if (dataStructure.retrieveScalars) {
-    // TODO(lizlooney): remember the scroll position and restore it.
-    this.scalarsTabDiv.innerHTML = ''; // Remove previous children.
-    // TODO(lizlooney): Sometimes the graphs end up too small. I'm not sure why, but maybe it
-    // happends if the scalars tab isn't the active tab?
-    // Figure out why.
-    this.fillScalarsDiv(dataStructure.training);
-    this.fillScalarsDiv(dataStructure.eval);
+fmltc.MonitorTraining.prototype.fillScalarsDiv = function(dataStructure) {
+  const updated = dataStructure.training.updated + ', ' + dataStructure.eval.updated;
+  if (updated == this.scalarsTabDivUpdated) {
+    return;
   }
 
-  if (dataStructure.retrieveImages) {
-    // TODO(lizlooney): remember the scroll position and restore it.
-    this.imagesTabDiv.innerHTML = ''; // Remove previous children.
-    this.fillImagesDiv(dataStructure.training);
-    this.fillImagesDiv(dataStructure.eval);
+  // TODO(lizlooney): remember the scroll position and restore it.
+  this.scalarsTabDiv.innerHTML = ''; // Remove previous children.
+  this.scalarsTabDivUpdated = '';
+
+  if (!this.chartsLoaded) {
+    return;
+  }
+  if (!this.scalarsTabDivVisible) {
+    return;
   }
 
-  dataStructure.loader.style.visibility = 'hidden';
+  this.addCharts(dataStructure.training);
+  this.addCharts(dataStructure.eval);
+  this.scalarsTabDivUpdated = updated;
 };
 
-fmltc.MonitorTraining.prototype.fillScalarsDiv = function(jobData) {
+fmltc.MonitorTraining.prototype.addCharts = function(jobData) {
+  if (jobData.updated == '') {
+    return;
+  }
+
   const sortedTags = jobData.sortedTags;
   const sortedSteps = jobData.sortedSteps;
   const summaries = jobData.summaries;
@@ -457,7 +470,14 @@ fmltc.MonitorTraining.prototype.fillScalarsDiv = function(jobData) {
   }
 };
 
-fmltc.MonitorTraining.prototype.fillImagesDiv = function(jobData) {
+fmltc.MonitorTraining.prototype.fillImagesDiv = function(dataStructure) {
+  // TODO(lizlooney): remember the scroll position and restore it.
+  this.imagesTabDiv.innerHTML = ''; // Remove previous children.
+  this.addImages(dataStructure.training);
+  this.addImages(dataStructure.eval);
+};
+
+fmltc.MonitorTraining.prototype.addImages = function(jobData) {
   const sortedTags = jobData.sortedTags;
   const sortedSteps = jobData.sortedSteps;
   const summaries = jobData.summaries;
@@ -570,4 +590,3 @@ fmltc.MonitorTraining.prototype.xhr_retrieveImage_onreadystatechange = function(
     }
   }
 };
-

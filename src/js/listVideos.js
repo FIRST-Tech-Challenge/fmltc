@@ -201,10 +201,10 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     }
 
   } else if (this.didFrameExtractionFailToStart(videoEntity)) {
-    this.triggerFrameExtraction(videoEntity.video_uuid);
+    this.startFrameExtraction(videoEntity.video_uuid);
 
   } else if (this.isFrameExtractionStalled(videoEntity)) {
-    this.triggerFrameExtraction(videoEntity.video_uuid);
+    this.startFrameExtraction(videoEntity.video_uuid);
 
   } else {
     this.trs[i].className = 'frameExtractionIncomplete';
@@ -213,10 +213,10 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
 };
 
 fmltc.ListVideos.prototype.didFrameExtractionFailToStart = function(videoEntity) {
-  if (videoEntity.frame_extractor_triggered_time_utc_ms != 0 &&
-      videoEntity.frame_extractor_active_time_utc_ms == 0) {
-    const minutesSinceFrameExtractorWasTriggered = (Date.now() - videoEntity.frame_extractor_triggered_time_utc_ms) / 60000;
-    if (minutesSinceFrameExtractorWasTriggered > 3) {
+  if (videoEntity.frame_extraction_triggered_time_utc_ms != 0 &&
+      videoEntity.frame_extraction_active_time_utc_ms == 0) {
+    const minutesSinceFrameExtractionWasTriggered = (Date.now() - videoEntity.frame_extraction_triggered_time_utc_ms) / 60000;
+    if (minutesSinceFrameExtractionWasTriggered > 3) {
       return true;
     }
   }
@@ -224,9 +224,9 @@ fmltc.ListVideos.prototype.didFrameExtractionFailToStart = function(videoEntity)
 };
 
 fmltc.ListVideos.prototype.isFrameExtractionStalled = function(videoEntity) {
-  if (videoEntity.frame_extractor_active_time_utc_ms != 0) {
-    const minutesSinceFrameExtractorWasActive = (Date.now() - videoEntity.frame_extractor_active_time_utc_ms) / 60000;
-    if (minutesSinceFrameExtractorWasActive > 3) {
+  if (videoEntity.frame_extraction_active_time_utc_ms != 0) {
+    const minutesSinceFrameExtractionWasActive = (Date.now() - videoEntity.frame_extraction_active_time_utc_ms) / 60000;
+    if (minutesSinceFrameExtractionWasActive > 3) {
       return true;
     }
   }
@@ -406,12 +406,12 @@ fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, pa
   }
 };
 
-fmltc.ListVideos.prototype.triggerFrameExtraction = function(videoUuid) {
+fmltc.ListVideos.prototype.startFrameExtraction = function(videoUuid) {
   const i = this.indexOfVideo(videoUuid);
   if (i != -1) {
     const xhr = new XMLHttpRequest();
     const params = 'video_uuid=' + encodeURIComponent(videoUuid);
-    xhr.open('POST', '/triggerFrameExtraction', true);
+    xhr.open('POST', '/startFrameExtraction', true);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
     xhr.onreadystatechange = this.xhr_triggerFrameExtraction_onreadystatechange.bind(this, xhr, params,
         videoUuid);
@@ -433,7 +433,7 @@ fmltc.ListVideos.prototype.xhr_triggerFrameExtraction_onreadystatechange = funct
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /triggerFrameExtraction?' + params +
+      console.log('Failure! /startFrameExtraction?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
