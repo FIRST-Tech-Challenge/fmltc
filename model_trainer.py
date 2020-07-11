@@ -186,8 +186,18 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             'args': [
                 '--model_dir', model_dir,
                 '--pipeline_config_path', pipeline_config_path,
-                '--tpu_zone', 'us-central1',
                 '--num_train_steps', str(num_training_steps),
+
+                # Note(lizloone) I commented out the tpu_zone argument after jobs were failing on
+                # July 10, 2020. I found documentation at
+                # https://cloud.google.com/ai-platform/training/docs/using-tpus#connecting_to_the_tpu_grpc_server
+                # that says "However, you must make one important change when you use
+                # TPUClusterResolver for code that runs on AI Platform Training: Do not provide any
+                # arguments when you construct the TPUClusterResolver instance. When the tpu, zone,
+                # and project keyword arguments are all set to their default value of None, AI
+                # Platform Training automatically provides the cluster resolver with the necessary
+                # connection details through environment variables."
+                #'--tpu_zone', 'us-central1',
             ],
             # TODO(lizlooney): Specify hyperparameters.
             #'hyperparameters': {
