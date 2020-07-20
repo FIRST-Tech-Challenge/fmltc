@@ -59,11 +59,12 @@ and clicks Submit.
 > When the users clicks Submit:
 > * the client:
 >   * sends a /login request to the server
->   * the server:
+>   * the server, receiving the /login request:
 >     * reads the teams file from Cloud Storage
 >     * looks for a line with matching FIRST program, team number, and team code
 >     * if the team is found:
->       * stores the values in the session so the user doesn't have to login next time on the same machine
+>       * stores the values in the session so the user doesn't have to login
+>         next time on the same machine
 >       * responds with a redirect to the main page
 >     * if the team is not found:
 >       * responds with the login page with an error message
@@ -105,41 +106,48 @@ When the upload has finished, the dialog is dismissed.
 > When the users clicks Upload:
 > * the client:
 >   * sends a /prepareToUploadVideo request to the server
->   * the server:
+>   * the server, receiving the /prepareToUploadVideo request:
 >     * creates a unique id for the video
 >     * generates a signed url for uploading the video file to Cloud Storage
->     * inserts a video entity into Cloud Datastore/Firestore
+>     * inserts a video entity into Cloud Datastore/Firestore, setting the
+>       team_uuid, video_uuid, description, video_filename, file_size,
+>       video_content_type, create_time, and video_blob_name fields
 >     * triggers the start of a Cloud Function that will extract the frames of
 >       the video
->     * updates the video entity, setting the frame extraction triggered time to the
->       current time
+>     * updates the video entity, setting the frame_extraction_triggered_time
+>       field
 >     * responds with the video id and the upload url
+>
 > * the client:
 >   * sends the video file to the upload url
+>
 > * the Cloud Function:
 >   * reads the video file from Cloud Storage and writes it to a temporary file,
 >     waiting until the video file has finished uploading if necessary
 >   * opens the temporary file with OpenCV
 >   * determines the number of frames in the video
->   * inserts video frame entities into in Cloud Datastore/Firestore
->   * updates the video entity, storing the width, height, frames per second, frame
->     count, and frame extraction start time
->   * in a loop:
+>   * inserts video frame entities into in Cloud Datastore/Firestore, setting
+>     the team_uuid, video_uuid, frame_number, and include_frame_in_dataset
+>     fields
+>   * updates the video entity, setting the width, height, fps (frames per
+>     second), frame_count, and frame_extraction_start_time fields
+>   * repeats the following until it reaches the end of the video
 >     * reads a frame of the video
 >     * writes the video frames as jpeg image files in Cloud Storage
->     * updates the video frame entity, storing the image blob name
->     * updates the video entity, incrementing the extracted frame count and included frame count
->   * periodically updates the video entity, setting the frame extraction active
->     time to the current time
->   * periodically checks how long it has been running:
->     * if it is within 70 seconds of the estimated time limit, it triggers the start of
->       another Cloud Function to continue extracting frames.
->     * if it is within 30 seconds of the estimated time limit, it terminates.
->   * deletes the temporary file
+>     * updates the video frame entity, setting the content_type and
+>       image_blob_name fields
+>     * updates the video entity, setting the extracted_frame_count,
+>       included_frame_count, and frame_extraction_active_time fields
+>     * checks how long it has been running:
+>       * if it is within 70 seconds of the estimated time limit, triggers the
+>         start of another Cloud Function to continue extracting frames
+>       * if it is within 30 seconds of the estimated time limit, terminates
+>   * before termination, deletes the temporary file
+>
 > * the client:
 >   * periodically sends a /retrieveVideoEntity request to the the server to
 >     determine the progress of frame extraction
->   * the server:
+>   * the server, receiving the /retrieveVideoEntity request:
 >     * responds with the video entity
 </details>
 
@@ -172,7 +180,7 @@ As shown in the image above, the user can:
 > * the client:
 >   * sends one or more /retrieveVideoFrameEntitiesWithImageUrls requests to the server.
 >     Each request asks for up to 100 video frame entities.
->   * the server:
+>   * the server, receiving the /retrieveVideoFrameEntitiesWithImageUrls requests:
 >     * generates a signed url for each frame image requested
 >     * responds with the video frame entities, with each entity containing a
 >       signed url for requesting the image from Cloud Storage.
@@ -207,9 +215,9 @@ shown here, all wiffle balls will be labeled "w".
 > Each time a box or label is created or modified:
 > * the client:
 >   * sends a /storeVideoFrameBboxesText request to the server
->   * the server:
->     * updates the video frame entity, storing the boxes and labels
->     * updates the video entity, updating the labeled frame count
+>   * the server, receiving the /storeVideoFrameBboxesText request:
+>     * updates the video frame entity, setting the bboxes_text field
+>     * updates the video entity, setting the labeled_frame_count field
 </details>
 
 #### Tracking
@@ -242,12 +250,18 @@ or click the Stop Tracking button to stop tracking.
 
 > When the user clicks the start tracking button:
 > * the client sends a /prepareToStartTracking request to the server
->   * the server:
+>   * the server, receiving the /prepareToStartTracking request:
 >     * creates a unique id for the tracker
->     * inserts a tracker entity and a tracker client entity into Cloud Datastore/Firestore
->       These entities will be used to manage communication between the tracker and the client.
->     * updates the video entity, storing the tracker id
->     * triggers the start of a Cloud Function that will track objects in the video
+>     * inserts a tracker entity into Cloud Datastore/Firestore, setting the
+>       team_uuid, video_uuid, tracker_uuid, update_time, video_blob_name,
+>       tracker_name, scale, frame_number, and bboxes_text fields
+>     * inserts a tracker client entity into Cloud Datastore/Firestore, setting
+>       the team_uuid, video_uuid, tracker_uuid, update_time, frame_number,
+>       bboxes_text, and tracking_stop_requested fields
+>     * updates the video entity, setting the tracking_in_progress and 
+>       tracker_uuid fields
+>     * triggers the start of a Cloud Function that will track objects in the
+>       video
 >     * responds with the tracker id.
 >
 > * the Cloud Function:
@@ -257,33 +271,57 @@ or click the Stop Tracking button to stop tracking.
 >   * create one OpenCV tracker for each box drawn on the video frame
 >   * repeats the following until it reaches the end of the video
 >     * reads another frame of the video
->     * updates each tracker with the new frame and gets the new bounding box
->     * stores the new bounding boxes in the tracker entity
+>     * passes the new frame to each tracker and gets the new bounding box
+>     * updates the tracker entity, setting the frame_number, bboxes_text, and
+>       update_time fields
 >     * waits for the bounding boxes to be approved or adjusted by the client
->   * periodically:
->     * checks whether the user has pressed the stop tracking button
->     * checks whether the tracker client entity has not been updated in over 2 minutes
+>     * checks whether the tracker client entity indicates that the user has
+>       pressed the stop tracking button and if so:
+>       * removes the tracker id from the video entity
+>       * deletes the tracker and tracker client entities from Cloud
+>         Datastore/Firestore
+>       * terminates
+>     * checks whether the tracker client entity has not been updated in over
+>       two minutes and if so:
+>       * assumes the user has closed the browser window
+>       * removes the tracker id from the video entity
+>       * deletes the tracker and tracker client entities from Cloud
+>         Datastore/Firestore
+>       * terminates
 >     * checks how long it has been running:
->       * if it is within 70 seconds of the estimated time limit, it triggers the start of
->         another Cloud Function to continue tracking objects.
->       * if it is within 30 seconds of the estimated time limit, it terminates.
->   * deletes the temporary file
+>       * if it is within 70 seconds of the estimated time limit, triggers the
+>         start of another Cloud Function to continue tracking objects
+>       * if it is within 30 seconds of the estimated time limit, terminates
+>   * before termination, deletes the temporary file
 >
 > * the client:
->  * sends a /retrieveTrackedBboxes request to the server
->  * the server:
->    * writes the current time in the tracker client entity in Cloud Datastore/Firestore
->    * responds with the new boxes from the tracker, if available
->  * periodically sends a /trackingClientStillAlive request to the server
->  * the server:
->    * writes the current time in the tracker client entity in Cloud Datastore/Firestore
+>   * repeats the following until tracking is finished
+>     * sends a /retrieveTrackedBboxes (initially) or a /continueTracking
+>       (subsequently) request to the server
+>     * the server, receiving the  /retrieveTrackedBboxes or /continueTracking
+>       request:
+>       * writes the current time in the tracker client entity in Cloud
+>         Datastore/Firestore
+>       * checks whether the tracker entity has not been updated in over two
+>         minutes and if so:
+>         * assumes the tracker failed
+>         * updates the video entity, clearing the tracking_in_progress and
+>           tracker_uuid fields
+>         * deletes the tracker and tracker client entities from Cloud
+>           Datastore/Firestore
+>       * responds with the most recent boxes from the tracker or whether the
+>         tracker failed
+>     * if the user presses the stop button, sends a /stopTracking request to
+>       the server
+>     * the server, receiving the /stopTracking request:
+>       * updates the tracker client entity, setting the tracking_stop_requested
+>         field
+>     * periodically sends a /trackingClientStillAlive request to the server
+>     * the server, receiving the /trackingClientStillAlive request:
+>       * writes the current time in the tracker client entity in Cloud
+>         Datastore/Firestore
+>
 
- This allows the tracker in the server
-> to know if the user has closed the browser window/tab.
->
->
->
-> The server
 
 </details>
 
