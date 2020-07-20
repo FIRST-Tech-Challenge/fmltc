@@ -27,15 +27,15 @@ body {
   transform: scale(-1, 1);
 }
 
+.errorMessage {
+  color: red;
+}
+
 .frameExtractionComplete {
 }
 
 .frameExtractionIncomplete {
   background-color: HoneyDew;
-}
-
-.frameExtractionStalled {
-  background-color: LightCoral;
 }
 
 .trainingDone {

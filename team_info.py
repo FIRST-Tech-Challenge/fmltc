@@ -26,12 +26,15 @@ BUCKET_BLOBS = ('%s-blobs' % constants.PROJECT_ID)
 
 TOTAL_TRAINING_MINUTES_PER_TEAM = 120
 
-def save(request_form, session):
-    session['program'] = request_form['program']
-    session['team_number'] = request_form['team_number']
-    session['team_code'] = request_form['team_code']
+def login(request_form, session):
+    if __validate_team_info(request_form['program'], request_form['team_number'], request_form['team_code']):
+        session['program'] = request_form['program']
+        session['team_number'] = request_form['team_number']
+        session['team_code'] = request_form['team_code']
+        return True
+    return False
 
-def clear(session):
+def logout(session):
     session.pop('program', None)
     session.pop('team_number', None)
     session.pop('team_code', None)
@@ -62,11 +65,8 @@ def __validate_team_info(program, team_number, team_code):
         (program, team_number, team_code))
     return False
 
-def retrieve_program(session):
-    return session.get('program', '')
-
-def retrieve_team_number(session):
-    return session.get('team_number', '')
+def retrieve_program_and_team_number(session_or_request_form):
+    return session_or_request_form.get('program', ''), session_or_request_form.get('team_number', '')
 
 def retrieve_team_uuid(session, request):
     if 'team_uuid' in session:

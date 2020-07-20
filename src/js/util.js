@@ -31,6 +31,9 @@ fmltc.Util = function(pageBasename, preferences, startingModels) {
   this.preferences = preferences;
   this.startingModels = startingModels;
 
+  this.currentTabDivId = '';
+  this.tabListeners = [];
+
   const logoutButton = document.getElementById('logoutButton');
   if (logoutButton) {
     logoutButton.onclick = this.logoutButton_onclick.bind(this);
@@ -234,6 +237,14 @@ fmltc.Util.prototype.showLastViewedTab = function() {
   }
 };
 
+fmltc.Util.prototype.addTabListener = function(tabListener) {
+  this.tabListeners.push(tabListener);
+};
+
+fmltc.Util.prototype.getCurrentTabDivId = function() {
+  return this.currentTabDivId;
+};
+
 fmltc.Util.prototype.showVideosTab = function() {
   this.tabDiv_onclick('videosTab');
 };
@@ -263,6 +274,11 @@ fmltc.Util.prototype.tabDiv_onclick = function(idPrefix) {
   document.getElementById(idPrefix + 'Div').style.display = 'block';
   document.getElementById(idPrefix + 'Button').className += ' active';
   this.setPreference(this.pageBasename + '.currentTab', idPrefix);
+
+  this.currentTabDivId = idPrefix + 'Div';
+  for (let i = 0; i < this.tabListeners.length; i++) {
+    this.tabListeners[i](this.currentTabDivId);
+  }
 };
 
 fmltc.Util.prototype.calculateSecondsSince = function(dateString) {

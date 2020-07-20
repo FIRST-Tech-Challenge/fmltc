@@ -28,7 +28,6 @@ from google.cloud import datastore
 import action
 import blob_storage
 import exceptions
-import frame_extractor
 import logging
 import util
 import team_info
@@ -122,8 +121,8 @@ def prepare_to_upload_video(team_uuid, description, video_filename, file_size, c
             'create_time_ms': create_time_ms,
             'create_time': util.datetime_from_ms(create_time_ms),
             'video_blob_name': video_blob_name,
-            'frame_extractor_triggered_time_ms': 0,
-            'frame_extractor_active_time_ms': 0,
+            'frame_extraction_triggered_time_ms': 0,
+            'frame_extraction_active_time_ms': 0,
             'extracted_frame_count': 0,
             'included_frame_count': 0,
             'labeled_frame_count': 0,
@@ -134,26 +133,26 @@ def prepare_to_upload_video(team_uuid, description, video_filename, file_size, c
         transaction.put(video_entity)
         return video_uuid, upload_url
 
-def prepare_to_trigger_frame_extractor(team_uuid, video_uuid):
+def prepare_to_start_frame_extraction(team_uuid, video_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
-        video_entity['frame_extractor_triggered_time'] = datetime.now(timezone.utc)
-        video_entity['frame_extractor_triggered_time_ms'] = util.ms_from_datetime(video_entity['frame_extractor_triggered_time'])
+        video_entity['frame_extraction_triggered_time'] = datetime.now(timezone.utc)
+        video_entity['frame_extraction_triggered_time_ms'] = util.ms_from_datetime(video_entity['frame_extraction_triggered_time'])
         transaction.put(video_entity)
         return video_entity
 
-def frame_extractor_active(team_uuid, video_uuid):
+def frame_extraction_active(team_uuid, video_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
-        video_entity['frame_extractor_active_time'] = datetime.now(timezone.utc)
-        video_entity['frame_extractor_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extractor_active_time'])
+        video_entity['frame_extraction_active_time'] = datetime.now(timezone.utc)
+        video_entity['frame_extraction_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extraction_active_time'])
         transaction.put(video_entity)
         return video_entity
 
 def frame_extraction_starting(team_uuid, video_uuid, width, height, fps, frame_count):
-    store_video_frames(team_uuid, video_uuid, frame_count)
+    __store_video_frames(team_uuid, video_uuid, frame_count)
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
@@ -162,8 +161,8 @@ def frame_extraction_starting(team_uuid, video_uuid, width, height, fps, frame_c
         video_entity['fps'] = fps
         video_entity['frame_count'] = frame_count
         video_entity['frame_extraction_start_time'] = datetime.now(timezone.utc)
-        video_entity['frame_extractor_active_time'] = video_entity['frame_extraction_start_time']
-        video_entity['frame_extractor_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extractor_active_time'])
+        video_entity['frame_extraction_active_time'] = video_entity['frame_extraction_start_time']
+        video_entity['frame_extraction_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extraction_active_time'])
         transaction.put(video_entity)
         return video_entity
 
@@ -174,8 +173,8 @@ def frame_extraction_done(team_uuid, video_uuid, frame_count):
         if frame_count > 0:
             video_entity['frame_count'] = frame_count
         video_entity['frame_extraction_end_time'] = datetime.now(timezone.utc)
-        video_entity['frame_extractor_active_time'] = video_entity['frame_extraction_end_time']
-        video_entity['frame_extractor_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extractor_active_time'])
+        video_entity['frame_extraction_active_time'] = video_entity['frame_extraction_end_time']
+        video_entity['frame_extraction_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extraction_active_time'])
         transaction.put(video_entity)
         return video_entity
 
@@ -369,7 +368,18 @@ def __retrieve_video_frame_entity(team_uuid, video_uuid, frame_number):
     return video_frame_entities[0]
 
 
-def __store_video_frames(team_uuid, video_uuid, frame_numbers):
+def __store_video_frames(team_uuid, video_uuid, frame_count):
+    frame_numbers = [i for i in range(frame_count)]
+    while len(frame_numbers) > 0:
+        if len(frame_numbers) > 500:
+            frame_numbers_to_do_now = frame_numbers[0:500]
+            frame_numbers = frame_numbers[500:]
+        else:
+            frame_numbers_to_do_now = frame_numbers
+            frame_numbers = []
+        __store_video_frames_batch(team_uuid, video_uuid, frame_numbers_to_do_now)
+
+def __store_video_frames_batch(team_uuid, video_uuid, frame_numbers):
     datastore_client = datastore.Client()
     batch = datastore_client.batch()
     batch.begin()
@@ -388,18 +398,6 @@ def __store_video_frames(team_uuid, video_uuid, frame_numbers):
 
 # video frame - public methods
 
-def store_video_frames(team_uuid, video_uuid, frame_count):
-    frame_numbers = [i for i in range(frame_count)]
-    while len(frame_numbers) > 0:
-        if len(frame_numbers) > 500:
-            frame_numbers_to_do_now = frame_numbers[0:500]
-            frame_numbers = frame_numbers[500:]
-        else:
-            frame_numbers_to_do_now = frame_numbers
-            frame_numbers = []
-        __store_video_frames(team_uuid, video_uuid, frame_numbers_to_do_now)
-
-
 def retrieve_video_frame_entities(team_uuid, video_uuid, min_frame_number, max_frame_number):
     return __query_video_frame(team_uuid, video_uuid, min_frame_number, max_frame_number)
 
@@ -416,8 +414,8 @@ def store_frame_image(team_uuid, video_uuid, frame_number, content_type, image_d
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
         video_entity['extracted_frame_count'] = frame_number + 1
         video_entity['included_frame_count'] = frame_number + 1
-        video_entity['frame_extractor_active_time'] = datetime.now(timezone.utc)
-        video_entity['frame_extractor_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extractor_active_time'])
+        video_entity['frame_extraction_active_time'] = datetime.now(timezone.utc)
+        video_entity['frame_extraction_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extraction_active_time'])
         if frame_number == 0:
             video_entity['image_content_type'] = content_type
             video_entity['image_blob_name'] = image_blob_name

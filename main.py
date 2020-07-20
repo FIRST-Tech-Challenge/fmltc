@@ -90,13 +90,17 @@ def sanitize(o):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if flask.request.method == 'POST':
-        team_info.save(flask.request.form, flask.session)
-        return flask.redirect(flask.url_for('index'))
-    program = team_info.retrieve_program(flask.session)
-    team_number = team_info.retrieve_team_number(flask.session)
+        if team_info.login(flask.request.form, flask.session):
+            return flask.redirect(flask.url_for('index'))
+        else:
+            error_message = 'You have entered an invalid team number or team code.'
+            program, team_number = team_info.retrieve_program_and_team_number(flask.request.form)
+    else:
+        error_message = ''
+        program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('login.html',
         time_time=time.time(), project_id=constants.PROJECT_ID,
-        program=program, team_number=team_number)
+        error_message=error_message, program=program, team_number=team_number)
 
 @app.route('/')
 @handle_exceptions
@@ -155,7 +159,7 @@ def monitor_training():
 @handle_exceptions
 def logout():
     # Remove the team information from the flask.session if it's there.
-    team_info.clear(flask.session)
+    team_info.logout(flask.session)
     return 'OK'
 
 @app.route('/setUserPreference', methods=['POST'])
@@ -182,9 +186,7 @@ def prepare_to_upload_video():
     create_time_ms = int(data.get('create_time_ms'))
     video_uuid, upload_url = storage.prepare_to_upload_video(
         team_uuid, description, video_filename, file_size, content_type, create_time_ms)
-    storage.prepare_to_trigger_frame_extractor(team_uuid, video_uuid)
-    action_parameters = frame_extractor.make_action_parameters(team_uuid, video_uuid)
-    action.trigger_action_via_blob(action_parameters)
+    frame_extractor.start_frame_extraction(team_uuid, video_uuid)
     response = {
         'video_uuid': video_uuid,
         'upload_url': upload_url,
@@ -192,16 +194,14 @@ def prepare_to_upload_video():
     blob_storage.set_cors_policy_for_put()
     return flask.jsonify(response)
 
-@app.route('/triggerFrameExtraction', methods=['POST'])
+@app.route('/startFrameExtraction', methods=['POST'])
 @handle_exceptions
 @login_required
-def trigger_frame_extraction():
+def start_frame_extraction():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     video_uuid = data.get('video_uuid')
-    storage.prepare_to_trigger_frame_extractor(team_uuid, video_uuid)
-    action_parameters = frame_extractor.make_action_parameters(team_uuid, video_uuid)
-    action.trigger_action_via_blob(action_parameters)
+    frame_extractor.start_frame_extraction(team_uuid, video_uuid)
     return 'OK'
 
 @app.route('/retrieveVideoEntities', methods=['POST'])
@@ -321,8 +321,6 @@ def prepare_to_start_tracking():
     scale = float(data.get('scale'))
     tracker_uuid = tracking.prepare_to_start_tracking(team_uuid, video_uuid,
         tracker_name, scale, init_frame_number, init_bboxes_text)
-    action_parameters = tracking.make_action_parameters(video_uuid, tracker_uuid)
-    action.trigger_action_via_blob(action_parameters)
     response = {
         'tracker_uuid': tracker_uuid,
     }
