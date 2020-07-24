@@ -506,7 +506,6 @@ def tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_numb
             'scale': scale,
             'frame_number': init_frame_number,
             'bboxes_text': init_bboxes_text,
-            'tracker_failed': False,
         })
         transaction.put(tracker_entity)
         incomplete_key = datastore_client.key(DS_KIND_TRACKER_CLIENT)
@@ -559,6 +558,7 @@ def store_tracked_bboxes(video_uuid, tracker_uuid, frame_number, bboxes_text):
 
 def retrieve_tracked_bboxes(video_uuid, tracker_uuid, retrieve_frame_number, time_limit):
     tracking_client_still_alive(video_uuid, tracker_uuid)
+    tracker_failed = False
     tracker_entity = retrieve_tracker_entity(video_uuid, tracker_uuid)
     while True:
         if tracker_entity is None:
@@ -574,11 +574,11 @@ def retrieve_tracked_bboxes(video_uuid, tracker_uuid, retrieve_frame_number, tim
             util.log('Tracker appears to have failed. Elapsed time since last tracker update: %f seconds' %
                 timedelta_since_last_update.total_seconds())
             tracker_stopping(tracker_entity['team_uuid'], tracker_entity['video_uuid'], tracker_uuid)
-            tracker_entity['tracker_failed'] = True
+            tracker_failed = True
             break
         time.sleep(0.1)
         tracker_entity = retrieve_tracker_entity(video_uuid, tracker_uuid)
-    return tracker_entity['tracker_failed'], tracker_entity['frame_number'], tracker_entity['bboxes_text']
+    return tracker_failed, tracker_entity['frame_number'], tracker_entity['bboxes_text']
 
 def tracking_client_still_alive(video_uuid, tracker_uuid):
     datastore_client = datastore.Client()
