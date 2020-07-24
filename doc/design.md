@@ -86,7 +86,8 @@ At first, since the team has not yet uploaded any videos, the Videos tab looks l
 
 ### Uploading a Video
 
-When the user clicks Upload Video, they are presented with the Upload Video File dialog:
+When the user clicks Upload Video, they are presented with the Upload Video File
+dialog:
 
 <img src="images/upload_video_file.png" width="566">
 
@@ -258,7 +259,7 @@ or click the Stop Tracking button to stop tracking.
 >     * inserts a tracker client entity into Cloud Datastore/Firestore, setting
 >       the team_uuid, video_uuid, tracker_uuid, update_time, frame_number,
 >       bboxes_text, and tracking_stop_requested fields
->     * updates the video entity, setting the tracking_in_progress and 
+>     * updates the video entity, setting the tracking_in_progress and
 >       tracker_uuid fields
 >     * triggers the start of a Cloud Function that will track objects in the
 >       video
@@ -325,9 +326,137 @@ or click the Stop Tracking button to stop tracking.
 
 </details>
 
-### Creating a Dataset
+### Producing a Dataset
+
+After the video(s) have been labeled, the user can produce a dataset.
+
+If one or more videos is selected, the Produce Dataset button is enabled.
+
+<img src="images/produce_dataset_button_enabled.png" width="696">
+
+When the user clicks Produce Dataset, they are presented with the Produce
+Dataset dialog:
+
+<img src="images/produce_dataset.png" width="540">
+
+The users chooses the percentage of frames that will be used for training and
+the percentage of frames that will be used for evaluation, enters a description,
+and clicks Produce Dataset.
+
+<img src="images/produce_dataset_before_click.png" width="540">
+
+As the dataset is produced, a progress bar is updated.
+
+<img src="images/produce_dataset_progress.png" width="540">
+
+When the dataset has been produced, the dialog is dismissed.
+
+<details>
+<summary>Internal Details</summary>
+
+> When the user clicks Produce Dataset:
+> * the client:
+>   * sends a /prepareToStartDatasetProduction request to the server
+>   * the server, receiving the /prepareToStartDatasetProduction request:
+>     * creates a unique id for the dataset
+>     * inserts a dataset entity into Cloud Datastore/Firestore, setting the
+>       team_uuid, dataset_uuid, description, video_uuids, eval_percent,
+>       and create_time fields
+>     * triggers the start of a Cloud Function that will produce the dataset
+>     * responds with the dataset id
+>
+> * the dataset producer Cloud Function:
+>   * reads the video entities and video frame entities from Cloud Datastore/Firestore
+>   * determines which frames will be used for training and which frames will
+>     be used for evaluation
+>     * excludes frames for which the user has unchecked the "Include this frame
+>       in the dataset" checkbox.
+>     * shuffles the frames so they are randomly assigned to either training or
+>       evaluation
+>     * determines which frames will be in which TensorFlow record so that each
+>       record contains no more than 50 frames. This small number of frames
+>       ensures that each record can be produced by a single Cloud Function.
+>   * updates the dataset entity, setting the sorted_label_list,
+>     train_record_count, train_frame_count, train_input_path,
+>     eval_record_count, eval_frame_count, eval_input_path,
+>     total_record_count, label_map_blob_name, and label_map_path fields
+>   * inserts dataset record writer entities, one for each record, into Cloud
+>     Datastore/Firestore, setting the team_uuid, dataset_uuid, record_number,
+>     and update_time
+>   * triggers the start of many Cloud Functions that will write TensorFlow
+>     records
+>
+> * each TensorFlow record writer Cloud Function:
+>   * reads the video entity and video frame entities from Cloud
+>     Datastore/Firestore
+>   * reads the video file from Cloud Storage and writes it to a temporary file
+>   * opens the temporary file with OpenCV
+>   * creates an in-memory tuple for each frame that will be included in this
+>     TensorFlow record
+>   * deletes the temporary video file
+>   * creates a temporary directory for the TensorFlow record
+>   * for each frame:
+>     * creates a tensorflow.train.Example protocol message
+>     * writes the protocol message into a TensorFlow record file in the
+>       temporary directory
+>     * updates in-memory counts for the labels in the frame and for negative
+>       frames
+>     * updates the dataset record writer entity, setting the frames_written
+>       and update_time fields
+>   * copies the TensorFlow record file from the temporary directory to Cloud
+>     Storage
+>   * deletes the temporary directory
+>   * if all the records have been written to Cloud Storage:
+>     * updates the dataset entity, setting the dataset_completed,
+>       train_negative_frame_count, train_dict_label_to_count,
+>       and eval_dict_label_to_count fields
+>     * deletes the dataset record writer entities asynchronously using a Cloud Function
+>
+> * the client:
+>   * periodically sends a /retrieveDatasetEntity request to the the server to
+>     determine the progress of dataset production
+>   * the server, receiving the /retrieveDatasetEntity request:
+>     * reads the dataset entity from Cloud Datastore/Firestore
+>     * if the dataset_completed field is not true:
+>       * reads the dataset record writer entities from Cloud Datastore/Firestore
+>       * sums the frames_written fields
+>     * responds with the dataset entity and, if the dataset is not complete,
+>       the number of frames written to the dataset so far
+>   * if the dataset_complete field is true
+>     * dismisses the Produce Dataset dialog
+>   * otherwise
+>     * updates the progress indicator in the Produce Dataset dialog
+
+</details>
 
 ### Deleting a Video
+
+If one or more videos is selected, the Delete Videos button is enabled.
+
+<img src="images/delete_videos_button_enabled.png" width="696">
+
+When the user clicks Delete Videos, the system determines whether the selected
+videos can be deleted. Videos that have been used to produce a dataset cannot
+be deleted until after the dataset is deleted.
+
+If the selected videos cannot be deleted, a dialog explaining why will be presented:
+
+<img src="images/videos_cannot_be_deleted.png" width="667">
+
+If the selected videos can be deleted, a confirmation dialog will be presented:
+
+<img src="images/delete_videos_are_you_sure.png" width="542">
+
+If the users clicks Yes, the selected videos and their frame images labels will be deleted.
+
+<details>
+<summary>Internal Details</summary>
+
+> When the user clicks Yes in the confirmation dialog:
+
+<!--- TODO(lizlooney): finish explaining how deleting videos uses a cloud function --->
+
+</details>
 
 ## Datasets tab
 

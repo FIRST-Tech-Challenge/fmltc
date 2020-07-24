@@ -234,7 +234,7 @@ def produce_dataset_record(action_parameters):
     # Get the data for the frames in frame_number_list.
     frame_data_dict = __get_frame_data(video_entity, video_frame_entities, frame_number_list)
 
-    # Make the directory for tensorflow record files.
+    # Make the directory for tensorflow record file.
     folder = '/tmp/dataset/%s' % str(uuid.uuid4().hex)
     os.makedirs(folder, exist_ok=True)
     try:
@@ -243,7 +243,7 @@ def produce_dataset_record(action_parameters):
             record_id, is_eval, temp_record_filename)
         storage.dataset_producer_maybe_done(team_uuid, dataset_uuid)
     finally:
-        # Delete the temporary director.
+        # Delete the temporary directory.
         shutil.rmtree(folder)
 
 
