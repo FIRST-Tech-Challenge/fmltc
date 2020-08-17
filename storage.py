@@ -903,7 +903,6 @@ def finish_delete_dataset_record_writers(action_parameters):
         while len(dataset_record_writer_entities) > 0:
             dataset_record_writer_entity = dataset_record_writer_entities.pop()
             keys.append(dataset_record_writer_entity.key)
-        # Then, delete the dataset record entities.
         datastore_client.delete_multi(keys)
 
 # dataset zipper - public methods
