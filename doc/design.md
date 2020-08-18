@@ -149,6 +149,7 @@ When the upload has finished, the dialog is dismissed.
 >   * periodically sends a /retrieveVideoEntity request to the the server to
 >     determine the progress of frame extraction
 >   * the server, receiving the /retrieveVideoEntity request:
+>     * reads the video entity from Cloud Datastore/Firestore
 >     * responds with the video entity
 </details>
 
@@ -443,6 +444,23 @@ If the selected videos cannot be deleted, a dialog explaining why will be presen
 
 <img src="images/videos_cannot_be_deleted.png" width="667">
 
+<details>
+<summary>Internal Details</summary>
+
+> When the user clicks Delete Videos
+> * the client:
+>   * sends a /canDeleteVideos request to the server
+>   * the server, receiving the /canDeleteVideos request:
+>     * reads the video entities from Cloud Datastore/Firestore
+>     * reads the dataset entities from Cloud Datastore/Firestore
+>     * checks whether any datasets are using any of the videos that might be
+>       deleted.
+>     * responds with a boolean value indicating whether the videos can be
+>       deleted, and, if necessary, helpful messages explaining why a video
+>       cannot be deleted.
+
+</details>
+
 If the selected videos can be deleted, a confirmation dialog will be presented:
 
 <img src="images/delete_videos_are_you_sure.png" width="542">
@@ -453,21 +471,81 @@ If the users clicks Yes, the selected videos and their frame images labels will 
 <summary>Internal Details</summary>
 
 > When the user clicks Yes in the confirmation dialog:
-
-<!--- TODO(lizlooney): finish explaining how deleting videos uses a cloud function --->
+> * the client:
+>   * for each video being deleted:
+>     * sends a /deleteVideo request to the server
+>     * the server, receiving the /deleteVideo request:
+>       * updates the video entity, setting the delete_in_progress field
+>       * triggers the start of a Cloud Function that will delete the video
+>       * responds with 'OK'
+>
+> * the Cloud Function:
+>   * deletes the video file from Cloud Storage
+>   * deletes the video entity from Cloud Datastore/Firestore
+>   * repeats the following until deleting is finished:
+>     * deletes up to 500 video frame jpeg image files from Cloud Storage
+>     * deletes up to 500 video frame entities from Cloud Datastore/Firestore
+>     * checks how long it has been running:
+>       * if it is within 70 seconds of the estimated time limit, triggers the
+>         start of another Cloud Function to continue deleting
+>       * if it is within 30 seconds of the estimated time limit, terminates
 
 </details>
 
 ## Datasets tab
 
+If no datasets have been produced, the Datasets tab looks like this:
+
+<img src="images/datasets_tab_empty.png" width="1120">
+
+After a dataset has been produced, the Datasets tab looks like this:
+
+<img src="images/datasets_tab.png" width="1121">
+
+### Downloading a Dataset
+
+If one dataset is selected, the Download Dataset button is enabled.
+
+<img src="images/download_dataset_button_enabled.png" width="791">
+
+<!--- TODO(lizlooney): fill in this section --->
+
 ### Training a Model
+
+If one or more datasets is selected, the Start Training button is enabled.
+
+<img src="images/start_training_button_enabled.png" width="791">
+
+<!--- TODO(lizlooney): fill in this section --->
 
 ### Deleting a Dataset
 
+If one or more datasets is selected, the Delete Datasets button is enabled.
+
+<img src="images/delete_datasets_button_enabled.png" width="791">
+
+<!--- TODO(lizlooney): fill in this section --->
+
 ## Models tab
+
+<!--- TODO(lizlooney): fill in this section --->
 
 ### Monitoring Model Training
 
+<!--- TODO(lizlooney): fill in this section --->
+
 ### More Training
 
+<!--- TODO(lizlooney): fill in this section --->
+
+### Downloading a Model
+
+<!--- TODO(lizlooney): fill in this section --->
+
+### Canceling Training
+
+<!--- TODO(lizlooney): fill in this section --->
+
 ### Deleting a Model
+
+<!--- TODO(lizlooney): fill in this section --->
