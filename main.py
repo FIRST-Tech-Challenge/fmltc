@@ -107,7 +107,9 @@ def login():
 @redirect_to_login_if_needed
 def index():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('root.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+        program=program, team_number=team_number,
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         starting_models=model_trainer.get_starting_model_names())
 
