@@ -40,6 +40,8 @@ The target platform for the project is Google Cloud:
      + Image files
      + TensorFlow Record files
      + files for the TensorFlow Model
+ * Cloud TPU (Tensor Processing Unit) for running model training jobs
+ * Cloud GPU (Graphics Processing Unit) for running model evaluation jobs
 
 
 # Login page
@@ -71,14 +73,14 @@ and clicks Submit.
 </details>
 
 
-# Main page
+# Main Page
 
 After the user logs in, the main page appears. There are three tabs
  * Videos - show the videos that this team has uploaded
  * Datasets - show the datasets that this team has produced
  * Models - show the TensorFlow models that this team has generated
 
-## Videos tab
+## Videos Tab
 
 At first, since the team has not yet uploaded any videos, the Videos tab looks like this:
 
@@ -380,6 +382,9 @@ When the dataset has been produced, the dialog goes away.
 >     train_record_count, train_frame_count, train_input_path,
 >     eval_record_count, eval_frame_count, eval_input_path,
 >     total_record_count, label_map_blob_name, and label_map_path fields
+>   * inserts DatasetRecord entities, one for each record, into Cloud
+>     Datastore/Firestore, setting the team_uuid, dataset_uuid, record_number,
+>     and update_time fields
 >   * inserts DatasetRecordWriter entities, one for each record, into Cloud
 >     Datastore/Firestore, setting the team_uuid, dataset_uuid, record_number,
 >     and update_time fields
@@ -406,6 +411,9 @@ When the dataset has been produced, the dialog goes away.
 >   * copies the TensorFlow record file from the temporary directory to Cloud
 >     Storage
 >   * deletes the temporary directory
+>   * updates the DatasetRecord entity, setting the record_id, is_eval,
+>     tf_record_blob_name, negative_frame_count, dict_label_to_count, and
+>     update_time fields
 >   * if all the records have been written to Cloud Storage:
 >     * updates the Dataset entity, setting the dataset_completed,
 >       train_negative_frame_count, train_dict_label_to_count,
@@ -491,7 +499,7 @@ If the users clicks Yes, the selected videos and their frame images labels will 
 
 </details>
 
-## Datasets tab
+## Datasets Tab
 
 If no datasets have been produced, the Datasets tab looks like this:
 
@@ -570,7 +578,20 @@ If one or more datasets is selected, the Start Training button is enabled.
 
 <img src="images/start_training_button_enabled.png" width="791">
 
-<!--- TODO(lizlooney): fill in this section --->
+When the user clicks Start Training, the Start Training dialog is shown.
+
+<img src="images/start_training_dialog.png" width="806">
+
+The dialog shows how many training minutes the team has remaining.
+The user chooses the maximum training time, the starting model, and the number
+of training steps, enters a description, and clicks Start Training. The system
+submits the requests to start the training and the evaluation jobs. The training
+job runs on a Cloud TPU and the evaluation job runs on a Cloud GPU.
+
+<img src="images/start_training_dialog_submitting_job_request.png" width="806">
+
+After the job requests have been submitted, the Start Training dialog goes away
+and the [Models tab](#models-tab), is displayed.
 
 ### Deleting a Dataset
 
@@ -578,28 +599,46 @@ If one or more datasets is selected, the Delete Datasets button is enabled.
 
 <img src="images/delete_datasets_button_enabled.png" width="791">
 
+...
 <!--- TODO(lizlooney): fill in this section --->
 
-## Models tab
+## Models Tab
 
-<!--- TODO(lizlooney): fill in this section --->
+If no models have been created, the Models tab looks like this:
+
+<img src="images/models_tab_empty.png" width="1129">
+
+When a training job is running, the Models tab looks like this.
+
+<img src="images/models_tab.png" width="1238">
+
+The description is a clickable link. To monitor the training of a model, the
+user clicks on the description for that model.
+
 
 ### Monitoring Model Training
 
+<img src="images/monitor_training_details.png" width="1436">
+
+...
 <!--- TODO(lizlooney): fill in this section --->
 
 ### More Training
 
+...
 <!--- TODO(lizlooney): fill in this section --->
 
 ### Downloading a Model
 
+...
 <!--- TODO(lizlooney): fill in this section --->
 
 ### Canceling Training
 
+...
 <!--- TODO(lizlooney): fill in this section --->
 
 ### Deleting a Model
 
+...
 <!--- TODO(lizlooney): fill in this section --->

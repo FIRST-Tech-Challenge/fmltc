@@ -116,8 +116,8 @@ def perform_action(action_parameters, time_limit):
         except Stop as e:
             pass
         except:
-            util.log('action.perform_action - %s except %s' %
-                (action_parameters[ACTION_NAME], traceback.format_exc().replace('\n', ' ... ')))
+            util.log('action.perform_action - %s exception!!! action_parameters: %s traceback: %s' %
+                (action_parameters[ACTION_NAME], str(action_parameters), traceback.format_exc().replace('\n', ' ... ')))
     else:
         util.log('action.perform_action - %s - action_fn is None' % action_parameters[ACTION_NAME])
 

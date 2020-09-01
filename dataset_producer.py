@@ -315,7 +315,7 @@ def __write_record(team_uuid, sorted_label_list, frame_data_dict,
     tf_record_blob_name = blob_storage.store_dataset_record(team_uuid, dataset_uuid, record_id, temp_record_filename)
     os.remove(temp_record_filename)
     dict_label_to_count = dict(label_counter)
-    storage.store_dataset_record(team_uuid, dataset_uuid, record_number, record_id, is_eval, tf_record_blob_name,
+    storage.update_dataset_record(team_uuid, dataset_uuid, record_number, record_id, is_eval, tf_record_blob_name,
         negative_frame_count, dict_label_to_count)
 
 

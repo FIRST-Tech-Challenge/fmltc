@@ -72,9 +72,11 @@ def convert_text_to_rects_and_labels(bboxes_text):
         try:
             *rect, label = line.strip().split(",")
             assert(len(rect) == 4)
-            rect = np.array(rect, dtype=float).astype(int)
-            rects.append(rect)
-            labels.append(label)
+            # Ignore boxes with empty labels.
+            if label != '':
+                rect = np.array(rect, dtype=float).astype(int)
+                rects.append(rect)
+                labels.append(label)
         except Exception as e:
             continue
     return rects, labels
@@ -116,7 +118,9 @@ def extract_labels(bboxes_text):
         try:
             *rect, label = line.strip().split(",")
             assert(len(rect) == 4)
-            labels.append(label)
+            # Ignore boxes with empty labels.
+            if label != '':
+                labels.append(label)
         except Exception as e:
             continue
     return labels

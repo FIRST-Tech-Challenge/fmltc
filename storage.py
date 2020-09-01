@@ -680,7 +680,7 @@ def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
         dataset_entity['label_map_blob_name'] = label_map_blob_name
         dataset_entity['label_map_path'] = label_map_path
         transaction.put(dataset_entity)
-        # Create dataset_record_writer_entities.
+        # Create dataset_record_writer and dataset_record entities.
         for record_number in range(train_record_count + eval_record_count):
             incomplete_key = datastore_client.key(DS_KIND_DATASET_RECORD_WRITER)
             dataset_record_writer_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
@@ -692,6 +692,16 @@ def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
                 'update_time': datetime.now(timezone.utc),
             })
             transaction.put(dataset_record_writer_entity)
+            incomplete_key = datastore_client.key(DS_KIND_DATASET_RECORD)
+            dataset_record_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+            dataset_record_entity.update({
+                'team_uuid': team_uuid,
+                'dataset_uuid': dataset_uuid,
+                'record_number': record_number,
+                'dataset_record_completed': False,
+                'update_time': datetime.now(timezone.utc),
+            })
+            transaction.put(dataset_record_entity)
 
 
 def dataset_producer_maybe_done(team_uuid, dataset_uuid):
@@ -706,7 +716,12 @@ def dataset_producer_maybe_done(team_uuid, dataset_uuid):
             query.add_filter('team_uuid', '=', team_uuid)
             query.add_filter('dataset_uuid', '=', dataset_uuid)
             dataset_record_entities = list(query.fetch(total_record_count))
-            if len(dataset_record_entities) == total_record_count:
+            finished = True
+            for dataset_record_entity in dataset_record_entities:
+                if not dataset_record_entity['dataset_record_completed']:
+                    finished = False
+                    break
+            if finished and len(dataset_record_entities) == total_record_count:
                 util.log('Dataset producer is all done!')
                 # All the dataset records have been stored. The dataset producer is done.
                 # Update dataset_completed, train_negative_frame_count, train_dict_label_to_count,
@@ -814,23 +829,31 @@ def finish_delete_dataset(action_parameters):
 
 # dataset record
 
-def store_dataset_record(team_uuid, dataset_uuid, record_number, record_id, is_eval, tf_record_blob_name,
+def __retrieve_dataset_record(team_uuid, dataset_uuid, record_number):
+    datastore_client = datastore.Client()
+    query = datastore_client.query(kind=DS_KIND_DATASET_RECORD)
+    query.add_filter('team_uuid', '=', team_uuid)
+    query.add_filter('dataset_uuid', '=', dataset_uuid)
+    query.add_filter('record_number', '=', record_number)
+    dataset_record_entities = list(query.fetch(1))
+    if len(dataset_record_entities) == 0:
+        return None
+    return dataset_record_entities[0]
+
+def update_dataset_record(team_uuid, dataset_uuid, record_number, record_id, is_eval, tf_record_blob_name,
         negative_frame_count, dict_label_to_count):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
-        incomplete_key = datastore_client.key(DS_KIND_DATASET_RECORD)
-        dataset_record_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
-        dataset_record_entity.update({
-            'team_uuid': team_uuid,
-            'dataset_uuid': dataset_uuid,
-            'record_number': record_number,
-            'record_id': record_id,
-            'is_eval': is_eval,
-            'tf_record_blob_name': tf_record_blob_name,
-            'negative_frame_count': negative_frame_count,
-            'dict_label_to_count': dict_label_to_count.copy(),
-        })
-        transaction.put(dataset_record_entity)
+        dataset_record_entity = __retrieve_dataset_record(team_uuid, dataset_uuid, record_number)
+        if dataset_record_entity is not None:
+            dataset_record_entity['dataset_record_completed'] = True
+            dataset_record_entity['record_id'] = record_id
+            dataset_record_entity['is_eval'] = is_eval
+            dataset_record_entity['tf_record_blob_name'] = tf_record_blob_name
+            dataset_record_entity['negative_frame_count'] = negative_frame_count
+            dataset_record_entity['dict_label_to_count'] = dict_label_to_count.copy()
+            dataset_record_entity['update_time'] = datetime.now(timezone.utc)
+            transaction.put(dataset_record_entity)
 
 def retrieve_dataset_records(dataset_entity):
     if 'total_record_count' not in dataset_entity:
