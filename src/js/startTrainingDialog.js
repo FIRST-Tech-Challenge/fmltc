@@ -57,7 +57,7 @@ fmltc.StartTrainingDialog = function(
   if (this.startingModelSelect.options.length == 0) {
     const startingModels = this.util.startingModels;
     for (let i = 0; i < startingModels.length; i++) {
-      const option = document.createElement("option");
+      const option = document.createElement('option');
       option.text = startingModels[i];
       this.startingModelSelect.add(option);
     }

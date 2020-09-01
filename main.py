@@ -590,8 +590,8 @@ def cancel_training_model():
 @login_required
 def retrieve_model_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    model_entities = model_trainer.retrieve_model_list(team_uuid)
     team_entity = storage.retrieve_team_entity(team_uuid)
+    model_entities = model_trainer.retrieve_model_list(team_uuid)
     sanitize(model_entities)
     response = {
         'total_training_minutes': team_info.TOTAL_TRAINING_MINUTES_PER_TEAM,
@@ -607,8 +607,8 @@ def retrieve_model_entity():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
-    model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
     team_entity = storage.retrieve_team_entity(team_uuid)
+    model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
     sanitize(model_entity)
     response = {
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
