@@ -5,6 +5,14 @@ tools that allow a FIRST Tech Challenge (FTC) or FIRST Robotics Competition
 (FRC) team to  generate a custom TensorFlow inference model for object
 detection and tracking.
 
+The steps involved in generating a TensorFlow Lite inference model for object detection are:
+1. Upload videos
+2. Label objects in video frame images with assistance from object tracking
+3. Produce TensorFlow records from the labeled images
+4. Train a TensorFlow model
+5. Convert the model to TFLite format
+
+
 The target platform for the project is Google Cloud:
  * App Engine for hosting the web application
  * Cloud Functions for operations that take longer than 30 seconds
@@ -12,6 +20,7 @@ The target platform for the project is Google Cloud:
    + Application entities
      + Team entities
      + Tracker entities
+     + TrackerClient entities
      + DatasetRecordWriter entities
      + DatasetZipper entities
    + User entities
@@ -33,18 +42,9 @@ The target platform for the project is Google Cloud:
      + files for the TensorFlow Model
 
 
-The steps involved in generating the model are:
-1. Upload videos
-2. Label objects in video frame images with assistance from object tracking
-3. Produce TensorFlow records from the labeled images
-4. Train a TensorFlow model
-5. Convert the model to TFLite format
-
-
 # Login page
 
-When a user visits the website for the first time, they are presented with a
-login page.
+When a user visits the website for the first time, the login page is shown.
 
 <img src="images/login.png" width="192">
 
@@ -86,8 +86,7 @@ At first, since the team has not yet uploaded any videos, the Videos tab looks l
 
 ### Uploading a Video
 
-When the user clicks Upload Video, they are presented with the Upload Video File
-dialog:
+When the user clicks Upload Video, the Upload Video File dialog is shown:
 
 <img src="images/upload_video_file.png" width="566">
 
@@ -99,7 +98,7 @@ As the file is uploaded, a progress bar is updated.
 
 <img src="images/upload_video_file_progress.png" width="615">
 
-When the upload has finished, the dialog is dismissed.
+When the upload has finished, the dialog goes away.
 
 <details>
 <summary>Internal Details</summary>
@@ -110,12 +109,12 @@ When the upload has finished, the dialog is dismissed.
 >   * the server, receiving the /prepareToUploadVideo request:
 >     * creates a unique id for the video
 >     * generates a signed url for uploading the video file to Cloud Storage
->     * inserts a video entity into Cloud Datastore/Firestore, setting the
+>     * inserts a Video entity into Cloud Datastore/Firestore, setting the
 >       team_uuid, video_uuid, description, video_filename, file_size,
 >       video_content_type, create_time, and video_blob_name fields
 >     * triggers the start of a Cloud Function that will extract the frames of
 >       the video
->     * updates the video entity, setting the frame_extraction_triggered_time
+>     * updates the Video entity, setting the frame_extraction_triggered_time
 >       field
 >     * responds with the video id and the upload url
 >
@@ -127,17 +126,17 @@ When the upload has finished, the dialog is dismissed.
 >     waiting until the video file has finished uploading if necessary
 >   * opens the temporary file with OpenCV
 >   * determines the number of frames in the video
->   * inserts video frame entities into in Cloud Datastore/Firestore, setting
+>   * inserts VideoFrame entities into in Cloud Datastore/Firestore, setting
 >     the team_uuid, video_uuid, frame_number, and include_frame_in_dataset
 >     fields
->   * updates the video entity, setting the width, height, fps (frames per
+>   * updates the Video entity, setting the width, height, fps (frames per
 >     second), frame_count, and frame_extraction_start_time fields
 >   * repeats the following until it reaches the end of the video
 >     * reads a frame of the video
 >     * writes the video frames as jpeg image files in Cloud Storage
->     * updates the video frame entity, setting the content_type and
+>     * updates the VideoFrame entity, setting the content_type and
 >       image_blob_name fields
->     * updates the video entity, setting the extracted_frame_count,
+>     * updates the Video entity, setting the extracted_frame_count,
 >       included_frame_count, and frame_extraction_active_time fields
 >     * checks how long it has been running:
 >       * if it is within 70 seconds of the estimated time limit, triggers the
@@ -149,13 +148,13 @@ When the upload has finished, the dialog is dismissed.
 >   * periodically sends a /retrieveVideoEntity request to the the server to
 >     determine the progress of frame extraction
 >   * the server, receiving the /retrieveVideoEntity request:
->     * reads the video entity from Cloud Datastore/Firestore
->     * responds with the video entity
+>     * reads the Video entity from Cloud Datastore/Firestore
+>     * responds with the Video entity
 </details>
 
 <img src="images/videos_tab_frame_extraction.png" width="1283">
 
-When frame extraction is complete, the description becomes a clickable link. To
+When frame extraction finishes, the description becomes a clickable link. To
 label the objects in a video, the user clicks on the description for that video.
 
 <img src="images/video_link.png" width="1282">
@@ -181,11 +180,11 @@ As shown in the image above, the user can:
 > When the Video Frame Labeling page is loaded:
 > * the client:
 >   * sends one or more /retrieveVideoFrameEntitiesWithImageUrls requests to the server.
->     Each request asks for up to 100 video frame entities.
+>     Each request asks for up to 100 VideoFrame entities.
 >   * the server, receiving the /retrieveVideoFrameEntitiesWithImageUrls requests:
 >     * generates a signed url for each frame image requested
->     * responds with the video frame entities, with each entity containing a
->       signed url for requesting the image from Cloud Storage.
+>     * responds with the VideoFrame entities and, for each entity, a signed
+>       url for requesting the image from Cloud Storage.
 > * the client:
 >   * requests the images from Cloud Storage using the signed urls
 </details>
@@ -194,7 +193,7 @@ The progress bar on the upper right area of the page indicates how many entities
 and images have been received. If the user navigates to a frame whose image has
 not been received yet, the frame viewer will be blank.
 
-The following buttons remain disabled until all frame entities have been
+The following buttons remain disabled until all VideoFrame entities have been
 received:
   * the buttons that find frames that have not been labeled
   * the button that starts tracking
@@ -218,8 +217,8 @@ shown here, all wiffle balls will be labeled "w".
 > * the client:
 >   * sends a /storeVideoFrameBboxesText request to the server
 >   * the server, receiving the /storeVideoFrameBboxesText request:
->     * updates the video frame entity, setting the bboxes_text field
->     * updates the video entity, setting the labeled_frame_count field
+>     * updates the VideoFrame entity, setting the bboxes_text field
+>     * updates the Video entity, setting the labeled_frame_count field
 </details>
 
 #### Tracking
@@ -251,16 +250,17 @@ or click the Stop Tracking button to stop tracking.
 <summary>Internal Details</summary>
 
 > When the user clicks the start tracking button:
-> * the client sends a /prepareToStartTracking request to the server
+> * the client:
+>   * sends a /prepareToStartTracking request to the server
 >   * the server, receiving the /prepareToStartTracking request:
 >     * creates a unique id for the tracker
->     * inserts a tracker entity into Cloud Datastore/Firestore, setting the
+>     * inserts a Tracker entity into Cloud Datastore/Firestore, setting the
 >       team_uuid, video_uuid, tracker_uuid, update_time, video_blob_name,
 >       tracker_name, scale, frame_number, and bboxes_text fields
->     * inserts a tracker client entity into Cloud Datastore/Firestore, setting
+>     * inserts a TrackerClient entity into Cloud Datastore/Firestore, setting
 >       the team_uuid, video_uuid, tracker_uuid, update_time, frame_number,
 >       bboxes_text, and tracking_stop_requested fields
->     * updates the video entity, setting the tracking_in_progress and
+>     * updates the Video entity, setting the tracking_in_progress and
 >       tracker_uuid fields
 >     * triggers the start of a Cloud Function that will track objects in the
 >       video
@@ -274,20 +274,20 @@ or click the Stop Tracking button to stop tracking.
 >   * repeats the following until it reaches the end of the video
 >     * reads another frame of the video
 >     * passes the new frame to each tracker and gets the new bounding box
->     * updates the tracker entity, setting the frame_number, bboxes_text, and
+>     * updates the Tracker entity, setting the frame_number, bboxes_text, and
 >       update_time fields
 >     * waits for the bounding boxes to be approved or adjusted by the client
->     * checks whether the tracker client entity indicates that the user has
+>     * checks whether the TrackerClient entity indicates that the user has
 >       pressed the stop tracking button and if so:
->       * removes the tracker id from the video entity
->       * deletes the tracker and tracker client entities from Cloud
+>       * removes the tracker id from the Video entity
+>       * deletes the tracker and TrackerClient entities from Cloud
 >         Datastore/Firestore
 >       * terminates
->     * checks whether the tracker client entity has not been updated in over
+>     * checks whether the TrackerClient entity has not been updated in over
 >       two minutes and if so:
 >       * assumes the user has closed the browser window
->       * removes the tracker id from the video entity
->       * deletes the tracker and tracker client entities from Cloud
+>       * removes the tracker id from the Video entity
+>       * deletes the tracker and TrackerClient entities from Cloud
 >         Datastore/Firestore
 >       * terminates
 >     * checks how long it has been running:
@@ -302,25 +302,25 @@ or click the Stop Tracking button to stop tracking.
 >       (subsequently) request to the server
 >     * the server, receiving the  /retrieveTrackedBboxes or /continueTracking
 >       request:
->       * writes the current time in the tracker client entity in Cloud
+>       * writes the current time in the TrackerClient entity in Cloud
 >         Datastore/Firestore
->       * checks whether the tracker entity has not been updated in over two
+>       * checks whether the Tracker entity has not been updated in over two
 >         minutes and if so:
 >         * assumes the tracker failed
->         * updates the video entity, clearing the tracking_in_progress and
+>         * updates the Video entity, clearing the tracking_in_progress and
 >           tracker_uuid fields
->         * deletes the tracker and tracker client entities from Cloud
+>         * deletes the tracker and TrackerClient entities from Cloud
 >           Datastore/Firestore
 >       * responds with the most recent boxes from the tracker or whether the
 >         tracker failed
 >     * if the user presses the stop button, sends a /stopTracking request to
 >       the server
 >     * the server, receiving the /stopTracking request:
->       * updates the tracker client entity, setting the tracking_stop_requested
+>       * updates the TrackerClient entity, setting the tracking_stop_requested
 >         field
 >     * periodically sends a /trackingClientStillAlive request to the server
 >     * the server, receiving the /trackingClientStillAlive request:
->       * writes the current time in the tracker client entity in Cloud
+>       * writes the current time in the TrackerClient entity in Cloud
 >         Datastore/Firestore
 >
 
@@ -335,8 +335,7 @@ If one or more videos is selected, the Produce Dataset button is enabled.
 
 <img src="images/produce_dataset_button_enabled.png" width="696">
 
-When the user clicks Produce Dataset, they are presented with the Produce
-Dataset dialog:
+When the user clicks Produce Dataset, the Produce Dataset dialog is shown:
 
 <img src="images/produce_dataset.png" width="540">
 
@@ -350,7 +349,7 @@ As the dataset is produced, a progress bar is updated.
 
 <img src="images/produce_dataset_progress.png" width="540">
 
-When the dataset has been produced, the dialog is dismissed.
+When the dataset has been produced, the dialog goes away.
 
 <details>
 <summary>Internal Details</summary>
@@ -360,35 +359,35 @@ When the dataset has been produced, the dialog is dismissed.
 >   * sends a /prepareToStartDatasetProduction request to the server
 >   * the server, receiving the /prepareToStartDatasetProduction request:
 >     * creates a unique id for the dataset
->     * inserts a dataset entity into Cloud Datastore/Firestore, setting the
+>     * inserts a Dataset entity into Cloud Datastore/Firestore, setting the
 >       team_uuid, dataset_uuid, description, video_uuids, eval_percent,
 >       and create_time fields
 >     * triggers the start of a Cloud Function that will produce the dataset
 >     * responds with the dataset id
 >
-> * the dataset producer Cloud Function:
->   * reads the video entities and video frame entities from Cloud Datastore/Firestore
+> * the Cloud Function:
+>   * reads the Video entities and VideoFrame entities from Cloud Datastore/Firestore
 >   * determines which frames will be used for training and which frames will
 >     be used for evaluation
 >     * excludes frames for which the user has unchecked the "Include this frame
 >       in the dataset" checkbox.
 >     * shuffles the frames so they are randomly assigned to either training or
 >       evaluation
->     * determines which frames will be in which TensorFlow record so that each
->       record contains no more than 50 frames. This small number of frames
+>     * determines which TensorFlow record will contain each frame so that
+>       each record contains no more than 50 frames. This small number of frames
 >       ensures that each record can be produced by a single Cloud Function.
->   * updates the dataset entity, setting the sorted_label_list,
+>   * updates the Dataset entity, setting the sorted_label_list,
 >     train_record_count, train_frame_count, train_input_path,
 >     eval_record_count, eval_frame_count, eval_input_path,
 >     total_record_count, label_map_blob_name, and label_map_path fields
->   * inserts dataset record writer entities, one for each record, into Cloud
+>   * inserts DatasetRecordWriter entities, one for each record, into Cloud
 >     Datastore/Firestore, setting the team_uuid, dataset_uuid, record_number,
->     and update_time
+>     and update_time fields
 >   * triggers the start of many Cloud Functions that will write TensorFlow
 >     records
 >
 > * each TensorFlow record writer Cloud Function:
->   * reads the video entity and video frame entities from Cloud
+>   * reads the Video entity and VideoFrame entities from Cloud
 >     Datastore/Firestore
 >   * reads the video file from Cloud Storage and writes it to a temporary file
 >   * opens the temporary file with OpenCV
@@ -402,26 +401,26 @@ When the dataset has been produced, the dialog is dismissed.
 >       temporary directory
 >     * updates in-memory counts for the labels in the frame and for negative
 >       frames
->     * updates the dataset record writer entity, setting the frames_written
+>     * updates the DatasetRecordWriter entity, setting the frames_written
 >       and update_time fields
 >   * copies the TensorFlow record file from the temporary directory to Cloud
 >     Storage
 >   * deletes the temporary directory
 >   * if all the records have been written to Cloud Storage:
->     * updates the dataset entity, setting the dataset_completed,
+>     * updates the Dataset entity, setting the dataset_completed,
 >       train_negative_frame_count, train_dict_label_to_count,
 >       and eval_dict_label_to_count fields
->     * deletes the dataset record writer entities asynchronously using a Cloud Function
+>     * deletes the DatasetRecordWriter entities asynchronously using a Cloud Function
 >
 > * the client:
 >   * periodically sends a /retrieveDatasetEntity request to the the server to
 >     determine the progress of dataset production
 >   * the server, receiving the /retrieveDatasetEntity request:
->     * reads the dataset entity from Cloud Datastore/Firestore
+>     * reads the Dataset entity from Cloud Datastore/Firestore
 >     * if the dataset_completed field is not true:
->       * reads the dataset record writer entities from Cloud Datastore/Firestore
+>       * reads the DatasetRecordWriter entities from Cloud Datastore/Firestore
 >       * sums the frames_written fields
->     * responds with the dataset entity and, if the dataset is not complete,
+>     * responds with the Dataset entity and, if the dataset is not complete,
 >       the number of frames written to the dataset so far
 >   * if the dataset_complete field is true
 >     * dismisses the Produce Dataset dialog
@@ -440,7 +439,7 @@ When the user clicks Delete Videos, the system determines whether the selected
 videos can be deleted. Videos that have been used to produce a dataset cannot
 be deleted until after the dataset is deleted.
 
-If the selected videos cannot be deleted, a dialog explaining why will be presented:
+If the selected videos cannot be deleted, a dialog explaining why is shown:
 
 <img src="images/videos_cannot_be_deleted.png" width="667">
 
@@ -451,8 +450,8 @@ If the selected videos cannot be deleted, a dialog explaining why will be presen
 > * the client:
 >   * sends a /canDeleteVideos request to the server
 >   * the server, receiving the /canDeleteVideos request:
->     * reads the video entities from Cloud Datastore/Firestore
->     * reads the dataset entities from Cloud Datastore/Firestore
+>     * reads the Video entities from Cloud Datastore/Firestore
+>     * reads the Dataset entities from Cloud Datastore/Firestore
 >     * checks whether any datasets are using any of the videos that might be
 >       deleted.
 >     * responds with a boolean value indicating whether the videos can be
@@ -461,7 +460,7 @@ If the selected videos cannot be deleted, a dialog explaining why will be presen
 
 </details>
 
-If the selected videos can be deleted, a confirmation dialog will be presented:
+If the selected videos can be deleted, a confirmation dialog is shown:
 
 <img src="images/delete_videos_are_you_sure.png" width="542">
 
@@ -475,16 +474,16 @@ If the users clicks Yes, the selected videos and their frame images labels will 
 >   * for each video being deleted:
 >     * sends a /deleteVideo request to the server
 >     * the server, receiving the /deleteVideo request:
->       * updates the video entity, setting the delete_in_progress field
+>       * updates the Video entity, setting the delete_in_progress field
 >       * triggers the start of a Cloud Function that will delete the video
 >       * responds with 'OK'
 >
 > * the Cloud Function:
 >   * deletes the video file from Cloud Storage
->   * deletes the video entity from Cloud Datastore/Firestore
+>   * deletes the Video entity from Cloud Datastore/Firestore
 >   * repeats the following until deleting is finished:
 >     * deletes up to 500 video frame jpeg image files from Cloud Storage
->     * deletes up to 500 video frame entities from Cloud Datastore/Firestore
+>     * deletes up to 500 VideoFrame entities from Cloud Datastore/Firestore
 >     * checks how long it has been running:
 >       * if it is within 70 seconds of the estimated time limit, triggers the
 >         start of another Cloud Function to continue deleting
@@ -508,7 +507,62 @@ If one dataset is selected, the Download Dataset button is enabled.
 
 <img src="images/download_dataset_button_enabled.png" width="791">
 
-<!--- TODO(lizlooney): fill in this section --->
+When the user clicks Download Dataset, the Download Dataset dialog is shown.
+
+<img src="images/download_dataset_dialog_files_processed.png" width="542">
+
+The system writes the labels file and the TensorFlow records into one or more
+zip files.<br>The dialog shows the progress of each zip file being produced.<br>
+When the zip files are ready, the dialog shows the progress of each download.
+
+<img src="images/download_dataset_dialog_bytes_downloaded.png" width="541">
+
+<details>
+<summary>Internal Details</summary>
+
+> When the user clicks Download Dataset:
+> * the client:
+>   * sends a /prepareToZipDataset request to the server
+>   * the server, receiving the /prepareToZipDataset request:
+>     * creates a unique id for the dataset zip
+>     * decides how many partitions (separate zip files) are needed
+>     * inserts DatasetZipper entities, one for each partition, into Cloud
+>       Datastore/Firestore, setting the team_uuid, dataset_zip_uuid,
+>       partition_index, and update_time fields
+>     * triggers the start of a Cloud Function that will prepare the zip files
+>     * responds with the dataset zip id and the partition count
+>
+> * the Cloud Function:
+>   * reads the Dataset entity and DatasetRecord entities from Cloud Datastore/Firestore
+>   * determines which partition will contain the labels file
+>   * determines which partition will contain each TensorFlow record file
+>   * updates the DatasetZipper entities, setting the file_count and update_time fields
+>   * triggers the start of many Cloud Functions that will write the zip files
+>
+> * each zip writer Cloud Function:
+>   * creates a ZipFile object
+>   * for each tensorflow record (or labels) file in the partition
+>     * reads the file from Cloud Storage and writes it to the ZipFile object
+>     * updates the DatasetZipper entity, setting the files_written and update_time fields
+>   * writes the zip file to Cloud Storage
+>
+> * the client:
+>   * updates the dialog to show the number of zip files
+>   * periodically sends a /getDatasetZipStatus request to the the server to
+>     determine the progress of dataset zipping
+>   * the server, receiving the /getDatasetZipStatus request:
+>     * reads the DatasetZipper entities from Cloud Datastore/Firestore
+>     * collects the file_count and files_written fields for each entity
+>     * generates signed urls for downloading the zip files from Cloud Storage,
+>       if they have been written yet
+>     * responds with the number of files written to each zip file so far and,
+>       if ready, the signed urls for downloading the zip files from Cloud Storage.
+>   * updates the "Dataset files processed" progress indicators in the Download Dataset dialog
+>   * downloads the zip files from Cloud Storage using the signed urls
+>   * updates the "Bytes downloaded" progress indicators in the Download
+>     Dataset dialog
+
+</details>
 
 ### Training a Model
 
