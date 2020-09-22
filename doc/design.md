@@ -1,5 +1,29 @@
 # **FIRST Machine Learning Toolchain**
 
+##### Table of Contents
+1. [Login Page](#login-page)
+1. [Main Page](#main-page)
+   1. [Videos Tab](#videos-tab)
+      1. [Uploading a Video](#uploading-a-video)
+      1. [Labeling a Video](#labeling-a-video)
+         1. [Drawing a Box and Entering a Label](#drawing-a-box-and-entering-a-label)
+         1. [Tracking](#tracking)
+      1. [Producing a Dataset](#producing-a-dataset)
+      1. [Deleting a Video](#deleting-a-video)
+   1. [Datasets Tab](#datasets-tab)
+      1. [Downloading a Dataset](#downloading-a-dataset)
+      1. [Training a Model](#training-a-model)
+      1. [Deleting a Dataset](#deleting-a-dataset)
+   1. [Models Tab](#models-tab)
+      1. [Monitoring Model Training](#monitoring-model-training)
+         1. [Details Tab](#details-tab)
+         1. [Graphs Tab](#graphs-tab)
+         1. [Images Tab](#Images-tab)
+      1. [More Training](#more-training)
+      1. [Downloading a Model](#downloading-a-model)
+      1. [Canceling Training](#canceling-training)
+      1. [Deleting a Model](#deleting-a-model)
+
 The goal of the project is to deliver the source code for a web-based set of
 tools that allow a FIRST Tech Challenge (FTC) or FIRST Robotics Competition
 (FRC) team to  generate a custom TensorFlow inference model for object
@@ -44,18 +68,18 @@ The target platform for the project is Google Cloud:
  * Cloud GPU (Graphics Processing Unit) for running model evaluation jobs
 
 
-# Login page
+# Login Page
 
 When a user visits the website for the first time, the login page is shown.
 
-<img src="images/login.png" width="192">
+<img src="images/login.png">
 
 The user selects their FIRST program, enters their team number and team code,
 and clicks Submit.
 
-<img src="images/login_ftc.png" width="192"><img src="images/white_pixel.png" width="100"><img src="images/black_pixel.png" width="1" height="194"><img src="images/white_pixel.png" width="100"><img src="images/login_frc.png" width="192">
+<img src="images/login_ftc.png"><img src="images/white_pixel.png" width="100"><img src="images/black_pixel.png" width="1" height="194"><img src="images/white_pixel.png" width="100"><img src="images/login_frc.png">
 
-<details>
+<details open>
 <summary>Internal Details</summary>
 
 > When the users clicks Submit:
@@ -70,6 +94,7 @@ and clicks Submit.
 >       * responds with a redirect to the main page
 >     * if the team is not found:
 >       * responds with the login page with an error message
+
 </details>
 
 
@@ -84,25 +109,59 @@ After the user logs in, the main page appears. There are three tabs
 
 At first, since the team has not yet uploaded any videos, the Videos tab looks like this:
 
-<img src="images/videos_tab_empty.png" width="1173">
+<img src="images/videos_tab_empty.png">
+
+After videos have been uploaded and labeled, the Videos tab looks like this:
+
+<img src="images/videos_tab.png">
+
+<details open>
+<summary>Internal Details</summary>
+
+> When the page loads:
+> * the client:
+>   * sends a /retrieveVideoEntities request to the server
+>   * the server, receiving the /retrieveVideoEntities request:
+>     * reads the Video entities from Cloud Datastore/Firestore
+>     * responds with the Video entities
+>   * inserts a row into the table for each video
+>
+> * if frame extraction has not finished on a video, the client periodically:
+>   * sends a /retrieveVideoEntity request to the server
+>   * the server, receiving the /retrieveVideoEntity request:
+>     * reads the Video entity from Cloud Datastore/Firestore
+>     * responds with the Video entity
+>   * updates the row in the table for that video
+>
+> * if frame extraction failed to start on a video, or if frame extraction
+>   has stalled, the client:
+>   * sends a /startFrameExtraction request to the server
+>   * the server, receiving the /startFrameExtraction request:
+>     * triggers the start of a Cloud Function that will [extract the frames of
+>       the video](#frame_extraction)
+
+</details>
 
 ### Uploading a Video
 
 When the user clicks Upload Video, the Upload Video File dialog is shown:
 
-<img src="images/upload_video_file.png" width="566">
+<img src="images/upload_video_file.png">
 
 The user chooses a file, enters a description, and clicks Upload.
 
-<img src="images/upload_video_file_before_upload.png" width="622">
+<img src="images/upload_video_file_before_upload.png">
 
 As the file is uploaded, a progress bar is updated.
 
-<img src="images/upload_video_file_progress.png" width="615">
+<img src="images/upload_video_file_progress.png">
 
 When the upload has finished, the dialog goes away.
 
-<details>
+<a name="frame_extraction"></a>
+After a video is uploaded, frame extraction will start automatically. 
+
+<details open>
 <summary>Internal Details</summary>
 
 > When the users clicks Upload:
@@ -152,14 +211,15 @@ When the upload has finished, the dialog goes away.
 >   * the server, receiving the /retrieveVideoEntity request:
 >     * reads the Video entity from Cloud Datastore/Firestore
 >     * responds with the Video entity
+
 </details>
 
-<img src="images/videos_tab_frame_extraction.png" width="1283">
+<img src="images/videos_tab_frame_extraction.png">
 
 When frame extraction finishes, the description becomes a clickable link. To
 label the objects in a video, the user clicks on the description for that video.
 
-<img src="images/video_link.png" width="1282">
+<img src="images/video_link.png">
 
 
 ### Labeling a Video
@@ -167,7 +227,7 @@ label the objects in a video, the user clicks on the description for that video.
 The Video Frame Labeling page allows the user to view the frames of the video
 and the labeled objects.
 
-<img src="images/label_video_1.png" width="1245">
+<img src="images/label_video_1.png">
 
 As shown in the image above, the user can:
  * adjust the size of the frame viewer
@@ -176,7 +236,7 @@ As shown in the image above, the user can:
  * play the video forward or reverse
  * exclude a frame from datasets made from the video in the future
 
-<details>
+<details open>
 <summary>Internal Details</summary>
 
 > When the Video Frame Labeling page is loaded:
@@ -189,6 +249,7 @@ As shown in the image above, the user can:
 >       url for requesting the image from Cloud Storage.
 > * the client:
 >   * requests the images from Cloud Storage using the signed urls
+
 </details>
 
 The progress bar on the upper right area of the page indicates how many entities
@@ -207,12 +268,12 @@ at the upper-left corner of the object, holds the mouse button down and drags to
 the lower-right corner, and then releases the mouse button. A new row is added
 to the table on the right side and the user enters a label for the object.
 
-<img src="images/draw_box_enter_label.png" width="1245">
+<img src="images/draw_box_enter_label.png">
 
 The user should use consistent labels for the objects. For example, in the video
 shown here, all wiffle balls will be labeled "w".
 
-<details>
+<details open>
 <summary>Internal Details</summary>
 
 > Each time a box or label is created or modified:
@@ -221,6 +282,7 @@ shown here, all wiffle balls will be labeled "w".
 >   * the server, receiving the /storeVideoFrameBboxesText request:
 >     * updates the VideoFrame entity, setting the bboxes_text field
 >     * updates the Video entity, setting the labeled_frame_count field
+
 </details>
 
 #### Tracking
@@ -231,7 +293,7 @@ for tracking. The default algorithm is CSRT (discriminative correlation filter
 tracker with channel and spatial reliability) and it provides high accuracy and
 is relatively quick.
 
-<img src="images/start_tracking.png" width="1240">
+<img src="images/start_tracking.png">
 
 To start tracking, the user clicks the start tracking button.
 
@@ -241,14 +303,14 @@ the tracked boxes. If the boxes aren't accurately placed, the user can click
 the Pause Tracking button to pause the tracker and then they can adjust the
 boxes.
 
-<img src="images/pause_tracking.png" width="234">
+<img src="images/pause_tracking.png">
 
 The user can click the Continue Tracking button to continue tracking
 or click the Stop Tracking button to stop tracking.
 
-<img src="images/continue_tracking.png" width="236">
+<img src="images/continue_tracking.png">
 
-<details>
+<details open>
 <summary>Internal Details</summary>
 
 > When the user clicks the start tracking button:
@@ -326,7 +388,6 @@ or click the Stop Tracking button to stop tracking.
 >         Datastore/Firestore
 >
 
-
 </details>
 
 ### Producing a Dataset
@@ -335,25 +396,25 @@ After the video(s) have been labeled, the user can produce a dataset.
 
 If one or more videos is selected, the Produce Dataset button is enabled.
 
-<img src="images/produce_dataset_button_enabled.png" width="696">
+<img src="images/produce_dataset_button_enabled.png">
 
 When the user clicks Produce Dataset, the Produce Dataset dialog is shown:
 
-<img src="images/produce_dataset.png" width="540">
+<img src="images/produce_dataset.png">
 
 The users chooses the percentage of frames that will be used for training and
 the percentage of frames that will be used for evaluation, enters a description,
 and clicks Produce Dataset.
 
-<img src="images/produce_dataset_before_click.png" width="540">
+<img src="images/produce_dataset_before_click.png">
 
 As the dataset is produced, a progress bar is updated.
 
-<img src="images/produce_dataset_progress.png" width="540">
+<img src="images/produce_dataset_progress.png">
 
 When the dataset has been produced, the dialog goes away.
 
-<details>
+<details open>
 <summary>Internal Details</summary>
 
 > When the user clicks Produce Dataset:
@@ -441,7 +502,7 @@ When the dataset has been produced, the dialog goes away.
 
 If one or more videos is selected, the Delete Videos button is enabled.
 
-<img src="images/delete_videos_button_enabled.png" width="696">
+<img src="images/delete_videos_button_enabled.png">
 
 When the user clicks Delete Videos, the system determines whether the selected
 videos can be deleted. Videos that have been used to produce a dataset cannot
@@ -449,9 +510,9 @@ be deleted until after the dataset is deleted.
 
 If the selected videos cannot be deleted, a dialog explaining why is shown:
 
-<img src="images/videos_cannot_be_deleted.png" width="667">
+<img src="images/videos_cannot_be_deleted.png">
 
-<details>
+<details open>
 <summary>Internal Details</summary>
 
 > When the user clicks Delete Videos
@@ -470,11 +531,11 @@ If the selected videos cannot be deleted, a dialog explaining why is shown:
 
 If the selected videos can be deleted, a confirmation dialog is shown:
 
-<img src="images/delete_videos_are_you_sure.png" width="542">
+<img src="images/delete_videos_are_you_sure.png">
 
 If the users clicks Yes, the selected videos and their frame images labels will be deleted.
 
-<details>
+<details open>
 <summary>Internal Details</summary>
 
 > When the user clicks Yes in the confirmation dialog:
@@ -503,29 +564,43 @@ If the users clicks Yes, the selected videos and their frame images labels will 
 
 If no datasets have been produced, the Datasets tab looks like this:
 
-<img src="images/datasets_tab_empty.png" width="1120">
+<img src="images/datasets_tab_empty.png">
 
 After a dataset has been produced, the Datasets tab looks like this:
 
-<img src="images/datasets_tab.png" width="1121">
+<img src="images/datasets_tab.png">
+
+<details open>
+<summary>Internal Details</summary>
+
+> When the page loads:
+> * the client:
+>   * sends a /retrieveDatasetEntities request to the server
+>   * the server, receiving the /retrieveDatasetEntities request:
+>     * reads the Dataset entities from Cloud Datastore/Firestore
+>     * responds with the Dataset entities
+>   * inserts a row into the table for each dataset
+>
+
+</details>
 
 ### Downloading a Dataset
 
 If one dataset is selected, the Download Dataset button is enabled.
 
-<img src="images/download_dataset_button_enabled.png" width="791">
+<img src="images/download_dataset_button_enabled.png">
 
 When the user clicks Download Dataset, the Download Dataset dialog is shown.
 
-<img src="images/download_dataset_dialog_files_processed.png" width="542">
+<img src="images/download_dataset_dialog_files_processed.png">
 
 The system writes the labels file and the TensorFlow records into one or more
 zip files.<br>The dialog shows the progress of each zip file being produced.<br>
 When the zip files are ready, the dialog shows the progress of each download.
 
-<img src="images/download_dataset_dialog_bytes_downloaded.png" width="541">
+<img src="images/download_dataset_dialog_bytes_downloaded.png">
 
-<details>
+<details open>
 <summary>Internal Details</summary>
 
 > When the user clicks Download Dataset:
@@ -576,11 +651,11 @@ When the zip files are ready, the dialog shows the progress of each download.
 
 If one or more datasets is selected, the Start Training button is enabled.
 
-<img src="images/start_training_button_enabled.png" width="791">
+<img src="images/start_training_button_enabled.png">
 
 When the user clicks Start Training, the Start Training dialog is shown.
 
-<img src="images/start_training_dialog.png" width="806">
+<img src="images/start_training_dialog.png">
 
 The dialog shows how many training minutes the team has remaining.
 The user chooses the maximum training time, the starting model, and the number
@@ -588,7 +663,7 @@ of training steps, enters a description, and clicks Start Training. The system
 submits the requests to start the training and the evaluation jobs. The training
 job runs on a Cloud TPU and the evaluation job runs on a Cloud GPU.
 
-<img src="images/start_training_dialog_submitting_job_request.png" width="806">
+<img src="images/start_training_dialog_submitting_job_request.png">
 
 After the job requests have been submitted, the Start Training dialog goes away
 and the [Models tab](#models-tab), is displayed.
@@ -597,48 +672,222 @@ and the [Models tab](#models-tab), is displayed.
 
 If one or more datasets is selected, the Delete Datasets button is enabled.
 
-<img src="images/delete_datasets_button_enabled.png" width="791">
+<img src="images/delete_datasets_button_enabled.png">
 
-...
-<!--- TODO(lizlooney): fill in this section --->
+When the user clicks Delete Datasetss, the system determines whether the selected
+datasets can be deleted. Datasets that have been used to produce a model cannot
+be deleted until after the model is deleted.
+
+If the selected datasets cannot be deleted, a dialog explaining why is shown:
+
+<img src="images/datasets_cannot_be_deleted.png">
+
+<details open>
+<summary>Internal Details</summary>
+
+> When the user clicks Delete Datasets
+> * the client:
+>   * sends a /canDeleteDatasets request to the server
+>   * the server, receiving the /canDeleteDatasets request:
+>     * reads the Dataset entities from Cloud Datastore/Firestore
+>     * reads the Model entities from Cloud Datastore/Firestore
+>     * checks whether any models are using any of the datasets that might be
+>       deleted.
+>     * responds with a boolean value indicating whether the datasets can be
+>       deleted, and, if necessary, helpful messages explaining why a dataset
+>       cannot be deleted.
+
+</details>
+
+If the selected datasets can be deleted, a confirmation dialog is shown:
+
+<img src="images/delete_datasets_are_you_sure.png">
+
+If the users clicks Yes, the selected datasets will be deleted.
+
+<details open>
+<summary>Internal Details</summary>
+
+> When the user clicks Yes in the confirmation dialog:
+> * the client:
+>   * for each dataset being deleted:
+>     * sends a /deleteDataset request to the server
+>     * the server, receiving the /deleteDataset request:
+>       * updates the Dataset entity, setting the delete_in_progress field
+>       * triggers the start of a Cloud Function that will delete the dataset
+>       * responds with 'OK'
+>
+> * the Cloud Function:
+>   * deletes the Dataset entity from Cloud Datastore/Firestore
+>   * deletes the dataset's labels file from Cloud Storage
+>   * repeats the following until deleting is finished:
+>     * deletes up to 500 TensorFlow record files from Cloud Storage
+>     * deletes up to 500 DatasetRecord entities from Cloud Datastore/Firestore
+>     * checks how long it has been running:
+>       * if it is within 70 seconds of the estimated time limit, triggers the
+>         start of another Cloud Function to continue deleting
+>       * if it is within 30 seconds of the estimated time limit, terminates
+
+</details>
 
 ## Models Tab
 
 If no models have been created, the Models tab looks like this:
 
-<img src="images/models_tab_empty.png" width="1129">
+<img src="images/models_tab_empty.png">
 
 When a training job is running, the Models tab looks like this.
 
-<img src="images/models_tab.png" width="1238">
+<img src="images/models_tab_running.png">
 
-The description is a clickable link. To monitor the training of a model, the
-user clicks on the description for that model.
+When a training job is finished, the Models tab looks like this.
 
+<img src="images/models_tab_succeeded.png">
+
+The description is a clickable link. To monitor model training, the user clicks
+on the description for that model.
+
+<details open>
+<summary>Internal Details</summary>
+
+> When the page loads:
+> * the client:
+>   * sends a /retrieveModelEntities request to the server
+>   * the server, receiving the /retrieveModelEntities request:
+>     * reads the Team entity from Cloud Datastore/Firestore
+>     * reads the Model entities from Cloud Datastore/Firestore
+>     * responds with the total training minutes each team is given, the
+>       remaining training minutes this team still has, and the Model
+>       entities
+>   * inserts a row into the table for each model
+>
+> * if training has not finished on a model, the client periodically:
+>   * sends a /retrieveModelEntity request to the server
+>   * the server, receiving the /retrieveModelEntity request:
+>     * reads the Team entity from Cloud Datastore/Firestore
+>     * reads the Model entity from Cloud Datastore/Firestore
+>     * responds with the remaining training minutes this team still has, and
+>       the Model entity
+>   * updates the row in the table for that model
+
+</details>
 
 ### Monitoring Model Training
 
-<img src="images/monitor_training_details.png" width="1436">
+#### Details Tab
+
+<img src="images/monitor_training_details.png">
+
+...
+<!--- TODO(lizlooney): fill in this section --->
+
+#### Graphs Tab
+
+<img src="images/monitor_training_graphs.png">
+
+...
+<!--- TODO(lizlooney): fill in this section --->
+
+<img src="images/monitor_training_graphs_detection_boxes.png">
+
+...
+<!--- TODO(lizlooney): fill in this section --->
+
+#### Images Tab
+
+<img src="images/monitor_training_images.png">
 
 ...
 <!--- TODO(lizlooney): fill in this section --->
 
 ### More Training
 
+If one model is selected and that model's training has succeeded, the More
+Training button is enabled.
+
+<img src="images/more_training_button_enabled.png">
+
 ...
 <!--- TODO(lizlooney): fill in this section --->
 
+<img src="images/train_more_dialog.png">
+
 ### Downloading a Model
+
+If one model is selected and that model's training has succeeded, the Download
+Model button is enabled.
+
+<img src="images/download_model_button_enabled.png">
 
 ...
 <!--- TODO(lizlooney): fill in this section --->
 
 ### Canceling Training
 
+If one model is selected and that model's training is not finished and has not
+already been cancelled, the Cancel Training button is enabled.
+
+<img src="images/cancel_training_button_enabled.png">
+
 ...
 <!--- TODO(lizlooney): fill in this section --->
 
 ### Deleting a Model
 
-...
-<!--- TODO(lizlooney): fill in this section --->
+If one or more models is selected and those models' training is finished, the
+Delete Models button is enabled.
+
+<img src="images/delete_models_button_enabled.png">
+
+When the user clicks Delete Models, the system determines whether the selected
+models can be deleted. Models that have been used as a starting point for more
+training cannot be deleted until after the other model is deleted.
+
+If the selected models cannot be deleted, a dialog explaining why is shown:
+
+<img src="images/models_cannot_be_deleted.png">
+
+<details open>
+<summary>Internal Details</summary>
+
+> When the user clicks Delete Models
+> * the client:
+>   * sends a /canDeleteModels request to the server
+>   * the server, receiving the /canDeleteModels request:
+>     * reads the Model entities from Cloud Datastore/Firestore
+>     * checks whether any models are using any of the models that might be
+>       deleted.
+>     * responds with a boolean value indicating whether the models can be
+>       deleted, and, if necessary, helpful messages explaining why a model
+>       cannot be deleted.
+
+</details>
+
+If the selected models can be deleted, a confirmation dialog is shown:
+
+<img src="images/delete_models_are_you_sure.png">
+
+If the users clicks Yes, the selected models will be deleted.
+
+<details open>
+<summary>Internal Details</summary>
+
+> When the user clicks Yes in the confirmation dialog:
+> * the client:
+>   * for each model being deleted:
+>     * sends a /deleteModel request to the server
+>     * the server, receiving the /deleteModel request:
+>       * updates the Model entity, setting the delete_in_progress field
+>       * triggers the start of a Cloud Function that will delete the model
+>       * responds with 'OK'
+>
+> * the Cloud Function:
+>   * deletes the model files from Cloud Storage
+>     * checks how long it has been running:
+>       * if it is within 70 seconds of the estimated time limit, triggers the
+>         start of another Cloud Function to continue deleting
+>       * if it is within 30 seconds of the estimated time limit, terminates
+>   * deletes the Model entity from Cloud Datastore/Firestore
+
+</details>
+
