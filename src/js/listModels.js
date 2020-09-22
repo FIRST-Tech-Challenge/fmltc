@@ -440,7 +440,7 @@ fmltc.ListModels.prototype.updateButtons = function() {
         canDownloadTFLite = false;
         canDeleteModels = false;
         if (this.modelEntityArray[i].cancel_requested) {
-          canCancelTaraining = false;
+          canCancelTraining = false;
         }
       }
     }
