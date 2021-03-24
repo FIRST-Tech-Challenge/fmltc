@@ -1,6 +1,7 @@
 # **FIRST Machine Learning Toolchain**
 
 ##### Table of Contents
+1. [Overview](#overview)
 1. [Login Page](#login-page)
 1. [Main Page](#main-page)
    1. [Videos Tab](#videos-tab)
@@ -23,6 +24,8 @@
       1. [Downloading a Model](#downloading-a-model)
       1. [Canceling Training](#canceling-training)
       1. [Deleting a Model](#deleting-a-model)
+
+# Overview
 
 The goal of the project is to deliver the source code for a web-based set of
 tools that allow a FIRST Tech Challenge (FTC) or FIRST Robotics Competition
@@ -779,26 +782,26 @@ on the description for that model.
 <img src="images/monitor_training_details.png">
 
 ...
-<!--- TODO(lizlooney): fill in this section --->
+<!--- TODO(lizlooney): add content here --->
 
 #### Graphs Tab
 
 <img src="images/monitor_training_graphs.png">
 
 ...
-<!--- TODO(lizlooney): fill in this section --->
+<!--- TODO(lizlooney): add content here --->
 
 <img src="images/monitor_training_graphs_detection_boxes.png">
 
 ...
-<!--- TODO(lizlooney): fill in this section --->
+<!--- TODO(lizlooney): add content here --->
 
 #### Images Tab
 
 <img src="images/monitor_training_images.png">
 
 ...
-<!--- TODO(lizlooney): fill in this section --->
+<!--- TODO(lizlooney): add content here --->
 
 ### More Training
 
@@ -808,9 +811,12 @@ Training button is enabled.
 <img src="images/more_training_button_enabled.png">
 
 ...
-<!--- TODO(lizlooney): fill in this section --->
+<!--- TODO(lizlooney): add content here --->
 
 <img src="images/train_more_dialog.png">
+
+...
+<!--- TODO(lizlooney): add content here --->
 
 ### Downloading a Model
 
@@ -820,7 +826,7 @@ Model button is enabled.
 <img src="images/download_model_button_enabled.png">
 
 ...
-<!--- TODO(lizlooney): fill in this section --->
+<!--- TODO(lizlooney): add content here --->
 
 ### Canceling Training
 
@@ -830,7 +836,7 @@ already been cancelled, the Cancel Training button is enabled.
 <img src="images/cancel_training_button_enabled.png">
 
 ...
-<!--- TODO(lizlooney): fill in this section --->
+<!--- TODO(lizlooney): add content here --->
 
 ### Deleting a Model
 
