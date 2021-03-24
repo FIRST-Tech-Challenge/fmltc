@@ -16,8 +16,8 @@ else
 fi
 
 # Locate the Google Closure Compiler.
-if [ -f ../closure-compiler/closure-compiler*.jar ]; then
-  FMLTC_CLOSURE_COMPILER_JAR="../closure-compiler/closure-compiler*.jar"
+if [ -f ../closure-compiler/closure-compiler-v20200406.jar ]; then
+  FMLTC_CLOSURE_COMPILER_JAR="../closure-compiler/closure-compiler-v20200406.jar"
   export FMLTC_CLOSURE_COMPILER_JAR
   echo "FMLTC_CLOSURE_COMPILER_JAR is $FMLTC_CLOSURE_COMPILER_JAR"
 else
@@ -26,8 +26,8 @@ else
 fi
 
 # Locate the Google Closure Library.
-if [ -f ../closure-library/closure-library-master/closure/goog/base.js ]; then
-  FMLTC_CLOSURE_LIBRARY_FOLDER="../closure-library/closure-library-master"
+if [ -f ../closure-library/closure-library-20200406/closure/goog/base.js ]; then
+  FMLTC_CLOSURE_LIBRARY_FOLDER="../closure-library/closure-library-20200406"
   export FMLTC_CLOSURE_LIBRARY_FOLDER
   echo "FMLTC_CLOSURE_LIBRARY_FOLDER is $FMLTC_CLOSURE_LIBRARY_FOLDER"
 else
