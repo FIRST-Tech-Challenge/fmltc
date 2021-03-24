@@ -41,6 +41,7 @@ gcloud iam service-accounts keys create key.json --iam-account ${FMLTC_GCLOUD_PR
      - [ ] Cloud Storage
      - [ ] AI Platform Training & Prediction API
      - [ ] Compute Engine API
+     - [ ] Cloud Build API
 8. Create cloud storage buckets.
 ```
 gsutil mb -c standard gs://${FMLTC_GCLOUD_PROJECT_ID}
@@ -101,10 +102,10 @@ FRC, 1678,  f67145cf
   commands.
 ```
 mkdir -p ~/tmp_fmltc/
-curl -o ~/tmp_fmltc/compiler-latest.zip https://dl.google.com/closure-compiler/compiler-latest.zip
+curl -o ~/tmp_fmltc/compiler-20200406.zip https://dl.google.com/closure-compiler/compiler-20200406.zip
 mkdir ../closure-compiler
 pushd ../closure-compiler
-unzip ~/tmp_fmltc/compiler-latest.zip
+unzip ~/tmp_fmltc/compiler-20200406.zip
 popd
 ```
 
@@ -114,10 +115,10 @@ popd
   commands.
 ```
 mkdir -p ~/tmp_fmltc/
-curl -o ~/tmp_fmltc/closure-library.zip https://codeload.github.com/google/closure-library/zip/master
+curl -o ~/tmp_fmltc/closure-library_v20200406.zip https://codeload.github.com/google/closure-library/zip/refs/tags/v20200406
 mkdir ../closure-library
 pushd ../closure-library
-unzip ~/tmp_fmltc/closure-library.zip
+unzip ~/tmp_fmltc/closure-library_v20200406.zip
 popd
 ```
 
@@ -170,11 +171,13 @@ Allow unauthenticated invocations of new function
 ERROR: (gcloud.functions.deploy) OperationError: code=3, message=Function failed on loading user code. Error message: Error: memory limit exceeded.
 ```
    - Edit settings for Cloud Function perform_action
+      - [ ] Go to https://console.cloud.google.com/functions/list?project=my_project_id (replace my_project_id with your actual project ID)
       - [ ] Click `perform_action`
       - [ ] Click `Edit`
+      - [ ] Click `RUNTIME, BUILD AND CONNECTION SETTINGS`
       - [ ] Change Memory allocated to 2 GiB
-      - [ ] Click `ENVIRONMENT VARIABLES, NETWORKING, TIMEOUTS AND MORE`
       - [ ] Change Timeout to 540
+      - [ ] Click `NEXT`
       - [ ] Click `DEPLOY`
 5. Deploy the App Engine code.
 ```
