@@ -246,7 +246,7 @@ def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
                     util.log('Tracker is not in progress. Elapsed time since last tracker client update: %f seconds' %
                         timedelta_since_last_update.total_seconds())
                     tracking_in_progress = False
-            if not tracker_in_progress:
+            if not tracking_in_progress:
                 video_entity['tracking_in_progress'] = False
                 video_entity['tracker_uuid'] = ''
                 transaction.put(video_entity)
