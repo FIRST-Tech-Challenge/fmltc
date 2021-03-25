@@ -6,7 +6,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Check that the Google Cloud project id is set.
-FMLTC_GCLOUD_PROJECT_ID=$(gcloud config list --format='text(core.project)' 2>/dev/null | grep ^core.project: | colrm 1 14)
+FMLTC_GCLOUD_PROJECT_ID=$(gcloud config list --format='text(core.project)' 2>/dev/null | grep ^project: | colrm 1 9)
 if [ "$FMLTC_GCLOUD_PROJECT_ID" != "" ]; then
   export FMLTC_GCLOUD_PROJECT_ID
   echo "FMLTC_GCLOUD_PROJECT_ID is $FMLTC_GCLOUD_PROJECT_ID"
