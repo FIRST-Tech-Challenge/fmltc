@@ -175,7 +175,7 @@ ERROR: (gcloud.functions.deploy) OperationError: code=3, message=Function failed
       - [ ] Click `perform_action`
       - [ ] Click `Edit`
       - [ ] Click `RUNTIME, BUILD AND CONNECTION SETTINGS`
-      - [ ] Change Memory allocated to 2 GiB
+      - [ ] Change Memory allocated to the largest available
       - [ ] Change Timeout to 540
       - [ ] Click `NEXT`
       - [ ] Click `DEPLOY`
