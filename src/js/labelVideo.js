@@ -1197,12 +1197,12 @@ fmltc.LabelVideo.prototype.xhr_retrieveTrackedBboxes_onreadystatechange = functi
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
       if (response.tracker_failed) {
-        console.log('response.tracker_failed is true. Tracker probably timed out or was interrupted.');
         this.util.clearWaitCursor();
         this.trackingInProgress = false;
         this.trackingPaused = false;
         this.trackingWaitingForBboxes = false;
         // Restart tracking.
+        alert('Tracker failed. It will be restarted after you dismiss this alert.')
         setTimeout(this.trackingStartButton_onclick.bind(this), 1000);
 
       } else if (response.frame_number == frameNumber) {
