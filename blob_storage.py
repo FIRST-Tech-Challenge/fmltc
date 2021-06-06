@@ -224,17 +224,12 @@ def store_pipeline_config(team_uuid, model_uuid, pipeline_config):
     __write_string_to_blob(pipeline_config_blob_name, pipeline_config, 'text/plain')
     return get_pipeline_config_path(team_uuid, model_uuid)
 
-def get_training_event_file_path(team_uuid, model_uuid):
+def get_event_file_path(team_uuid, model_uuid, job):
     client = util.storage_client()
-    folder = __get_model_folder(team_uuid, model_uuid)
-    prefix = '%s/events.out.tfevents.' % folder
-    for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
-        return folder, __get_path(blob.name), blob.updated
-    return None, None, None
-
-def get_eval_event_file_path(team_uuid, model_uuid):
-    client = util.storage_client()
-    folder = '%s/eval_validation_data' % __get_model_folder(team_uuid, model_uuid)
+    if job == 'training':
+        folder = __get_model_folder(team_uuid, model_uuid)
+    else: # 'eval'
+        folder = '%s/eval_validation_data' % __get_model_folder(team_uuid, model_uuid)
     prefix = '%s/events.out.tfevents.' % folder
     for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
         return folder, __get_path(blob.name), blob.updated

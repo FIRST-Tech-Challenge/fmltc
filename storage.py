@@ -1261,7 +1261,7 @@ def can_delete_models(team_uuid, model_uuids_json):
     for model_entity in all_model_entities:
         # We don't need to check the models that are being deleted.
         if model_entity['model_uuid'] in model_uuid_list:
-            continue;
+            continue
         if model_entity['starting_model'] in model_uuid_list:
             can_delete_models = False
             dict_model_uuid_to_other_model_descriptions[model_entity['starting_model']].append(model_entity['description'])
