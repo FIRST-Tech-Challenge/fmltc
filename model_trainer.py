@@ -160,6 +160,10 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             .replace('TO_BE_CONFIGURED/label_map_path', label_map_path)
             .replace('TO_BE_CONFIGURED/eval_input_path', json.dumps(eval_input_path))
             .replace('TO_BE_CONFIGURED/num_examples', str(eval_frame_count))
+            # TODO(lizlooney): Adjust num_visualizations.
+            .replace('TO_BE_CONFIGURED/num_visualizations', str(10))
+            # TODO(lizlooney): Adjust eval_interval_secs.
+            .replace('TO_BE_CONFIGURED/eval_interval_secs', str(300))
             .replace('TO_BE_CONFIGURED/num_training_steps', str(num_training_steps))
             .replace('TO_BE_CONFIGURED/quantization_delay', str(quantization_delay))
             )
@@ -394,8 +398,8 @@ def extract_summary_images(action_parameters):
                 training_folder, training_event_file_path, action_parameters)
         previous_training_updated = training_updated
 
-        eval_folder, eval_event_file_path, eval_updated = blob_storage.get_eval_event_file_path(
-                team_uuid, model_uuid)
+        eval_folder, eval_event_file_path, eval_updated = blob_storage.get_event_file_path(
+                team_uuid, model_uuid, 'eval')
         if eval_event_file_path is not None and eval_updated != previous_eval_updated:
             __extract_summary_images_for_event_file(team_uuid, model_uuid,
                 eval_folder, eval_event_file_path, action_parameters)
@@ -418,58 +422,67 @@ def __extract_summary_images_for_event_file(team_uuid, model_uuid, folder, event
                 blob_storage.store_event_summary_image(team_uuid, model_uuid,
                     folder, event.step, value.tag, value.image.encoded_image_string)
 
-
-def retrieve_training_summaries(team_uuid, model_uuid, retrieve_scalars, retrieve_images):
-    training_folder, training_event_file_path, training_updated = blob_storage.get_training_event_file_path(
-            team_uuid, model_uuid)
-    if training_event_file_path is None:
-        training_sorted_tags = []
-        training_sorted_steps = []
-        training_summaries = []
-    else:
-        training_sorted_tags, training_sorted_steps, training_summaries = __retrieve_summaries_for_event_file(
-            team_uuid, model_uuid, training_folder, training_event_file_path, retrieve_scalars, retrieve_images)
-    return training_updated, training_sorted_tags, training_sorted_steps, training_summaries
-
-
-def retrieve_eval_summaries(team_uuid, model_uuid, retrieve_scalars, retrieve_images):
-    eval_folder, eval_event_file_path, eval_updated = blob_storage.get_eval_event_file_path(
-        team_uuid, model_uuid)
-    if eval_event_file_path is None:
-        eval_sorted_tags = []
-        eval_sorted_steps = []
-        eval_summaries = []
-    else:
-        eval_sorted_tags, eval_sorted_steps, eval_summaries = __retrieve_summaries_for_event_file(
-            team_uuid, model_uuid, eval_folder, eval_event_file_path, retrieve_scalars, retrieve_images)
-    return eval_updated, eval_sorted_tags, eval_sorted_steps, eval_summaries
-
-
-def __retrieve_summaries_for_event_file(team_uuid, model_uuid, folder, event_file_path, retrieve_scalars, retrieve_images):
-    steps_set = set()
-    tags_set = set()
-    summaries = []
+def retrieve_tags_and_steps(team_uuid, model_uuid, job, value_type):
+    folder, event_file_path, updated = blob_storage.get_event_file_path(
+        team_uuid, model_uuid, job)
+    step_and_tag_pairs = []
+    if event_file_path is None:
+        return step_and_tag_pairs
     for event in summary_iterator(event_file_path):
-        values = {}
         for value in event.summary.value:
-            if retrieve_scalars and value.HasField('simple_value'):
-                tags_set.add(value.tag)
-                values[value.tag] = value.simple_value
-            elif retrieve_images and value.HasField('image'):
+            if value_type == 'scalar':
+                if not value.HasField('simple_value'):
+                    continue
+            elif value_type == 'image':
+                if not value.HasField('image'):
+                    continue
+            else:
+                continue
+            pair = {
+              'step': event.step,
+              'tag': value.tag,
+            }
+            step_and_tag_pairs.append(pair)
+    return step_and_tag_pairs
+
+
+def retrieve_summary_items(team_uuid, model_uuid, job, value_type, dict_step_to_tags):
+    folder, event_file_path, updated = blob_storage.get_event_file_path(
+        team_uuid, model_uuid, job)
+    summary_items = []
+    if event_file_path is None:
+        return summary_items
+
+    for event in summary_iterator(event_file_path):
+        step_key = str(event.step)
+        if step_key not in dict_step_to_tags:
+            continue
+        for value in event.summary.value:
+            if value.tag not in dict_step_to_tags[step_key]:
+                continue
+            if value_type == 'scalar':
+                if not value.HasField('simple_value'):
+                    continue
+            elif value_type == 'image':
+                if not value.HasField('image'):
+                    continue
+            else:
+                continue
+            summary_item = {
+                'step': event.step,
+                'tag': value.tag,
+            }
+            if value_type == 'scalar':
+                summary_item['value'] = value.simple_value
+            elif value_type == 'image':
                 exists, image_url = blob_storage.get_event_summary_image_download_url(team_uuid, model_uuid,
                     folder, event.step, value.tag, value.image.encoded_image_string)
-                if exists:
-                    tags_set.add(value.tag)
-                    values[value.tag] = {
-                        'width': value.image.width,
-                        'height': value.image.height,
-                        'image_url': image_url,
-                    }
-        if len(values) > 0:
-            steps_set.add(event.step)
-            summary = {
-                'step': event.step,
-            }
-            summary['values'] = values
-            summaries.append(summary)
-    return sorted(tags_set), sorted(steps_set), summaries
+                if not exists:
+                    continue
+                summary_item['value'] = {
+                    'width': value.image.width,
+                    'height': value.image.height,
+                    'image_url': image_url,
+                }
+            summary_items.append(summary_item)
+    return summary_items

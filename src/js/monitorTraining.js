@@ -45,6 +45,11 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.trainTimeTd = document.getElementById('trainTimeTd');
   this.scalarsTabDiv = document.getElementById('scalarsTabDiv');
   this.imagesTabDiv = document.getElementById('imagesTabDiv');
+  this.modelLoader = document.getElementById('modelLoader');
+  this.scalarsLoader = document.getElementById('scalarsLoader');
+  this.imagesLoader = document.getElementById('imagesLoader');
+
+  this.trainTimeIntervalId = 0;
 
   this.chartsLoaded = false;
   this.scalarsTabDivVisible = false;
@@ -52,20 +57,42 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
 
   this.filledModelUI = false;
 
-  this.modelLoader = document.getElementById('modelLoader');
+  this.trainingUpdated = '';
+  this.evalUpdated = '';
 
-  this.refreshButtonDisabledCounter = 0;
+  this.retrieveScalarsInProgressCounter = 0;
+  this.trainingScalars = {};
+  this.trainingScalars.tags = [];
+  // items has properties whose names are <step>_<tag> and values are objects with properties
+  // 'step', 'tag', and 'value'. Values are numbers
+  this.trainingScalars.items = {};
+  this.evalScalars = {};
+  this.evalScalars.tags = [];
+  // items has properties whose names are <step>_<tag> and values are objects with properties
+  // 'step', 'tag', and 'value'. Values are numbers
+  this.evalScalars.items = {};
 
-  this.data = {};
-  this.data.scalars = this.createDataStructure(true, false, document.getElementById('scalarsLoader'));
-  this.data.images = this.createDataStructure(false, true, document.getElementById('imagesLoader'));
+  this.retrieveImagesInProgressCounter = 0;
+  this.trainingImages = {};
+  this.trainingImages.tags = [];
+  // items has properties whose names are <step>_<tag> and values are objects with properties
+  // 'step', 'tag', and 'value'. Values are objects with properties 'image_url', 'width', and
+  // 'height'.
+  this.trainingImages.items = {};
+  this.evalImages = {};
+  this.evalImages.tags = [];
+  // items has properties whose names are <step>_<tag> and values are objects with properties
+  // 'step', 'tag', and 'value'. Values are objects with properties 'image_url', 'width', and
+  // 'height'.
+  this.evalImages.items = {};
 
   document.getElementById('descriptionSpan').textContent = this.modelEntity.description;
 
-  this.refreshIntervalId = 0;
-  this.trainTimeIntervalId = 0;
+  this.refreshTimeoutId = 0;
+  this.retrieveDataStartTimeMs = 0;
 
   this.setRefreshIntervalRangeInputTitle();
+  this.updateButtons();
   this.updateModelUI();
   this.retrieveData();
 
@@ -111,8 +138,7 @@ fmltc.MonitorTraining.prototype.xhr_cancelTraining_onreadystatechange = function
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
 
-      this.modelEntity = response.model_entity;
-      this.modelEntityUpdated();
+      this.modelEntityUpdated(response.model_entity);
 
     } else {
       // TODO(lizlooney): handle error properly
@@ -133,146 +159,290 @@ fmltc.MonitorTraining.prototype.setRefreshIntervalRangeInputTitle = function() {
 fmltc.MonitorTraining.prototype.refreshIntervalRangeInput_onchange = function() {
   this.setRefreshIntervalRangeInputTitle();
 
-  if (this.refreshIntervalId) {
-    clearInterval(this.refreshIntervalId);
-    this.refreshIntervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalRangeInput.value * 60 * 1000);
+  // If the refresh timer is pending, restart it.
+  if (this.refreshTimeoutId) {
+    clearTimeout(this.refreshTimeoutId);
+    this.refreshTimeoutId = 0;
+    this.startRefreshTimer();
   }
 };
 
-fmltc.MonitorTraining.prototype.refreshButton_onclick = function() {
-  // call refreshIntervalRangeInput_onchange to reset the interval timer.
-  this.refreshIntervalRangeInput_onchange();
+fmltc.MonitorTraining.prototype.startRefreshTimer = function() {
+  let msSinceRefresh = Date.now() - this.retrieveDataStartTimeMs;
+  let timeoutMs = Math.max(1, this.refreshIntervalRangeInput.value * 60 * 1000 - msSinceRefresh);
+  this.refreshTimeoutId = setTimeout(this.refreshTimeout.bind(this), timeoutMs);
+};
+
+fmltc.MonitorTraining.prototype.refreshTimeout = function() {
+  this.refreshTimeoutId = 0;
   this.retrieveData();
 };
 
-fmltc.MonitorTraining.prototype.createDataStructure = function(retrieveScalars, retrieveImages, loader) {
-  const dataStructure = {};
-  dataStructure.retrieveScalars = retrieveScalars;
-  dataStructure.retrieveImages = retrieveImages;
-  dataStructure.loader = loader;
-  dataStructure.training = {};
-  dataStructure.training.updated = '';
-  dataStructure.training.sortedSteps = [];
-  dataStructure.training.sortedTags = [];
-  dataStructure.training.summaries = [];
-  dataStructure.eval = {};
-  dataStructure.eval.updated = '';
-  dataStructure.eval.sortedSteps = [];
-  dataStructure.eval.sortedTags = [];
-  dataStructure.eval.summaries = [];
-  return dataStructure;
+fmltc.MonitorTraining.prototype.refreshButton_onclick = function() {
+  // If the refresh timer is pending, stop it.
+  if (this.refreshTimeoutId) {
+    clearInterval(this.refreshTimeoutId);
+    this.refreshTimeoutId = 0;
+  }
+
+  this.retrieveData();
 };
 
 fmltc.MonitorTraining.prototype.charts_onload = function() {
   this.chartsLoaded = true;
   this.scalarsTabDivVisible = (this.util.getCurrentTabDivId() == 'scalarsTabDiv');
   this.util.addTabListener(this.onTabShown.bind(this));
-  this.fillScalarsDiv(this.data.scalars);
+  this.fillScalarsDiv();
 };
 
 fmltc.MonitorTraining.prototype.onTabShown = function(tabDivId) {
   this.scalarsTabDivVisible = (tabDivId == 'scalarsTabDiv');
   if (this.scalarsTabDivVisible) {
-    this.fillScalarsDiv(this.data.scalars);
+    this.fillScalarsDiv();
   }
 };
 
 fmltc.MonitorTraining.prototype.retrieveData = function() {
-  this.retrieveTrainingSummaries(this.data.scalars, 0);
-  this.retrieveTrainingSummaries(this.data.images, 0);
+  this.retrieveDataStartTimeMs = Date.now();
+
+  this.refreshButton.disabled = true;
+
+  this.retrieveSummariesUpdated(0);
 };
 
-fmltc.MonitorTraining.prototype.retrieveTrainingSummaries = function(dataStructure, failureCount) {
-  this.refreshButtonDisabledCounter++;
-  this.refreshButton.disabled = (this.refreshButtonDisabledCounter > 0);
+fmltc.MonitorTraining.prototype.retrieveDataFinished = function() {
+  if (!this.util.isTrainingDone(this.modelEntity)) {
+    this.startRefreshTimer();
+    this.refreshButton.disabled = false;
+  }
+};
+
+fmltc.MonitorTraining.prototype.incrementRetrieveDataInProgressCounter = function(valueType) {
+  if (valueType == 'scalar') {
+    if (this.retrieveScalarsInProgressCounter == 0) {
+      this.scalarsLoader.style.visibility = 'visible';
+    }
+    this.retrieveScalarsInProgressCounter++;
+  } else if (valueType == 'image') {
+    if (this.retrieveImagesInProgressCounter == 0) {
+      this.imagesLoader.style.visibility = 'visible';
+    }
+    this.retrieveImagesInProgressCounter++;
+  }
+};
+
+fmltc.MonitorTraining.prototype.decrementRetrieveDataInProgressCounter = function(valueType) {
+  if (valueType == 'scalar') {
+    this.retrieveScalarsInProgressCounter--;
+    if (this.retrieveScalarsInProgressCounter == 0) {
+      this.fillScalarsDiv();
+      this.scalarsLoader.style.visibility = 'hidden';
+    }
+  } else if (valueType == 'image') {
+    this.retrieveImagesInProgressCounter--;
+    if (this.retrieveImagesInProgressCounter == 0) {
+      this.fillImagesDiv();
+      this.imagesLoader.style.visibility = 'hidden';
+    }
+  }
+  if (this.retrieveScalarsInProgressCounter == 0 && this.retrieveImagesInProgressCounter == 0) {
+    this.retrieveDataFinished();
+  }
+};
+
+fmltc.MonitorTraining.prototype.retrieveSummariesUpdated = function(failureCount) {
+  if (failureCount == 0) {
+    this.incrementRetrieveDataInProgressCounter('scalar');
+    this.incrementRetrieveDataInProgressCounter('image');
+  }
 
   const xhr = new XMLHttpRequest();
-  const params =
-      'model_uuid=' + encodeURIComponent(this.modelUuid) +
-      '&retrieve_scalars=' + encodeURIComponent(dataStructure.retrieveScalars) +
-      '&retrieve_images=' + encodeURIComponent(dataStructure.retrieveImages);
-  xhr.open('POST', '/retrieveTrainingSummaries', true);
+  const params = 'model_uuid=' + encodeURIComponent(this.modelUuid);
+  xhr.open('POST', '/retrieveSummariesUpdated', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveTrainingSummaries_onreadystatechange.bind(this, xhr, params,
-      dataStructure, failureCount);
+  xhr.onreadystatechange = this.xhr_retrieveSummariesUpdated_onreadystatechange.bind(this, xhr, params, failureCount);
   xhr.send(params);
 };
 
-fmltc.MonitorTraining.prototype.xhr_retrieveTrainingSummaries_onreadystatechange = function(xhr, params,
-    dataStructure, failureCount) {
+fmltc.MonitorTraining.prototype.xhr_retrieveSummariesUpdated_onreadystatechange = function(xhr, params,
+    failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
-
-    this.refreshButtonDisabledCounter--;
-    this.refreshButton.disabled = (this.refreshButtonDisabledCounter > 0);
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
 
-      this.modelEntity = response.model_entity;
-      this.modelEntityUpdated();
+      this.modelEntityUpdated(response.model_entity);
 
-      if (response.training_updated != dataStructure.training.updated ||
-          response.eval_updated != dataStructure.eval.updated) {
-        dataStructure.training.updated = response.training_updated;
-        dataStructure.training.sortedTags = response.training_sorted_tags;
-        dataStructure.training.sortedSteps = response.training_sorted_steps;
-        dataStructure.training.summaries = response.training_summaries;
+      if (response.training_updated != this.trainingUpdated ||
+          response.eval_updated != this.evalUpdated) {
+        this.trainingUpdated = response.training_updated;
+        this.evalUpdated = response.eval_updated;
 
-        dataStructure.eval.updated = response.eval_updated;
-        dataStructure.eval.sortedTags = response.eval_sorted_tags;
-        dataStructure.eval.sortedSteps = response.eval_sorted_steps;
-        dataStructure.eval.summaries = response.eval_summaries;
-
-        dataStructure.loader.style.visibility = 'visible';
-
-        if (dataStructure.retrieveScalars) {
-          this.fillScalarsDiv(dataStructure);
-        }
-        if (dataStructure.retrieveImages) {
-          this.fillImagesDiv(dataStructure);
-        }
-
-        dataStructure.loader.style.visibility = 'hidden';
+        this.retrieveTagsAndSteps('training', 'scalar', 0);
+        this.retrieveTagsAndSteps('eval', 'scalar', 0);
+        this.retrieveTagsAndSteps('training', 'image', 0);
+        this.retrieveTagsAndSteps('eval', 'image', 0);
       }
+
+      this.decrementRetrieveDataInProgressCounter('scalar');
+      this.decrementRetrieveDataInProgressCounter('image');
 
     } else {
       failureCount++;
-      if (!this.refreshIntervalId && failureCount < 5) {
+      if (failureCount < 5) {
         const delay = Math.pow(2, failureCount);
-        console.log('Will retry /retrieveTrainingSummaries?' + params + ' in ' + delay + ' seconds.');
-        setTimeout(this.retrieveTrainingSummaries.bind(this, dataStructure, failureCount), delay * 1000);
+        console.log('Will retry /retrieveSummariesUpdated?' + params + ' in ' + delay + ' seconds.');
+        setTimeout(this.retrieveSummariesUpdated.bind(this, failureCount), delay * 1000);
       } else {
-        console.log('Unable to retrieve the summaries.');
+        console.log('Unable to retrieve whether summaries have been updated.');
+
+        this.decrementRetrieveDataInProgressCounter('scalar');
+        this.decrementRetrieveDataInProgressCounter('image');
       }
     }
   }
 };
 
-fmltc.MonitorTraining.prototype.modelEntityUpdated = function() {
-  this.updateButtons();
+fmltc.MonitorTraining.prototype.retrieveTagsAndSteps = function(job, valueType, failureCount) {
+  if (failureCount == 0) {
+    this.incrementRetrieveDataInProgressCounter(valueType);
+  }
 
-  this.updateModelUI();
+  const xhr = new XMLHttpRequest();
+  const params =
+      'model_uuid=' + encodeURIComponent(this.modelUuid) +
+      '&job=' + encodeURIComponent(job) +
+      '&value_type=' + encodeURIComponent(valueType);
+  xhr.open('POST', '/retrieveTagsAndSteps', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_retrieveTagsAndSteps_onreadystatechange.bind(this, xhr, params,
+      job, valueType, failureCount);
+  xhr.send(params);
+};
 
-  if (this.util.isTrainingDone(this.modelEntity)) {
-    this.activeTrainingDiv.style.display = 'none';
-    if (this.refreshIntervalId) {
-      clearInterval(this.refreshIntervalId);
-      this.refreshIntervalId = 0;
-    }
-    if (this.trainTimeIntervalId) {
-      clearInterval(this.trainTimeIntervalId);
-      this.trainTimeIntervalId = 0;
-    }
-  } else {
-    this.activeTrainingDiv.style.display = 'inline-block';
-    if (!this.refreshIntervalId) {
-      this.refreshIntervalId = setInterval(this.retrieveData.bind(this), this.refreshIntervalRangeInput.value * 60 * 1000);
-    }
-    if (!this.trainTimeIntervalId) {
-      this.trainTimeIntervalId = setInterval(this.updateTrainTime.bind(this), 500);
+fmltc.MonitorTraining.prototype.xhr_retrieveTagsAndSteps_onreadystatechange = function(xhr, params,
+    job, valueType, failureCount) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+
+      const o = (job == 'training')
+          ? ((valueType == 'scalar') ? this.trainingScalars : this.trainingImages)
+          : ((valueType == 'scalar') ? this.evalScalars : this.evalImages);
+      const maxRequestedItems = (valueType == 'image') ? 10 : 50;
+
+      let requestStepAndTagPairs = [];
+
+      for (let i = 0; i < response.step_and_tag_pairs.length; i++) {
+        const stepAndTag = response.step_and_tag_pairs[i];
+        const step = stepAndTag.step;
+        const tag = stepAndTag.tag;
+        const property = step + '_' + tag;
+        if (property in o.items) {
+          // We already have this item.
+          continue;
+        }
+
+        requestStepAndTagPairs.push(stepAndTag);
+        if (requestStepAndTagPairs.length == maxRequestedItems) {
+          this.retrieveSummaryItems(job, valueType, requestStepAndTagPairs, 0);
+          requestStepAndTagPairs = [];
+        }
+        if (!o.tags.includes(stepAndTag.tag)) {
+          o.tags.push(stepAndTag.tag);
+        }
+      }
+
+      if (requestStepAndTagPairs.length > 0) {
+        this.retrieveSummaryItems(job, valueType, requestStepAndTagPairs, 0);
+      }
+
+
+      this.decrementRetrieveDataInProgressCounter(valueType);
+
+    } else {
+      failureCount++;
+      if (failureCount < 5) {
+        const delay = Math.pow(2, failureCount);
+        console.log('Will retry /retrieveTagsAndSteps?' + params + ' in ' + delay + ' seconds.');
+        setTimeout(this.retrieveTagsAndSteps.bind(this, job, valueType, failureCount), delay * 1000);
+      } else {
+        console.log('Unable to retrieve the tags and steps.');
+
+        this.decrementRetrieveDataInProgressCounter(valueType);
+      }
     }
   }
+};
+
+fmltc.MonitorTraining.prototype.retrieveSummaryItems = function(job, valueType, requestStepAndTagPairs, failureCount) {
+  if (failureCount == 0) {
+    this.incrementRetrieveDataInProgressCounter(valueType);
+  }
+
+  const xhr = new XMLHttpRequest();
+  let params =
+      'model_uuid=' + encodeURIComponent(this.modelUuid) +
+      '&job=' + encodeURIComponent(job) +
+      '&value_type=' + encodeURIComponent(valueType);
+  for (let i = 0; i < requestStepAndTagPairs.length; i++) {
+    params +=
+        '&step' + i + '=' + requestStepAndTagPairs[i].step +
+        '&tag' + i + '=' + requestStepAndTagPairs[i].tag;
+  }
+  xhr.open('POST', '/retrieveSummaryItems', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_retrieveSummaryItems_onreadystatechange.bind(this, xhr, params,
+      job, valueType, requestStepAndTagPairs, failureCount);
+  xhr.send(params);
+};
+
+fmltc.MonitorTraining.prototype.xhr_retrieveSummaryItems_onreadystatechange = function(xhr, params,
+    job, valueType, requestStepAndTagPairs, failureCount) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+
+      const o = (job == 'training')
+          ? ((valueType == 'scalar') ? this.trainingScalars : this.trainingImages)
+          : ((valueType == 'scalar') ? this.evalScalars : this.evalImages);
+
+      for (let i = 0; i < response.summary_items.length; i++) {
+        const item = response.summary_items[i];
+        const property = item.step + '_' + item.tag;
+        o.items[property] = item;
+      }
+
+      this.decrementRetrieveDataInProgressCounter(valueType);
+
+    } else {
+      failureCount++;
+      if (failureCount < 5) {
+        const delay = Math.pow(2, failureCount);
+        console.log('Will retry /retrieveSummaryItems?' + params + ' in ' + delay + ' seconds.');
+        setTimeout(this.retrieveSummaryItems.bind(this, job, valueType, requestStepAndTagPairs, failureCount), delay * 1000);
+      } else {
+        console.log('Unable to retrieve the summary values.');
+
+        this.decrementRetrieveDataInProgressCounter(valueType);
+      }
+    }
+  }
+};
+
+fmltc.MonitorTraining.prototype.modelEntityUpdated = function(newModelEntity) {
+  this.modelEntity = newModelEntity;
+
+  this.updateButtons();
+  this.updateModelUI();
+
+  this.activeTrainingDiv.style.display = this.util.isTrainingDone(this.modelEntity)
+      ? 'none' : 'inline-block';
 };
 
 fmltc.MonitorTraining.prototype.updateModelUI = function() {
@@ -358,6 +528,8 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
   if (this.modelEntity.train_job_elapsed_seconds > 0) {
     this.trainTimeTd.textContent =
         this.util.formatElapsedSeconds(this.modelEntity.train_job_elapsed_seconds);
+  } else {
+    this.estimateTrainTime();
   }
 
   document.getElementById('evalStateTd').textContent = this.util.formatJobState(
@@ -366,17 +538,32 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
   this.modelLoader.style.visibility = 'hidden';
 };
 
-fmltc.MonitorTraining.prototype.updateTrainTime = function() {
+fmltc.MonitorTraining.prototype.estimateTrainTime = function() {
   if (this.modelEntity.train_job_elapsed_seconds == 0) {
     if ('train_job_start_time' in this.modelEntity) {
       this.trainTimeTd.textContent = this.util.formatElapsedSeconds(
           this.util.calculateSecondsSince(this.modelEntity.train_job_start_time));
     }
+
+    // Make sure we have a timer going to update the estimate every half second.
+    if (!this.trainTimeIntervalId) {
+      this.trainTimeIntervalId = setInterval(this.estimateTrainTime.bind(this), 500);
+    }
+  } else {
+    // Clear the timer. We don't need it anymore.
+    if (this.trainTimeIntervalId) {
+      clearInterval(this.trainTimeIntervalId);
+      this.trainTimeIntervalId = 0;
+    }
   }
 };
 
-fmltc.MonitorTraining.prototype.fillScalarsDiv = function(dataStructure) {
-  const updated = dataStructure.training.updated + ', ' + dataStructure.eval.updated;
+fmltc.MonitorTraining.prototype.fillScalarsDiv = function() {
+  if (this.retrieveScalarsInProgressCounter > 0) {
+    return;
+  }
+
+  const updated = this.trainingUpdated + ', ' + this.evalUpdated;
   if (updated == this.scalarsTabDivUpdated) {
     return;
   }
@@ -392,161 +579,157 @@ fmltc.MonitorTraining.prototype.fillScalarsDiv = function(dataStructure) {
     return;
   }
 
-  this.addCharts(dataStructure.training);
-  this.addCharts(dataStructure.eval);
+  this.addCharts(this.trainingScalars);
+  this.addCharts(this.evalScalars);
   this.scalarsTabDivUpdated = updated;
 };
 
-fmltc.MonitorTraining.prototype.addCharts = function(jobData) {
-  if (jobData.updated == '') {
-    return;
-  }
+fmltc.MonitorTraining.prototype.addCharts = function(scalars) {
+  const mapTagToValues = this.mapTagToValues(scalars.items);
 
-  const sortedTags = jobData.sortedTags;
-  const sortedSteps = jobData.sortedSteps;
-  const summaries = jobData.summaries;
-  const mapTagToValues = {}
-
-  for (let i = 0; i < summaries.length; i++) {
-    const summary = summaries[i];
-    const values = summary.values;
-    for (const tag in values) {
-      if (typeof values[tag] != 'number') {
-        continue;
-      }
-      let mapStepToValue;
-      if (tag in mapTagToValues) {
-        mapStepToValue = mapTagToValues[tag];
-      } else {
-        mapStepToValue = {};
-        mapTagToValues[tag] = mapStepToValue;
-      }
-      mapStepToValue[summary.step] = values[tag];
+  scalars.tags.sort();
+  for (let iTag = 0; iTag < scalars.tags.length; iTag++) {
+    const tag = scalars.tags[iTag];
+    if (!(tag in mapTagToValues)) {
+      // This indicates that we failed to retrieve any items for this tag.
+      continue;
     }
-  }
 
-  for (let iTag = 0; iTag < sortedTags.length; iTag++) {
-    const tag = sortedTags[iTag];
-    if (tag in mapTagToValues) {
-      const mapStepToValue = mapTagToValues[tag];
-      const chartDiv = document.createElement('div');
-      chartDiv.style.width = '800px';
-      chartDiv.style.height = '500px';
-      this.scalarsTabDiv.appendChild(chartDiv);
-
-      const data = new google.visualization.DataTable();
-      data.addColumn('number', 'Step');
-      data.addColumn('number', '');
-      for (let iStep = 0; iStep < sortedSteps.length; iStep++) {
-        const step = sortedSteps[iStep];
-        data.addRow([step, mapStepToValue[step]]);
-      }
-      const options = {
-        width: 800,
-        height: 500,
-        hAxis: {
-          minValue: 0,
-          maxValue: this.modelEntity.num_training_steps,
-          title: 'Step'
-        },
-        vAxis: {
-          title: ' ',
-        },
-        legend: 'none',
-        lineWidth: 4,
-        pointSize: 6,
-        interpolateNulls: true,
-        title: tag,
-        titleTextStyle: {
-          fontName: 'Roboto',
-          fontSize: 24,
-          bold: true,
-        },
-      };
-
-      var chart = new google.visualization.LineChart(chartDiv);
-      chart.draw(data, options);
+    const mapStepToValue = mapTagToValues[tag];
+    const sortedSteps = [];
+    for (const step in mapStepToValue) {
+      sortedSteps.push(Number(step));
     }
+
+    const chartDiv = document.createElement('div');
+    chartDiv.style.width = '800px';
+    chartDiv.style.height = '500px';
+    this.scalarsTabDiv.appendChild(chartDiv);
+
+    const data = new google.visualization.DataTable();
+    data.addColumn('number', 'Step');
+    data.addColumn('number', '');
+
+    for (let iStep = 0; iStep < sortedSteps.length; iStep++) {
+      const step = sortedSteps[iStep];
+      const value = mapStepToValue[step];
+      data.addRow([step, value]);
+    }
+
+    const options = {
+      width: 800,
+      height: 500,
+      hAxis: {
+        minValue: 0,
+        maxValue: this.modelEntity.num_training_steps,
+        title: 'Step'
+      },
+      vAxis: {
+        title: ' ',
+      },
+      legend: 'none',
+      lineWidth: 4,
+      pointSize: 6,
+      interpolateNulls: true,
+      title: tag,
+      titleTextStyle: {
+        fontName: 'Roboto',
+        fontSize: 24,
+        bold: true,
+      },
+    };
+
+    var chart = new google.visualization.LineChart(chartDiv);
+    chart.draw(data, options);
   }
 };
 
-fmltc.MonitorTraining.prototype.fillImagesDiv = function(dataStructure) {
+fmltc.MonitorTraining.prototype.mapTagToValues = function(items) {
+  const mapTagToValues = {}; // map<tag, map<step, value>>
+  for (let property in items) {
+    const item = items[property];
+    const tag = item.tag;
+
+    let mapStepToValue; // map<step, value>
+    if (tag in mapTagToValues) {
+      mapStepToValue = mapTagToValues[tag];
+    } else {
+      mapStepToValue = {};
+      mapTagToValues[tag] = mapStepToValue;
+    }
+    mapStepToValue[item.step] = item.value;
+  }
+  return mapTagToValues;
+};
+
+fmltc.MonitorTraining.prototype.fillImagesDiv = function() {
   // TODO(lizlooney): remember the scroll position and restore it.
   this.imagesTabDiv.innerHTML = ''; // Remove previous children.
-  this.addImages(dataStructure.training);
-  this.addImages(dataStructure.eval);
+  this.addImages(this.trainingImages);
+  this.addImages(this.evalImages);
 };
 
-fmltc.MonitorTraining.prototype.addImages = function(jobData) {
-  const sortedTags = jobData.sortedTags;
-  const sortedSteps = jobData.sortedSteps;
-  const summaries = jobData.summaries;
-  const mapTagToImages = {};
-
+fmltc.MonitorTraining.prototype.addImages = function(images) {
   let delayForImage = 0;
-  for (let i = 0; i < summaries.length; i++) {
-    const summary = summaries[i];
-    const values = summary.values;
-    for (const tag in values) {
-      if (typeof values[tag] != 'object' ||
-          !('image_url' in values[tag])) {
-        continue;
-      }
-      let mapStepToImage;
-      if (tag in mapTagToImages) {
-        mapStepToImage = mapTagToImages[tag];
+
+  const mapTagToValues = this.mapTagToValues(images.items);
+
+  let needDelimiter = false;
+  images.tags.sort();
+  for (let iTag = 0; iTag < images.tags.length; iTag++) {
+    const tag = images.tags[iTag];
+    if (! (tag in mapTagToValues)) {
+      // This indicates that we failed to retrieve any items for this tag.
+      continue;
+    }
+
+    const mapStepToValue = mapTagToValues[tag];
+    const sortedSteps = [];
+    for (const step in mapStepToValue) {
+      sortedSteps.push(Number(step));
+    }
+
+    if (needDelimiter) {
+      this.imagesTabDiv.appendChild(document.createElement('br'));
+      this.imagesTabDiv.appendChild(document.createElement('hr'));
+      this.imagesTabDiv.appendChild(document.createElement('br'));
+    }
+
+    const label = document.createElement('div');
+    label.textContent = tag;
+    this.imagesTabDiv.appendChild(label);
+
+    const stepRangeInput = document.createElement('input');
+    stepRangeInput.setAttribute('type', 'range');
+    stepRangeInput.min = 0;
+    stepRangeInput.max = sortedSteps.length - 1;
+    stepRangeInput.value = stepRangeInput.max;
+    this.imagesTabDiv.appendChild(stepRangeInput);
+
+    const stepDiv = document.createElement('div');
+    this.imagesTabDiv.appendChild(stepDiv);
+
+    const imgElements = [];
+    for (let iStep = 0; iStep < sortedSteps.length; iStep++) {
+      const step = sortedSteps[iStep];
+      const value = mapStepToValue[step];
+      const img = document.createElement('img');
+      imgElements[iStep] = img;
+      img.setAttribute('width', value.width / 3);
+      img.setAttribute('height', value.height / 3);
+      if (iStep == stepRangeInput.value) {
+        stepDiv.textContent = 'Step: ' + new Number(step).toLocaleString();
+        img.style.display = 'block';
       } else {
-        mapStepToImage = {};
-        mapTagToImages[tag] = mapStepToImage;
+        img.style.display = 'none';
       }
-      mapStepToImage[summary.step] = values[tag];
+      img.src = '//:0';
+      setTimeout(this.retrieveImage.bind(this, img, value.image_url, 0), delayForImage);
+      delayForImage += 10;
+      this.imagesTabDiv.appendChild(img);
     }
-  }
-
-  for (let iTag = 0; iTag < sortedTags.length; iTag++) {
-    const tag = sortedTags[iTag];
-    if (tag in mapTagToImages) {
-      const label = document.createElement('div');
-      label.textContent = tag;
-      this.imagesTabDiv.appendChild(label);
-
-      const stepRangeInput = document.createElement('input');
-      stepRangeInput.setAttribute('type', 'range');
-      stepRangeInput.min = 0;
-      stepRangeInput.max = sortedSteps.length - 1;
-      stepRangeInput.value = stepRangeInput.max;
-      this.imagesTabDiv.appendChild(stepRangeInput);
-
-      const stepDiv = document.createElement('div');
-      this.imagesTabDiv.appendChild(stepDiv);
-
-      const imgElements = [];
-      const mapStepToImage = mapTagToImages[tag];
-      for (let iStep = 0; iStep < sortedSteps.length; iStep++) {
-        const step = sortedSteps[iStep];
-        const image = mapStepToImage[step];
-        const img = document.createElement('img');
-        imgElements[iStep] = img;
-        img.setAttribute('width', image.width / 3);
-        img.setAttribute('height', image.height / 3);
-        if (iStep == stepRangeInput.value) {
-          stepDiv.textContent = 'Step: ' + new Number(step).toLocaleString();
-          img.style.display = 'block';
-        } else {
-          img.style.display = 'none';
-        }
-        img.src = '//:0';
-        setTimeout(this.retrieveImage.bind(this, img, image.image_url, 0), delayForImage);
-        delayForImage += 10;
-        this.imagesTabDiv.appendChild(img);
-      }
-      stepRangeInput.onchange = this.stepRangeInput_onchange.bind(this, sortedSteps, stepRangeInput, stepDiv, imgElements);
-      if (iTag + 1 < sortedTags.length) {
-        this.imagesTabDiv.appendChild(document.createElement('br'));
-        this.imagesTabDiv.appendChild(document.createElement('hr'));
-        this.imagesTabDiv.appendChild(document.createElement('br'));
-      }
-    }
+    stepRangeInput.onchange = this.stepRangeInput_onchange.bind(this, sortedSteps, stepRangeInput, stepDiv, imgElements);
+    needDelimiter = true;
   }
 };
 

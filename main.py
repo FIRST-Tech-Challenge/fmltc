@@ -542,31 +542,69 @@ def start_training_model():
     }
     return flask.jsonify(response)
 
-@app.route('/retrieveTrainingSummaries', methods=['POST'])
+@app.route('/retrieveSummariesUpdated', methods=['POST'])
 @handle_exceptions
 @login_required
-def retrieve_training_summaries():
+def retrieve_summaries_updated():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
-    retrieve_scalars = (data.get('retrieve_scalars') == 'true')
-    retrieve_images = (data.get('retrieve_images') == 'true')
     model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
-    training_updated, training_sorted_tags, training_sorted_steps, training_summaries = model_trainer.retrieve_training_summaries(
-        team_uuid, model_uuid, retrieve_scalars, retrieve_images)
-    eval_updated, eval_sorted_tags, eval_sorted_steps, eval_summaries = model_trainer.retrieve_eval_summaries(
-        team_uuid, model_uuid, retrieve_scalars, retrieve_images)
+    training_folder, training_event_file_path, training_updated = blob_storage.get_event_file_path(
+        team_uuid, model_uuid, 'training')
+    eval_folder, eval_event_file_path, eval_updated = blob_storage.get_event_file_path(
+        team_uuid, model_uuid, 'eval')
     sanitize(model_entity)
     response = {
         'model_entity': model_entity,
         'training_updated': training_updated,
-        'training_sorted_tags': training_sorted_tags,
-        'training_sorted_steps': training_sorted_steps,
-        'training_summaries': training_summaries,
         'eval_updated': eval_updated,
-        'eval_sorted_tags': eval_sorted_tags,
-        'eval_sorted_steps': eval_sorted_steps,
-        'eval_summaries': eval_summaries,
+    }
+    return flask.jsonify(response)
+
+@app.route('/retrieveTagsAndSteps', methods=['POST'])
+@handle_exceptions
+@login_required
+def retrieve_tags_and_steps():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    model_uuid = data.get('model_uuid')
+    job = data.get('job')
+    value_type = data.get('value_type')
+    step_and_tag_pairs = model_trainer.retrieve_tags_and_steps(
+        team_uuid, model_uuid, job, value_type)
+    response = {
+        'step_and_tag_pairs': step_and_tag_pairs,
+    }
+    return flask.jsonify(response)
+
+@app.route('/retrieveSummaryItems', methods=['POST'])
+@handle_exceptions
+@login_required
+def retrieve_summary_items():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    model_uuid = data.get('model_uuid')
+    job = data.get('job')
+    value_type = data.get('value_type')
+    # Create a dict from step to array of tags.
+    dict_step_to_tags = {}
+    i = 0
+    while True:
+        step_key = 'step' + str(i)
+        tag_key = 'tag' + str(i)
+        if step_key not in data or tag_key not in data:
+            break;
+        step = data[step_key]
+        if step not in dict_step_to_tags:
+            dict_step_to_tags[step] = []
+        tag = data[tag_key]
+        dict_step_to_tags[step].append(tag)
+        i += 1
+    summary_items = model_trainer.retrieve_summary_items(
+        team_uuid, model_uuid, job, value_type, dict_step_to_tags)
+    response = {
+        'summary_items': summary_items,
     }
     blob_storage.set_cors_policy_for_get()
     return flask.jsonify(response)
