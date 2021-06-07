@@ -239,8 +239,8 @@ def produce_dataset_record(action_parameters):
     os.makedirs(folder, exist_ok=True)
     try:
         temp_record_filename = '%s/%s' % (folder, record_id)
-        __write_record(team_uuid, sorted_label_list, frame_data_dict, dataset_uuid, record_number,
-            record_id, is_eval, temp_record_filename)
+        __write_record(team_uuid, sorted_label_list, frame_number_list, frame_data_dict,
+            dataset_uuid, record_number, record_id, is_eval, temp_record_filename)
         storage.dataset_producer_maybe_done(team_uuid, dataset_uuid)
     finally:
         # Delete the temporary directory.
@@ -299,13 +299,17 @@ def __get_frame_data(video_entity, video_frame_entities, frame_number_list):
         os.remove(temp_video_filename)
 
 
-def __write_record(team_uuid, sorted_label_list, frame_data_dict,
+def __write_record(team_uuid, sorted_label_list, frame_number_list, frame_data_dict,
         dataset_uuid, record_number, record_id, is_eval, temp_record_filename):
     negative_frame_count = 0
     label_counter = collections.Counter()
     frames_written = 0
     with tf.io.TFRecordWriter(temp_record_filename) as writer:
-        for frame_number, frame_data in frame_data_dict.items():
+        # Iterate through the frame_number_list so we get the frames in the shuffled order.
+        for frame_number in frame_number_list:
+            if frame_number not in frame_data_dict:
+                continue
+            frame_data = frame_data_dict[frame_number]
             tf_example, label_counter_for_frame, is_negative = __create_tf_example(frame_data, sorted_label_list)
             writer.write(tf_example.SerializeToString())
             negative_frame_count += is_negative
