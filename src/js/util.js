@@ -372,7 +372,7 @@ fmltc.Util.prototype.sortedLabelListsEqual = function(a1, a2) {
 
 fmltc.Util.prototype.getTable = function(tr) {
   let table = tr.parentNode;
-  while (table && table.tagName != "TABLE") {
+  while (table && table.tagName != 'TABLE') {
     table = table.parentNode;
   }
   return table;
@@ -381,4 +381,26 @@ fmltc.Util.prototype.getTable = function(tr) {
 fmltc.Util.prototype.deleteRowById = function(id) {
   const tr = document.getElementById(id);
   this.getTable(tr).deleteRow(tr.rowIndex);
+};
+
+fmltc.Util.prototype.isNumeric = function(s) {
+  return !isNaN(parseFloat(s)) && isFinite(s);
+};
+
+fmltc.Util.prototype.compare = function(a, b) {
+  return (a > b) ? 1 : ((a < b) ? -1 : 0);
+};
+
+fmltc.Util.prototype.isVisible = function(element) {
+  var rect = element.getBoundingClientRect();
+  var viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
+  if (rect.bottom < 0) {
+    // Element is above.
+    return false;
+  }
+  if (rect.top >= viewHeight) {
+    // Element is below.
+    return false;
+  }
+  return true;
 };
