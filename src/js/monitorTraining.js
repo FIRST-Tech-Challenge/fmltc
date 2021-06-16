@@ -45,7 +45,6 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.trainTimeTd = document.getElementById('trainTimeTd');
   this.trainingScalarsDiv = document.getElementById('trainingScalarsDiv');
   this.evalScalarsDiv = document.getElementById('evalScalarsDiv');
-  this.trainingImagesDiv = document.getElementById('trainingImagesDiv');
   this.evalImagesDiv = document.getElementById('evalImagesDiv');
   this.modelLoader = document.getElementById('modelLoader');
   this.scalarsLoader = document.getElementById('scalarsLoader');
@@ -60,9 +59,18 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.trainingUpdated = '';
   this.evalUpdated = '';
 
-  this.retrieveScalarsInProgressCounter = 0;
+  this.retrieveDataInProgressCounters = {};
+  this.retrieveDataInProgressCounters['scalar'] = 0;
+  this.retrieveDataInProgressCounters['image'] = 0;
+  this.loaders = {};
+  this.loaders['scalar'] = this.scalarsLoader;
+  this.loaders['image'] = this.imagesLoader;
 
   this.trainingScalars = {};
+  this.trainingScalars.job = 'training';
+  this.trainingScalars.valueType = 'scalar';
+  this.trainingScalars.maxItemsPerRequest = 50;
+  this.trainingScalars.parentDiv = this.trainingScalarsDiv;
   this.trainingScalars.mapTagToSteps = {}; // map<tag, sortedArray<step>>
   this.trainingScalars.mapTagToDiv = {}; // map<tag, div>
   this.trainingScalars.mapTagToLineChart = {}; // map<tag, LineChart>
@@ -72,6 +80,10 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.trainingScalars.items = {};
 
   this.evalScalars = {};
+  this.evalScalars.job = 'eval';
+  this.evalScalars.valueType = 'scalar';
+  this.evalScalars.maxItemsPerRequest = 50;
+  this.evalScalars.parentDiv = this.evalScalarsDiv;
   this.evalScalars.mapTagToDiv = {}; // map<tag, div>
   this.evalScalars.mapTagToSteps = {}; // map<tag, sortedArray<step>>
   this.evalScalars.mapTagToLineChart = {}; // map<tag, LineChart>
@@ -82,17 +94,11 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
 
   this.retrieveImagesInProgressCounter = 0;
 
-  this.trainingImages = {};
-  this.trainingImages.mapTagToSteps = {}; // map<tag, sortedArray<step>>
-  this.trainingImages.mapTagToDiv = {}; // map<tag, div>
-  this.trainingImages.mapTagToStepLabelDiv = {}; // map<tag, div>
-  this.trainingImages.mapTagToImgs = {}; // map<tag, map<step, img>>
-  // items has properties whose names are <step>_<tag> and values are objects with properties
-  // 'step', 'tag', and 'value'. Values are objects with properties 'image_url', 'width', and
-  // 'height'.
-  this.trainingImages.items = {};
-
   this.evalImages = {};
+  this.evalImages.job = 'eval';
+  this.evalImages.valueType = 'image';
+  this.evalImages.maxItemsPerRequest = 30;
+  this.evalImages.parentDiv = this.evalImagesDiv;
   this.evalImages.mapTagToSteps = {}; // map<tag, sortedArray<step>>
   this.evalImages.mapTagToDiv = {}; // map<tag, div>
   this.evalImages.mapTagToStepLabelDiv = {}; // map<tag, div>
@@ -217,6 +223,7 @@ fmltc.MonitorTraining.prototype.retrieveData = function() {
 };
 
 fmltc.MonitorTraining.prototype.retrieveDataFinished = function() {
+  console.log('retrieveDataFinished - elapsed time ' + Math.ceil((Date.now() - this.retrieveDataStartTimeMs) / 1000) + 's');
   if (!this.util.isTrainingDone(this.modelEntity)) {
     this.startRefreshTimer();
     this.refreshButton.disabled = false;
@@ -224,32 +231,18 @@ fmltc.MonitorTraining.prototype.retrieveDataFinished = function() {
 };
 
 fmltc.MonitorTraining.prototype.incrementRetrieveDataInProgressCounter = function(valueType) {
-  if (valueType == 'scalar') {
-    if (this.retrieveScalarsInProgressCounter == 0) {
-      this.scalarsLoader.style.visibility = 'visible';
-    }
-    this.retrieveScalarsInProgressCounter++;
-  } else if (valueType == 'image') {
-    if (this.retrieveImagesInProgressCounter == 0) {
-      this.imagesLoader.style.visibility = 'visible';
-    }
-    this.retrieveImagesInProgressCounter++;
+  if (this.retrieveDataInProgressCounters[valueType] == 0) {
+    this.loaders[valueType].style.visibility = 'visible';
   }
+  this.retrieveDataInProgressCounters[valueType]++;
 };
 
 fmltc.MonitorTraining.prototype.decrementRetrieveDataInProgressCounter = function(valueType) {
-  if (valueType == 'scalar') {
-    this.retrieveScalarsInProgressCounter--;
-    if (this.retrieveScalarsInProgressCounter == 0) {
-      this.scalarsLoader.style.visibility = 'hidden';
-    }
-  } else if (valueType == 'image') {
-    this.retrieveImagesInProgressCounter--;
-    if (this.retrieveImagesInProgressCounter == 0) {
-      this.imagesLoader.style.visibility = 'hidden';
-    }
+  this.retrieveDataInProgressCounters[valueType]--;
+  if (this.retrieveDataInProgressCounters[valueType] == 0) {
+    this.loaders[valueType].style.visibility = 'hidden';
   }
-  if (this.retrieveScalarsInProgressCounter == 0 && this.retrieveImagesInProgressCounter == 0) {
+  if (this.retrieveDataInProgressCounters['scalar'] == 0 && this.retrieveDataInProgressCounters['image'] == 0) {
     this.retrieveDataFinished();
   }
 };
@@ -264,7 +257,8 @@ fmltc.MonitorTraining.prototype.retrieveSummariesUpdated = function(failureCount
   const params = 'model_uuid=' + encodeURIComponent(this.modelUuid);
   xhr.open('POST', '/retrieveSummariesUpdated', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveSummariesUpdated_onreadystatechange.bind(this, xhr, params, failureCount);
+  xhr.onreadystatechange = this.xhr_retrieveSummariesUpdated_onreadystatechange.bind(this, xhr, params,
+      failureCount);
   xhr.send(params);
 };
 
@@ -283,10 +277,9 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummariesUpdated_onreadystatechange 
         this.trainingUpdated = response.training_updated;
         this.evalUpdated = response.eval_updated;
 
-        this.retrieveTagsAndSteps('training', 'scalar', 0);
-        this.retrieveTagsAndSteps('eval', 'scalar', 0);
-        this.retrieveTagsAndSteps('training', 'image', 0);
-        this.retrieveTagsAndSteps('eval', 'image', 0);
+        this.retrieveTagsAndSteps(this.evalImages, 0);
+        this.retrieveTagsAndSteps(this.trainingScalars, 0);
+        this.retrieveTagsAndSteps(this.evalScalars, 0);
       }
 
       this.decrementRetrieveDataInProgressCounter('scalar');
@@ -308,34 +301,32 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummariesUpdated_onreadystatechange 
   }
 };
 
-fmltc.MonitorTraining.prototype.retrieveTagsAndSteps = function(job, valueType, failureCount) {
+fmltc.MonitorTraining.prototype.retrieveTagsAndSteps = function(o, failureCount) {
   if (failureCount == 0) {
-    this.incrementRetrieveDataInProgressCounter(valueType);
+    this.incrementRetrieveDataInProgressCounter(o.valueType);
   }
 
   const xhr = new XMLHttpRequest();
   const params =
       'model_uuid=' + encodeURIComponent(this.modelUuid) +
-      '&job=' + encodeURIComponent(job) +
-      '&value_type=' + encodeURIComponent(valueType);
+      '&job=' + encodeURIComponent(o.job) +
+      '&value_type=' + encodeURIComponent(o.valueType);
   xhr.open('POST', '/retrieveTagsAndSteps', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveTagsAndSteps_onreadystatechange.bind(this, xhr, params,
-      job, valueType, failureCount);
+  xhr.onreadystatechange = this.xhr_retrieveTagsAndSteps_onreadystatechange.bind(this, xhr, Date.now(), params,
+      o, failureCount);
   xhr.send(params);
 };
 
-fmltc.MonitorTraining.prototype.xhr_retrieveTagsAndSteps_onreadystatechange = function(xhr, params,
-    job, valueType, failureCount) {
+fmltc.MonitorTraining.prototype.xhr_retrieveTagsAndSteps_onreadystatechange = function(xhr, sentTime, params,
+    o, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
+    console.log('retrieveTagsAndSteps ' + xhr.status + ' - ' +
+        Math.ceil((Date.now() - sentTime) / 1000) + 's for ' + o.job + ' ' + o.valueType + 's.');
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-
-      const o = (job == 'training')
-          ? ((valueType == 'scalar') ? this.trainingScalars : this.trainingImages)
-          : ((valueType == 'scalar') ? this.evalScalars : this.evalImages);
 
       // Remove the step and tag pairs that we already have items for.
       const step_and_tag_pairs = [];
@@ -355,63 +346,46 @@ fmltc.MonitorTraining.prototype.xhr_retrieveTagsAndSteps_onreadystatechange = fu
       const newMapTagToSteps = {};
       this.addToMapTagToSteps(response.step_and_tag_pairs, newMapTagToSteps);
 
-      // Send requests to retrieve the summary items.
-      // Image URLs have to be authenticated, which takes time. We can only get 10 at a time due to
-      // the 30 second request limit.
-      const maxItemsPerRequest = (valueType == 'image') ? 10 : 50;
-
       // Add the charts or images.
       var highPriorityStepAndTagPairs;
-      if (valueType == 'scalar') {
-        highPriorityStepAndTagPairs = this.addCharts(o, newMapTagToSteps,
-            (job == 'training') ? this.trainingScalarsDiv : this.evalScalarsDiv, maxItemsPerRequest);
-      } else /* if (valueType == 'image') */ {
-        highPriorityStepAndTagPairs = this.addImages(o, newMapTagToSteps,
-            (job == 'training') ? this.trainingImagesDiv : this.evalImagesDiv, maxItemsPerRequest);
-      }
-
-      // Send the requests for highPriorityStepAndTagPairs.
-      const alreadyRequestedKeys = [];
-      if (highPriorityStepAndTagPairs.length > 0) {
-        this.retrieveSummaryItems(job, valueType, highPriorityStepAndTagPairs, 0);
-        for (let i = 0; i < highPriorityStepAndTagPairs.length; i++) {
-          alreadyRequestedKeys.push(this.makeKey(highPriorityStepAndTagPairs[i]));
-        }
+      if (o.valueType == 'scalar') {
+        highPriorityStepAndTagPairs = this.addCharts(o, newMapTagToSteps);
+      } else /* if (o.valueType == 'image') */ {
+        highPriorityStepAndTagPairs = this.addImages(o, newMapTagToSteps);
       }
 
       let requestStepAndTagPairs = [];
+
+      const alreadyPushedKeys = [];
+      for (let i = 0; i < highPriorityStepAndTagPairs.length; i++) {
+        const stepAndTagPair = highPriorityStepAndTagPairs[i];
+        const key = this.makeKey(stepAndTagPair);
+        alreadyPushedKeys.push(key);
+        requestStepAndTagPairs.push(stepAndTagPair);
+      }
       for (let i = 0; i < response.step_and_tag_pairs.length; i++) {
         const stepAndTagPair = response.step_and_tag_pairs[i];
-
         const key = this.makeKey(stepAndTagPair);
-        if (alreadyRequestedKeys.indexOf(key) != -1) {
-          // We already requested this item because it is in highPriorityStepAndTagPairs.
+        if (alreadyPushedKeys.indexOf(key) != -1) {
+          // We already pushed this stepAndTagPair because it is in highPriorityStepAndTagPairs.
           continue;
         }
-
         requestStepAndTagPairs.push(stepAndTagPair);
-        if (requestStepAndTagPairs.length == maxItemsPerRequest) {
-          this.retrieveSummaryItems(job, valueType, requestStepAndTagPairs, 0);
-          requestStepAndTagPairs = [];
-        }
       }
+      this.retrieveSummaryItemsInParallel(o, requestStepAndTagPairs);
 
-      if (requestStepAndTagPairs.length > 0) {
-        this.retrieveSummaryItems(job, valueType, requestStepAndTagPairs, 0);
-      }
-
-      this.decrementRetrieveDataInProgressCounter(valueType);
+      this.decrementRetrieveDataInProgressCounter(o.valueType);
 
     } else {
       failureCount++;
       if (failureCount < 5) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveTagsAndSteps?' + params + ' in ' + delay + ' seconds.');
-        setTimeout(this.retrieveTagsAndSteps.bind(this, job, valueType, failureCount), delay * 1000);
+        setTimeout(this.retrieveTagsAndSteps.bind(this, o, failureCount), delay * 1000);
       } else {
         console.log('Unable to retrieve the tags and steps.');
 
-        this.decrementRetrieveDataInProgressCounter(valueType);
+        this.decrementRetrieveDataInProgressCounter(o.valueType);
       }
     }
   }
@@ -443,39 +417,50 @@ fmltc.MonitorTraining.prototype.addToMapTagToSteps = function(stepAndTagPairs, m
   }
 };
 
-fmltc.MonitorTraining.prototype.retrieveSummaryItems = function(job, valueType, requestStepAndTagPairs, failureCount) {
+fmltc.MonitorTraining.prototype.retrieveSummaryItemsInParallel = function(o, requestStepAndTagPairs) {
+  const parallelization = 2;
+  let requestStepAndTagPairsLater = requestStepAndTagPairs.slice(parallelization * o.maxItemsPerRequest);
+  for (let i = 0; i < parallelization; i++) {
+    let requestStepAndTagPairsNow = requestStepAndTagPairs.slice(o.maxItemsPerRequest * i, o.maxItemsPerRequest * (i + 1));
+    if (requestStepAndTagPairsNow.length > 0) {
+      this.retrieveSummaryItems(o, requestStepAndTagPairsNow, requestStepAndTagPairsLater, 0);
+      // The later items are only attached to the first batch.
+      requestStepAndTagPairsLater = [];
+    }
+  }
+};
+
+fmltc.MonitorTraining.prototype.retrieveSummaryItems = function(o, requestStepAndTagPairsNow, requestStepAndTagPairsLater, failureCount) {
   if (failureCount == 0) {
-    this.incrementRetrieveDataInProgressCounter(valueType);
+    this.incrementRetrieveDataInProgressCounter(o.valueType);
   }
 
   const xhr = new XMLHttpRequest();
   let params =
       'model_uuid=' + encodeURIComponent(this.modelUuid) +
-      '&job=' + encodeURIComponent(job) +
-      '&value_type=' + encodeURIComponent(valueType);
-  for (let i = 0; i < requestStepAndTagPairs.length; i++) {
+      '&job=' + encodeURIComponent(o.job) +
+      '&value_type=' + encodeURIComponent(o.valueType);
+  for (let i = 0; i < requestStepAndTagPairsNow.length; i++) {
     params +=
-        '&step' + i + '=' + requestStepAndTagPairs[i].step +
-        '&tag' + i + '=' + requestStepAndTagPairs[i].tag;
+        '&step' + i + '=' + requestStepAndTagPairsNow[i].step +
+        '&tag' + i + '=' + requestStepAndTagPairsNow[i].tag;
   }
   xhr.open('POST', '/retrieveSummaryItems', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveSummaryItems_onreadystatechange.bind(this, xhr, params,
-      job, valueType, requestStepAndTagPairs, failureCount);
+  xhr.onreadystatechange = this.xhr_retrieveSummaryItems_onreadystatechange.bind(this, xhr, Date.now(), params,
+      o, requestStepAndTagPairsNow, requestStepAndTagPairsLater, failureCount);
   xhr.send(params);
 };
 
-fmltc.MonitorTraining.prototype.xhr_retrieveSummaryItems_onreadystatechange = function(xhr, params,
-    job, valueType, requestStepAndTagPairs, failureCount) {
+fmltc.MonitorTraining.prototype.xhr_retrieveSummaryItems_onreadystatechange = function(xhr, sentTime, params,
+    o, requestStepAndTagPairsNow, requestStepAndTagPairsLater, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
+    console.log('retrieveSummaryItems ' + xhr.status + ' - ' +
+        Math.ceil((Date.now() - sentTime) / 1000) + 's for ' + requestStepAndTagPairsNow.length + ' ' + o.job + ' ' + o.valueType + 's.');
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-
-      const o = (job == 'training')
-          ? ((valueType == 'scalar') ? this.trainingScalars : this.trainingImages)
-          : ((valueType == 'scalar') ? this.evalScalars : this.evalImages);
 
       for (let i = 0; i < response.summary_items.length; i++) {
         const item = response.summary_items[i];
@@ -483,12 +468,12 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaryItems_onreadystatechange = fu
         o.items[key] = item;
       }
 
-      if (valueType == 'scalar') {
+      if (o.valueType == 'scalar') {
         for (let i = 0; i < response.summary_items.length; i++) {
           const item = response.summary_items[i];
           this.addScalarValue(o, item.tag, item.step, item.value);
         }
-      } else /* if (valueType == 'image') */ {
+      } else /* if (o.valueType == 'image') */ {
         let delayForImage = 0;
         for (let i = 0; i < response.summary_items.length; i++) {
           const item = response.summary_items[i];
@@ -497,18 +482,23 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaryItems_onreadystatechange = fu
         }
       }
 
-      this.decrementRetrieveDataInProgressCounter(valueType);
+      // Request the next batch of summary items.
+      if (requestStepAndTagPairsLater.length > 0) {
+        this.retrieveSummaryItemsInParallel(o, requestStepAndTagPairsLater);
+      }
+
+      this.decrementRetrieveDataInProgressCounter(o.valueType);
 
     } else {
       failureCount++;
       if (failureCount < 5) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveSummaryItems?' + params + ' in ' + delay + ' seconds.');
-        setTimeout(this.retrieveSummaryItems.bind(this, job, valueType, requestStepAndTagPairs, failureCount), delay * 1000);
+        setTimeout(this.retrieveSummaryItems.bind(this, o, requestStepAndTagPairsNow, requestStepAndTagPairsLater, failureCount), delay * 1000);
       } else {
         console.log('Unable to retrieve the summary values.');
 
-        this.decrementRetrieveDataInProgressCounter(valueType);
+        this.decrementRetrieveDataInProgressCounter(o.valueType);
       }
     }
   }
@@ -637,49 +627,44 @@ fmltc.MonitorTraining.prototype.estimateTrainTime = function() {
   }
 };
 
-fmltc.MonitorTraining.prototype.addCharts = function(scalars, newMapTagToSteps, parentDiv, maxVisible) {
+fmltc.MonitorTraining.prototype.addCharts = function(o, newMapTagToSteps) {
   if (!this.chartsLoaded) {
     // Try again in 1 second.
     console.log('Will retry addCharts in 1 second.');
-    setTimeout(this.addCharts.bind(this, scalars, newMapTagToSteps, parentDiv, maxVisible), 1000);
+    setTimeout(this.addCharts.bind(this, o, newMapTagToSteps), 1000);
     return [];
   }
 
   var highPriorityStepAndTagPairs = [];
   for (const tag in newMapTagToSteps) {
     let divForTag;
-    if (tag in scalars.mapTagToDiv) {
+    if (tag in o.mapTagToDiv) {
       // We've already added the div for this tag.
-      divForTag = scalars.mapTagToDiv[tag];
+      divForTag = o.mapTagToDiv[tag];
 
     } else {
       // Create a chart for this tag.
       divForTag = document.createElement('div');
       divForTag.style.width = '800px';
       divForTag.style.height = '500px';
-      parentDiv.appendChild(divForTag);
-      scalars.mapTagToDiv[tag] = divForTag;
-      scalars.mapTagToLineChart[tag] = new google.visualization.LineChart(divForTag);
-      scalars.mapTagToDataTable[tag] = new google.visualization.DataTable();
-      scalars.mapTagToDataTable[tag].addColumn('number', 'Step');
-      scalars.mapTagToDataTable[tag].addColumn('number', '');
-      this.drawChart(scalars, tag);
+      o.parentDiv.appendChild(divForTag);
+      o.mapTagToDiv[tag] = divForTag;
+      o.mapTagToLineChart[tag] = new google.visualization.LineChart(divForTag);
+      o.mapTagToDataTable[tag] = new google.visualization.DataTable();
+      o.mapTagToDataTable[tag].addColumn('number', 'Step');
+      o.mapTagToDataTable[tag].addColumn('number', '');
+      this.drawChart(o, tag);
     }
 
     if (this.util.getCurrentTabDivId() == 'scalarsTabDiv') {
       // Fill highPriorityStepAndTagPairs with the tags/steps that should be requested first because
       // they are visible.
-      if (highPriorityStepAndTagPairs.length < maxVisible) {
-        if (this.util.isVisible(divForTag)) {
-          // Add the all new steps for this tag.
-          const newSortedSteps = newMapTagToSteps[tag];
-          for (let iStep = 0; iStep < newSortedSteps.length; iStep++) {
-            const stepAndTagPair = {'step': newSortedSteps[iStep], 'tag': tag};
-            highPriorityStepAndTagPairs.push(stepAndTagPair);
-            if (highPriorityStepAndTagPairs.length == maxVisible) {
-              break;
-            }
-          }
+      if (this.util.isVisible(divForTag)) {
+        // Add the all new steps for this tag.
+        const newSortedSteps = newMapTagToSteps[tag];
+        for (let iStep = 0; iStep < newSortedSteps.length; iStep++) {
+          const stepAndTagPair = {'step': newSortedSteps[iStep], 'tag': tag};
+          highPriorityStepAndTagPairs.push(stepAndTagPair);
         }
       }
     }
@@ -687,20 +672,20 @@ fmltc.MonitorTraining.prototype.addCharts = function(scalars, newMapTagToSteps, 
   return highPriorityStepAndTagPairs;
 };
 
-fmltc.MonitorTraining.prototype.addScalarValue = function(scalars, tag, step, value) {
-  if (! (tag in scalars.mapTagToDataTable)) {
+fmltc.MonitorTraining.prototype.addScalarValue = function(o, tag, step, value) {
+  if (! (tag in o.mapTagToDataTable)) {
     // Try again in 1 second.
     console.log('Will retry addScalarValue for tag ' + tag + ' in 1 second.');
-    setTimeout(this.addScalarValue.bind(this, scalars, tag, step, value), 1000);
+    setTimeout(this.addScalarValue.bind(this, o, tag, step, value), 1000);
     return;
   }
 
-  scalars.mapTagToDataTable[tag].addRow([step, value]);
-  scalars.mapTagToDataTable[tag].sort([{column: 0}])
-  this.drawChart(scalars, tag);
+  o.mapTagToDataTable[tag].addRow([step, value]);
+  o.mapTagToDataTable[tag].sort([{column: 0}])
+  this.drawChart(o, tag);
 };
 
-fmltc.MonitorTraining.prototype.drawChart = function(scalars, tag) {
+fmltc.MonitorTraining.prototype.drawChart = function(o, tag) {
   const options = {
     width: 800,
     height: 500,
@@ -723,10 +708,10 @@ fmltc.MonitorTraining.prototype.drawChart = function(scalars, tag) {
       bold: true,
     },
   };
-  scalars.mapTagToLineChart[tag].draw(scalars.mapTagToDataTable[tag], options);
+  o.mapTagToLineChart[tag].draw(o.mapTagToDataTable[tag], options);
 };
 
-fmltc.MonitorTraining.prototype.addImages = function(images, newMapTagToSteps, parentDiv, maxVisible) {
+fmltc.MonitorTraining.prototype.addImages = function(o, newMapTagToSteps) {
   const tags = [];
   for (const tag in newMapTagToSteps) {
     if (!tags.includes(tag)) {
@@ -743,24 +728,24 @@ fmltc.MonitorTraining.prototype.addImages = function(images, newMapTagToSteps, p
 
     let divForTag;
     let stepRangeInput;
-    if (tag in images.mapTagToDiv) {
+    if (tag in o.mapTagToDiv) {
       // We've already added the div for this tag.
-      divForTag = images.mapTagToDiv[tag];
+      divForTag = o.mapTagToDiv[tag];
       // Find the stepRangeInput.
       stepRangeInput = divForTag.getElementsByTagName('INPUT')[0];
 
     } else {
-      if (parentDiv.childElementCount > 0) {
+      if (o.parentDiv.childElementCount > 0) {
         // Add a horizontal rule to separate from the previous image.
-        parentDiv.appendChild(document.createElement('br'));
-        parentDiv.appendChild(document.createElement('hr'));
-        parentDiv.appendChild(document.createElement('br'));
+        o.parentDiv.appendChild(document.createElement('br'));
+        o.parentDiv.appendChild(document.createElement('hr'));
+        o.parentDiv.appendChild(document.createElement('br'));
       }
 
       divForTag = document.createElement('div');
       divForTag.style.height = '420px';
-      parentDiv.appendChild(divForTag);
-      images.mapTagToDiv[tag] = divForTag;
+      o.parentDiv.appendChild(divForTag);
+      o.mapTagToDiv[tag] = divForTag;
 
       // Add a div to show the tag.
       const label = document.createElement('div');
@@ -776,17 +761,17 @@ fmltc.MonitorTraining.prototype.addImages = function(images, newMapTagToSteps, p
       // Add a div to show which step is selected.
       const stepLabelDiv = document.createElement('div');
       divForTag.appendChild(stepLabelDiv);
-      images.mapTagToStepLabelDiv[tag] = stepLabelDiv;
+      o.mapTagToStepLabelDiv[tag] = stepLabelDiv;
 
-      stepRangeInput.onchange = this.stepRangeInput_onchange.bind(this, images, tag);
+      stepRangeInput.onchange = this.stepRangeInput_onchange.bind(this, o, tag);
     }
 
     let mapStepToImg;
-    if (tag in images.mapTagToImgs) {
-      mapStepToImg = images.mapTagToImgs[tag];
+    if (tag in o.mapTagToImgs) {
+      mapStepToImg = o.mapTagToImgs[tag];
     } else {
       mapStepToImg = {};
-      images.mapTagToImgs[tag] = mapStepToImg;
+      o.mapTagToImgs[tag] = mapStepToImg;
     }
 
     for (let iStep = 0; iStep < newSortedSteps.length; iStep++) {
@@ -806,18 +791,16 @@ fmltc.MonitorTraining.prototype.addImages = function(images, newMapTagToSteps, p
 
     // Set the stepRangeInput's max to the number of steps. (not just new steps, but all steps for
     // this tag)
-    const sortedSteps = images.mapTagToSteps[tag];
+    const sortedSteps = o.mapTagToSteps[tag];
     stepRangeInput.max = sortedSteps.length - 1;
 
     if (this.util.getCurrentTabDivId() == 'imagesTabDiv') {
       // Fill highPriorityStepAndTagPairs with the tags/steps that should be requested first because
       // they are visible.
-      if (highPriorityStepAndTagPairs.length < maxVisible) {
-        if (this.util.isVisible(divForTag)) {
-          // Add the largest new step for this tag.
-          const stepAndTagPair = {'step': newSortedSteps[newSortedSteps.length-1], 'tag': tag};
-          highPriorityStepAndTagPairs.push(stepAndTagPair);
-        }
+      if (this.util.isVisible(divForTag)) {
+        // Add the largest new step for this tag.
+        const stepAndTagPair = {'step': newSortedSteps[newSortedSteps.length-1], 'tag': tag};
+        highPriorityStepAndTagPairs.push(stepAndTagPair);
       }
     }
   }
@@ -851,17 +834,17 @@ fmltc.MonitorTraining.prototype.compareImageTags = function(a, b) {
   }
 };
 
-fmltc.MonitorTraining.prototype.stepRangeInput_onchange = function(images, tag) {
-  const divForTag = images.mapTagToDiv[tag];
+fmltc.MonitorTraining.prototype.stepRangeInput_onchange = function(o, tag) {
+  const divForTag = o.mapTagToDiv[tag];
   const stepRangeInput = divForTag.getElementsByTagName('INPUT')[0];
-  const stepLabelDiv = images.mapTagToStepLabelDiv[tag];
-  const sortedSteps = images.mapTagToSteps[tag];
+  const stepLabelDiv = o.mapTagToStepLabelDiv[tag];
+  const sortedSteps = o.mapTagToSteps[tag];
 
   const selectedIndex = stepRangeInput.value;
   const selectedStep = sortedSteps[selectedIndex];
   stepLabelDiv.textContent = 'Step: ' + new Number(selectedStep).toLocaleString();
 
-  const mapStepToImg = images.mapTagToImgs[tag];
+  const mapStepToImg = o.mapTagToImgs[tag];
   let found = false;
   for (let i = 0; i < sortedSteps.length; i++) {
     const step = sortedSteps[i];
@@ -878,45 +861,45 @@ fmltc.MonitorTraining.prototype.stepRangeInput_onchange = function(images, tag) 
   }
 };
 
-fmltc.MonitorTraining.prototype.addImageValue = function(images, tag, step, value, delayForImage) {
-  if (! (tag in images.mapTagToImgs)) {
+fmltc.MonitorTraining.prototype.addImageValue = function(o, tag, step, value, delayForImage) {
+  if (! (tag in o.mapTagToImgs)) {
     // Try again in 1 second.
     console.log('Will retry addImageValue for tag ' + tag + ' in 1 second.');
-    setTimeout(this.addImageValue.bind(this, images, tag, step, value, delayForImage), 1000);
+    setTimeout(this.addImageValue.bind(this, o, tag, step, value, delayForImage), 1000);
     return;
   }
 
-  setTimeout(this.retrieveImage.bind(this, images, tag, step, value, 0), delayForImage);
+  setTimeout(this.retrieveImage.bind(this, o, tag, step, value, 0), delayForImage);
 };
 
-fmltc.MonitorTraining.prototype.retrieveImage = function(images, tag, step, value, failureCount) {
+fmltc.MonitorTraining.prototype.retrieveImage = function(o, tag, step, value, failureCount) {
   const xhr = new XMLHttpRequest();
   xhr.open('GET', value.image_url, true);
   xhr.responseType = 'blob';
   xhr.onreadystatechange = this.xhr_retrieveImage_onreadystatechange.bind(this, xhr,
-      images, tag, step, value, failureCount);
+      o, tag, step, value, failureCount);
   xhr.send(null);
 };
 
 fmltc.MonitorTraining.prototype.xhr_retrieveImage_onreadystatechange = function(xhr,
-    images, tag, step, value, failureCount) {
+    o, tag, step, value, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      const mapStepToImg = images.mapTagToImgs[tag];
+      const mapStepToImg = o.mapTagToImgs[tag];
       const img = mapStepToImg[step];
       img.src = window.URL.createObjectURL(xhr.response);
       img.setAttribute('width', value.width / 3);
       img.setAttribute('height', value.height / 3);
 
-      const sortedSteps = images.mapTagToSteps[tag];
+      const sortedSteps = o.mapTagToSteps[tag];
       if (step == sortedSteps[sortedSteps.length-1]) {
 
-        const divForTag = images.mapTagToDiv[tag];
+        const divForTag = o.mapTagToDiv[tag];
         const stepRangeInput = divForTag.getElementsByTagName('INPUT')[0];
         stepRangeInput.value = stepRangeInput.max;
-        this.stepRangeInput_onchange(images, tag);
+        this.stepRangeInput_onchange(o, tag);
       }
 
     } else {
@@ -924,7 +907,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveImage_onreadystatechange = function(
       if (failureCount < 5) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry ' + value.image_url + ' in ' + delay + ' seconds.');
-        setTimeout(this.retrieveImage.bind(this, images, tag, step, value, failureCount), delay * 1000);
+        setTimeout(this.retrieveImage.bind(this, o, tag, step, value, failureCount), delay * 1000);
       } else {
         // TODO(lizlooney): handle error properly.
         console.log('Unable to retrieve an image with url ' + value.image_url);
