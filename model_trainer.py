@@ -160,8 +160,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             .replace('TO_BE_CONFIGURED/label_map_path', label_map_path)
             .replace('TO_BE_CONFIGURED/eval_input_path', json.dumps(eval_input_path))
             .replace('TO_BE_CONFIGURED/num_examples', str(eval_frame_count))
-            # TODO(lizlooney): Adjust num_visualizations.
-            .replace('TO_BE_CONFIGURED/num_visualizations', str(10))
+            .replace('TO_BE_CONFIGURED/num_visualizations', str(eval_frame_count))
             # TODO(lizlooney): Adjust eval_interval_secs.
             .replace('TO_BE_CONFIGURED/eval_interval_secs', str(300))
             .replace('TO_BE_CONFIGURED/num_training_steps', str(num_training_steps))
@@ -439,8 +438,8 @@ def retrieve_tags_and_steps(team_uuid, model_uuid, job, value_type):
             else:
                 continue
             pair = {
-              'step': event.step,
-              'tag': value.tag,
+                'step': event.step,
+                'tag': value.tag,
             }
             step_and_tag_pairs.append(pair)
     return step_and_tag_pairs
