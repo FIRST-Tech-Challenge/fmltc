@@ -587,7 +587,8 @@ def retrieve_summary_items():
     model_uuid = data.get('model_uuid')
     job = data.get('job')
     value_type = data.get('value_type')
-    # Create a dict from step to array of tags.
+    # Create a dict from step to array of tags. This is the most efficient way to get the summary
+    # items from the event file.
     dict_step_to_tags = {}
     i = 0
     while True:

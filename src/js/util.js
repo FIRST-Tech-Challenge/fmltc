@@ -32,7 +32,8 @@ fmltc.Util = function(pageBasename, preferences, startingModels) {
   this.startingModels = startingModels;
 
   this.currentTabDivId = '';
-  this.tabListeners = [];
+  this.tabClickListeners = [];
+  this.tabResizeListeners = [];
 
   const logoutButton = document.getElementById('logoutButton');
   if (logoutButton) {
@@ -96,22 +97,7 @@ fmltc.Util.prototype.setPreference = function(key, value) {
       '&value=' + encodeURIComponent(value);
   xhr.open('POST', '/setUserPreference', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_setUserPreference_onreadystatechange.bind(this, xhr, params);
   xhr.send(params);
-};
-
-fmltc.Util.prototype.xhr_setUserPreference_onreadystatechange = function(xhr, params) {
-  if (xhr.readyState === 4) {
-    xhr.onreadystatechange = null;
-
-    if (xhr.status === 200) {
-      //console.log('Success! /setUserPreferences');
-    } else {
-      // TODO(lizlooney): handle error properly
-      console.log('Failure! /setUserPreferences?' + params +
-          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-    }
-  }
 };
 
 fmltc.Util.prototype.setWaitCursor = function() {
@@ -223,6 +209,9 @@ fmltc.Util.prototype.window_onresize = function() {
   const height = (window.innerHeight - maxOffset) + 'px';
   for (let i = 0; i < tabDivs.length; i++) {
     tabDivs[i].style.height = height;
+    for (let j = 0; j < this.tabResizeListeners.length; j++) {
+      this.tabResizeListeners[j](tabDivs[i]);
+    }
   }
 };
 
@@ -237,8 +226,12 @@ fmltc.Util.prototype.showLastViewedTab = function() {
   }
 };
 
-fmltc.Util.prototype.addTabListener = function(tabListener) {
-  this.tabListeners.push(tabListener);
+fmltc.Util.prototype.addTabClickListener = function(tabClickListener) {
+  this.tabClickListeners.push(tabClickListener);
+};
+
+fmltc.Util.prototype.addTabResizeListener = function(tabResizeListener) {
+  this.tabResizeListeners.push(tabResizeListener);
 };
 
 fmltc.Util.prototype.getCurrentTabDivId = function() {
@@ -276,8 +269,8 @@ fmltc.Util.prototype.tabDiv_onclick = function(idPrefix) {
   this.setPreference(this.pageBasename + '.currentTab', idPrefix);
 
   this.currentTabDivId = idPrefix + 'Div';
-  for (let i = 0; i < this.tabListeners.length; i++) {
-    this.tabListeners[i](this.currentTabDivId);
+  for (let i = 0; i < this.tabClickListeners.length; i++) {
+    this.tabClickListeners[i](this.currentTabDivId);
   }
 };
 
@@ -391,9 +384,20 @@ fmltc.Util.prototype.compare = function(a, b) {
   return (a > b) ? 1 : ((a < b) ? -1 : 0);
 };
 
+fmltc.Util.prototype.isDisplayed = function(element, stopBeforeElement) {
+  let e = element;
+  while (e && e != stopBeforeElement) {
+    if (e.style.display == 'none') {
+      return false;
+    }
+    e = e.parentElement;
+  }
+  return true;
+};
+
 fmltc.Util.prototype.isVisible = function(element) {
-  var rect = element.getBoundingClientRect();
-  var viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
+  const rect = element.getBoundingClientRect();
+  const viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
   if (rect.bottom < 0) {
     // Element is above.
     return false;
