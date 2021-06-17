@@ -54,7 +54,14 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, totalFrameCount, onDatas
   this.trainPercentInput.disabled = false;
   this.evalPercentInput.disabled = false;
 
-  this.trainPercentInput.value = 80;
+  // Pick percent values so that (by default) there aren't more than 100 eval images.
+  if (totalFrameCount * 0.2 < 100) {
+    this.trainPercentInput.value = 80;
+  } else if (totalFrameCount * 0.1 < 100) {
+    this.trainPercentInput.value = 90;
+  } else {
+    this.trainPercentInput.value = Math.min(99, Math.ceil(100 - 10000 / totalFrameCount));
+  }
   this.evalPercentInput.value = 100 - this.trainPercentInput.value;
   this.descriptionInput.value = '';
 

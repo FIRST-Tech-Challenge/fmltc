@@ -90,12 +90,16 @@ body {
 }
 
 .cellWithBorder {
-  border: 1px solid #dddddd;
+  border: 1px solid #ccc;
   padding: 8px;
 }
 
+.borderTopNone {
+  border-top: none;
+}
+
 .cellWithBorderLeftPadding {
-  border: 1px solid #dddddd;
+  border: 1px solid #ccc;
   padding-left: 2px;
 }
 
@@ -127,6 +131,16 @@ body {
   padding: 0;
   border: none;
 }
+
+.evalImagesDiv {
+  overflow: auto;
+  border-top: 1px solid #ccc;
+}
+
+.pageButtonsDiv {
+  border: none;
+}
+
 
 /* Modal dialog rules */
 
@@ -169,6 +183,7 @@ body {
 .tabButtonsDiv {
   overflow: hidden;
   border: 1px solid #ccc;
+  border-bottom: none;
   background-color: #ffffff;
 }
 
@@ -195,9 +210,7 @@ body {
 .tabDiv {
   overflow: auto;
   display: none;
-  padding: 6px 6px;
   border: 1px solid #ccc;
-  border-top: none;
 }
 
 /* Loader */

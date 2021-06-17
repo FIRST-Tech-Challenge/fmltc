@@ -68,7 +68,7 @@ limitations under the License.
 <div id="modelTabDiv" class="tabDiv">
   <table class="collapsedBorder">
     <tr>
-      <td valign="top" class="cellWithBorder">
+      <td valign="top" class="cellWithBorder borderTopNone">
         <table>
           <tr>
             <th align="left" class="labelCellInModelTable">Date Created</th>
@@ -96,7 +96,7 @@ limitations under the License.
           </tr>
         </table>
       </td>
-      <td valign="top" class="cellWithBorder">
+      <td valign="top" class="cellWithBorder borderTopNone">
         <div class="text-18">Training</div>
         <table>
           <tr>
@@ -130,7 +130,7 @@ limitations under the License.
           </tr>
         </table>
       </td>
-      <td valign="top" class="cellWithBorder">
+      <td valign="top" class="cellWithBorder borderTopNone">
         <div class="text-18">Evaluation</div>
         <table>
           <tr>
@@ -165,8 +165,23 @@ limitations under the License.
   <div id="evalScalarsDiv"></div>
 </div>
 
-<div id="imagesTabDiv" class="tabDiv">
-  <div id="evalImagesDiv"></div>
+<div id="imagesTabDiv" class="tabDiv" style="overflow: hidden;">
+  <div class="pageButtonsDiv">
+    <table style="width: 100%"><tr>
+      <td align="right">
+        <span id="currentPageSpan"></span>
+        <button id="firstPageButton" title="Go to the first page of images" disabled="true"
+             class="material-icons iconVerticalAlign text-24">first_page</button>
+        <button id="previousPageButton" title="Go to the previous page of images" disabled="true"
+             class="material-icons iconVerticalAlign text-24">navigate_before</button>
+        <button id="nextPageButton" title="Go to the next page of images" disabled="true"
+             class="material-icons iconVerticalAlign text-24">navigate_next</button>
+        <button id="lastPageButton" title="Go to the last page of images" disabled="true"
+             class="material-icons iconVerticalAlign text-24">last_page</button>
+      </td>
+    </tr></table>
+  </div>
+  <div id="evalImagesDiv" class="evalImagesDiv"></div>
 </div>
 
 <script type="text/javascript">
