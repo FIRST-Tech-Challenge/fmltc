@@ -384,6 +384,12 @@ fmltc.Util.prototype.compare = function(a, b) {
   return (a > b) ? 1 : ((a < b) ? -1 : 0);
 };
 
+fmltc.Util.prototype.compareCaseInsensitive = function(a, b) {
+  a = a.toUpperCase();
+  b = b.toUpperCase();
+  return (a > b) ? 1 : ((a < b) ? -1 : 0);
+};
+
 fmltc.Util.prototype.isDisplayed = function(element, stopBeforeElement) {
   let e = element;
   while (e && e != stopBeforeElement) {

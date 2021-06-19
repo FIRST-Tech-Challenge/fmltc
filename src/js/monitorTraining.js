@@ -44,7 +44,9 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.refreshButton = document.getElementById('refreshButton');
   this.trainTimeTd = document.getElementById('trainTimeTd');
   this.trainingScalarsDiv = document.getElementById('trainingScalarsDiv');
+  this.trainingScalarsHeading = document.getElementById('trainingScalarsHeading');
   this.evalScalarsDiv = document.getElementById('evalScalarsDiv');
+  this.evalScalarsHeading = document.getElementById('evalScalarsHeading');
   this.firstPageButton = document.getElementById('firstPageButton');
   this.previousPageButton = document.getElementById('previousPageButton');
   this.nextPageButton = document.getElementById('nextPageButton');
@@ -76,6 +78,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.trainingScalars.job = 'training';
   this.trainingScalars.valueType = 'scalar';
   this.trainingScalars.maxItemsPerRequest = 50;
+  this.trainingScalars.scalarsHeading = this.trainingScalarsHeading;
   this.trainingScalars.parentDiv = this.trainingScalarsDiv;
   this.trainingScalars.mapTagToSteps = {}; // map<tag, sortedArray<step>>
   this.trainingScalars.sortedTags = [];
@@ -90,6 +93,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.evalScalars.job = 'eval';
   this.evalScalars.valueType = 'scalar';
   this.evalScalars.maxItemsPerRequest = 50;
+  this.evalScalars.scalarsHeading = this.evalScalarsHeading;
   this.evalScalars.parentDiv = this.evalScalarsDiv;
   this.evalScalars.mapTagToSteps = {}; // map<tag, sortedArray<step>>
   this.evalScalars.sortedTags = [];
@@ -669,7 +673,7 @@ fmltc.MonitorTraining.prototype.addCharts = function(o, newMapTagToSteps) {
       o.sortedTags.push(tag);
     }
   }
-  o.sortedTags.sort();
+  o.sortedTags.sort(this.util.compareCaseInsensitive.bind(this.util));
 
   for (let iTag = 0; iTag < o.sortedTags.length; iTag++) {
     const tag = o.sortedTags[iTag];
@@ -741,6 +745,9 @@ fmltc.MonitorTraining.prototype.drawChart = function(o, tag) {
     },
   };
   o.mapTagToLineChart[tag].draw(o.mapTagToDataTable[tag], options);
+  if (o.sortedTags[0] == tag) {
+    o.scalarsHeading.style.display = 'block';
+  }
 };
 
 fmltc.MonitorTraining.prototype.addImages = function(o, newMapTagToSteps) {
@@ -853,11 +860,9 @@ fmltc.MonitorTraining.prototype.compareImageTags = function(a, b) {
     for (let i = 1; i < aResult.length; i++) {
       let ar = aResult[i];
       let br = bResult[i];
-      if (this.util.isNumeric(aResult[i]) && this.util.isNumeric(bResult[i])) {
-        ar = parseFloat(ar);
-        br = parseFloat(br);
-      }
-      let result = this.util.compare(ar, br);
+      let result = (this.util.isNumeric(aResult[i]) && this.util.isNumeric(bResult[i]))
+        ? this.util.compare(parseFloat(ar), parseFloat(br))
+        : this.util.compareCaseInsensitive(ar, br);
       if (result != 0) {
         return result;
       }
