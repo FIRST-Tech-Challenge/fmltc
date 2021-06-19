@@ -78,6 +78,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.trainingScalars.maxItemsPerRequest = 50;
   this.trainingScalars.parentDiv = this.trainingScalarsDiv;
   this.trainingScalars.mapTagToSteps = {}; // map<tag, sortedArray<step>>
+  this.trainingScalars.sortedTags = [];
   this.trainingScalars.mapTagToDiv = {}; // map<tag, div>
   this.trainingScalars.mapTagToLineChart = {}; // map<tag, LineChart>
   this.trainingScalars.mapTagToDataTable = {}; // map<tag, DataTable>
@@ -90,8 +91,9 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.evalScalars.valueType = 'scalar';
   this.evalScalars.maxItemsPerRequest = 50;
   this.evalScalars.parentDiv = this.evalScalarsDiv;
-  this.evalScalars.mapTagToDiv = {}; // map<tag, div>
   this.evalScalars.mapTagToSteps = {}; // map<tag, sortedArray<step>>
+  this.evalScalars.sortedTags = [];
+  this.evalScalars.mapTagToDiv = {}; // map<tag, div>
   this.evalScalars.mapTagToLineChart = {}; // map<tag, LineChart>
   this.evalScalars.mapTagToDataTable = {}; // map<tag, DataTable>
   // items has properties whose names are <step>_<tag> and values are objects with properties
@@ -131,6 +133,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
 
   this.tab_onresize(document.getElementById('imagesTabDiv'));
   this.util.addTabResizeListener(this.tab_onresize.bind(this));
+  this.util.addTabClickListener(this.tab_onclick.bind(this));
 
   document.getElementById('dismissButton').onclick = this.dismissButton_onclick.bind(this);
   this.cancelTrainingButton.onclick = this.cancelTrainingButton_onclick.bind(this);
@@ -662,23 +665,32 @@ fmltc.MonitorTraining.prototype.addCharts = function(o, newMapTagToSteps) {
   }
 
   for (const tag in newMapTagToSteps) {
+    if (!o.sortedTags.includes(tag)) {
+      o.sortedTags.push(tag);
+    }
+  }
+  o.sortedTags.sort();
+
+  for (let iTag = 0; iTag < o.sortedTags.length; iTag++) {
+    const tag = o.sortedTags[iTag];
     let divForTag;
     if (tag in o.mapTagToDiv) {
       // We've already added the div for this tag.
       divForTag = o.mapTagToDiv[tag];
 
     } else {
-      // Create a chart for this tag.
+      // Create a div and DataTable for this tag.
       divForTag = document.createElement('div');
       divForTag.style.width = '800px';
       divForTag.style.height = '500px';
       o.parentDiv.appendChild(divForTag);
       o.mapTagToDiv[tag] = divForTag;
-      o.mapTagToLineChart[tag] = new google.visualization.LineChart(divForTag);
       o.mapTagToDataTable[tag] = new google.visualization.DataTable();
       o.mapTagToDataTable[tag].addColumn('number', 'Step');
       o.mapTagToDataTable[tag].addColumn('number', '');
-      this.drawChart(o, tag);
+      // If the scalars tab isn't visible, creating the LineChart here causes a bug where the
+      // y-axis doesn't have any numbers. Instead, we create the LineChart in drawChart, only if
+      // the scalars tab is visible.
     }
   }
 };
@@ -697,6 +709,15 @@ fmltc.MonitorTraining.prototype.addScalarValue = function(o, tag, step, value) {
 };
 
 fmltc.MonitorTraining.prototype.drawChart = function(o, tag) {
+  if (this.util.getCurrentTabDivId() != 'scalarsTabDiv') {
+    // To prevent a bug where the y-axis numbers are not displayed on the chart, we don't create
+    // the LineChart if the scalars tab is not visible.
+    return;
+  }
+  if (! (tag in o.mapTagToLineChart)) {
+    // Create the LineChart if we haven't already.
+    o.mapTagToLineChart[tag] = new google.visualization.LineChart(o.mapTagToDiv[tag]);
+  }
   const options = {
     width: 800,
     height: 500,
@@ -1005,5 +1026,22 @@ fmltc.MonitorTraining.prototype.tab_onresize = function(tabDiv) {
       }
     }
     this.evalImagesDiv.style.height = remainingHeight + 'px';
+  }
+};
+
+fmltc.MonitorTraining.prototype.tab_onclick = function(tabDivId) {
+  if (tabDivId == 'scalarsTabDiv') {
+    // For all scalar tags, if the LineChart hasn't already been created, call drawChart.
+    const scalars = [this.trainingScalars, this.evalScalars];
+    for (let i = 0; i < scalars.length; i++) {
+      const o = scalars[i];
+      for (const tag in o.mapTagToDiv) {
+        if (tag in o.mapTagToLineChart) {
+          // We've already created the LineChart. We don't need to call drawChart.
+          continue;
+        }
+        this.drawChart(o, tag);
+      }
+    }
   }
 };
