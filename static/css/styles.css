@@ -213,6 +213,10 @@ body {
   border: 1px solid #ccc;
 }
 
+.scalarHeading {
+  font-size: 20px;
+}
+
 /* Loader */
 
 .loader {
