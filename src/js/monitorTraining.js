@@ -751,9 +751,6 @@ fmltc.MonitorTraining.prototype.drawChart = function(o, tag) {
 };
 
 fmltc.MonitorTraining.prototype.addImages = function(o, newMapTagToSteps) {
-  // This code assumes that each step will have the same tags. It tags are
-  // sorted and the first 10 tags are on page 1, the next 10 are on page 2, etc.
-
   // Create page divs.
   const pageCount = Math.ceil(Object.keys(o.mapTagToSteps).length / 10);
   while (o.pageDivs.length < pageCount) {
@@ -774,7 +771,6 @@ fmltc.MonitorTraining.prototype.addImages = function(o, newMapTagToSteps) {
 
   for (let iTag = 0; iTag < o.sortedTags.length; iTag++) {
     const tag = o.sortedTags[iTag];
-    const newSortedSteps = newMapTagToSteps[tag];
 
     let divForTag;
     let stepRangeInput;
@@ -827,19 +823,22 @@ fmltc.MonitorTraining.prototype.addImages = function(o, newMapTagToSteps) {
       o.mapTagToImgs[tag] = mapStepToImg;
     }
 
-    for (let iStep = 0; iStep < newSortedSteps.length; iStep++) {
-      const step = newSortedSteps[iStep];
-      if (step in mapStepToImg) {
-        // We already have an img for this step.
-        continue;
-      }
+    if (tag in newMapTagToSteps) {
+      const newSortedSteps = newMapTagToSteps[tag];
+      for (let iStep = 0; iStep < newSortedSteps.length; iStep++) {
+        const step = newSortedSteps[iStep];
+        if (step in mapStepToImg) {
+          // We already have an img for this step.
+          continue;
+        }
 
-      // Create an img for this step.
-      const img = document.createElement('img');
-      img.src = '//:0';
-      img.style.display = 'none';
-      divForTag.appendChild(img);
-      mapStepToImg[step] = img;
+        // Create an img for this step.
+        const img = document.createElement('img');
+        img.src = '//:0';
+        img.style.display = 'none';
+        divForTag.appendChild(img);
+        mapStepToImg[step] = img;
+      }
     }
 
     // Set the stepRangeInput's max to the number of steps. (not just new steps, but all steps for
