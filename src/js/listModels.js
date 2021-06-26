@@ -48,6 +48,7 @@ fmltc.ListModels = function(util) {
   this.trs = [];
   this.checkboxes = [];
   this.trainStateTds = [];
+  this.trainedStepsTds = [];
   this.trainTimeTds = [];
   this.trainingDone = [];
 
@@ -131,11 +132,14 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
     const originalStartingModelTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     originalStartingModelTd.textContent = modelEntity.original_starting_model;
 
-    const totalTrainingStepsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    totalTrainingStepsTd.setAttribute('align', 'right');
-    totalTrainingStepsTd.textContent = modelEntity.total_training_steps;
+    const numTrainingStepsTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    numTrainingStepsTd.setAttribute('align', 'right');
+    numTrainingStepsTd.textContent = new Number(modelEntity.num_training_steps).toLocaleString();
 
     this.trainStateTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
+
+    this.trainedStepsTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
+    this.trainedStepsTds[i].setAttribute('align', 'right');
 
     this.trainTimeTds[i] = this.util.insertCellWithClass(tr, 'cellWithBorder');
     this.trainTimeTds[i].setAttribute('align', 'right');
@@ -147,6 +151,9 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
 
   this.trainStateTds[i].textContent = this.util.formatJobState(
       modelEntity.cancel_requested, modelEntity.train_job_state);
+
+  this.trainedStepsTds[i].textContent =
+      new Number(modelEntity.trained_steps).toLocaleString();
 
   if (modelEntity.train_job_elapsed_seconds > 0) {
     this.trainTimeTds[i].textContent =
@@ -293,7 +300,7 @@ fmltc.ListModels.prototype.xhr_cancelTraining_onreadystatechange = function(xhr,
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      console.log('Success! /cancelTrainingModel');
+      //console.log('Success! /cancelTrainingModel');
       const response = JSON.parse(xhr.responseText);
 
       const modelEntity = response.model_entity;
@@ -392,6 +399,7 @@ fmltc.ListModels.prototype.xhr_deleteModel_onreadystatechange = function(xhr, pa
         this.checkboxes[i].onclick = null;
         this.checkboxes.splice(i, 1);
         this.trainStateTds.splice(i, 1);
+        this.trainedStepsTds.splice(i, 1);
         this.trainTimeTds.splice(i, 1);
         this.updateButtons();
         if (this.modelEntityArray.length == 0) {
@@ -427,10 +435,6 @@ fmltc.ListModels.prototype.updateButtons = function() {
       if (this.util.isTrainingDone(this.modelEntityArray[i])) {
         canCancelTraining = false;
 
-        if (this.modelEntityArray[i].train_job_state != 'SUCCEEDED') {
-          canTrainMore = false;
-          canDownloadTFLite = false;
-        }
         if (this.modelEntityArray[i].trained_checkpoint_path == '') {
           canTrainMore = false;
           canDownloadTFLite = false;

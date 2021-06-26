@@ -118,7 +118,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         sorted_label_list = None
         label_map_path = None
         if starting_model_entity is not None:
-            previous_training_steps += starting_model_entity['previous_training_steps']
+            previous_training_steps = starting_model_entity['total_training_steps']
             dataset_uuids.extend(starting_model_entity['dataset_uuids'])
             train_input_path.extend(starting_model_entity['train_input_path'])
             eval_input_path.extend(starting_model_entity['eval_input_path'])
@@ -152,19 +152,17 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         # Create the pipeline.config file and store it in cloud storage.
         bucket = util.storage_client().get_bucket(BUCKET)
         config_template_blob_name = 'static/training/models/configs/%s.config' % original_starting_model
-        quantization_delay = max(0, num_training_steps - 200)
         pipeline_config = (bucket.blob(config_template_blob_name).download_as_string().decode('utf-8')
-            .replace('TO_BE_CONFIGURED/num_classes', str(len(sorted_label_list)))
-            .replace('TO_BE_CONFIGURED/fine_tune_checkpoint', fine_tune_checkpoint)
-            .replace('TO_BE_CONFIGURED/train_input_path',  json.dumps(train_input_path))
-            .replace('TO_BE_CONFIGURED/label_map_path', label_map_path)
             .replace('TO_BE_CONFIGURED/eval_input_path', json.dumps(eval_input_path))
+            .replace('TO_BE_CONFIGURED/eval_interval_secs', str(1))
+            .replace('TO_BE_CONFIGURED/fine_tune_checkpoint', fine_tune_checkpoint)
+            .replace('TO_BE_CONFIGURED/label_map_path', label_map_path)
+            .replace('TO_BE_CONFIGURED/num_classes', str(len(sorted_label_list)))
             .replace('TO_BE_CONFIGURED/num_examples', str(eval_frame_count))
-            .replace('TO_BE_CONFIGURED/num_visualizations', str(eval_frame_count))
-            # TODO(lizlooney): Adjust eval_interval_secs.
-            .replace('TO_BE_CONFIGURED/eval_interval_secs', str(300))
             .replace('TO_BE_CONFIGURED/num_training_steps', str(num_training_steps))
-            .replace('TO_BE_CONFIGURED/quantization_delay', str(quantization_delay))
+            .replace('TO_BE_CONFIGURED/num_visualizations', str(eval_frame_count))
+            .replace('TO_BE_CONFIGURED/quantization_delay', str(max(0, num_training_steps - 200)))
+            .replace('TO_BE_CONFIGURED/train_input_path',  json.dumps(train_input_path))
             )
         pipeline_config_path = blob_storage.store_pipeline_config(team_uuid, model_uuid, pipeline_config)
 
@@ -191,7 +189,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
                 '--pipeline_config_path', pipeline_config_path,
                 '--num_train_steps', str(num_training_steps),
 
-                # Note(lizloone) I commented out the tpu_zone argument after jobs were failing on
+                # Note(lizlooney) I commented out the tpu_zone argument after jobs were failing on
                 # July 10, 2020. I found documentation at
                 # https://cloud.google.com/ai-platform/training/docs/using-tpus#connecting_to_the_tpu_grpc_server
                 # that says "However, you must make one important change when you use
@@ -208,7 +206,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             #},
             'region': 'us-central1', # Don't hardcode?
             'jobDir': job_dir,
-            'runtimeVersion': '1.15',
+            'runtimeVersion': '1.15', # Not supported beginning September 30, 2021
             'pythonVersion': '3.7',
             'scheduling': scheduling,
         }
@@ -238,11 +236,12 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
                 'args': [
                     '--model_dir', model_dir,
                     '--pipeline_config_path', pipeline_config_path,
+                    '--num_train_steps', str(num_training_steps),
                     '--checkpoint_dir', checkpoint_dir,
                 ],
                 'region': 'us-central1',
                 'jobDir': job_dir,
-                'runtimeVersion': '1.15',
+                'runtimeVersion': '1.15', # Not supported beginning September 30, 2021
                 'pythonVersion': '3.7',
             }
             eval_job = {
@@ -274,16 +273,16 @@ def retrieve_model_list(team_uuid):
     model_entities = storage.retrieve_model_list(team_uuid)
     ml = None
     for model_entity in model_entities:
-        model_entity, ml = update_model_entity(model_entity, ml)
+        model_entity, ml = update_model_entity_job_state(model_entity, ml)
     return model_entities
 
 def retrieve_model_entity(team_uuid, model_uuid):
     model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
-    model_entity, _ = update_model_entity(model_entity)
+    model_entity, _ = update_model_entity_job_state(model_entity)
     return model_entity
 
-def update_model_entity(model_entity, ml=None):
-    # If the train and eval jobs weren't done last time we checked, check now.
+def update_model_entity_job_state(model_entity, ml=None):
+    # If the training and eval jobs weren't done last time we checked, check now.
     if is_not_done(model_entity):
         if ml is None:
             ml = __get_ml_service()
@@ -292,14 +291,17 @@ def update_model_entity(model_entity, ml=None):
         if model_entity['eval_job']:
             eval_job_name = __get_eval_job_name(model_entity['model_uuid'])
             eval_job_response = ml.projects().jobs().get(name=eval_job_name).execute()
-            # If the train job has failed or been cancelled, cancel the eval job is it's still alive.
+            # If the training job has failed or been cancelled, cancel the eval job is it's still alive.
             if __is_dead_or_dying(train_job_response['state']) and __is_alive(eval_job_response['state']):
                 ml.projects().jobs().cancel(name=eval_job_name).execute()
                 eval_job_response = ml.projects().jobs().get(name=eval_job_name).execute()
         else:
             eval_job_response = None
-        model_entity = storage.update_model_entity(
+        model_entity = storage.update_model_entity_job_state(
             model_entity['team_uuid'], model_entity['model_uuid'], train_job_response, eval_job_response)
+    if 'trained_steps' not in model_entity:
+        model_entity = storage.update_model_entity_trained_steps(
+            model_entity['team_uuid'], model_entity['model_uuid'])
     return model_entity, ml
 
 def is_not_done(model_entity):
@@ -375,12 +377,12 @@ def __is_done(state):
 
 
 def make_action_parameters(team_uuid, model_uuid):
-    action_parameters = action.create_action_parameters(action.ACTION_NAME_EXTRACT_SUMMARY_IMAGES)
+    action_parameters = action.create_action_parameters(action.ACTION_NAME_MONITOR_TRAINING)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['model_uuid'] = model_uuid
     return action_parameters
 
-def extract_summary_images(action_parameters):
+def monitor_training(action_parameters):
     team_uuid = action_parameters['team_uuid']
     model_uuid = action_parameters['model_uuid']
 
@@ -390,18 +392,24 @@ def extract_summary_images(action_parameters):
     while True:
         model_entity = retrieve_model_entity(team_uuid, model_uuid)
 
-        training_folder, training_event_file_path, training_updated = blob_storage.get_training_event_file_path(
-                team_uuid, model_uuid)
+        training_folder, training_event_file_path, training_updated = blob_storage.get_event_file_path(
+                team_uuid, model_uuid, 'train')
         if training_event_file_path is not None and training_updated != previous_training_updated:
-            __extract_summary_images_for_event_file(team_uuid, model_uuid,
+            train_scalar_summary_items, train_image_summary_items = __monitor_training_for_event_file(
+                team_uuid, model_uuid,
                 training_folder, training_event_file_path, action_parameters)
+            storage.update_model_entity_summary_items(team_uuid, model_uuid,
+                'train', train_scalar_summary_items, train_image_summary_items)
         previous_training_updated = training_updated
 
         eval_folder, eval_event_file_path, eval_updated = blob_storage.get_event_file_path(
                 team_uuid, model_uuid, 'eval')
         if eval_event_file_path is not None and eval_updated != previous_eval_updated:
-            __extract_summary_images_for_event_file(team_uuid, model_uuid,
+            eval_scalar_summary_items, eval_image_summary_items = __monitor_training_for_event_file(
+                team_uuid, model_uuid,
                 eval_folder, eval_event_file_path, action_parameters)
+            storage.update_model_entity_summary_items(team_uuid, model_uuid,
+                'eval', eval_scalar_summary_items, eval_image_summary_items)
         previous_eval_updated = eval_updated
 
         if is_done(model_entity):
@@ -412,18 +420,88 @@ def extract_summary_images(action_parameters):
         action.retrigger_if_necessary(action_parameters)
 
 
-def __extract_summary_images_for_event_file(team_uuid, model_uuid, folder, event_file_path,
+def __makeKey(step, tag):
+    return str(step) + '_' + tag
+
+
+def __monitor_training_for_event_file(team_uuid, model_uuid, folder, event_file_path,
         action_parameters):
+    scalar_summary_items = {}
+    image_summary_items = {}
     for event in summary_iterator(event_file_path):
         action.retrigger_if_necessary(action_parameters)
         for value in event.summary.value:
+            if value.HasField('simple_value'):
+                item = {
+                    'step': event.step,
+                    'tag': value.tag,
+                    'value_type': 'scalar',
+                    'value': value.simple_value,
+                }
+                scalar_summary_items[__makeKey(event.step, value.tag)] = item
             if value.HasField('image'):
                 blob_storage.store_event_summary_image(team_uuid, model_uuid,
                     folder, event.step, value.tag, value.image.encoded_image_string)
+                item = {
+                    'step': event.step,
+                    'tag': value.tag,
+                    'value_type': 'image',
+                    'folder': folder,
+                    'width': value.image.width,
+                    'height': value.image.height,
+                }
+                image_summary_items[__makeKey(event.step, value.tag)] = item
+    return scalar_summary_items, image_summary_items
 
-def retrieve_tags_and_steps(team_uuid, model_uuid, job, value_type):
+def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
+    model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    summary_items_field_name = job_type + '_' + value_type + '_summary_items'
+    if summary_items_field_name not in model_entity:
+        util.log('HeyLiz - ' + summary_items_field_name + ' not present in model_entity - calling retrieve_tags_and_steps_from_event_file')
+        return retrieve_tags_and_steps_from_event_file(team_uuid, model_uuid, job_type, value_type)
+    step_and_tag_pairs = []
+    for key, item in model_entity[summary_items_field_name].items():
+        pair = {
+            'step': item['step'],
+            'tag': item['tag'],
+        }
+        step_and_tag_pairs.append(pair)
+    return step_and_tag_pairs
+
+
+def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_step_to_tags):
+    model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    summary_items_field_name = job_type + '_' + value_type + '_summary_items'
+    if summary_items_field_name not in model_entity:
+        util.log('HeyLiz - ' + summary_items_field_name + ' not present in model_entity - calling retrieve_summary_items_from_event_file')
+        return retrieve_summary_items_from_event_file(team_uuid, model_uuid, job_type, value_type, dict_step_to_tags)
+    summary_items = []
+    for step, tags in dict_step_to_tags.items():
+        for tag in tags:
+            item = model_entity[summary_items_field_name][__makeKey(step, tag)]
+            summary_item = {
+                'step': item['step'],
+                'tag': item['tag'],
+            }
+            if value_type == 'scalar':
+                summary_item['value'] = item['value']
+            elif value_type == 'image':
+                exists, image_url = blob_storage.get_event_summary_image_download_url(team_uuid, model_uuid,
+                    item['folder'], item['step'], item['tag'], None)
+                if not exists:
+                    continue
+                summary_item['value'] = {
+                    'width': item['width'],
+                    'height': item['height'],
+                    'image_url': image_url,
+                }
+            summary_items.append(summary_item)
+    return summary_items
+
+
+def retrieve_tags_and_steps_from_event_file(team_uuid, model_uuid, job_type, value_type):
     folder, event_file_path, updated = blob_storage.get_event_file_path(
-        team_uuid, model_uuid, job)
+        team_uuid, model_uuid, job_type)
     step_and_tag_pairs = []
     if event_file_path is None:
         return step_and_tag_pairs
@@ -445,9 +523,9 @@ def retrieve_tags_and_steps(team_uuid, model_uuid, job, value_type):
     return step_and_tag_pairs
 
 
-def retrieve_summary_items(team_uuid, model_uuid, job, value_type, dict_step_to_tags):
+def retrieve_summary_items_from_event_file(team_uuid, model_uuid, job_type, value_type, dict_step_to_tags):
     folder, event_file_path, updated = blob_storage.get_event_file_path(
-        team_uuid, model_uuid, job)
+        team_uuid, model_uuid, job_type)
     summary_items = []
     if event_file_path is None:
         return summary_items
