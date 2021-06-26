@@ -224,9 +224,9 @@ def store_pipeline_config(team_uuid, model_uuid, pipeline_config):
     __write_string_to_blob(pipeline_config_blob_name, pipeline_config, 'text/plain')
     return get_pipeline_config_path(team_uuid, model_uuid)
 
-def get_event_file_path(team_uuid, model_uuid, job):
+def get_event_file_path(team_uuid, model_uuid, job_type):
     client = util.storage_client()
-    if job == 'training':
+    if job_type == 'train':
         folder = __get_model_folder(team_uuid, model_uuid)
     else: # 'eval'
         folder = '%s/eval_validation_data' % __get_model_folder(team_uuid, model_uuid)
@@ -246,7 +246,7 @@ def get_event_summary_image_download_url(team_uuid, model_uuid, folder, step, ta
     blob_name = '%s/step_%d_%s' % (folder, step, tag.replace('/', '_'))
     bucket = util.storage_client().bucket(BUCKET_BLOBS)
     blob = bucket.blob(blob_name)
-    if not blob.exists():
+    if not blob.exists() and encoded_image_string is not None:
         __write_string_to_blob(blob_name, encoded_image_string, 'image/png')
     return __get_download_url(blob_name)
 
@@ -254,7 +254,7 @@ def get_trained_checkpoint_path(team_uuid, model_uuid):
     client = util.storage_client()
     # We're looking for a file like this: model.ckpt-2000.index
     prefix = '%s/model.ckpt-' % __get_model_folder(team_uuid, model_uuid)
-    pattern = re.compile(r'%s(.*)\.index' % prefix)
+    pattern = re.compile(r'%s(\d*)\.index' % prefix)
     max_number = None
     for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
         match = pattern.match(blob.name)
@@ -263,8 +263,8 @@ def get_trained_checkpoint_path(team_uuid, model_uuid):
             if max_number is None or n > max_number:
                 max_number = n
     if max_number is not None:
-        return __get_path('%s%d' % (prefix, max_number))
-    return ''
+        return __get_path('%s%d' % (prefix, max_number)), max_number
+    return '', 0
 
 def __get_tflite_folder(team_uuid, model_uuid):
     return '%s/tflite' % (__get_model_folder(team_uuid, model_uuid))

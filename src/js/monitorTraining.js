@@ -75,7 +75,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.loaders['image'] = this.imagesLoader;
 
   this.trainingScalars = {};
-  this.trainingScalars.job = 'training';
+  this.trainingScalars.job_type = 'train';
   this.trainingScalars.valueType = 'scalar';
   this.trainingScalars.maxItemsPerRequest = 50;
   this.trainingScalars.scalarsHeading = this.trainingScalarsHeading;
@@ -90,7 +90,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.trainingScalars.items = {};
 
   this.evalScalars = {};
-  this.evalScalars.job = 'eval';
+  this.evalScalars.job_type = 'eval';
   this.evalScalars.valueType = 'scalar';
   this.evalScalars.maxItemsPerRequest = 50;
   this.evalScalars.scalarsHeading = this.evalScalarsHeading;
@@ -105,9 +105,9 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.evalScalars.items = {};
 
   this.evalImages = {};
-  this.evalImages.job = 'eval';
+  this.evalImages.job_type = 'eval';
   this.evalImages.valueType = 'image';
-  this.evalImages.maxItemsPerRequest = 30;
+  this.evalImages.maxItemsPerRequest = 20;
   this.evalImages.parentDiv = this.evalImagesDiv;
   this.evalImages.mapTagToSteps = {}; // map<tag, sortedArray<step>>
   this.evalImages.sortedTags = [];
@@ -338,7 +338,7 @@ fmltc.MonitorTraining.prototype.retrieveTagsAndSteps = function(o, failureCount)
   const xhr = new XMLHttpRequest();
   const params =
       'model_uuid=' + encodeURIComponent(this.modelUuid) +
-      '&job=' + encodeURIComponent(o.job) +
+      '&job_type=' + encodeURIComponent(o.job_type) +
       '&value_type=' + encodeURIComponent(o.valueType);
   xhr.open('POST', '/retrieveTagsAndSteps', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
@@ -354,7 +354,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveTagsAndSteps_onreadystatechange = fu
 
     //console.log('retrieveTagsAndSteps ' + xhr.status + ' - ' +
     //    Math.ceil((Date.now() - sentTime) / 1000) + 's for ' +
-    //    o.job + ' ' + o.valueType + 's.');
+    //    o.job_type + ' ' + o.valueType + 's.');
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
 
@@ -470,7 +470,7 @@ fmltc.MonitorTraining.prototype.retrieveSummaryItems = function(o, requestStepAn
   const xhr = new XMLHttpRequest();
   let params =
       'model_uuid=' + encodeURIComponent(this.modelUuid) +
-      '&job=' + encodeURIComponent(o.job) +
+      '&job_type=' + encodeURIComponent(o.job_type) +
       '&value_type=' + encodeURIComponent(o.valueType);
   for (let i = 0; i < requestStepAndTagPairsNow.length; i++) {
     params +=
@@ -491,7 +491,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaryItems_onreadystatechange = fu
 
     //console.log('retrieveSummaryItems ' + xhr.status + ' - ' +
     //    Math.ceil((Date.now() - sentTime) / 1000) + 's for ' +
-    //    requestStepAndTagPairsNow.length + ' ' + o.job + ' ' + o.valueType + 's.');
+    //    requestStepAndTagPairsNow.length + ' ' + o.job_type + ' ' + o.valueType + 's.');
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
 
@@ -626,6 +626,9 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
 
   document.getElementById('trainStateTd').textContent = this.util.formatJobState(
       this.modelEntity.cancel_requested, this.modelEntity.train_job_state);
+
+  document.getElementById('numStepsCompletedTd').textContent =
+      new Number(this.modelEntity.trained_steps).toLocaleString();
 
   if (this.modelEntity.train_job_elapsed_seconds > 0) {
     this.trainTimeTd.textContent =
@@ -983,12 +986,19 @@ fmltc.MonitorTraining.prototype.lastPageButton_onclick = function() {
 };
 
 fmltc.MonitorTraining.prototype.updatePageControls = function(o) {
-  this.firstPageButton.disabled = (o.currentPageIndex == 0);
-  this.previousPageButton.disabled = (o.currentPageIndex == 0);
-  this.nextPageButton.disabled = (o.currentPageIndex == o.pageDivs.length-1);
-  this.lastPageButton.disabled = (o.currentPageIndex == o.pageDivs.length-1);
-  this.currentPageSpan.textContent = 'Page ' + new Number(o.currentPageIndex + 1).toLocaleString() +
-      ' of ' + new Number(o.pageDivs.length).toLocaleString();
+  if (o.pageDivs.length == 0) {
+    this.firstPageButton.disabled = true;
+    this.previousPageButton.disabled = true;
+    this.nextPageButton.disabled = true;
+    this.lastPageButton.disabled = true;
+  } else {
+    this.firstPageButton.disabled = (o.currentPageIndex == 0);
+    this.previousPageButton.disabled = (o.currentPageIndex == 0);
+    this.nextPageButton.disabled = (o.currentPageIndex == o.pageDivs.length-1);
+    this.lastPageButton.disabled = (o.currentPageIndex == o.pageDivs.length-1);
+    this.currentPageSpan.textContent = 'Page ' + new Number(o.currentPageIndex + 1).toLocaleString() +
+        ' of ' + new Number(o.pageDivs.length).toLocaleString();
+  }
 };
 
 fmltc.MonitorTraining.prototype.currentPageIndexChanged = function() {

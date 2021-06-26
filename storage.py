@@ -1053,8 +1053,9 @@ def model_trainer_started(team_uuid, model_uuid, description,
             'eval_consumed_ml_units': 0,
             'eval_job_elapsed_seconds': 0,
             'trained_checkpoint_path': '',
+            'trained_steps': 0,
         })
-        __update_model_entity(model_entity, train_job, 'train_')
+        __update_model_entity_job_state(model_entity, train_job, 'train_')
         # If the training job has already ended, adjust the team's remaining training time.
         if 'train_job_end_time' in model_entity:
             team_entity = retrieve_team_entity(team_uuid)
@@ -1070,7 +1071,7 @@ def model_trainer_started(team_uuid, model_uuid, description,
             model_entity['eval_job_state'] = ''
         else:
             model_entity['eval_job'] = True
-            __update_model_entity(model_entity, eval_job, 'eval_')
+            __update_model_entity_job_state(model_entity, eval_job, 'eval_')
         model_entity['update_time'] = datetime.now(timezone.utc)
         transaction.put(model_entity)
         return model_entity
@@ -1152,7 +1153,7 @@ def __add_entities_for_videos(video_uuids,
         if video_entity['video_uuid'] in video_uuids:
             video_entities_by_uuid[video_entity['video_uuid']] = video_entity
 
-def __update_model_entity(model_entity, job, prefix):
+def __update_model_entity_job_state(model_entity, job, prefix):
     model_entity[prefix + 'job_state'] = job['state']
     if 'trainingOutput' in job:
         model_entity[prefix + 'consumed_ml_units'] = job['trainingOutput'].get('consumedMLUnits', 0)
@@ -1173,12 +1174,12 @@ def __update_model_entity(model_entity, job, prefix):
     model_entity[prefix + 'error_message'] = (error_message[:200] + '..') if len(error_message) > 200 else error_message
 
 
-def update_model_entity(team_uuid, model_uuid, train_job, eval_job):
+def update_model_entity_job_state(team_uuid, model_uuid, train_job, eval_job):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         model_entity = retrieve_model_entity(team_uuid, model_uuid)
         train_job_was_not_already_done = ('train_job_end_time' not in model_entity)
-        __update_model_entity(model_entity, train_job, 'train_')
+        __update_model_entity_job_state(model_entity, train_job, 'train_')
         # If the training job has ended, adjust the team's remaining training time.
         if train_job_was_not_already_done and ('train_job_end_time' in model_entity):
             team_entity = retrieve_team_entity(team_uuid)
@@ -1190,12 +1191,32 @@ def update_model_entity(team_uuid, model_uuid, train_job, eval_job):
                 team_entity['remaining_training_minutes'] += delta
                 transaction.put(team_entity)
         if eval_job is not None:
-            __update_model_entity(model_entity, eval_job, 'eval_')
+            __update_model_entity_job_state(model_entity, eval_job, 'eval_')
         # Set trained_checkpoint_path.
-        model_entity['trained_checkpoint_path'] = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
+        trained_checkpoint_path, trained_steps = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
+        model_entity['trained_checkpoint_path'] = trained_checkpoint_path
+        model_entity['trained_steps'] = trained_steps
         model_entity['update_time'] = datetime.now(timezone.utc)
         transaction.put(model_entity)
         return model_entity
+
+def update_model_entity_trained_steps(team_uuid, model_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        model_entity = retrieve_model_entity(team_uuid, model_uuid)
+        trained_checkpoint_path, trained_steps = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
+        model_entity['trained_checkpoint_path'] = trained_checkpoint_path
+        model_entity['trained_steps'] = trained_steps
+        transaction.put(model_entity)
+        return model_entity
+
+def update_model_entity_summary_items(team_uuid, model_uuid, job_type, scalar_summary_items, image_summary_items):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        model_entity = retrieve_model_entity(team_uuid, model_uuid)
+        model_entity[job_type + '_scalar_summary_items'] = scalar_summary_items
+        model_entity[job_type + '_image_summary_items'] = image_summary_items
+        transaction.put(model_entity)
 
 def retrieve_model_list(team_uuid):
     datastore_client = datastore.Client()

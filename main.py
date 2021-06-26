@@ -157,6 +157,11 @@ def monitor_training():
 
 # requests
 
+@app.route('/HeyLiz', methods=['GET'])
+@handle_exceptions
+def HeyLiz():
+    return 'OK'
+
 @app.route('/logout', methods=['POST'])
 @handle_exceptions
 def logout():
@@ -551,7 +556,7 @@ def retrieve_summaries_updated():
     model_uuid = data.get('model_uuid')
     model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
     training_folder, training_event_file_path, training_updated = blob_storage.get_event_file_path(
-        team_uuid, model_uuid, 'training')
+        team_uuid, model_uuid, 'train')
     eval_folder, eval_event_file_path, eval_updated = blob_storage.get_event_file_path(
         team_uuid, model_uuid, 'eval')
     sanitize(model_entity)
@@ -569,10 +574,10 @@ def retrieve_tags_and_steps():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
-    job = data.get('job')
+    job_type = data.get('job_type')
     value_type = data.get('value_type')
     step_and_tag_pairs = model_trainer.retrieve_tags_and_steps(
-        team_uuid, model_uuid, job, value_type)
+        team_uuid, model_uuid, job_type, value_type)
     response = {
         'step_and_tag_pairs': step_and_tag_pairs,
     }
@@ -585,7 +590,7 @@ def retrieve_summary_items():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
-    job = data.get('job')
+    job_type = data.get('job_type')
     value_type = data.get('value_type')
     # Create a dict from step to array of tags. This is the most efficient way to get the summary
     # items from the event file.
@@ -603,7 +608,7 @@ def retrieve_summary_items():
         dict_step_to_tags[step].append(tag)
         i += 1
     summary_items = model_trainer.retrieve_summary_items(
-        team_uuid, model_uuid, job, value_type, dict_step_to_tags)
+        team_uuid, model_uuid, job_type, value_type, dict_step_to_tags)
     response = {
         'summary_items': summary_items,
     }

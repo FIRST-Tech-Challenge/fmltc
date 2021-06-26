@@ -52,7 +52,7 @@ ACTION_NAME_DATASET_ZIP_PARTITION = 'dataset_zip_partition'
 ACTION_NAME_DELETE_DATASET = 'delete_dataset'
 ACTION_NAME_DELETE_MODEL = 'delete_model'
 ACTION_NAME_DELETE_VIDEO = 'delete_video'
-ACTION_NAME_EXTRACT_SUMMARY_IMAGES = 'extract_summary_images'
+ACTION_NAME_MONITOR_TRAINING = 'monitor_training'
 ACTION_NAME_FRAME_EXTRACTION = 'frame_extraction'
 ACTION_NAME_TRACKING = 'tracking'
 
@@ -105,7 +105,7 @@ def perform_action(action_parameters, time_limit):
         ACTION_NAME_DELETE_DATASET: storage.finish_delete_dataset,
         ACTION_NAME_DELETE_MODEL: storage.finish_delete_model,
         ACTION_NAME_DELETE_VIDEO: storage.finish_delete_video,
-        ACTION_NAME_EXTRACT_SUMMARY_IMAGES: model_trainer.extract_summary_images,
+        ACTION_NAME_MONITOR_TRAINING: model_trainer.monitor_training,
         ACTION_NAME_FRAME_EXTRACTION: frame_extractor.extract_frames,
         ACTION_NAME_TRACKING: tracking.start_tracking,
     }
