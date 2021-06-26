@@ -157,9 +157,9 @@ def monitor_training():
 
 # requests
 
-@app.route('/HeyLiz', methods=['GET'])
+@app.route('/ok', methods=['GET'])
 @handle_exceptions
-def HeyLiz():
+def ok():
     return 'OK'
 
 @app.route('/logout', methods=['POST'])
