@@ -457,7 +457,6 @@ def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
     summary_items_field_name = job_type + '_' + value_type + '_summary_items'
     if summary_items_field_name not in model_entity:
-        util.log('HeyLiz - ' + summary_items_field_name + ' not present in model_entity - calling retrieve_tags_and_steps_from_event_file')
         return retrieve_tags_and_steps_from_event_file(team_uuid, model_uuid, job_type, value_type)
     step_and_tag_pairs = []
     for key, item in model_entity[summary_items_field_name].items():
@@ -473,7 +472,6 @@ def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_ste
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
     summary_items_field_name = job_type + '_' + value_type + '_summary_items'
     if summary_items_field_name not in model_entity:
-        util.log('HeyLiz - ' + summary_items_field_name + ' not present in model_entity - calling retrieve_summary_items_from_event_file')
         return retrieve_summary_items_from_event_file(team_uuid, model_uuid, job_type, value_type, dict_step_to_tags)
     summary_items = []
     for step, tags in dict_step_to_tags.items():
