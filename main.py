@@ -80,10 +80,24 @@ def sanitize(o):
         for item in o:
             sanitize(item)
     if isinstance(o, dict):
-        o.pop('team_uuid', None)
+        if 'team_uuid' in o:
+            o.pop('team_uuid', None)
         for key, value in o.items():
             sanitize(value)
     return o
+
+def strip_model_entity(model_entity):
+    props_to_remove = [
+        'train_image_summary_items',
+        'train_scalar_summary_items',
+        'train_input_path',
+        'eval_image_summary_items',
+        'eval_scalar_summary_items',
+        'eval_input_path'
+    ]
+    for prop in props_to_remove:
+        if prop in model_entity:
+            model_entity.pop(prop)
 
 # pages
 
@@ -136,6 +150,8 @@ def monitor_training():
     model_uuid = flask.request.args.get('model_uuid')
     model_entities_by_uuid, dataset_entities_by_uuid, video_entities_by_uuid = storage.retrieve_entities_for_monitor_training(
         team_uuid, model_uuid, model_trainer.retrieve_model_list(team_uuid))
+    for model_uuid, model_entity in model_entities_by_uuid.items():
+        strip_model_entity(model_entity)
     sanitize(model_entities_by_uuid)
     sanitize(dataset_entities_by_uuid)
     sanitize(video_entities_by_uuid)
@@ -217,10 +233,10 @@ def start_frame_extraction():
 def retrieve_video_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     video_entities = storage.retrieve_video_list(team_uuid)
-    sanitize(video_entities)
     response = {
         'video_entities': video_entities,
     }
+    sanitize(response)
     return flask.jsonify(response)
 
 @app.route('/retrieveVideoEntity', methods=['POST'])
@@ -231,10 +247,10 @@ def retrieve_video_entity():
     data = flask.request.form.to_dict(flat=True)
     video_uuid = data.get('video_uuid')
     video_entity = storage.retrieve_video_entity(team_uuid, video_uuid)
-    sanitize(video_entity)
     response = {
         'video_entity': video_entity,
     }
+    sanitize(response)
     return flask.jsonify(response)
 
 @app.route('/canDeleteVideos', methods=['POST'])
@@ -283,11 +299,11 @@ def retrieve_video_frame_entities_with_image_urls():
     max_frame_number = int(data.get('max_frame_number'))
     video_frame_entities = storage.retrieve_video_frame_entities_with_image_urls(
         team_uuid, video_uuid, min_frame_number, max_frame_number)
-    sanitize(video_frame_entities)
+    blob_storage.set_cors_policy_for_get()
     response = {
         'video_frame_entities': video_frame_entities,
     }
-    blob_storage.set_cors_policy_for_get()
+    sanitize(response)
     return flask.jsonify(response)
 
 
@@ -422,10 +438,10 @@ def prepare_to_start_dataset_production():
 def retrieve_dataset_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     dataset_entities = storage.retrieve_dataset_list(team_uuid)
-    sanitize(dataset_entities)
     response = {
         'dataset_entities': dataset_entities,
     }
+    sanitize(response)
     return flask.jsonify(response)
 
 @app.route('/retrieveDatasetEntity', methods=['POST'])
@@ -440,12 +456,12 @@ def retrieve_dataset_entity():
         frames_written = None
     else:
         frames_written = storage.retrieve_dataset_record_writer_frames_written(dataset_entity)
-    sanitize(dataset_entity)
     response = {
         'dataset_entity': dataset_entity,
     }
     if frames_written is not None:
         response['frames_written'] = frames_written
+    sanitize(response)
     return flask.jsonify(response)
 
 @app.route('/canDeleteDatasets', methods=['POST'])
@@ -540,11 +556,12 @@ def start_training_model():
     action_parameters = model_trainer.make_action_parameters(team_uuid, model_entity['model_uuid'])
     action.trigger_action_via_blob(action_parameters)
     team_entity = storage.retrieve_team_entity(team_uuid)
-    sanitize(model_entity)
+    strip_model_entity(model_entity)
     response = {
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entity': model_entity,
     }
+    sanitize(response)
     return flask.jsonify(response)
 
 @app.route('/retrieveSummariesUpdated', methods=['POST'])
@@ -555,16 +572,21 @@ def retrieve_summaries_updated():
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
     model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
-    training_folder, training_event_file_path, training_updated = blob_storage.get_event_file_path(
+    training_dict_path_to_updated = blob_storage.get_event_file_paths(
         team_uuid, model_uuid, 'train')
-    eval_folder, eval_event_file_path, eval_updated = blob_storage.get_event_file_path(
+    eval_dict_path_to_updated = blob_storage.get_event_file_paths(
         team_uuid, model_uuid, 'eval')
-    sanitize(model_entity)
+    strip_model_entity(model_entity)
     response = {
         'model_entity': model_entity,
-        'training_updated': training_updated,
-        'eval_updated': eval_updated,
     }
+    for path, updated in training_dict_path_to_updated.items():
+        if 'training_updated' not in response or updated > response['training_updated']:
+            response['training_updated'] = updated
+    for path, updated in eval_dict_path_to_updated.items():
+        if 'eval_updated' not in response or updated > response['eval_updated']:
+            response['eval_updated'] = updated
+    sanitize(response)
     return flask.jsonify(response)
 
 @app.route('/retrieveTagsAndSteps', methods=['POST'])
@@ -592,8 +614,7 @@ def retrieve_summary_items():
     model_uuid = data.get('model_uuid')
     job_type = data.get('job_type')
     value_type = data.get('value_type')
-    # Create a dict from step to array of tags. This is the most efficient way to get the summary
-    # items from the event file.
+    # Create a dict from step to array of tags.
     dict_step_to_tags = {}
     i = 0
     while True:
@@ -612,7 +633,8 @@ def retrieve_summary_items():
     response = {
         'summary_items': summary_items,
     }
-    blob_storage.set_cors_policy_for_get()
+    if value_type == 'image':
+        blob_storage.set_cors_policy_for_get()
     return flask.jsonify(response)
 
 @app.route('/cancelTrainingModel', methods=['POST'])
@@ -623,10 +645,11 @@ def cancel_training_model():
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
     model_entity = model_trainer.cancel_training_model(team_uuid, model_uuid)
-    sanitize(model_entity)
+    strip_model_entity(model_entity)
     response = {
         'model_entity': model_entity,
     }
+    sanitize(response)
     return flask.jsonify(response)
 
 @app.route('/retrieveModelEntities', methods=['POST'])
@@ -636,12 +659,14 @@ def retrieve_model_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     team_entity = storage.retrieve_team_entity(team_uuid)
     model_entities = model_trainer.retrieve_model_list(team_uuid)
-    sanitize(model_entities)
+    for model_entity in model_entities:
+        strip_model_entity(model_entity)
     response = {
         'total_training_minutes': team_info.TOTAL_TRAINING_MINUTES_PER_TEAM,
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entities': model_entities,
     }
+    sanitize(response)
     return flask.jsonify(response)
 
 @app.route('/retrieveModelEntity', methods=['POST'])
@@ -653,11 +678,12 @@ def retrieve_model_entity():
     model_uuid = data.get('model_uuid')
     team_entity = storage.retrieve_team_entity(team_uuid)
     model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
-    sanitize(model_entity)
+    strip_model_entity(model_entity)
     response = {
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entity': model_entity,
     }
+    sanitize(response)
     return flask.jsonify(response)
 
 @app.route('/canDeleteModels', methods=['POST'])
@@ -684,16 +710,6 @@ def delete_model():
     storage.delete_model(team_uuid, model_uuid)
     return 'OK'
 
-@app.route('/createTFLiteGraphPb', methods=['POST'])
-@handle_exceptions
-@login_required
-def create_tflite_graph_pb():
-    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    model_uuid = data.get('model_uuid')
-    tflite_creator.create_tflite_graph_pb(team_uuid, model_uuid)
-    return 'OK'
-
 @app.route('/createTFLite', methods=['POST'])
 @handle_exceptions
 @login_required
@@ -701,11 +717,31 @@ def create_tflite():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     model_uuid = data.get('model_uuid')
-    download_url = tflite_creator.create_tflite(team_uuid, model_uuid)
+    exists, download_url = blob_storage.get_tflite_model_with_metadata_url(team_uuid, model_uuid)
+    if exists:
+        blob_storage.set_cors_policy_for_get()
+    else:
+        tflite_creator.trigger_create_tflite(team_uuid, model_uuid)
     response = {
+        'exists': exists,
         'download_url': download_url,
     }
-    blob_storage.set_cors_policy_for_get()
+    return flask.jsonify(response)
+
+@app.route('/getTFLiteDownloadUrl', methods=['POST'])
+@handle_exceptions
+@login_required
+def get_tflite_download_url():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    model_uuid = data.get('model_uuid')
+    exists, download_url = blob_storage.get_tflite_model_with_metadata_url(team_uuid, model_uuid)
+    if exists:
+        blob_storage.set_cors_policy_for_get()
+    response = {
+        'exists': exists,
+        'download_url': download_url,
+    }
     return flask.jsonify(response)
 
 #performActionGAE and performActionGCF are for debugging purposes only.

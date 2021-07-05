@@ -22,6 +22,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 import os
 import time
+import traceback
 import uuid
 
 # Other Modules
@@ -38,13 +39,13 @@ import util
 
 
 tracker_fns = {
-  'CSRT': cv2.TrackerCSRT_create,
-  'MedianFlow': cv2.TrackerMedianFlow_create,
-  'MIL': cv2.TrackerMIL_create,
-  'MOSSE': cv2.TrackerMOSSE_create,
-  'TLD': cv2.TrackerTLD_create,
-  'KCF': cv2.TrackerKCF_create,
-  'Boosting': cv2.TrackerBoosting_create,
+    'CSRT': cv2.legacy.TrackerCSRT_create,
+    'MedianFlow': cv2.legacy.TrackerMedianFlow_create,
+    'MIL': cv2.legacy.TrackerMIL_create,
+    'MOSSE': cv2.legacy.TrackerMOSSE_create,
+    'TLD': cv2.legacy.TrackerTLD_create,
+    'KCF': cv2.legacy.TrackerKCF_create,
+    'Boosting': cv2.legacy.TrackerBoosting_create,
 }
 
 TWO_MINUTES_IN_MS = 2 * 60 * 1000
@@ -129,7 +130,8 @@ def start_tracking(action_parameters):
             # Separate bboxes_text into bboxes and classes.
             bboxes, classes = bbox_writer.parse_bboxes_text(tracker_client_entity['bboxes_text'], scale)
             # Create the trackers, one per bbox.
-            trackers = __create_trackers(tracker_fn, frame, bboxes, classes)
+            trackers = __create_trackers(tracker_fn, tracker_name,
+                tracker_entity['video_width'], tracker_entity['video_height'], frame, bboxes, classes)
 
             while True:
                 # Read the next frame from the video file.
@@ -143,9 +145,13 @@ def start_tracking(action_parameters):
                 # Get the updated bboxes from the trackers.
                 bboxes = []
                 for i, tracker in enumerate(trackers):
-                    success, tuple = tracker.update(frame)
-                    if success:
-                        bboxes.append(np.array(tuple))
+                    if tracker is not None:
+                        success, tuple = tracker.update(frame)
+                        if success:
+                            bboxes.append(np.array(tuple))
+                        else:
+                            logging.error('Tracking failure for object %d on frame %d' % (i, frame_number))
+                            bboxes.append(None)
                     else:
                         logging.error('Tracking failure for object %d on frame %d' % (i, frame_number))
                         bboxes.append(None)
@@ -177,7 +183,8 @@ def start_tracking(action_parameters):
                     # Separate bboxes_text into bboxes and classes.
                     bboxes, classes = bbox_writer.parse_bboxes_text(tracker_client_entity['bboxes_text'], scale)
                     # Create new trackers, one per bbox.
-                    trackers = __create_trackers(tracker_fn, frame, bboxes, classes)
+                    trackers = __create_trackers(tracker_fn, tracker_name,
+                        tracker_entity['video_width'], tracker_entity['video_height'], frame, bboxes, classes)
 
         finally:
             # Release the cv2 video.
@@ -194,18 +201,22 @@ def __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity, ac
     action.retrigger_if_necessary(action_parameters)
     return False
 
-def __create_trackers(tracker_fn, frame, init_bboxes, classes):
+def __create_trackers(tracker_fn, tracker_name, video_width, video_height, frame, init_bboxes, classes):
     trackers = []
     for i, bbox in enumerate(init_bboxes):
-        # For cv2.TrackerBoosting, round the box coordinates to prevent a bus error.
-        if tracker_fn == cv2.TrackerBoosting_create:
-            for j in range(len(bbox)):
-                bbox[j] = round(bbox[j])
+        rect = np.array(bbox, dtype=float).astype(int)
         tracker = tracker_fn()
-        success = tracker.init(frame, tuple(bbox))
-        if not success:
-            logging.error('Unable to initialize tracker %d, labeled %s' % (f, classes[i]))
+        try:
+            success = tracker.init(frame, tuple(rect))
+            if success:
+                trackers.append(tracker)
+            else:
+                trackers.append(None)
+                logging.error('Unable to initialize tracker %s for rect %s' % (tracker_name, str(rect)))
+                continue
+        except:
+            trackers.append(None)
+            logging.error('Unable to initialize tracker %s for rect %s, traceback: %s' %
+                (tracker_name, str(rect), traceback.format_exc().replace('\n', ' ... ')))
             continue
-        else:
-            trackers.append(tracker)
     return trackers

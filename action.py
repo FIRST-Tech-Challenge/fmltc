@@ -31,6 +31,7 @@ import dataset_zipper
 import frame_extractor
 import model_trainer
 import storage
+import tflite_creator
 import tracking
 import util
 
@@ -55,7 +56,7 @@ ACTION_NAME_DELETE_VIDEO = 'delete_video'
 ACTION_NAME_MONITOR_TRAINING = 'monitor_training'
 ACTION_NAME_FRAME_EXTRACTION = 'frame_extraction'
 ACTION_NAME_TRACKING = 'tracking'
-
+ACTION_NAME_CREATE_TFLITE = 'create_tflite'
 
 def create_action_parameters(action_name):
     return {
@@ -108,6 +109,7 @@ def perform_action(action_parameters, time_limit):
         ACTION_NAME_MONITOR_TRAINING: model_trainer.monitor_training,
         ACTION_NAME_FRAME_EXTRACTION: frame_extractor.extract_frames,
         ACTION_NAME_TRACKING: tracking.start_tracking,
+        ACTION_NAME_CREATE_TFLITE: tflite_creator.create_tflite,
     }
     action_fn = action_fns.get(action_parameters[ACTION_NAME], None)
     if action_fn is not None:
