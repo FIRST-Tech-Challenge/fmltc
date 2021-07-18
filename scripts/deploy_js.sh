@@ -31,7 +31,9 @@ java -jar $FMLTC_CLOSURE_COMPILER_JAR \
 if [ $? -ne 0 ]; then
   exit 1
 fi
-echo "console.log('Build time is ' + new Date($(date +%s%3N)).toLocaleString());" > compiled/js/fmltc.js
+# The following way to get the current time in millis works on Linux and OSX.
+BUILD_TIME=$(($(date +'%s * 1000 + %-N / 1000000')))
+echo "console.log('Build time is ' + new Date($BUILD_TIME).toLocaleString());" > compiled/js/fmltc.js
 echo "console.log('Load  time is ' + new Date().toLocaleString());" >> compiled/js/fmltc.js
 
 cat compiled/js/fmltc_tmp.js >> compiled/js/fmltc.js
