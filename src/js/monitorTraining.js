@@ -66,7 +66,6 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.trainingUpdated = '';
   this.evalUpdated = '';
 
-  this.retrieveDataStartTimeMs = 0;
   this.retrieveDataInProgressCounters = {};
   this.retrieveDataInProgressCounters['scalar'] = 0;
   this.retrieveDataInProgressCounters['image'] = 0;
@@ -253,7 +252,6 @@ fmltc.MonitorTraining.prototype.incrementRetrieveDataInProgressCounter = functio
 };
 
 fmltc.MonitorTraining.prototype.retrieveDataStarting = function() {
-  this.retrieveDataStartTimeMs = Date.now();
 };
 
 
@@ -268,8 +266,6 @@ fmltc.MonitorTraining.prototype.decrementRetrieveDataInProgressCounter = functio
 };
 
 fmltc.MonitorTraining.prototype.retrieveDataFinished = function() {
-  //console.log('retrieveDataFinished - elapsed time ' +
-  //    Math.ceil((Date.now() - this.retrieveDataStartTimeMs) / 1000) + 's');
   if (!this.util.isTrainingDone(this.modelEntity)) {
     this.startRefreshTimer();
     this.refreshButton.disabled = false;
@@ -342,19 +338,16 @@ fmltc.MonitorTraining.prototype.retrieveTagsAndSteps = function(o, failureCount)
       '&value_type=' + encodeURIComponent(o.valueType);
   xhr.open('POST', '/retrieveTagsAndSteps', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveTagsAndSteps_onreadystatechange.bind(this, xhr, Date.now(), params,
+  xhr.onreadystatechange = this.xhr_retrieveTagsAndSteps_onreadystatechange.bind(this, xhr, params,
       o, failureCount);
   xhr.send(params);
 };
 
-fmltc.MonitorTraining.prototype.xhr_retrieveTagsAndSteps_onreadystatechange = function(xhr, sentTime, params,
+fmltc.MonitorTraining.prototype.xhr_retrieveTagsAndSteps_onreadystatechange = function(xhr, params,
     o, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
-    //console.log('retrieveTagsAndSteps ' + xhr.status + ' - ' +
-    //    Math.ceil((Date.now() - sentTime) / 1000) + 's for ' +
-    //    o.job_type + ' ' + o.valueType + 's.');
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
 
@@ -479,19 +472,16 @@ fmltc.MonitorTraining.prototype.retrieveSummaryItems = function(o, requestStepAn
   }
   xhr.open('POST', '/retrieveSummaryItems', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveSummaryItems_onreadystatechange.bind(this, xhr, Date.now(), params,
+  xhr.onreadystatechange = this.xhr_retrieveSummaryItems_onreadystatechange.bind(this, xhr, params,
       o, requestStepAndTagPairsNow, requestStepAndTagPairsLater, failureCount);
   xhr.send(params);
 };
 
-fmltc.MonitorTraining.prototype.xhr_retrieveSummaryItems_onreadystatechange = function(xhr, sentTime, params,
+fmltc.MonitorTraining.prototype.xhr_retrieveSummaryItems_onreadystatechange = function(xhr, params,
     o, requestStepAndTagPairsNow, requestStepAndTagPairsLater, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
-    //console.log('retrieveSummaryItems ' + xhr.status + ' - ' +
-    //    Math.ceil((Date.now() - sentTime) / 1000) + 's for ' +
-    //    requestStepAndTagPairsNow.length + ' ' + o.job_type + ' ' + o.valueType + 's.');
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
 
@@ -625,7 +615,7 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
   }
 
   document.getElementById('trainStateTd').textContent = this.util.formatJobState(
-      this.modelEntity.cancel_requested, this.modelEntity.train_job_state);
+      'train', this.modelEntity.cancel_requested, this.modelEntity.train_job_state);
 
   document.getElementById('numStepsCompletedTd').textContent =
       new Number(this.modelEntity.trained_steps).toLocaleString();
@@ -638,7 +628,7 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
   }
 
   document.getElementById('evalStateTd').textContent = this.util.formatJobState(
-      this.modelEntity.cancel_requested, this.modelEntity.eval_job_state);
+      'eval', this.modelEntity.cancel_requested, this.modelEntity.eval_job_state);
 
   this.modelLoader.style.visibility = 'hidden';
 };
@@ -855,7 +845,7 @@ fmltc.MonitorTraining.prototype.compareImageTags = function(a, b) {
   if (a == b) {
     return 0;
   }
-  let patt = /([^/]*)\/([0-9]+)\/([0-9]+)/;
+  let patt = /(.*)_([0-9]+)_([0-9]+)/;
   let aResult = a.match(patt);
   let bResult = b.match(patt);
   if (aResult && bResult && aResult.length == bResult.length) {

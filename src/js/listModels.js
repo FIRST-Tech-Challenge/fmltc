@@ -120,14 +120,18 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
     const dateCreatedTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     dateCreatedTd.textContent = new Date(modelEntity.create_time_ms).toLocaleString();
 
-    // Make the description link to the monitorTraining page.
     const descriptionTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
-    const descriptionA = document.createElement('a'); // a for anchor
-    const url = 'monitorTraining?model_uuid=' + encodeURIComponent(modelEntity.model_uuid);
     const descriptionTextNode = document.createTextNode(modelEntity.description);
-    descriptionA.setAttribute('href', url);
-    descriptionA.appendChild(descriptionTextNode);
-    descriptionTd.appendChild(descriptionA);
+    if ('tensorflow_version' in modelEntity && modelEntity.tensorflow_version == '2') {
+      // Make the description link to the monitorTraining page.
+      const descriptionA = document.createElement('a'); // a for anchor
+      const url = 'monitorTraining?model_uuid=' + encodeURIComponent(modelEntity.model_uuid);
+      descriptionA.setAttribute('href', url);
+      descriptionA.appendChild(descriptionTextNode);
+      descriptionTd.appendChild(descriptionA);
+    } else {
+      descriptionTd.appendChild(descriptionTextNode);
+    }
 
     const originalStartingModelTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     originalStartingModelTd.textContent = modelEntity.original_starting_model;
@@ -150,7 +154,7 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
   }
 
   this.trainStateTds[i].textContent = this.util.formatJobState(
-      modelEntity.cancel_requested, modelEntity.train_job_state);
+      'train', modelEntity.cancel_requested, modelEntity.train_job_state);
 
   this.trainedStepsTds[i].textContent =
       new Number(modelEntity.trained_steps).toLocaleString();
@@ -343,6 +347,7 @@ fmltc.ListModels.prototype.xhr_canDeleteModels_onreadystatechange = function(xhr
         const message = 'The selected models cannot be deleted.';
         new fmltc.DeleteForbiddenDialog(this.util, title, message, response.messages);
       }
+
     } else {
       // TODO(lizlooney): handle error properly
       console.log('Failure! /canDeleteModels?' + params +
@@ -435,7 +440,9 @@ fmltc.ListModels.prototype.updateButtons = function() {
       if (this.util.isTrainingDone(this.modelEntityArray[i])) {
         canCancelTraining = false;
 
-        if (this.modelEntityArray[i].trained_checkpoint_path == '') {
+        if (this.modelEntityArray[i].trained_checkpoint_path == '' ||
+            !('tensorflow_version' in this.modelEntityArray[i]) ||
+            this.modelEntityArray[i].tensorflow_version != '2') {
           canTrainMore = false;
           canDownloadTFLite = false;
         }
@@ -497,35 +504,7 @@ fmltc.ListModels.prototype.downloadTFLiteButton_onclick = function() {
 
   const modelUuid = this.getCheckedModelUuids()[0];
   const downloadStartTime = Date.now();
-  this.createTFLiteGraphPb(modelUuid, downloadStartTime);
-};
-
-fmltc.ListModels.prototype.createTFLiteGraphPb = function(modelUuid, downloadStartTime) {
-  const xhr = new XMLHttpRequest();
-  const params = 'model_uuid=' + encodeURIComponent(modelUuid);
-  xhr.open('POST', '/createTFLiteGraphPb', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_createTFLiteGraphPb_onreadystatechange.bind(this, xhr, params,
-      modelUuid, downloadStartTime);
-  xhr.send(params);
-};
-
-fmltc.ListModels.prototype.xhr_createTFLiteGraphPb_onreadystatechange = function(xhr, params,
-    modelUuid, downloadStartTime) {
-  if (xhr.readyState === 4) {
-    xhr.onreadystatechange = null;
-
-    if (xhr.status === 200) {
-      this.createTFLite(modelUuid, downloadStartTime);
-    } else {
-      // TODO(lizlooney): handle error properly
-      console.log('Failure! /createTFLiteGraphPb?' + params +
-          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      this.util.clearWaitCursor();
-      this.waitCursor = false;
-      this.updateButtons();
-    }
-  }
+  this.createTFLite(modelUuid, downloadStartTime);
 };
 
 fmltc.ListModels.prototype.createTFLite = function(modelUuid, downloadStartTime) {
@@ -545,7 +524,13 @@ fmltc.ListModels.prototype.xhr_createTFLite_onreadystatechange = function(xhr, p
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      this.downloadTFLite(downloadStartTime, response.download_url, 0);
+      if (response.exists) {
+        this.downloadTFLite(downloadStartTime, response.download_url, 0);
+      } else {
+        new fmltc.DownloadModelDialog(this.util, modelUuid, downloadStartTime,
+            this.onModelReady.bind(this));
+      }
+
     } else {
       // TODO(lizlooney): handle error properly
       console.log('Failure! /createTFLite?' + params +
@@ -555,6 +540,10 @@ fmltc.ListModels.prototype.xhr_createTFLite_onreadystatechange = function(xhr, p
       this.updateButtons();
     }
   }
+};
+
+fmltc.ListModels.prototype.onModelReady = function(downloadStartTime, downloadUrl) {
+  this.downloadTFLite(downloadStartTime, downloadUrl, 0);
 };
 
 fmltc.ListModels.prototype.downloadTFLite = function(downloadStartTime, downloadUrl, failureCount) {

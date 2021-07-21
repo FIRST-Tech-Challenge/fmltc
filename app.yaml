@@ -1,5 +1,5 @@
 # Standard
-runtime: python37
+runtime: python39
 
 # pick one of the following blocks
 # <

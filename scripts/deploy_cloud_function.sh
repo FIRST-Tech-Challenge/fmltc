@@ -5,6 +5,6 @@ fi
 
 
 gcloud functions deploy perform_action \
-    --runtime python37 \
+    --runtime python39 \
     --trigger-resource ${FMLTC_GCLOUD_PROJECT_ID}-action-parameters \
     --trigger-event google.storage.object.finalize
