@@ -248,8 +248,14 @@ def store_event_summary_image(team_uuid, model_uuid, job_type, step, tag, encode
     blob_name = get_event_summary_image_blob_name(team_uuid, model_uuid, job_type, step, tag)
     bucket = util.storage_client().bucket(BUCKET_BLOBS)
     blob = bucket.blob(blob_name)
-    if not blob.exists():
-        __write_string_to_blob(blob_name, encoded_image_string, 'image/png')
+    for i in range(5):
+      try:
+        if not blob.exists():
+            __write_string_to_blob(blob_name, encoded_image_string, 'image/png')
+        return
+      except:
+        util.log('blob_storage.store_event_summary_image - will try again in 3 seconds')
+        time.sleep(3)
 
 def get_event_summary_image_download_url(team_uuid, model_uuid, job_type, step, tag, encoded_image_string):
     blob_name = get_event_summary_image_blob_name(team_uuid, model_uuid, job_type, step, tag)

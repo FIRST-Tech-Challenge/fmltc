@@ -57,6 +57,8 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.scalarsLoader = document.getElementById('scalarsLoader');
   this.imagesLoader = document.getElementById('imagesLoader');
 
+  this.startMonitorTrainingTime = 0;
+
   this.trainTimeIntervalId = 0;
 
   this.chartsLoaded = false;
@@ -127,8 +129,9 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.refreshStartTimeMs = 0;
 
   this.setRefreshIntervalRangeInputTitle();
-  this.updateButtons();
-  this.updateModelUI();
+
+  this.modelEntityUpdated(this.modelEntity);
+
   this.retrieveData();
 
   google.charts.load('current', {'packages':['corechart']});
@@ -535,6 +538,16 @@ fmltc.MonitorTraining.prototype.modelEntityUpdated = function(newModelEntity) {
 
   this.activeTrainingDiv.style.display = this.util.isTrainingDone(this.modelEntity)
       ? 'none' : 'inline-block';
+
+  if (this.modelEntity.trained_steps != this.modelEntity.num_training_steps ||
+      this.modelEntity.evaled_steps != this.modelEntity.num_training_steps) {
+    if (this.didMonitorTrainingFailToStart(this.modelEntity)) {
+      this.startMonitorTraining(this.modelEntity);
+
+    } else if (this.isMonitorTrainingStalled(this.modelEntity)) {
+      this.startMonitorTraining(this.modelEntity);
+    }
+  }
 };
 
 fmltc.MonitorTraining.prototype.updateModelUI = function() {
@@ -631,6 +644,104 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
       'eval', this.modelEntity.cancel_requested, this.modelEntity.eval_job_state);
 
   this.modelLoader.style.visibility = 'hidden';
+};
+
+fmltc.MonitorTraining.prototype.didMonitorTrainingFailToStart = function(modelEntity) {
+  if (!('monitor_training_finished' in modelEntity) ||
+      !('monitor_training_triggered_time_ms' in modelEntity) ||
+      !('monitor_training_active_time_ms' in modelEntity)) {
+    // Some models were trained before these fields were added.
+    return false;
+  }
+
+  if (modelEntity.monitor_training_finished) {
+    // The monitor training action finished, therefore it did not fail to start.
+    return false;
+  }
+
+  if (modelEntity.monitor_training_triggered_time_ms == 0) {
+    // The monitor training action was never triggered, therefore it did not fail to start.
+    return false;
+  }
+
+  if (modelEntity.monitor_training_active_time_ms > modelEntity.monitor_training_triggered_time_ms) {
+    // The monitor training action started successfully after it was triggered, therefore it did
+    // not fail to start.
+    return false;
+  }
+
+  const minutesSinceMonitorTrainingWasTriggered = (Date.now() - modelEntity.monitor_training_triggered_time_ms) / 60000;
+  if (minutesSinceMonitorTrainingWasTriggered < 3) {
+    /// It was triggered recently, therefore it did not fail to start.
+    return false;
+  }
+  return true;
+};
+
+fmltc.MonitorTraining.prototype.isMonitorTrainingStalled = function(modelEntity) {
+  if (!('monitor_training_finished' in modelEntity) ||
+      !('monitor_training_triggered_time_ms' in modelEntity) ||
+      !('monitor_training_active_time_ms' in modelEntity)) {
+    // Some models were trained before these fields were added.
+    return false;
+  }
+
+  if (modelEntity.monitor_training_finished) {
+    // The monitor training action finished.
+    return false;
+  }
+
+  if (modelEntity.monitor_training_triggered_time_ms > 0) {
+    if (modelEntity.monitor_training_triggered_time_ms > modelEntity.monitor_training_active_time_ms) {
+      // The monitor training action was triggered but it hasn't started yet, therefore it is not
+      // stalled.
+      return false;
+    }
+  }
+
+  const minutesSinceMonitorTrainingWasActive = (Date.now() - modelEntity.monitor_training_active_time_ms) / 60000;
+  if (minutesSinceMonitorTrainingWasActive < 3) {
+    // It was active recently, therefore it is not stalled.
+    return false;
+  }
+
+  return true;
+};
+
+fmltc.MonitorTraining.prototype.startMonitorTraining = function(modelEntity) {
+  // Check this.startMonitorTrainingTime so we don't send more than one /startMonitorTraining
+  // request before we get the response with the updated monitor_training_triggered_time_ms.
+  if (this.startMonitorTrainingTime > 0) {
+    const minutesSince = (Date.now() - this.startMonitorTrainingTime) / 60000;
+    if (minutesSince < 3) {
+      return;
+    }
+  }
+  this.startMonitorTrainingTime = Date.now();
+  const xhr = new XMLHttpRequest();
+  const params = 'model_uuid=' + encodeURIComponent(modelEntity.model_uuid);
+  xhr.open('POST', '/startMonitorTraining', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_startMonitorTraining_onreadystatechange.bind(this, xhr, params,
+      modelEntity);
+  xhr.send(params);
+};
+
+fmltc.MonitorTraining.prototype.xhr_startMonitorTraining_onreadystatechange = function(xhr, params,
+    modelEntity) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+      this.modelEntityUpdated(response.model_entity);
+
+    } else {
+      // TODO(lizlooney): handle error properly
+      console.log('Failure! /startMonitorTraining?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+    }
+  }
 };
 
 fmltc.MonitorTraining.prototype.estimateTrainTime = function() {

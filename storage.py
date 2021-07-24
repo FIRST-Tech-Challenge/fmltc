@@ -1059,6 +1059,10 @@ def model_trainer_started(team_uuid, model_uuid, description, tensorflow_version
             'eval_consumed_ml_units': 0,
             'eval_job_elapsed_seconds': 0,
             'evaled_steps': 0,
+            'dict_event_file_path_to_updated': {},
+            'monitor_training_triggered_time_ms': 0,
+            'monitor_training_active_time_ms': 0,
+            'monitor_training_finished': False,
         })
         __update_model_entity_job_state(model_entity, train_job, 'train_')
         # If the training job has already ended, adjust the team's remaining training time.
@@ -1178,7 +1182,6 @@ def __update_model_entity_job_state(model_entity, job, prefix):
       util.log('%s_error_message is %s' % (prefix, error_message))
     model_entity[prefix + 'error_message'] = (error_message[:200] + '..') if len(error_message) > 200 else error_message
 
-
 def update_model_entity_job_state(team_uuid, model_uuid, train_job, eval_job):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -1208,7 +1211,7 @@ def get_model_entity_summary_items_field_name(job_type, value_type):
     return '%s_%s_summary_items' % (job_type, value_type)
 
 def update_model_entity_summary_items(team_uuid, model_uuid, job_type,
-        largest_step, scalar_summary_items, image_summary_items):
+        event_file_path, updated, largest_step, scalar_summary_items, image_summary_items):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         model_entity = retrieve_model_entity(team_uuid, model_uuid)
@@ -1218,6 +1221,13 @@ def update_model_entity_summary_items(team_uuid, model_uuid, job_type,
             modified = True
         if job_type == 'eval' and largest_step is not None and largest_step > model_entity['evaled_steps']:
             model_entity['evaled_steps'] = largest_step
+            modified = True
+        if 'dict_event_file_path_to_updated' not in model_entity:
+            model_entity['dict_event_file_path_to_updated'] = {}
+            modified = True
+        if (event_file_path not in model_entity['dict_event_file_path_to_updated'] or
+                model_entity['dict_event_file_path_to_updated'][event_file_path] < updated):
+            model_entity['dict_event_file_path_to_updated'][event_file_path] = updated
             modified = True
         summary_items_field_name = get_model_entity_summary_items_field_name(job_type, 'scalar')
         if summary_items_field_name not in model_entity:
@@ -1236,7 +1246,38 @@ def update_model_entity_summary_items(team_uuid, model_uuid, job_type,
                 model_entity[summary_items_field_name][key] = item
                 modified = True
         if modified:
+            model_entity['monitor_training_active_time'] = datetime.now(timezone.utc)
+            model_entity['monitor_training_active_time_ms'] = util.ms_from_datetime(model_entity['monitor_training_active_time'])
             transaction.put(model_entity)
+        return model_entity
+
+def prepare_to_start_monitor_training(team_uuid, model_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        model_entity = retrieve_model_entity(team_uuid, model_uuid)
+        model_entity['monitor_training_triggered_time'] = datetime.now(timezone.utc)
+        model_entity['monitor_training_triggered_time_ms'] = util.ms_from_datetime(model_entity['monitor_training_triggered_time'])
+        transaction.put(model_entity)
+        return model_entity
+
+def monitor_training_active(team_uuid, model_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        model_entity = retrieve_model_entity(team_uuid, model_uuid)
+        model_entity['monitor_training_active_time'] = datetime.now(timezone.utc)
+        model_entity['monitor_training_active_time_ms'] = util.ms_from_datetime(model_entity['monitor_training_active_time'])
+        transaction.put(model_entity)
+        return model_entity
+
+def monitor_training_finished(team_uuid, model_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        model_entity = retrieve_model_entity(team_uuid, model_uuid)
+        model_entity['monitor_training_finished'] = True
+        model_entity['monitor_training_active_time'] = datetime.now(timezone.utc)
+        model_entity['monitor_training_active_time_ms'] = util.ms_from_datetime(model_entity['monitor_training_active_time'])
+        transaction.put(model_entity)
+        return model_entity
 
 def retrieve_model_list(team_uuid):
     datastore_client = datastore.Client()
