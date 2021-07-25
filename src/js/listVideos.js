@@ -213,9 +213,9 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
 };
 
 fmltc.ListVideos.prototype.didFrameExtractionFailToStart = function(videoEntity) {
-  if (videoEntity.frame_extraction_triggered_time_utc_ms != 0 &&
-      videoEntity.frame_extraction_active_time_utc_ms == 0) {
-    const minutesSinceFrameExtractionWasTriggered = (Date.now() - videoEntity.frame_extraction_triggered_time_utc_ms) / 60000;
+  if (videoEntity.frame_extraction_triggered_time_ms != 0 &&
+      videoEntity.frame_extraction_active_time_ms == 0) {
+    const minutesSinceFrameExtractionWasTriggered = (Date.now() - videoEntity.frame_extraction_triggered_time_ms) / 60000;
     if (minutesSinceFrameExtractionWasTriggered > 3) {
       return true;
     }
@@ -224,8 +224,8 @@ fmltc.ListVideos.prototype.didFrameExtractionFailToStart = function(videoEntity)
 };
 
 fmltc.ListVideos.prototype.isFrameExtractionStalled = function(videoEntity) {
-  if (videoEntity.frame_extraction_active_time_utc_ms != 0) {
-    const minutesSinceFrameExtractionWasActive = (Date.now() - videoEntity.frame_extraction_active_time_utc_ms) / 60000;
+  if (videoEntity.frame_extraction_active_time_ms != 0) {
+    const minutesSinceFrameExtractionWasActive = (Date.now() - videoEntity.frame_extraction_active_time_ms) / 60000;
     if (minutesSinceFrameExtractionWasActive > 3) {
       return true;
     }
@@ -413,13 +413,13 @@ fmltc.ListVideos.prototype.startFrameExtraction = function(videoUuid) {
     const params = 'video_uuid=' + encodeURIComponent(videoUuid);
     xhr.open('POST', '/startFrameExtraction', true);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    xhr.onreadystatechange = this.xhr_triggerFrameExtraction_onreadystatechange.bind(this, xhr, params,
+    xhr.onreadystatechange = this.xhr_startFrameExtraction_onreadystatechange.bind(this, xhr, params,
         videoUuid);
     xhr.send(params);
   }
 };
 
-fmltc.ListVideos.prototype.xhr_triggerFrameExtraction_onreadystatechange = function(xhr, params,
+fmltc.ListVideos.prototype.xhr_startFrameExtraction_onreadystatechange = function(xhr, params,
     videoUuid) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;

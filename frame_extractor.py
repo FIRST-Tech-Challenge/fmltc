@@ -31,12 +31,12 @@ import storage
 import util
 
 def start_frame_extraction(team_uuid, video_uuid):
-    storage.prepare_to_start_frame_extraction(team_uuid, video_uuid)
+    video_entity = storage.prepare_to_start_frame_extraction(team_uuid, video_uuid)
     action_parameters = action.create_action_parameters(action.ACTION_NAME_FRAME_EXTRACTION)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['video_uuid'] = video_uuid
     action.trigger_action_via_blob(action_parameters)
-    return action_parameters
+    return video_entity
 
 def extract_frames(action_parameters):
     team_uuid = action_parameters['team_uuid']

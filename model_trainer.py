@@ -41,27 +41,26 @@ import util
 BUCKET = ('%s' % constants.PROJECT_ID)
 
 STARTING_MODELS = {
-    'SSD MobileNet V1 FPN 640x640': {
-        'pipeline_config': 'tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8/pipeline.config',
-        'checkpoint': 'tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8/checkpoint/ckpt-0',
+    'SSD MobileNet v2 320x320': {
+        'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8/pipeline.config',
+        'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8/checkpoint/ckpt-0',
     },
     'SSD MobileNet V2 FPNLite 320x320': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8/checkpoint/ckpt-0',
     },
+    'SSD MobileNet V1 FPN 640x640': {
+        'pipeline_config': 'tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8/pipeline.config',
+        'checkpoint': 'tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8/checkpoint/ckpt-0',
+    },
     'SSD MobileNet V2 FPNLite 640x640': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8/checkpoint/ckpt-0',
-    },
-    'SSD MobileNet v2 320x320': {
-        'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8/pipeline.config',
-        'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8/checkpoint/ckpt-0',
     },
 }
 
 def get_starting_model_names():
     names = list(STARTING_MODELS.keys())
-    names.sort()
     return names
 
 def start_training_model(team_uuid, description, dataset_uuids_json,
@@ -161,7 +160,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         .replace('TO_BE_CONFIGURED/num_classes', str(len(sorted_label_list)))
         .replace('TO_BE_CONFIGURED/num_examples', str(eval_frame_count))
         .replace('TO_BE_CONFIGURED/num_training_steps', str(num_training_steps))
-        .replace('TO_BE_CONFIGURED/num_visualizations', str(eval_frame_count))
+        .replace('TO_BE_CONFIGURED/num_visualizations', str(min(100, eval_frame_count)))
         .replace('TO_BE_CONFIGURED/train_input_path',  json.dumps(train_input_path))
         .replace('TO_BE_CONFIGURED/warmup_steps_1000',  str(min(1000, num_training_steps)))
         .replace('TO_BE_CONFIGURED/warmup_steps_2000',  str(min(2000, num_training_steps)))
@@ -276,15 +275,15 @@ def retrieve_model_list(team_uuid):
     model_entities = storage.retrieve_model_list(team_uuid)
     ml = None
     for model_entity in model_entities:
-        model_entity, ml = update_model_entity_job_state(model_entity, ml)
+        model_entity, ml = __update_model_entity_job_state(model_entity, ml)
     return model_entities
 
 def retrieve_model_entity(team_uuid, model_uuid):
     model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
-    model_entity, _ = update_model_entity_job_state(model_entity)
+    model_entity, _ = __update_model_entity_job_state(model_entity)
     return model_entity
 
-def update_model_entity_job_state(model_entity, ml=None):
+def __update_model_entity_job_state(model_entity, ml=None):
     # If the training and eval jobs weren't done last time we checked, check now.
     if is_not_done(model_entity):
         if ml is None:
@@ -381,24 +380,23 @@ def __is_not_done(state):
 def __is_done(state):
     return not __is_not_done(state)
 
-
-def make_action_parameters(team_uuid, model_uuid):
+def start_monitor_training(team_uuid, model_uuid):
+    model_entity = storage.prepare_to_start_monitor_training(team_uuid, model_uuid)
     action_parameters = action.create_action_parameters(action.ACTION_NAME_MONITOR_TRAINING)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['model_uuid'] = model_uuid
-    return action_parameters
+    action.trigger_action_via_blob(action_parameters)
+    return model_entity
 
 def monitor_training(action_parameters):
     team_uuid = action_parameters['team_uuid']
     model_uuid = action_parameters['model_uuid']
 
-    previous_updated = {}
-
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
     prev_training_done = __is_done(model_entity['train_job_state'])
 
     while True:
-        model_entity = retrieve_model_entity(team_uuid, model_uuid)
+        model_entity = storage.monitor_training_active(team_uuid, model_uuid)
 
         if not prev_training_done:
             training_done = __is_done(model_entity['train_job_state'])
@@ -407,21 +405,26 @@ def monitor_training(action_parameters):
                 tflite_creator.trigger_create_tflite(team_uuid, model_uuid)
             prev_training_done = training_done
 
-        something_was_updated = False
+        previous_time_ms = model_entity['monitor_training_active_time_ms']
+
         for job_type in ['train', 'eval']:
             dict_path_to_updated = blob_storage.get_event_file_paths(
                 team_uuid, model_uuid, job_type)
             for event_file_path, updated in dict_path_to_updated.items():
-                if event_file_path not in previous_updated or updated > previous_updated[event_file_path]:
-                    largest_step, scalar_summary_items, image_summary_items = __monitor_training_for_event_file(
-                        team_uuid, model_uuid, job_type, event_file_path, action_parameters)
-                    storage.update_model_entity_summary_items(team_uuid, model_uuid,
-                        job_type, largest_step, scalar_summary_items, image_summary_items)
-                    previous_updated[event_file_path] = updated
-                    something_was_updated = True
+                if ('dict_event_file_path_to_updated' in model_entity and
+                        event_file_path in model_entity['dict_event_file_path_to_updated'] and
+                        model_entity['dict_event_file_path_to_updated'][event_file_path] == updated):
+                    continue
+                largest_step, scalar_summary_items, image_summary_items = __monitor_training_for_event_file(
+                    team_uuid, model_uuid, job_type, event_file_path, action_parameters)
+                model_entity = storage.update_model_entity_summary_items(team_uuid, model_uuid, job_type,
+                    event_file_path, updated, largest_step, scalar_summary_items, image_summary_items)
 
-        if not something_was_updated and is_done(model_entity):
-            return
+        if is_done(model_entity):
+            # If we didn't update the model during the for loop, we are done.
+            if model_entity['monitor_training_active_time_ms'] == previous_time_ms:
+                model_entity = storage.monitor_training_finished(team_uuid, model_uuid)
+                return
 
         if action.remaining_timedelta(action_parameters) > timedelta(minutes=2):
             time.sleep(60)
@@ -458,6 +461,9 @@ def __monitor_training_for_event_file(team_uuid, model_uuid, job_type,
                 }
                 scalar_summary_items[__make_key(event.step, value.tag)] = item
             elif value.metadata.plugin_data.plugin_name == 'images':
+                if job_type == 'train':
+                    # Don't bother saving training images.
+                    continue
                 image_value = tf.make_ndarray(value.tensor)
                 if len(image_value) < 3: # width, height, image bytes
                     continue

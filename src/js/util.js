@@ -347,7 +347,7 @@ fmltc.Util.prototype.isStateChangingSoon = function(cancelRequested, jobState) {
 };
 
 fmltc.Util.prototype.isStateCancelRequested = function(cancelRequested, jobState) {
-  return cancelRequested && !jobState.startsWith('CANCEL');
+  return cancelRequested && !this.isJobDone(jobState) && !jobState.startsWith('CANCEL');
 };
 
 fmltc.Util.prototype.formatJobState = function(jobType, cancelRequested, jobState) {

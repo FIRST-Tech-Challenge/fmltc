@@ -224,8 +224,11 @@ def start_frame_extraction():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
     video_uuid = data.get('video_uuid')
-    frame_extractor.start_frame_extraction(team_uuid, video_uuid)
-    return 'OK'
+    video_entity = frame_extractor.start_frame_extraction(team_uuid, video_uuid)
+    response = {
+        'video_entity': video_entity,
+    }
+    return flask.jsonify(response)
 
 @app.route('/retrieveVideoEntities', methods=['POST'])
 @handle_exceptions
@@ -553,8 +556,7 @@ def start_training_model():
     create_time_ms = int(data.get('create_time_ms'))
     model_entity = model_trainer.start_training_model(team_uuid, description, dataset_uuids_json,
         starting_model, max_running_minutes, num_training_steps, create_time_ms)
-    action_parameters = model_trainer.make_action_parameters(team_uuid, model_entity['model_uuid'])
-    action.trigger_action_via_blob(action_parameters)
+    model_trainer.start_monitor_training(team_uuid, model_entity['model_uuid'])
     team_entity = storage.retrieve_team_entity(team_uuid)
     strip_model_entity(model_entity)
     response = {
@@ -562,6 +564,19 @@ def start_training_model():
         'model_entity': model_entity,
     }
     sanitize(response)
+    return flask.jsonify(response)
+
+@app.route('/startMonitorTraining', methods=['POST'])
+@handle_exceptions
+@login_required
+def start_monitor_training():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    model_uuid = data.get('model_uuid')
+    model_entity = model_trainer.start_monitor_training(team_uuid, model_uuid)
+    response = {
+        'model_entity': model_entity,
+    }
     return flask.jsonify(response)
 
 @app.route('/retrieveSummariesUpdated', methods=['POST'])

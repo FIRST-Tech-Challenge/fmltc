@@ -671,6 +671,14 @@ job runs on a Cloud TPU and the evaluation job runs on a Cloud GPU.
 After the job requests have been submitted, the Start Training dialog goes away
 and the [Models tab](#models-tab), is displayed.
 
+<img src="images/models_tab_preparing.png">
+
+It can take several minutes before the job starts running.
+
+When a training job is running, the Models tab looks like this.
+
+<img src="images/models_tab_running.png">
+
 ### Deleting a Dataset
 
 If one or more datasets is selected, the Delete Datasets button is enabled.
@@ -738,10 +746,6 @@ If the users clicks Yes, the selected datasets will be deleted.
 If no models have been created, the Models tab looks like this:
 
 <img src="images/models_tab_empty.png">
-
-When a training job is running, the Models tab looks like this.
-
-<img src="images/models_tab_running.png">
 
 When a training job is finished, the Models tab looks like this.
 
@@ -896,4 +900,3 @@ If the users clicks Yes, the selected models will be deleted.
 >   * deletes the Model entity from Cloud Datastore/Firestore
 
 </details>
-
