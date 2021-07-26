@@ -669,15 +669,11 @@ job runs on a Cloud TPU and the evaluation job runs on a Cloud GPU.
 <img src="images/start_training_dialog_submitting_job_request.png">
 
 After the job requests have been submitted, the Start Training dialog goes away
-and the [Models tab](#models-tab), is displayed.
+and the [Models tab](#models-tab), is displayed. It can take several minutes
+before the job starts running. 
 
-<img src="images/models_tab_preparing.png">
-
-It can take several minutes before the job starts running.
-
-When a training job is running, the Models tab looks like this.
-
-<img src="images/models_tab_running.png">
+...
+<!--- TODO(lizlooney): add internal details --->
 
 ### Deleting a Dataset
 
@@ -747,9 +743,17 @@ If no models have been created, the Models tab looks like this:
 
 <img src="images/models_tab_empty.png">
 
+When a training job is running, the Models tab looks like this.
+
+<img src="images/models_tab_running.png">
+
 When a training job is finished, the Models tab looks like this.
 
-<img src="images/models_tab_succeeded.png">
+<img src="images/models_tab_job_finished.png">
+
+If the training job takes more than the maximum training time, it will be
+canceled automatically. Even though the job was canceled, the last checkpoint
+is available for downloading a TensorFlow Lite model.
 
 The description is a clickable link. To monitor model training, the user clicks
 on the description for that model.
@@ -783,54 +787,77 @@ on the description for that model.
 
 #### Details Tab
 
-<img src="images/monitor_training_details.png">
+The Details tab shows information about the model being trained.
 
-...
-<!--- TODO(lizlooney): add content here --->
+<img src="images/monitor_training_details_running.png">
+
+If the training job takes more than the maximum training time, it will be
+canceled automatically.
+
+<img src="images/monitor_training_details_overtime.png">
+
 
 #### Graphs Tab
 
+The Graphs tab shows training and evaluation metrics.
+
 <img src="images/monitor_training_graphs.png">
 
-...
-<!--- TODO(lizlooney): add content here --->
+Graphs with names that end in IOU show the
+[Intersection over Union](https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/)
+ metric, which indicates the accuracy of object detection.
 
 <img src="images/monitor_training_graphs_detection_boxes.png">
 
-...
-<!--- TODO(lizlooney): add content here --->
 
 #### Images Tab
 
+The Images tab shows side by side images where the left image shows the bounding
+boxes that were produced by the model and the right image shows the bounding
+boxes that were labeled by the user.
+
 <img src="images/monitor_training_images.png">
 
-...
-<!--- TODO(lizlooney): add content here --->
+
+Above each image is a slider that allows the user to choose the checkpoint of
+the model. Here we see that after 100 steps of training, the model was able to
+detect 3 of the 4 wiffle balls.
+
+<img src="images/monitor_training_images_100_steps.png">
+
+If you want to see the full size image, you can use your browser's Open Image
+in New Tab feature.
+
+<img src="images/monitor_training_images_open_in_new_tab.png">
+
 
 ### More Training
 
-If one model is selected and that model's training has succeeded, the More
-Training button is enabled.
+If one model is selected and that model's training has finished and saved a
+checkpoint, the More Training button is enabled.
 
 <img src="images/more_training_button_enabled.png">
 
-...
-<!--- TODO(lizlooney): add content here --->
+When the user clicks More Training, the More Training dialog is shown.
 
 <img src="images/train_more_dialog.png">
 
+The user can choose to continue training with just the original dataset or with
+additional datasets.
+
 ...
-<!--- TODO(lizlooney): add content here --->
+<!--- TODO(lizlooney): add internal details --->
 
 ### Downloading a Model
 
-If one model is selected and that model's training has succeeded, the Download
-Model button is enabled.
+If one model is selected and that model's training has finished and saved a
+checkpoint, the Download Model button is enabled.
 
 <img src="images/download_model_button_enabled.png">
 
 ...
 <!--- TODO(lizlooney): add content here --->
+<!--- TODO(lizlooney): add internal details --->
 
 ### Canceling Training
 
@@ -841,6 +868,7 @@ already been cancelled, the Cancel Training button is enabled.
 
 ...
 <!--- TODO(lizlooney): add content here --->
+<!--- TODO(lizlooney): add internal details --->
 
 ### Deleting a Model
 
