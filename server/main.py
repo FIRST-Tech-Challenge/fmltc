@@ -39,6 +39,8 @@ import team_info
 import tracking
 import util
 
+import logging
+import http.client
 
 app = flask.Flask(__name__)
 app.config.update(
@@ -198,7 +200,7 @@ def prepare_to_upload_video():
         'video_uuid': video_uuid,
         'upload_url': upload_url,
     }
-    blob_storage.set_cors_policy_for_put()
+    # blob_storage.set_cors_policy_for_put()
     return flask.jsonify(response)
 
 @app.route('/startFrameExtraction', methods=['POST'])
@@ -752,4 +754,10 @@ def perform_action(data, context):
 # For running locally:
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8088, debug=True)
+    logging.basicConfig(level=logging.DEBUG)
+    http.client.HTTPConnection.debuglevel=5
+    app.run(host='localhost', port=8088, debug=True)
+    # tmp, url, blob = blob_storage.prepare_to_upload_video("25", "5218", "video/mp4")
+    # blob.upload_from_filename("C:\\Users\\cmacfarlane\\Videos\\Camera\\lizzie.mp4")
+    # print(url)
+

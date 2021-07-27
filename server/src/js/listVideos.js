@@ -208,7 +208,7 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
 
   } else {
     this.trs[i].className = 'frameExtractionIncomplete';
-    setTimeout(this.retrieveVideoEntity.bind(this, videoEntity.video_uuid, true), 1000);
+    setTimeout(this.retrieveVideoEntity.bind(this, videoEntity.video_uuid, true), 10000);
   }
 };
 
