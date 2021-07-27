@@ -1,6 +1,9 @@
 .index_updated
 __pycache__/
 compiled/*
-key.json
+*key.json
 constants.py
 teams
+venv*
+static/js/fmltc.js
+.idea/
