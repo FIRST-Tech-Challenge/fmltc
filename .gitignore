@@ -7,3 +7,4 @@ teams
 venv*
 generated/
 .idea/
+terraform/dev/.terraform/
