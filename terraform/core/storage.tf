@@ -23,8 +23,8 @@ resource "google_storage_bucket" "fmltc-blobs" {
   depends_on = [google_project_service.gcp_services]
 }
 
-resource "google_storage_bucket_acl" "fmltc-blobs-public-acl" {
-  bucket = google_storage_bucket.fmltc-blobs.name
+resource "google_storage_bucket_acl" "fmltc-public-acl" {
+  bucket = google_storage_bucket.fmltc.name
   predefined_acl = "publicread"
   depends_on = [google_project_service.gcp_services]
 }
