@@ -59,10 +59,7 @@ data "archive_file" "src" {
   type        = "zip"
   source_dir  = "${path.root}/../../server"
   output_path = "${path.root}/../../generated/src.zip"
-  excludes = [
-    "${path.root}/../../server/__pycache__}",
-    "${path.root}/../../server/static/training}"
-  ]
+  excludes = [ "__pycache__", "static" ]
 }
 
 resource "google_storage_bucket_object" "archive" {
