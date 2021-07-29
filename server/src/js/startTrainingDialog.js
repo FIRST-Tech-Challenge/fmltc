@@ -111,7 +111,7 @@ fmltc.StartTrainingDialog.prototype.startButton_onclick = function() {
 
   const datasetUuidsJson = JSON.stringify(this.datasetUuids);
 
-  const startingModel = encodeURIComponent(this.startingModelSelect.options[this.startingModelSelect.selectedIndex].value);
+  const startingModel = this.startingModelSelect.options[this.startingModelSelect.selectedIndex].value;
 
   const xhr = new XMLHttpRequest();
   const params =

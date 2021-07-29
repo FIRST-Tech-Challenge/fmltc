@@ -330,7 +330,11 @@ fmltc.Util.prototype.isTrainingDone = function(modelEntity) {
 };
 
 fmltc.Util.prototype.isJobDone = function(jobState) {
-  return jobState == '' || jobState == 'SUCCEEDED' || jobState == 'FAILED' || jobState == 'CANCELLED';
+  return (
+      jobState == '' ||
+      jobState == 'SUCCEEDED' ||
+      jobState == 'FAILED' ||
+      jobState == 'CANCELLED');
 };
 
 fmltc.Util.prototype.isStateChangingSoon = function(cancelRequested, jobState) {
@@ -343,12 +347,19 @@ fmltc.Util.prototype.isStateChangingSoon = function(cancelRequested, jobState) {
 };
 
 fmltc.Util.prototype.isStateCancelRequested = function(cancelRequested, jobState) {
-  return cancelRequested && !jobState.startsWith('CANCEL');
+  return cancelRequested && !this.isJobDone(jobState) && !jobState.startsWith('CANCEL');
 };
 
-fmltc.Util.prototype.formatJobState = function(cancelRequested, jobState) {
-  return this.isStateCancelRequested(cancelRequested, jobState)
-      ? 'CANCEL REQUESTED' : jobState;
+fmltc.Util.prototype.formatJobState = function(jobType, cancelRequested, jobState) {
+  if (this.isStateCancelRequested(cancelRequested, jobState)) {
+    return 'CANCEL REQUESTED';
+  }
+  if (jobType == 'eval' && (jobState == 'CANCELLING' || this.isJobDone(jobState))) {
+    // Because the server cancels the eval job when it has completed the last evaluation, we just
+    // say FINISHED here.
+    return 'FINISHED';
+  }
+  return jobState;
 };
 
 fmltc.Util.prototype.sortedLabelListsEqual = function(a1, a2) {

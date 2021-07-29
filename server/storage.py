@@ -502,6 +502,8 @@ def tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_numb
             'tracker_uuid': tracker_uuid,
             'update_time': datetime.now(timezone.utc),
             'video_blob_name': video_entity['video_blob_name'],
+            'video_width': video_entity['width'],
+            'video_height': video_entity['height'],
             'tracker_name': tracker_name,
             'scale': scale,
             'frame_number': init_frame_number,
@@ -1003,14 +1005,15 @@ def model_trainer_starting(team_uuid, max_running_minutes):
     model_uuid = str(uuid.uuid4().hex)
     return model_uuid
 
-def model_trainer_failed_to_start(team_uuid, max_running_minutes):
+def model_trainer_failed_to_start(team_uuid, model_uuid, max_running_minutes):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         team_entity = retrieve_team_entity(team_uuid)
         team_entity['remaining_training_minutes'] += max_running_minutes
         transaction.put(team_entity)
+    delete_model(team_uuid, model_uuid)
 
-def model_trainer_started(team_uuid, model_uuid, description,
+def model_trainer_started(team_uuid, model_uuid, description, tensorflow_version,
         dataset_uuids, create_time_ms, max_running_minutes, num_training_steps,
         previous_training_steps, starting_model, user_visible_starting_model,
         original_starting_model, fine_tune_checkpoint,
@@ -1025,6 +1028,7 @@ def model_trainer_started(team_uuid, model_uuid, description,
             'team_uuid': team_uuid,
             'model_uuid': model_uuid,
             'description': description,
+            'tensorflow_version': tensorflow_version,
             'dataset_uuids': dataset_uuids,
             'create_time_ms': create_time_ms,
             'create_time': util.datetime_from_ms(create_time_ms),
@@ -1050,10 +1054,15 @@ def model_trainer_started(team_uuid, model_uuid, description,
             'delete_in_progress': False,
             'train_consumed_ml_units': 0,
             'train_job_elapsed_seconds': 0,
-            'eval_consumed_ml_units': 0,
-            'eval_job_elapsed_seconds': 0,
             'trained_checkpoint_path': '',
             'trained_steps': 0,
+            'eval_consumed_ml_units': 0,
+            'eval_job_elapsed_seconds': 0,
+            'evaled_steps': 0,
+            'dict_event_file_path_to_updated': {},
+            'monitor_training_triggered_time_ms': 0,
+            'monitor_training_active_time_ms': 0,
+            'monitor_training_finished': False,
         })
         __update_model_entity_job_state(model_entity, train_job, 'train_')
         # If the training job has already ended, adjust the team's remaining training time.
@@ -1173,7 +1182,6 @@ def __update_model_entity_job_state(model_entity, job, prefix):
       util.log('%s_error_message is %s' % (prefix, error_message))
     model_entity[prefix + 'error_message'] = (error_message[:200] + '..') if len(error_message) > 200 else error_message
 
-
 def update_model_entity_job_state(team_uuid, model_uuid, train_job, eval_job):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -1193,30 +1201,83 @@ def update_model_entity_job_state(team_uuid, model_uuid, train_job, eval_job):
         if eval_job is not None:
             __update_model_entity_job_state(model_entity, eval_job, 'eval_')
         # Set trained_checkpoint_path.
-        trained_checkpoint_path, trained_steps = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
+        trained_checkpoint_path = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
         model_entity['trained_checkpoint_path'] = trained_checkpoint_path
-        model_entity['trained_steps'] = trained_steps
         model_entity['update_time'] = datetime.now(timezone.utc)
         transaction.put(model_entity)
         return model_entity
 
-def update_model_entity_trained_steps(team_uuid, model_uuid):
+def get_model_entity_summary_items_field_name(job_type, value_type):
+    return '%s_%s_summary_items' % (job_type, value_type)
+
+def update_model_entity_summary_items(team_uuid, model_uuid, job_type,
+        event_file_path, updated, largest_step, scalar_summary_items, image_summary_items):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         model_entity = retrieve_model_entity(team_uuid, model_uuid)
-        trained_checkpoint_path, trained_steps = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
-        model_entity['trained_checkpoint_path'] = trained_checkpoint_path
-        model_entity['trained_steps'] = trained_steps
+        modified = False
+        if job_type == 'train' and largest_step is not None and largest_step > model_entity['trained_steps']:
+            model_entity['trained_steps'] = largest_step
+            modified = True
+        if job_type == 'eval' and largest_step is not None and largest_step > model_entity['evaled_steps']:
+            model_entity['evaled_steps'] = largest_step
+            modified = True
+        if 'dict_event_file_path_to_updated' not in model_entity:
+            model_entity['dict_event_file_path_to_updated'] = {}
+            modified = True
+        if (event_file_path not in model_entity['dict_event_file_path_to_updated'] or
+                model_entity['dict_event_file_path_to_updated'][event_file_path] < updated):
+            model_entity['dict_event_file_path_to_updated'][event_file_path] = updated
+            modified = True
+        summary_items_field_name = get_model_entity_summary_items_field_name(job_type, 'scalar')
+        if summary_items_field_name not in model_entity:
+            model_entity[summary_items_field_name] = {}
+            modified = True
+        for key, item in scalar_summary_items.items():
+            if key not in model_entity[summary_items_field_name]:
+                model_entity[summary_items_field_name][key] = item
+                modified = True
+        summary_items_field_name = get_model_entity_summary_items_field_name(job_type, 'image')
+        if summary_items_field_name not in model_entity:
+            model_entity[summary_items_field_name] = {}
+            modified = True
+        for key, item in image_summary_items.items():
+            if key not in model_entity[summary_items_field_name]:
+                model_entity[summary_items_field_name][key] = item
+                modified = True
+        if modified:
+            model_entity['monitor_training_active_time'] = datetime.now(timezone.utc)
+            model_entity['monitor_training_active_time_ms'] = util.ms_from_datetime(model_entity['monitor_training_active_time'])
+            transaction.put(model_entity)
+        return model_entity
+
+def prepare_to_start_monitor_training(team_uuid, model_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        model_entity = retrieve_model_entity(team_uuid, model_uuid)
+        model_entity['monitor_training_triggered_time'] = datetime.now(timezone.utc)
+        model_entity['monitor_training_triggered_time_ms'] = util.ms_from_datetime(model_entity['monitor_training_triggered_time'])
         transaction.put(model_entity)
         return model_entity
 
-def update_model_entity_summary_items(team_uuid, model_uuid, job_type, scalar_summary_items, image_summary_items):
+def monitor_training_active(team_uuid, model_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         model_entity = retrieve_model_entity(team_uuid, model_uuid)
-        model_entity[job_type + '_scalar_summary_items'] = scalar_summary_items
-        model_entity[job_type + '_image_summary_items'] = image_summary_items
+        model_entity['monitor_training_active_time'] = datetime.now(timezone.utc)
+        model_entity['monitor_training_active_time_ms'] = util.ms_from_datetime(model_entity['monitor_training_active_time'])
         transaction.put(model_entity)
+        return model_entity
+
+def monitor_training_finished(team_uuid, model_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        model_entity = retrieve_model_entity(team_uuid, model_uuid)
+        model_entity['monitor_training_finished'] = True
+        model_entity['monitor_training_active_time'] = datetime.now(timezone.utc)
+        model_entity['monitor_training_active_time_ms'] = util.ms_from_datetime(model_entity['monitor_training_active_time'])
+        transaction.put(model_entity)
+        return model_entity
 
 def retrieve_model_list(team_uuid):
     datastore_client = datastore.Client()
@@ -1314,10 +1375,12 @@ def delete_model(team_uuid, model_uuid):
             model_entity = model_entities[0]
             model_entity['delete_in_progress'] = True
             transaction.put(model_entity)
-            action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_MODEL)
-            action_parameters['team_uuid'] = team_uuid
-            action_parameters['model_uuid'] = model_uuid
-            action.trigger_action_via_blob(action_parameters)
+        # Since the pipeline.config blob is created before the model_entity, even if there is no
+        # model_entity in the database, we still trigger the action to delete the model.
+        action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_MODEL)
+        action_parameters['team_uuid'] = team_uuid
+        action_parameters['model_uuid'] = model_uuid
+        action.trigger_action_via_blob(action_parameters)
 
 def finish_delete_model(action_parameters):
     team_uuid = action_parameters['team_uuid']
