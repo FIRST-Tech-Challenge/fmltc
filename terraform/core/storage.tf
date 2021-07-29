@@ -44,3 +44,23 @@ resource "google_storage_bucket" "fmltc-gcf-source" {
   depends_on = [google_project_service.gcp_services]
 }
 
+resource "google_storage_bucket" "fmltc-gae-source" {
+  name          = "${var.project_name}-gae-source"
+  location      = "US"
+  force_destroy = true
+  depends_on = [google_project_service.gcp_services]
+}
+
+resource "google_storage_bucket_object" "styles" {
+  name   = "static/css/styles.css"
+  source = "${path.root}/../../server/static/css/styles.css"
+  bucket = google_storage_bucket.fmltc.name
+}
+
+resource "google_storage_bucket_object" "closure_js" {
+  name   = "compiled/js/fmltc.js"
+  source = "${path.root}/../../compiled/js/fmltc.js"
+  bucket = google_storage_bucket.fmltc.name
+}
+
+
