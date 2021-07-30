@@ -98,7 +98,7 @@ def __get_download_url(blob_name):
     blob = util.storage_client().bucket(BUCKET_BLOBS).blob(blob_name)
     if not blob.exists():
         return False, ''
-    expires_at_datetime = datetime.now() + timedelta(minutes=10)
+    expires_at_datetime = datetime.utcnow() + timedelta(minutes=10)
     return True, blob.generate_signed_url(expires_at_datetime, method='GET')
 
 def __delete_blob(blob_name):
@@ -118,7 +118,7 @@ def __delete_blobs(blob_names):
 def prepare_to_upload_video(team_uuid, video_uuid, content_type):
     video_blob_name = 'video_files/%s/%s' % (team_uuid, video_uuid)
     blob = util.storage_client().bucket(BUCKET_BLOBS).blob(video_blob_name)
-    expires_at_datetime = datetime.now() + timedelta(minutes=5)
+    expires_at_datetime = datetime.utcnow() + timedelta(minutes=5)
     signed_url = blob.generate_signed_url(expires_at_datetime, method='PUT', content_type=content_type)
     return video_blob_name, signed_url
 
@@ -143,7 +143,7 @@ def retrieve_video_frame_image(image_blob_name):
 
 def get_image_urls(image_blob_names):
     bucket = util.storage_client().bucket(BUCKET_BLOBS)
-    expires_at_datetime = datetime.now() + timedelta(minutes=10)
+    expires_at_datetime = datetime.utcnow() + timedelta(minutes=10)
     signed_urls = []
     for image_blob_name in image_blob_names:
         blob = bucket.blob(image_blob_name)
