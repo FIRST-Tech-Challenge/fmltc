@@ -21,7 +21,7 @@ resource "google_datastore_index" "team2" {
     name = "last_time"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app]
+  depends_on = [google_datastore_index.team1]
 }
 
 resource "google_datastore_index" "video1" {
@@ -47,7 +47,7 @@ resource "google_datastore_index" "video2" {
     name = "create_time"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app, google_datastore_index.video1]
+  depends_on = [google_datastore_index.video1]
 }
 
 resource "google_datastore_index" "video3" {
@@ -64,7 +64,7 @@ resource "google_datastore_index" "video3" {
     name = "create_time"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app, google_datastore_index.video2]
+  depends_on = [google_datastore_index.video2]
 }
 
 resource "google_datastore_index" "videoFrame1" {
@@ -94,7 +94,7 @@ resource "google_datastore_index" "videoFrame2" {
     name = "frame_number"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app]
+  depends_on = [google_datastore_index.videoFrame1]
 }
 
 resource "google_datastore_index" "tracker1" {
@@ -110,7 +110,7 @@ resource "google_datastore_index" "tracker1" {
   depends_on = [google_app_engine_application.fmltc-app]
 }
 
-resource "google_datastore_index" "tracker2" {
+resource "google_datastore_index" "trackerClient" {
   kind = "TrackerClient"
   properties {
     name = "tracker_uuid"
@@ -146,7 +146,7 @@ resource "google_datastore_index" "dataset2" {
     name = "create_time"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app]
+  depends_on = [google_datastore_index.dataset1]
 }
 
 resource "google_datastore_index" "dataset3" {
@@ -163,7 +163,7 @@ resource "google_datastore_index" "dataset3" {
     name = "create_time"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app]
+  depends_on = [google_datastore_index.dataset2]
 }
 
 resource "google_datastore_index" "datasetRecord1" {
@@ -176,7 +176,6 @@ resource "google_datastore_index" "datasetRecord1" {
     name = "dataset_uuid"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app]
 }
 
 resource "google_datastore_index" "datasetRecord2" {
@@ -193,7 +192,7 @@ resource "google_datastore_index" "datasetRecord2" {
     name = "record_number"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app]
+  depends_on = [google_datastore_index.datasetRecord1]
 }
 
 resource "google_datastore_index" "datasetRecordWriter1" {
@@ -223,7 +222,7 @@ resource "google_datastore_index" "datasetRecordWriter2" {
     name = "record_number"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app]
+  depends_on = [google_datastore_index.datasetRecordWriter1]
 }
 
 resource "google_datastore_index" "datasetRecordZipper1" {
@@ -253,7 +252,7 @@ resource "google_datastore_index" "datasetRecordZipper2" {
     name = "partition_index"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app]
+  depends_on = [google_datastore_index.datasetRecordZipper1]
 }
 
 resource "google_datastore_index" "model1" {
@@ -279,7 +278,7 @@ resource "google_datastore_index" "model2" {
     name = "create_time"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app]
+  depends_on = [google_datastore_index.model1]
 }
 
 resource "google_datastore_index" "model3" {
@@ -296,7 +295,7 @@ resource "google_datastore_index" "model3" {
     name = "create_time"
     direction = "ASCENDING"
   }
-  depends_on = [google_app_engine_application.fmltc-app]
+  depends_on = [google_datastore_index.model2]
 }
 
 resource "google_datastore_index" "action" {
