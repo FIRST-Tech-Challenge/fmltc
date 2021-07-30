@@ -73,7 +73,7 @@ resource "google_storage_bucket_object" "app-server-archive" {
 resource "google_cloudfunctions_function" "frame-extraction" {
   name        = "perform_action"
   description = "Extracts frames after a video upload"
-  runtime     = "python37"
+  runtime     = "python39"
 
   available_memory_mb   = 8192
   timeout               = 540
@@ -81,6 +81,11 @@ resource "google_cloudfunctions_function" "frame-extraction" {
 
   source_archive_bucket = google_storage_bucket.fmltc-gcf-source.name
   source_archive_object = google_storage_bucket_object.cloud-function-archive.name
+
+  timeouts {
+    create = "60m"
+    update = "60m"
+  }
 
   event_trigger {
     event_type  = "google.storage.object.finalize"
@@ -99,12 +104,12 @@ resource "google_app_engine_application" "fmltc-app" {
 }
 
 resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
-  runtime    = "python37"
-  service    = "fmltc-app"
+  runtime    = "python39"
+  service    = "default"
   version_id = "v1"
 
   entrypoint {
-    shell = "gunicorn -b $PORT main:app"
+    shell = "gunicorn -b :$PORT main:app"
   }
 
   automatic_scaling {
@@ -119,6 +124,11 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
       min_instances = 2
       max_instances = 10
     }
+  }
+
+  timeouts {
+    create = "60m"
+    update = "60m"
   }
 
   deployment {
@@ -147,4 +157,5 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
 
   instance_class = "F4"
 }
+
 
