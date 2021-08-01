@@ -59,4 +59,3 @@ ORIGIN = os.getenv('ORIGIN')
 if ORIGIN == None:
     ORIGIN = '<YOUR-ORIGIN>'
 
-#ORIGIN = 'http://ftcml-throwaway.uc.r.appspot.com'
