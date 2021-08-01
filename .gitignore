@@ -2,7 +2,6 @@
 __pycache__/
 compiled/*
 key.json
-constants.py
 teams
 venv*
 generated/
