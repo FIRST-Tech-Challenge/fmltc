@@ -82,6 +82,10 @@ resource "google_cloudfunctions_function" "frame-extraction" {
   source_archive_bucket = google_storage_bucket.fmltc-gcf-source.name
   source_archive_object = google_storage_bucket_object.cloud-function-archive.name
 
+  environment_variables = {
+    PROJECT_ID = var.project_id
+  }
+
   timeouts {
     create = "60m"
     update = "60m"
