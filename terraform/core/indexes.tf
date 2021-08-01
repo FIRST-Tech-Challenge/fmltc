@@ -301,7 +301,7 @@ resource "google_datastore_index" "model3" {
 resource "google_datastore_index" "action" {
   kind = "Action"
   properties {
-    name = "action_id"
+    name = "action_uuid"
     direction = "ASCENDING"
   }
   properties {
