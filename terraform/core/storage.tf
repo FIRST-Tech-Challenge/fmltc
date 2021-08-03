@@ -11,15 +11,6 @@ resource "google_storage_bucket" "fmltc-blobs" {
   location      = "US"
   force_destroy = true
 
-  #
-  # Temporary cors policy for testing
-  #
-  cors {
-    origin          = ["*"]
-    method          = ["GET", "PUT", "POST", "DELETE"]
-    response_header = ["Content-Type", "Access-Control-Allow-Origin", "X-Requested-With", "x-goog-resumable"]
-    max_age_seconds = 3600
-  }
   depends_on = [google_project_service.gcp_services]
 }
 
@@ -65,6 +56,14 @@ resource "google_storage_bucket_object" "closure_js" {
   content_type = "application/css"
   bucket       = google_storage_bucket.fmltc.name
   depends_on   = [google_storage_default_object_access_control.public_rule]
+}
+
+resource "google_storage_bucket_object" "models" {
+  for_each    = fileset("${path.root}/../../server/static/training", "**")
+  bucket      = google_storage_bucket.fmltc.name
+  depends_on  = [google_storage_default_object_access_control.public_rule]
+  source      = "${path.root}/../../server/static/training/${each.key}"
+  name        = "static/training/${each.key}"
 }
 
 
