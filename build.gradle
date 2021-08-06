@@ -1,0 +1,59 @@
+
+apply plugin: 'java'
+
+repositories {
+  mavenCentral()
+}
+
+configurations {
+  closureCompiler
+  closureLibrary
+}
+
+dependencies {
+  closureCompiler ('com.google.javascript:closure-compiler:v20200505') { transitive = false }
+  closureLibrary 'org.clojure:google-closure-library:0.0-20210512-04d6fb3b'
+}
+
+task unpackClosureLib(type: Copy) {
+  dependsOn configurations.closureLibrary
+  from {
+    configurations.closureLibrary.asFileTree.each {
+      from( zipTree(it) )
+    }
+    // Don't include the actual archives themselves
+    null
+  }
+  into file("${project.buildDir}/closure/")
+}
+
+task compileJavascript(type: JavaExec) {
+  dependsOn unpackClosureLib
+  classpath files(configurations.closureCompiler)
+  // main = 'com.google.javascript.jscomp.CommandLineRunner'
+  main = '-jar'
+
+  println configurations.closureCompiler.asPath
+  // args ''--help'
+  args = [configurations.closureCompiler.asPath,
+       '--js=server/src/js/**.js',
+       '--js=build/closure/goog/base.js',
+       '--only_closure_dependencies',
+       '--entry_point=fmltc.Box',
+       '--entry_point=fmltc.DeleteConfirmationDialog',
+       '--entry_point=fmltc.DeleteForbiddenDialog',
+       '--entry_point=fmltc.DownloadDatasetDialog',
+       '--entry_point=fmltc.DownloadModelDialog',
+       '--entry_point=fmltc.LabelVideo',
+       '--entry_point=fmltc.ListDatasets',
+       '--entry_point=fmltc.ListModels',
+       '--entry_point=fmltc.ListVideos',
+       '--entry_point=fmltc.MonitorTraining',
+       '--entry_point=fmltc.Point',
+       '--entry_point=fmltc.ProduceDatasetDialog',
+       '--entry_point=fmltc.StartTrainingDialog',
+       '--entry_point=fmltc.TrainMoreDialog',
+       '--entry_point=fmltc.UploadVideoFileDialog',
+       '--entry_point=fmltc.Util',
+       '--js_output_file=compiled/js/fmltc.js' ]
+}
