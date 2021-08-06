@@ -11,7 +11,7 @@ configurations {
 }
 
 dependencies {
-  closureCompiler ('com.google.javascript:closure-compiler:v20200505') { transitive = false }
+  closureCompiler ('com.google.javascript:closure-compiler:v20210505') { transitive = false }
   closureLibrary 'org.clojure:google-closure-library:0.0-20210512-04d6fb3b'
 }
 
