@@ -53,19 +53,6 @@ resource "google_project_service" "gcp_services" {
   disable_dependent_services = true
 }
 
-data "ml_config" "cfg" {
-  provider = google-ml
-}
-
-resource "google_project_iam_binding" "tpu_role" {
-  project = var.project_id
-  role = "roles/ml.serviceAgent"
-  members = [
-    "serviceAccount:${data.ml_config.cfg.tpu_service_account}",
-    "serviceAccount:${data.ml_config.cfg.service_account}"
-  ]
-}
-
 data "archive_file" "cloud-function-src" {
   type        = "zip"
   source_dir  = "${path.root}/../../server"
@@ -184,4 +171,18 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
   instance_class = "F4"
 }
 
+
+data "ml_config" "cfg" {
+  provider = google-ml
+  depends_on = [google_project_service.gcp_services]
+}
+
+resource "google_project_iam_binding" "tpu_role" {
+  project = var.project_id
+  role = "roles/ml.serviceAgent"
+  members = [
+    "serviceAccount:${data.ml_config.cfg.tpu_service_account}",
+    "serviceAccount:${data.ml_config.cfg.service_account}"
+  ]
+}
 
