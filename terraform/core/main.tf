@@ -4,6 +4,10 @@ terraform {
       source = "hashicorp/google"
       version = "3.77.0"
     }
+    google-ml = {
+      source = "cmacfarl/google-ml"
+      version = "0.1.0"
+    }
   }
 }
 
@@ -13,6 +17,11 @@ provider "google" {
   project = var.project_id
   region  = var.region
   zone    = var.zone
+}
+
+provider "google-ml" {
+  credentials = var.credentials_file
+  project     = var.project_id
 }
 
 variable "gcp_service_list" {
@@ -42,6 +51,19 @@ resource "google_project_service" "gcp_services" {
   service = each.key
 
   disable_dependent_services = true
+}
+
+data "ml_config" "cfg" {
+  provider = google-ml
+}
+
+resource "google_project_iam_binding" "tpu_role" {
+  project = var.project_id
+  role = "roles/ml.serviceAgent"
+  members = [
+    "serviceAccount:${data.ml_config.cfg.tpu_service_account}",
+    "serviceAccount:${data.ml_config.cfg.service_account}"
+  ]
 }
 
 data "archive_file" "cloud-function-src" {
