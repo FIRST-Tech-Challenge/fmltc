@@ -38,7 +38,7 @@ task compileJavascript(type: JavaExec) {
   args = [configurations.closureCompiler.asPath,
        '--js=server/src/js/**.js',
        '--js=build/closure/goog/base.js',
-       '--only_closure_dependencies',
+       '--dependency_mode=PRUNE',
        '--entry_point=fmltc.Box',
        '--entry_point=fmltc.DeleteConfirmationDialog',
        '--entry_point=fmltc.DeleteForbiddenDialog',
