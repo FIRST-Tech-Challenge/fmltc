@@ -28,11 +28,6 @@ variable "gcp_service_list" {
   description = "The list of apis necessary for fmltc"
   type = list(string)
   default = [
-    #
-    # Cloud resource manager is necessary for terraform to enable the
-    # rest of the APIs.
-    #
-    "cloudresourcemanager.googleapis.com",
     "storage.googleapis.com",
     "cloudfunctions.googleapis.com",
     # Double check if datastore is necessary
@@ -46,10 +41,21 @@ variable "gcp_service_list" {
   ]
 }
 
+resource "google_project_service" "first_dependency" {
+  #
+  # Cloud resource manager is necessary for terraform to enable the
+  # rest of the APIs.  This is here because paranoia that terraform's
+  # parallelism will break the apply if this isn't guaranteed to happen
+  # first.
+  #
+  service = "cloudresourcemanager.googleapis.com"
+  disable_dependent_services = true
+}
+
 resource "google_project_service" "gcp_services" {
+  depends_on = [google_project_service.first_dependency]
   for_each = toset(var.gcp_service_list)
   service = each.key
-
   disable_dependent_services = true
 }
 

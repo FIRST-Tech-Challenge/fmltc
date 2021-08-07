@@ -176,6 +176,7 @@ resource "google_datastore_index" "datasetRecord1" {
     name = "dataset_uuid"
     direction = "ASCENDING"
   }
+  depends_on = [google_app_engine_application.fmltc-app]
 }
 
 resource "google_datastore_index" "datasetRecord2" {
@@ -310,4 +311,3 @@ resource "google_datastore_index" "action" {
   }
   depends_on = [google_app_engine_application.fmltc-app]
 }
-
