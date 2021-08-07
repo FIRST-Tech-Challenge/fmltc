@@ -22,7 +22,7 @@ Best practices for project naming
 - Ensure it is globally unique so that the project name and id are identical
 - Don't use generic project names that might be globally useful in other contexts.  e.g. first-machine-learning-* or similar.
 
-The end result of following these instructions is a publicly available App Engine server.  If your Google account's free tier has expired, Google will begin charging your credit card for costs associated with the account.  Users should monitor their costs closely to avoid unexpected bills.  Users should choose a token for their team_info (see below) file that is not easily guessed.  Users should not upload the team_info file to public repositories.
+The end result of following these instructions is a publicly available App Engine server.  If your Google account's free tier has expired, Google will begin charging your credit card for costs associated with the account.  Users should monitor their costs closely to avoid unexpected bills. 
 
 ## Installation Instructions
 
@@ -37,6 +37,8 @@ The end result of following these instructions is a publicly available App Engin
     >gradle compileJavascript.
 1. Create a file named 'teams' in fmltc's root directory that has one line.  
     >FTC, \<your team number>, \<password>
+        
+    Note that you should be careful to not upload this file to public repositories and you should choose a password that is not easily guessed.
 1. Navigate to terraform/dev.
 1. Edit terraform.tfvars to reflect your, project_name and project_id. 
 1. Run: 
