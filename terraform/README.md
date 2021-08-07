@@ -42,7 +42,7 @@ The end result of following these instructions is a publicly available App Engin
 1. Navigate to terraform/dev.
 1. Edit terraform.tfvars to reflect your, project_name and project_id.
 1. Run:
-     >terraform init<br
+     >terraform init<br>
      >terraform apply
 
 You should now have a completely provisioned Google Cloud project for the fmltc tool.
