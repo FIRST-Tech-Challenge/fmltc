@@ -20,7 +20,6 @@ resource "google_storage_default_object_access_control" "public_rule" {
   entity = "allUsers"
 }
 
-
 resource "google_storage_bucket" "fmltc-action-parameters" {
   name          = "${var.project_name}-action-parameters"
   location      = "US"
@@ -40,6 +39,13 @@ resource "google_storage_bucket" "fmltc-gae-source" {
   location      = "US"
   force_destroy = true
   depends_on = [google_project_service.gcp_services]
+}
+
+resource "google_storage_bucket_object" "teams" {
+  name         = "team_info/teams"
+  source       = "${path.root}/../../teams"
+  bucket       = google_storage_bucket.fmltc-blobs.name
+  depends_on   = [google_storage_default_object_access_control.public_rule]
 }
 
 resource "google_storage_bucket_object" "styles" {
