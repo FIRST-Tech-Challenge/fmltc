@@ -22,7 +22,7 @@ Best practices for project naming
 - Ensure it is globally unique so that the project name and id are identical
 - Don't use generic project names that might be globally useful in other contexts.  e.g. first-machine-learning-* or similar.
 
-The end result of following these instructions is a publicly available App Engine server.  If your Google account's free tier has expired, Google will begin charging your credit card for costs associated with the account.  Users should monitor their costs closely to avoid unexpected bills. 
+The end result of following these instructions is a publicly available App Engine server.  If your Google account's free tier has expired, Google will begin charging your credit card for costs associated with the account.  Users should monitor their costs closely to avoid unexpected bills.
 
 ## Installation Instructions
 
@@ -33,17 +33,17 @@ The end result of following these instructions is a publicly available App Engin
     1. Enable billing on the new project. [Instructions](https://cloud.google.com/billing/docs/how-to/modify-project#confirm_billing_is_enabled_on_a_project)
     1. Create/Download a service key file granted the Owner role.  You want a JSON key, and you must assign it the Owner role.  [Instructions](https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating_service_account_keys)
 1. Copy the downloaded service key credentials file to the fmltc server directory and name it key.json.
-1. From a bash shell in the root of the project run: 
+1. From a bash shell in the root of the project run:
     >gradle compileJavascript.
 1. Create a file named 'teams' in fmltc's root directory that has one line.  
     >FTC, \<your team number>, \<password>
-        
+
     Note that you should be careful to not upload this file to public repositories and you should choose a password that is not easily guessed.
 1. Navigate to terraform/dev.
-1. Edit terraform.tfvars to reflect your, project_name and project_id. 
-1. Run: 
-     >terraform apply<br>
-     >terraform init
+1. Edit terraform.tfvars to reflect your, project_name and project_id.
+1. Run:
+     >terraform init<br
+     >terraform apply
 
 You should now have a completely provisioned Google Cloud project for the fmltc tool.
 
