@@ -8,10 +8,10 @@ This directory contains a [Terraform](https://www.terraform.io/) description of 
 - Familiarity with git
 
 ## Requirements
-- A new Google Cloud project with billing enabled [Project Setup Instructions](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
-- A Terraform Installation [Install Instructions](https://learn.hashicorp.com/tutorials/terraform/install-cli?in=terraform/gcp-get-started)
-- Gradle [Install Instructions](https://gradle.org/install/)
-- A service key for the Google Cloud project (Granted Owner role)
+- A new Google Cloud project with billing enabled. [Instructions](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
+- A Terraform Installation. [Instructions](https://learn.hashicorp.com/tutorials/terraform/install-cli?in=terraform/gcp-get-started)
+- Gradle. [Instructions](https://gradle.org/install/)
+- A service key for the Google Cloud project (Granted Owner role).
 
 ## General Guidelines
 
@@ -33,13 +33,13 @@ The end result of following these instructions is a publicly available App Engin
     1. Enable billing on the new project. [Instructions](https://cloud.google.com/billing/docs/how-to/modify-project#confirm_billing_is_enabled_on_a_project)
     1. Create/Download a service key file granted the Owner role.  You want a JSON key, and you must assign it the Owner role.  [Instructions](https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating_service_account_keys)
 1. Copy the downloaded service key credentials file to the fmltc server directory and name it key.json.
-1. From a bash shell in the root of the project run 
+1. From a bash shell in the root of the project run: 
     >gradle compileJavascript.
-1. Create a file named 'teams' in fmltc's root directory that has one line  
+1. Create a file named 'teams' in fmltc's root directory that has one line.  
     >FTC, \<your team number>, \<password>
 1. Navigate to terraform/dev.
 1. Edit terraform.tfvars to reflect your, project_name and project_id. 
-1. Run 
+1. Run: 
      >terraform apply<br>
      >terraform init
 
