@@ -42,7 +42,7 @@ if PROJECT_ID == None:
     PROJECT_ID = '<YOUR-PROJECT-ID>'
 
 #
-# Set in the environement or replace <Secret Key> with the secret key you want
+# Set in the environment or replace <YOUR-SECRET-KEY> with the secret key you want
 # to use to configure flask. This should be kept secret and never be uploaded
 # to the open source repo.
 #
@@ -51,7 +51,7 @@ if SECRET_KEY == None:
     SECRET_KEY = '<YOUR-SECRET-KEY>'
 
 #
-# Set in the environment or eplace <Origin> with the base URL that will serve
+# Set in the environment or replace <YOUR-ORIGIN> with the base URL that will serve
 # the website. In many cases, this will be https://<Project ID>.appspot.com
 # The value should not end with a / and should not contain a path.
 #

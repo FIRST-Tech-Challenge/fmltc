@@ -25,6 +25,7 @@ import time
 import flask
 
 # My Modules
+import os
 import action
 import blob_storage
 import constants
@@ -216,7 +217,7 @@ def prepare_to_upload_video():
         'video_uuid': video_uuid,
         'upload_url': upload_url,
     }
-    # blob_storage.set_cors_policy_for_put()
+    blob_storage.set_cors_policy_for_put()
     return flask.jsonify(response)
 
 @app.route('/startFrameExtraction', methods=['POST'])
@@ -800,13 +801,12 @@ def perform_action(data, context):
     if data['bucket'] == action.BUCKET_ACTION_PARAMETERS:
         time_limit = start_time + timedelta(seconds=500)
         action.perform_action_from_blob(data['name'], time_limit)
+    else:
+        util.log('Called function on invalid bucket' + action.BUCKET_ACTION_PARAMETERS)
     return 'OK'
 
 # For running locally:
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8088, debug=True)
-    # tmp, url, blob = blob_storage.prepare_to_upload_video("25", "5218", "video/mp4")
-    # blob.upload_from_filename("C:\\Users\\cmacfarlane\\Videos\\Camera\\lizzie.mp4")
-    # print(url)
 
