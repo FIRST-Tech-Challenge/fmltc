@@ -12,6 +12,8 @@
 .index_updated
 teams
 
+key.json
+
 __pycache__/
 bin/
 compiled/

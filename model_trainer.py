@@ -24,7 +24,6 @@ import time
 import traceback
 
 # Other Modules
-from google.oauth2 import service_account
 import googleapiclient.discovery
 import tensorflow as tf
 from tensorflow.core.util import event_pb2
@@ -340,10 +339,8 @@ def cancel_training_model(team_uuid, model_uuid):
     return storage.cancel_training_requested(team_uuid, model_uuid)
 
 def __get_ml_service():
-    scopes = ['https://www.googleapis.com/auth/cloud-platform']
-    credentials = service_account.Credentials.from_service_account_file('key.json', scopes=scopes)
     return googleapiclient.discovery.build(
-        serviceName='ml', version='v1', credentials=credentials, cache_discovery=False)
+        serviceName='ml', version='v1', cache_discovery=False)
 
 def __get_parent():
     # TODO(lizlooney): Is the project id here supposed to be our Google Cloud Project ID?
