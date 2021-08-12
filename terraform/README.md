@@ -15,6 +15,8 @@ This directory contains a [Terraform](https://www.terraform.io/) description of 
 
 ## General Guidelines
 
+### Project Naming
+
 For the Google Cloud project name you should choose a unique name that ensures that the project name and project id are the same.  Project ids are globally unique, so if you choose a project name that is already taken, Google will append a random number to your project id.  It's less confusing all around if your project id does not have that random number hanging off the end.
 
 Best practices for project naming
@@ -24,10 +26,14 @@ Best practices for project naming
 
 The end result of following these instructions is a publicly available App Engine server.  If your Google account's free tier has expired, Google will begin charging your credit card for costs associated with the account.  Users should monitor their costs closely to avoid unexpected bills.
 
+### Terraform
+
+It helps to have some knowledge of Terraform concepts.  The [tutorial](https://learn.hashicorp.com/collections/terraform/gcp-get-started) for GCP is highly recommended.  Important concepts to understand are [Modules](https://www.terraform.io/docs/language/modules/index.html) and [State](https://www.terraform.io/docs/language/state/index.html).  While there is some support in this repository for a remote backend, due to limitations in Terraform it is not possible to completely abstract away that feature for general purpose use.  Hence, users that want to set up their own personal instances of this project must edit main.tf in the terraform/bootstrap directory to suit their project.
+
 ## Installation Instructions
 
-1. Install Terraform.
-1. Install Gradle.
+1. Install Terraform. [Instructions](https://learn.hashicorp.com/tutorials/terraform/install-cli?in=terraform/gcp-get-started)
+1. Install Gradle. [Instructions](https://gradle.org/install/)
 1. From the Google Cloud console:
     1. Create a new Google Cloud project following naming guidelines above. [Instructions](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
     1. Enable billing on the new project. [Instructions](https://cloud.google.com/billing/docs/how-to/modify-project#confirm_billing_is_enabled_on_a_project)
@@ -39,6 +45,10 @@ The end result of following these instructions is a publicly available App Engin
     >FTC, \<your team number>, \<password>
 
     Note that you should be careful to not upload this file to public repositories and you should choose a password that is not easily guessed.
+1. Navigate to terraform/bootstrap. (This step requires modifying the terraform scripts for your local project.  It can be skipped if you don't want to run terraform with a remote backend.  If so you need to remove the backend block from terraform/dev)
+1. Run:
+     >terraform init<br>
+     >terraform apply
 1. Navigate to terraform/dev.
 1. Edit terraform.tfvars to reflect your, project_name and project_id.
 1. Run:
