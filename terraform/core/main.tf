@@ -9,6 +9,15 @@ terraform {
       version = "0.1.0"
     }
   }
+  backend "gcs" {
+    #
+    # Terraform is broken w.r.t. variables in a backend block.
+    # So we must resort to hardcoded values for the bucket and
+    # credentials.
+    #
+    bucket = "<your-project-name>-tf-state"
+    credentials = "../../server/key.json"
+  }
 }
 
 provider "google" {
