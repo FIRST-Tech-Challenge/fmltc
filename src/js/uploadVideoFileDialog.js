@@ -44,10 +44,6 @@ fmltc.UploadVideoFileDialog = function(util, onVideoUploaded) {
   this.uploadingFailedDiv = document.getElementById('uvfUploadingFailedDiv');
 
   this.videoFile = null;
-  this.videoUuid = '';
-  this.createTimeMs = 0;
-  this.uploadFinished = false;
-  this.uploadFailed = false;
 
   this.descriptionInput.value = '';
 
@@ -64,6 +60,7 @@ fmltc.UploadVideoFileDialog.STATE_FILE_CHOSEN = 1;
 fmltc.UploadVideoFileDialog.STATE_UPLOADING = 2;
 fmltc.UploadVideoFileDialog.STATE_UPLOADING_FAILED = 3;
 fmltc.UploadVideoFileDialog.STATE_UPLOADING_FINISHED = 4;
+fmltc.UploadVideoFileDialog.STATE_EXTRACTION_STARTING = 5;
 
 fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
   this.state = state;
@@ -94,6 +91,8 @@ fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
       this.uploadingFailedDiv.style.display = 'block';
       break;
     case fmltc.UploadVideoFileDialog.STATE_UPLOADING_FINISHED:
+      break;
+    case fmltc.UploadVideoFileDialog.STATE_EXTRACTION_STARTING:
       this.dismissButton.disabled = false;
       this.uploadingFinishedDiv.style.display = 'block';
       break;
@@ -103,7 +102,6 @@ fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
 fmltc.UploadVideoFileDialog.prototype.dismissButton_onclick = function() {
   // Clear fields.
   this.videoFile = null;
-  this.videoUuid = '';
 
   // Clear event handlers.
   this.videoFileInput.onchange = null;
@@ -135,30 +133,32 @@ fmltc.UploadVideoFileDialog.prototype.updateUploadButton = function() {
 };
 
 fmltc.UploadVideoFileDialog.prototype.uploadButton_onclick = function() {
-  this.createTimeMs = Date.now();
+  let createTimeMs = Date.now();
 
   this.uploadingProgress.value = 0;
   this.uploadingProgress.max = this.videoFile.size;
   this.setState(fmltc.UploadVideoFileDialog.STATE_UPLOADING);
 
-  this.prepareToUploadVideo();
+  this.prepareToUploadVideo(createTimeMs);
 }
 
-fmltc.UploadVideoFileDialog.prototype.prepareToUploadVideo = function() {
+fmltc.UploadVideoFileDialog.prototype.prepareToUploadVideo = function(createTimeMs) {
   const xhr = new XMLHttpRequest();
   const params =
       'description=' + encodeURIComponent(this.descriptionInput.value) +
       '&video_filename=' + encodeURIComponent(this.videoFile.name) +
       '&file_size=' + encodeURIComponent(this.videoFile.size) +
       '&content_type=' + encodeURIComponent(this.videoFile.type) +
-      '&create_time_ms=' + this.createTimeMs;
+      '&create_time_ms=' + createTimeMs;
   xhr.open('POST', '/prepareToUploadVideo', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_prepareToUploadVideo_onreadystatechange.bind(this, xhr, params);
+  xhr.onreadystatechange = this.xhr_prepareToUploadVideo_onreadystatechange.bind(this, xhr, params,
+      createTimeMs);
   xhr.send(params);
 };
 
-fmltc.UploadVideoFileDialog.prototype.xhr_prepareToUploadVideo_onreadystatechange = function(xhr, params) {
+fmltc.UploadVideoFileDialog.prototype.xhr_prepareToUploadVideo_onreadystatechange = function(xhr, params,
+    createTimeMs) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -198,16 +198,40 @@ fmltc.UploadVideoFileDialog.prototype.xhr_uploadVideoFile_onreadystatechange = f
 
     if (xhr.status === 200) {
       this.uploadingProgress.value = this.uploadingProgress.max;
-      this.uploadFinished = true;
       this.setState(fmltc.UploadVideoFileDialog.STATE_UPLOADING_FINISHED);
-      this.onVideoUploaded(videoUuid);
-      setTimeout(this.dismissButton_onclick.bind(this), 1000);
+      this.startFrameExtraction(videoUuid);
 
     } else {
       // TODO(lizlooney): handle error properly
       console.log('Failure! uploading videoFile xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      this.uploadFailed = true;
       this.setState(fmltc.UploadVideoFileDialog.STATE_UPLOADING_FAILED);
+    }
+  }
+};
+
+fmltc.UploadVideoFileDialog.prototype.startFrameExtraction = function(videoUuid) {
+  const xhr = new XMLHttpRequest();
+  const params = 'video_uuid=' + encodeURIComponent(videoUuid);
+  xhr.open('POST', '/startFrameExtraction', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_startFrameExtraction_onreadystatechange.bind(this, xhr, params,
+      videoUuid);
+  xhr.send(params);
+};
+
+fmltc.UploadVideoFileDialog.prototype.xhr_startFrameExtraction_onreadystatechange = function(xhr, params,
+    videoUuid) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      this.setState(fmltc.UploadVideoFileDialog.STATE_EXTRACTION_STARTING);
+      this.onVideoUploaded(videoUuid);
+      setTimeout(this.dismissButton_onclick.bind(this), 1000);
+
+    } else {
+      console.log('Failure! /startFrameExtraction?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
 };

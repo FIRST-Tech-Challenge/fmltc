@@ -209,7 +209,6 @@ def prepare_to_upload_video():
     create_time_ms = int(data.get('create_time_ms'))
     video_uuid, upload_url = storage.prepare_to_upload_video(
         team_uuid, description, video_filename, file_size, content_type, create_time_ms)
-    frame_extractor.start_frame_extraction(team_uuid, video_uuid)
     response = {
         'video_uuid': video_uuid,
         'upload_url': upload_url,
