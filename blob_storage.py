@@ -115,12 +115,15 @@ def __delete_blobs(blob_names):
 
 # video files
 
+def get_video_blob_name(team_uuid, video_uuid):
+    return 'video_files/%s/%s' % (team_uuid, video_uuid)
+
 def prepare_to_upload_video(team_uuid, video_uuid, content_type):
-    video_blob_name = 'video_files/%s/%s' % (team_uuid, video_uuid)
+    video_blob_name = get_video_blob_name(team_uuid, video_uuid)
     blob = util.storage_client().bucket(BUCKET_BLOBS).blob(video_blob_name)
     expires_at_datetime = datetime.now() + timedelta(minutes=5)
     signed_url = blob.generate_signed_url(expires_at_datetime, method='PUT', content_type=content_type)
-    return video_blob_name, signed_url
+    return signed_url
 
 def retrieve_video(video_blob_name):
     return __retrieve_blob(video_blob_name)

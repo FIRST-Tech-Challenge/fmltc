@@ -202,19 +202,31 @@ def set_user_preference():
 def prepare_to_upload_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
-    description = data.get('description')
-    video_filename = data.get('video_filename')
-    file_size = int(data.get('file_size'))
     content_type = data.get('content_type')
-    create_time_ms = int(data.get('create_time_ms'))
-    video_uuid, upload_url = storage.prepare_to_upload_video(
-        team_uuid, description, video_filename, file_size, content_type, create_time_ms)
+    video_uuid, upload_url = storage.prepare_to_upload_video(team_uuid, content_type)
     response = {
         'video_uuid': video_uuid,
         'upload_url': upload_url,
     }
     blob_storage.set_cors_policy_for_put()
     return flask.jsonify(response)
+
+@app.route('/createVideoEntity', methods=['POST'])
+@handle_exceptions
+@login_required
+def create_video_entity():
+    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    data = flask.request.form.to_dict(flat=True)
+    video_uuid = data.get('video_uuid')
+    description = data.get('description')
+    video_filename = data.get('video_filename')
+    file_size = int(data.get('file_size'))
+    content_type = data.get('content_type')
+    create_time_ms = int(data.get('create_time_ms'))
+    storage.create_video_entity(
+        team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms)
+    frame_extractor.start_frame_extraction(team_uuid, video_uuid)
+    return 'OK'
 
 @app.route('/startFrameExtraction', methods=['POST'])
 @handle_exceptions
