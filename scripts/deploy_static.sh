@@ -4,4 +4,4 @@ if [[ "${FMLTC_GCLOUD_PROJECT_ID}" == "" ]]; then
 fi
 
 
-gsutil -m rsync -r ./static gs://${FMLTC_GCLOUD_PROJECT_ID}/static
+gsutil -m rsync -r ./server/static gs://${FMLTC_GCLOUD_PROJECT_ID}/static
