@@ -23,6 +23,9 @@ import time
 
 # Other Modules
 import flask
+from flask_oidc import OpenIDConnect
+from sqlitedict import SqliteDict
+from collections import namedtuple
 
 # My Modules
 import os
@@ -49,9 +52,26 @@ app.config.update(
     MAX_CONTENT_LENGTH=8 * 1024 * 1024,
     ALLOWED_EXTENSIONS=set(['png', 'jpg', 'jpeg', 'gif'])
 )
-app.debug = False
-app.testing = False
 
+app.config.update(
+    {
+        "SECRET_KEY": constants.SECRET_KEY,
+        "TESTING": True,
+        "DEBUG": True,
+        "OIDC_CLIENT_SECRETS": "client_secrets.json",
+        "OIDC_ID_TOKEN_COOKIE_SECURE": False,
+        "OIDC_REQUIRE_VERIFIED_EMAIL": False,
+        "OIDC_SCOPES": ["openid", "email", "roles"]
+    }
+)
+
+app.debug = True
+app.testing = True
+
+#
+# TODO: Replace with redis credentials store
+#
+oidc = OpenIDConnect(app, credentials_store=SqliteDict('users.db', autocommit=True))
 
 def redirect_to_login_if_needed(func):
     @wraps(func)
@@ -102,11 +122,31 @@ def strip_model_entity(model_entity):
         if prop in model_entity:
             model_entity.pop(prop)
 
+@oidc.require_login
+def login_via_oidc():
+    if oidc.user_loggedin:
+        roles = oidc.user_getfield('global_roles')
+        name = oidc.user_getfield('name')
+        team_roles = oidc.user_getfield('team_roles')
+        #
+        # TODO: This returns a dict of all possible teams and associated roles.
+        #       If the dict contains more than one element, we must ask the user
+        #       which team to model for.  Taking simply the first one, which is
+        #       what this does, won't be sufficient.
+        #
+        team_num = next(iter(team_roles))
+        flask.session['program'] = "FTC"
+        flask.session['team_number'] = team_num
+        flask.session['oidc_auth'] = "true"
+        return flask.redirect(flask.url_for('index'))
+
 # pages
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if flask.request.method == 'POST':
+    if constants.USE_OIDC is not None:
+        return login_via_oidc()
+    elif flask.request.method == 'POST':
         if team_info.login(flask.request.form, flask.session):
             return flask.redirect(flask.url_for('index'))
         else:
@@ -186,7 +226,10 @@ def ok():
 def logout():
     # Remove the team information from the flask.session if it's there.
     team_info.logout(flask.session)
-    return 'OK'
+    flask.session.clear()
+    if constants.USE_OIDC:
+        oidc.logout()
+    return flask.redirect(flask.url_for('index'))
 
 @app.route('/setUserPreference', methods=['POST'])
 @handle_exceptions
@@ -808,5 +851,6 @@ def perform_action(data, context):
 # For running locally:
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     app.run(host='127.0.0.1', port=8088, debug=True)
 

@@ -41,6 +41,16 @@ def logout(session):
     session.pop('team_uuid', None)
 
 def validate_team_info(session):
+    oidc_auth = session.get('oidc_auth')
+    if oidc_auth:
+        return __validate_team_oidc(session)
+    else:
+        return __validate_team_local(session)
+
+def __validate_team_oidc(session):
+    return True
+
+def __validate_team_local(session):
     program = session.get('program')
     if program:
         team_number = session.get('team_number')
@@ -73,7 +83,6 @@ def retrieve_team_uuid(session, request):
         return session['team_uuid']
     program = session['program']
     team_number = session['team_number']
-    team_code = session['team_code']
-    team_uuid = storage.retrieve_team_uuid(program, team_number, team_code)
+    team_uuid = storage.retrieve_team_uuid(program, team_number)
     session['team_uuid'] = team_uuid
     return team_uuid

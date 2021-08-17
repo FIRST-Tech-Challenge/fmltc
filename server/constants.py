@@ -59,3 +59,7 @@ ORIGIN = os.getenv('ORIGIN')
 if ORIGIN == None:
     ORIGIN = '<YOUR-ORIGIN>'
 
+#
+# Set to any value to turn on oidc authentication
+#
+USE_OIDC = os.getenv('USE_OIDC')
