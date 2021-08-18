@@ -126,7 +126,7 @@ popd
 ```
 
 
-## Fill in the values in constants.py
+## Fill in the values in server/constants.py
 
 1. Replace `<Project ID>` with the Google Cloud Project ID for our project.
 1. Replace `<Secret Key>` with the secret key you want to use to configure flask.
@@ -169,19 +169,7 @@ source env_setup.sh
     Allow unauthenticated invocations of new function 
     [perform_action]? (y/N)? 
     ```
-   - If you see the following, ignore it for now.
-    ```
-    ERROR: (gcloud.functions.deploy) OperationError: code=3, message=Function failed on loading user code. Error message: Error: memory limit exceeded.
-    ```
-   - Edit settings for Cloud Function perform_action
-      - [ ] Go to https://console.cloud.google.com/functions/list?project=my_project_id (replace my_project_id with your actual project ID)
-      - [ ] Click `perform_action`
-      - [ ] Click `Edit`
-      - [ ] Click `RUNTIME, BUILD AND CONNECTION SETTINGS`
-      - [ ] Change Memory allocated to the largest available
-      - [ ] Change Timeout to 540
-      - [ ] Click `NEXT`
-      - [ ] Click `DEPLOY`
+   
 1. Deploy the App Engine code.
     ```
     source env_setup.sh
