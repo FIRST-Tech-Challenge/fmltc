@@ -4,4 +4,6 @@ if [[ "${FMLTC_GCLOUD_PROJECT_ID}" == "" ]]; then
 fi
 
 
+pushd server
 gcloud -q app deploy
+popd
