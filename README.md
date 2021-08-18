@@ -33,15 +33,16 @@ FIRST Machine Learning Toolchain
     gcloud projects add-iam-policy-binding ${FMLTC_GCLOUD_PROJECT_ID} --member "serviceAccount:${FMLTC_GCLOUD_PROJECT_ID}-service-account@${FMLTC_GCLOUD_PROJECT_ID}.iam.gserviceaccount.com" --role "roles/owner"
     gcloud iam service-accounts keys create key.json --iam-account ${FMLTC_GCLOUD_PROJECT_ID}-service-account@${FMLTC_GCLOUD_PROJECT_ID}.iam.gserviceaccount.com
     ```
+1. Move key.json to server/key.json
+   
 1. Enable APIs.
-   - [ ] Go to https://console.cloud.google.com/apis/library
-   - Enable the following APIs, if they are not already enabled.
-     - [ ] Cloud Functions API
-     - [ ] Cloud Datastore API
-     - [ ] Cloud Storage
-     - [ ] AI Platform Training & Prediction API
-     - [ ] Compute Engine API
-     - [ ] Cloud Build API
+   ```
+   gcloud services enable cloudfunctions.googleapis.com
+   gcloud services enable ml.googleapis.com
+   gcloud services enable compute.googleapis.com
+   gcloud services enable cloudbuild.googleapis.com
+   ```
+   
 1. Create cloud storage buckets.
     ```
     gsutil mb -c standard gs://${FMLTC_GCLOUD_PROJECT_ID}
@@ -49,11 +50,13 @@ FIRST Machine Learning Toolchain
     gsutil mb -c standard gs://${FMLTC_GCLOUD_PROJECT_ID}-blobs
     gsutil mb -c standard gs://${FMLTC_GCLOUD_PROJECT_ID}-action-parameters
     ```
+   
 1. Create the Datastore.
    - [ ] Go to https://console.cloud.google.com/datastore/welcome?project=my_project_id (replace my_project_id with your actual project ID)
    - [ ] Click `SELECT NATIVE MODE`
    - [ ] Click `Select a location` and choose a location.
    - [ ] Click `CREATE DATABASE`
+    
 1. Grant the ml.serviceAgent role to your TPU service account.
    - [ ] Run the following command
     ```
