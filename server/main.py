@@ -17,15 +17,12 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timedelta
 from functools import wraps
-import json
-import logging
 import time
 
 # Other Modules
 import flask
 
 # My Modules
-import os
 import action
 import blob_storage
 import constants
@@ -41,7 +38,6 @@ import tracking
 import util
 
 import logging
-import http.client
 
 app = flask.Flask(__name__)
 app.config.update(
