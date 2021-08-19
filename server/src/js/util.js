@@ -326,7 +326,9 @@ fmltc.Util.prototype.insertCellWithClass = function(tr, clazz) {
 };
 
 fmltc.Util.prototype.isTrainingDone = function(modelEntity) {
-  return this.isJobDone(modelEntity.train_job_state) && this.isJobDone(modelEntity.eval_job_state);
+  return this.isJobDone(modelEntity.train_job_state) && (
+      this.isJobDone(modelEntity.eval_job_state ||
+      modelEntity.eval_job_state == 'CANCELLING'));
 };
 
 fmltc.Util.prototype.isJobDone = function(jobState) {
@@ -354,9 +356,14 @@ fmltc.Util.prototype.formatJobState = function(jobType, cancelRequested, jobStat
   if (this.isStateCancelRequested(cancelRequested, jobState)) {
     return 'CANCEL REQUESTED';
   }
+  // If the user didn't request the job to be cancelled, but the state is cancelled, it means that
+  // it was cancelled because it hit the time limit. We show FINISHED.
+  if (jobState == 'CANCELLING' || jobState == 'CANCELLED') {
+    return 'FINISHED';
+  }
   if (jobType == 'eval' && (jobState == 'CANCELLING' || this.isJobDone(jobState))) {
     // Because the server cancels the eval job when it has completed the last evaluation, we just
-    // say FINISHED here.
+    // show FINISHED.
     return 'FINISHED';
   }
   return jobState;
