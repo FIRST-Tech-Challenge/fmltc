@@ -8,7 +8,7 @@ fi
 
 echo "Running closure compiler"
 java -jar $FMLTC_CLOSURE_COMPILER_JAR \
-  --js src/js/**.js \
+  --js server/src/js/**.js \
   --js $FMLTC_CLOSURE_LIBRARY_FOLDER/closure/goog/base.js \
   --js $FMLTC_CLOSURE_LIBRARY_FOLDER/closure/goog/deps.js \
   --only_closure_dependencies \

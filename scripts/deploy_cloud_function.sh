@@ -4,7 +4,11 @@ if [[ "${FMLTC_GCLOUD_PROJECT_ID}" == "" ]]; then
 fi
 
 
+pushd server
 gcloud functions deploy perform_action \
-    --runtime python39 \
-    --trigger-resource ${FMLTC_GCLOUD_PROJECT_ID}-action-parameters \
-    --trigger-event google.storage.object.finalize
+    --runtime=python39 \
+    --memory=8192MB \
+    --timeout=540 \
+    --trigger-resource=${FMLTC_GCLOUD_PROJECT_ID}-action-parameters \
+    --trigger-event=google.storage.object.finalize
+popd
