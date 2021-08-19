@@ -17,8 +17,6 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timedelta
 from functools import wraps
-import json
-import logging
 import time
 
 # Other Modules
@@ -39,6 +37,7 @@ import team_info
 import tracking
 import util
 
+import logging
 
 app = flask.Flask(__name__)
 app.config.update(
@@ -809,9 +808,12 @@ def perform_action(data, context):
     if data['bucket'] == action.BUCKET_ACTION_PARAMETERS:
         time_limit = start_time + timedelta(seconds=500)
         action.perform_action_from_blob(data['name'], time_limit)
+    else:
+        util.log('Called function on invalid bucket' + action.BUCKET_ACTION_PARAMETERS)
     return 'OK'
 
 # For running locally:
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8088, debug=True)
+
