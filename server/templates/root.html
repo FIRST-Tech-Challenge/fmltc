@@ -63,7 +63,11 @@ limitations under the License.
   <table class="collapsedBorder">
     <tr>
       <td align="center" valign="top">
-        <button id="uploadVideoFileButton" class="text-24">
+          {% if can_upload_video %}
+            <button id="uploadVideoFileButton" class="text-24">
+          {% else %}
+            <button id="uploadVideoFileButton" disabled class="text-24">
+          {% endif %}
           <span class="material-icons iconVerticalAlign">cloud_upload</span>
           <span class="iconVerticalAlign">Upload Video</span>
         </button>
