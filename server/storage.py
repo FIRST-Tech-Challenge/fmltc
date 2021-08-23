@@ -104,9 +104,12 @@ def retrieve_user_preferences(team_uuid):
 
 # video - public methods
 
-def prepare_to_upload_video(team_uuid, description, video_filename, file_size, content_type, create_time_ms):
+def prepare_to_upload_video(team_uuid, content_type):
     video_uuid = str(uuid.uuid4().hex)
-    video_blob_name, upload_url = blob_storage.prepare_to_upload_video(team_uuid, video_uuid, content_type)
+    upload_url = blob_storage.prepare_to_upload_video(team_uuid, video_uuid, content_type)
+    return video_uuid, upload_url
+
+def create_video_entity(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_VIDEO)
@@ -120,7 +123,7 @@ def prepare_to_upload_video(team_uuid, description, video_filename, file_size, c
             'video_content_type': content_type,
             'create_time_ms': create_time_ms,
             'create_time': util.datetime_from_ms(create_time_ms),
-            'video_blob_name': video_blob_name,
+            'video_blob_name': blob_storage.get_video_blob_name(team_uuid, video_uuid),
             'frame_extraction_triggered_time_ms': 0,
             'frame_extraction_active_time_ms': 0,
             'extracted_frame_count': 0,
@@ -131,7 +134,7 @@ def prepare_to_upload_video(team_uuid, description, video_filename, file_size, c
             'delete_in_progress': False,
         })
         transaction.put(video_entity)
-        return video_uuid, upload_url
+        return video_entity
 
 def prepare_to_start_frame_extraction(team_uuid, video_uuid):
     datastore_client = datastore.Client()
