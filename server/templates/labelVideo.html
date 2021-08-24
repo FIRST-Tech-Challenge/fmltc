@@ -34,175 +34,133 @@ limitations under the License.
     }
   </style>
 </head>
-<body class="d-flex flex-column h-100">
+<body>
 
-  <div id="bodywrapper">
-    <div class="container">
-      <nav class="navbar navbar-expand-md navbar-dark fixed-top pt-0">
-        <div class="container bg-dark d-block" style="height: 111px;">
-          <span class="d-block w-100 fs-3" style="text-align:center;color:#fff;"><span class="fst-italic">FIRST</span> Machine Learning Toolchain</span>
+<canvas id="bboxCanvas" style="position: absolute;"></canvas>
 
-          <a class="navbar-brand" href="/">
-            <img src="https://ftc-cloud-cdn.global-prod.ftclive.org/img/logo_horiz-4bc1dfb53e3adb7bb4458755.png" width="199" height="60" class="d-inline-block align-center" alt="">
-          </a>
-          <div style="float:right;">
-            <ul class="navbar-nav">
-              <li class="nav-item">
-                <a class="nav-link white" href="/resources/">Resources</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link white" href="/feedback/">Help/Feedback</a>
-              </li>
-              <li class="nav-item">
-                <span class="nav-link white">{{program}}&nbsp;{{team_number}}
-                  <span id="logoutButton" class="white">Log Out</span>
-                </span>
-              </li>
-              <li class="nav-item">
-                <div id="dismissedAnnouncementContainer"></div>
-              </li>
-            </ul>
-          </div>
-          <div class="d-flex text-light">
-          </div>
-        </div>
-      </nav>
-
-
-
-  <main class="flex-shrink-0">
-    <div class="container" style="padding-top: 116px;">
-
-      <canvas id="bboxCanvas" style="position: absolute;"></canvas>
-
-      <table>
+<table>
+  <tr>
+    <td valign="top">
+      <table style="width: 100%"><tr>
+        <td><button id="dismissButton" class="material-icons iconVerticalAlign text-24">close</button></td>
+        <td style="width: 100%"><span id="descriptionSpan" class="text-24"></span></td>
+        <td><button id="smallerImageButton" title="Smaller" disabled="true"
+          class="material-icons iconVerticalAlign text-24">zoom_out</button></td>
+        <td><button id="largerImageButton" title="Larger" disabled="true"
+          class="material-icons iconVerticalAlign text-24">zoom_in</button></td>
+      </tr></table>
+    </td>
+    <td valign="top">
+      <span id="videoFrameCountSpan" class="text-24"></span><span class="text-24">&nbsp;Frames&nbsp;</span>
+      <progress id="loadingProgress" value="0" max="100"></progress>
+      <span id="loadingFailedSpan" class="text-18" style="display: none">Loading Failed!</span>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <div><img id="videoFrameImg"></img></div>
+    </td>
+    <td valign="top">
+      <div id="includedFrameCountDiv" class="text-18" style="visibility: hidden">
+        Included frames:&nbsp;<span id="includedFrameCountSpan"></span></div>
+      <div id="unlabeledFrameCountDiv" class="text-18" style="visibility: hidden">
+        Unlabeled frames:&nbsp;<span id="unlabeledFrameCountSpan"></span></div>
+      <hr>
+      <div class="text-18">Frame <span id="currentFrameSpan"></span></div>
+      <div><input type="checkbox" id="includeFrameInDatasetCheckbox">
+        <label for="includeFrameInDatasetCheckbox" class="text-18">Include this frame in the data set</label>
+      </div>
+      <br>
+      <table id="labelingAreaTable" class="collapsedBorder">
         <tr>
-          <td valign="top">
-            <table style="width: 100%"><tr>
-              <td><button id="dismissButton" class="btn btn-primary">Back</button></td>
-              <td style="width: 100%"><span id="descriptionSpan" class="h3 text-center d-block"></span></td>
-              <td><button id="smallerImageButton" title="Smaller" disabled="true"
-                class="btn btn-primary material-icons">zoom_out</button></td>
-                <td><button id="largerImageButton" title="Larger" disabled="true"
-                  class="btn btn-primary material-icons">zoom_in</button></td>
-                </tr></table>
-              </td>
-              <td valign="top" class="ps-3">
-                <span id="videoFrameCountSpan" class="text-24"></span><span class="text-24">&nbsp;Frames&nbsp;</span>
-                <progress id="loadingProgress" value="0" max="100"></progress>
-                <span id="loadingFailedSpan" class="text-18" style="display: none">Loading Failed!</span>
-              </td>
-            </tr>
-            <tr>
-              <td valign="top">
-                <div><img id="videoFrameImg"></img></div>
-              </td>
-              <td valign="top" class="ps-3">
-                <div id="includedFrameCountDiv" class="text-18" style="visibility: hidden">
-                  Included frames:&nbsp;<span id="includedFrameCountSpan"></span></div>
-                  <div id="unlabeledFrameCountDiv" class="text-18" style="visibility: hidden">
-                    Unlabeled frames:&nbsp;<span id="unlabeledFrameCountSpan"></span></div>
-                    <hr>
-                    <div class="text-18">Frame <span id="currentFrameSpan"></span></div>
-                    <div><input type="checkbox" id="includeFrameInDatasetCheckbox">
-                      <label for="includeFrameInDatasetCheckbox" class="text-18">Include this frame in the data set</label>
-                    </div>
-                    <br>
-                    <table id="labelingAreaTable" class="collapsedBorder">
-                      <tr>
-                        <th class="cellWithBorder text-18" width="50">X1</th>
-                        <th class="cellWithBorder text-18" width="50">Y1</th>
-                        <th class="cellWithBorder text-18" width="50">X2</th>
-                        <th class="cellWithBorder text-18" width="50">Y2</th>
-                        <th class="cellWithBorder text-18" width="100">Label</th>
-                        <th class="cellWithBorder text-18" width="19"><!-- delete buttons --></th>
-                      </tr>
-                    </table>
-                    <div id="labelHintDiv" class="hidden">To continue, each bounding box must have a label.</div>
-                  </td>
-                </tr>
-              </table>
+          <th class="cellWithBorder text-18" width="50">X1</th>
+          <th class="cellWithBorder text-18" width="50">Y1</th>
+          <th class="cellWithBorder text-18" width="50">X2</th>
+          <th class="cellWithBorder text-18" width="50">Y2</th>
+          <th class="cellWithBorder text-18" width="100">Label</th>
+          <th class="cellWithBorder text-18" width="19"><!-- delete buttons --></th>
+        </tr>
+      </table>
+      <div id="labelHintDiv" class="hidden">To continue, each bounding box must have a label.</div>
+    </td>
+  </tr>
+</table>
 
-              <table>
-                <tr>
-                  <td valign="top">
-                    <div>
-                      <button id="firstFrameButton" title="Go to the First Frame" disabled="true" class="material-icons btn btn-primary">first_page</button>
-                      <button id="previousTenFrameButton" title="Go Back Ten Frames" disabled="true" class="material-icons btn btn-primary">replay_10</button>
-                      <button id="previousFrameButton" title="Go Back One Frame" disabled="true" class="material-icons btn btn-primary">navigate_before</button>
-                      <button id="nextFrameButton" title="Go Forward One Frame" disabled="true" class="material-icons btn btn-primary">navigate_next</button>
-                      <button id="nextTenFrameButton" title="Go Forward Ten Frames" disabled="true" class="material-icons btn btn-primary">forward_10</button>
-                      <button id="lastFrameButton" title="Go to the Last Frame" disabled="true" class="material-icons btn btn-primary">last_page</button>
-                    </div>
-                    <hr>
-                    <div class="text-18">Find Unlabeled Frames</div>
-                    <div>
-                      <button id="previousUnlabeledFrameButton" title="Go Back to the Previous Unlabeled Frame" disabled="true"
-                      class="material-icons btn btn-primary">skip_previous</button>
-                      <button id="nextUnlabeledFrameButton" title="Go Forward to the Next Unlabeled Frame" disabled="true"
-                      class="material-icons btn btn-primary">skip_next</button>
-                    </div>
-                    <hr>
-                    <div class="text-18">Playback</div>
-                    <div>
-                      <button id="reversePlayPauseButton" title="Play/Pause Reverse" disabled="true"
-                      class="reverseDisplay material-icons btn btn-primary">play_arrow</button>
-                      <button id="forwardPlayPauseButton" title="Play/Pause Forward" disabled="true"
-                      class="material-icons btn btn-primary">play_arrow</button>
-                      <label for="playbackSpeedRangeInput" class="text-18">Speed:</label>
-                      <input type="range" id="playbackSpeedRangeInput" name="playbackSpeedRangeInput" min="1" value="4" max="24">
-                    </div>
-                  </td>
-                  <td valign="top" style="padding-left: 20px;">
-                    <div class="text-24">Tracking</div>
-                    <div>
-                      <label for="trackerSelect" class="text-18">Algorithm:</label>&nbsp;<select id="trackerSelect" class="text-18">
-                        <option value="CSRT">CSRT</option>
-                        <option value="MedianFlow">MedianFlow</option>
-                        <option value="MIL">MIL</option>
-                        <option value="MOSSE">MOSSE</option>
-                        <option value="TLD">TLD</option>
-                        <option value="KCF">KCF</option>
-                        <option value="Boosting">Boosting</option>
-                      </select>
-                    </div>
-                    <div><label for="trackingScaleInput" class="text-18">Scale:</label>&nbsp;
-                      <input id="trackingScaleInput" type="number" class="text-18 rightText" value="1.3" min="1" max="3" style="width: 5ch"></div>
-                      <br>
-                      <div>
-                        <button id="trackingStartButton" title="Start Tracking" disabled="true"
-                        class="material-icons btn btn-primary">batch_prediction</button>
-                        <button id="trackingPauseButton" title="Pause Tracking to Adjust the Boxes" disabled="true"
-                        class="material-icons btn btn-primary">pause edit</button>
-                        <button id="trackingContinueButton" title="Approve These Boxes and Continue Tracking" disabled="true"
-                        class="material-icons btn btn-primary">check play_arrow</button>
-                        <button id="trackingStopButton" title="Stop Tracking" disabled="true"
-                        class="material-icons btn btn-primary">stop</button>
-                      </div>
-                      <span id="drawHintDiv" class="hidden">To enable tracking, draw bounding boxes on this frame.</span>
-                      <div id="trackingStoppedDiv" style="visibility: hidden">Stopped</div>
-                      <div id="trackingFinishedDiv" style="visibility: hidden">Finished</div>
-                      <div id="trackingFailedDiv" style="visibility: hidden">Stopped unexpectedly</div>
-                    </td>
-                  </tr>
-                </table>
-              </div>
-  </div>
-</main>
+<table>
+  <tr>
+    <td valign="top">
+      <div>
+        <button id="firstFrameButton" title="Go to the First Frame" disabled="true"
+          class="material-icons iconVerticalAlign text-24">first_page</button>
+        <button id="previousTenFrameButton" title="Go Back Ten Frames" disabled="true"
+          class="material-icons iconVerticalAlign text-24">replay_10</button>
+        <button id="previousFrameButton" title="Go Back One Frame" disabled="true"
+          class="material-icons iconVerticalAlign text-24">navigate_before</button>
+        <button id="nextFrameButton" title="Go Forward One Frame" disabled="true"
+          class="material-icons iconVerticalAlign text-24">navigate_next</button>
+        <button id="nextTenFrameButton" title="Go Forward Ten Frames" disabled="true"
+          class="material-icons iconVerticalAlign text-24">forward_10</button>
+        <button id="lastFrameButton" title="Go to the Last Frame" disabled="true"
+          class="material-icons iconVerticalAlign text-24">last_page</button>
+      </div>
+      <hr>
+      <div class="text-18">Find Unlabeled Frames</div>
+      <div>
+        <button id="previousUnlabeledFrameButton" title="Go Back to the Previous Unlabeled Frame" disabled="true"
+           class="material-icons iconVerticalAlign text-24">skip_previous</button>
+        <button id="nextUnlabeledFrameButton" title="Go Forward to the Next Unlabeled Frame" disabled="true"
+          class="material-icons iconVerticalAlign text-24">skip_next</button>
+      </div>
+      <hr>
+      <div class="text-18">Playback</div>
+      <div>
+        <button id="reversePlayPauseButton" title="Play/Pause Reverse" disabled="true"
+          class="reverseDisplay material-icons iconVerticalAlign text-24">play_arrow</button>
+        <button id="forwardPlayPauseButton" title="Play/Pause Forward" disabled="true"
+          class="material-icons iconVerticalAlign text-24">play_arrow</button>
+        <label for="playbackSpeedRangeInput" class="text-18">Speed:</label>
+        <input type="range" id="playbackSpeedRangeInput" name="playbackSpeedRangeInput" min="1" value="4" max="24">
+      </div>
+    </td>
+    <td valign="top" style="padding-left: 20px;">
+      <div class="text-24">Tracking</div>
+      <div>
+        <label for="trackerSelect" class="text-18">Algorithm:</label>&nbsp;<select id="trackerSelect" class="text-18">
+          <option value="CSRT">CSRT</option>
+          <option value="MedianFlow">MedianFlow</option>
+          <option value="MIL">MIL</option>
+          <option value="MOSSE">MOSSE</option>
+          <option value="TLD">TLD</option>
+          <option value="KCF">KCF</option>
+          <option value="Boosting">Boosting</option>
+        </select>
+      </div>
+      <div><label for="trackingScaleInput" class="text-18">Scale:</label>&nbsp;
+        <input id="trackingScaleInput" type="number" class="text-18 rightText" value="1.3" min="1" max="3" style="width: 5ch"></div>
+      <br>
+      <div>
+        <button id="trackingStartButton" title="Start Tracking" disabled="true"
+          class="material-icons iconVerticalAlign text-24">batch_prediction</button>
+        <button id="trackingPauseButton" title="Pause Tracking to Adjust the Boxes" disabled="true"
+          class="material-icons iconVerticalAlign text-24">pause edit</button>
+        <button id="trackingContinueButton" title="Approve These Boxes and Continue Tracking" disabled="true"
+          class="material-icons iconVerticalAlign text-24">check play_arrow</button>
+        <button id="trackingStopButton" title="Stop Tracking" disabled="true"
+          class="material-icons iconVerticalAlign text-24">stop</button>
+      </div>
+      <span id="drawHintDiv" class="hidden">To enable tracking, draw bounding boxes on this frame.</span>
+      <div id="trackingStoppedDiv" style="visibility: hidden">Stopped</div>
+      <div id="trackingFinishedDiv" style="visibility: hidden">Finished</div>
+      <div id="trackingFailedDiv" style="visibility: hidden">Stopped unexpectedly</div>
+    </td>
+  </tr>
+</table>
 
-<footer>
-  <div class="container d-flex justify-content-between" style="padding: 20px 0;">
-    <a href="https://research.google/people/LizLooney/" target="_blank">Powered by Liz</a>
-    <div>© 2021 <i>FIRST</i><br>
-    <a href="/terms/t_and_c">Terms and Conditions</a><br>
-    <a href="/terms/privacy">Privacy Policy</a></div>
-  </div>
-</footer>
-              <script type="text/javascript">
-                window.addEventListener('load', function() {
-                  const util = new fmltc.Util('labelVideo', {{ team_preferences|tojson }});
-                  new fmltc.LabelVideo(util, {{ video_entity|tojson }}, {{ video_frame_entity_0|tojson }});
-                });
-              </script>
-            </body>
-            </html>
+<script type="text/javascript">
+  window.addEventListener('load', function() {
+    const util = new fmltc.Util('labelVideo', {{ team_preferences|tojson }});
+    new fmltc.LabelVideo(util, {{ video_entity|tojson }}, {{ video_frame_entity_0|tojson }});
+  });
+</script>
+</body>
+</html>

@@ -16,6 +16,15 @@ limitations under the License.
 -->
 <html>
 <head>
+  <link rel="stylesheet"
+      href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
+  <link rel="stylesheet" type="text/css"
+      href="https://storage.googleapis.com/{{project_id}}/static/css/styles.css?ignoreCache={{time_time}}">
+  <script type="text/javascript"
+      src="https://storage.googleapis.com/{{project_id}}/compiled/js/fmltc.js?ignoreCache={{time_time}}">
+  </script>
   <title>FIRST Machine Learning Toolchain</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="shortcut icon" href="https://www.firstinspires.org/sites/default/files/first-favicon.ico" type="image/vnd.microsoft.icon" />
@@ -34,363 +43,184 @@ limitations under the License.
     }
   </style>
 </head>
-<body class="d-flex flex-column h-100">
-  <div id="bodywrapper">
-    <div class="container">
-      <nav class="navbar navbar-expand-md navbar-dark fixed-top pt-0">
-        <div class="container bg-dark d-block" style="height: 111px;">
-          <span class="d-block w-100 fs-3" style="text-align:center;color:#fff;"><span class="fst-italic">FIRST</span> Machine Learning Toolchain</span>
+<body>
 
-          <a class="navbar-brand" href="/">
-            <img src="https://ftc-cloud-cdn.global-prod.ftclive.org/img/logo_horiz-4bc1dfb53e3adb7bb4458755.png" width="199" height="60" class="d-inline-block align-center" alt="">
-          </a>
-          <div style="float:right;">
-            <ul class="navbar-nav">
-              <li class="nav-item">
-                <a class="nav-link white" href="/resources/">Resources</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link white" href="/feedback/">Help/Feedback</a>
-              </li>
-              <li class="nav-item">
-                <span class="nav-link white">{{program}}&nbsp;{{team_number}}
-                  <span id="logoutButton" class="white">Log Out</span>
-                </span>
-              </li>
-              <li class="nav-item">
-                <div id="dismissedAnnouncementContainer"></div>
-              </li>
-            </ul>
-          </div>
-          <div class="d-flex text-light">
-          </div>
-        </div>
-      </nav>
-
-      <main class="flex-shrink-0">
-        <div class="container" style="padding-top: 122px;">
-
-          <ul class="nav nav-tabs" role="tablist">
-            <li class="nav-item" role="presentation">
-              <button class="nav-link active" id="videosTab" data-bs-toggle="tab" data-bs-target="#videosTabContent" role="tab" aria-controls="videosTabContent" aria-selected="true">
-                <span class="material-icons iconVerticalAlign">video_library</span>
-                <span>Videos</span>
-                <span id="videosLoader" class="loader"></span>
-              </button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="datasetsTab" data-bs-toggle="tab" data-bs-target="#datasetsTabContent" role="tab" aria-controls="datasetsTabContent" aria-selected="false">
-                <span class="material-icons iconVerticalAlign">perm_media</span>
-                <span>Datasets</span>
-                <span id="datasetsLoader" class="loader"></span>
-              </button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="modelsTab" data-bs-toggle="tab" data-bs-target="#modelsTabContent" role="tab" aria-controls="modelsTabContent" aria-selected="false">
-                <span title="pages" class="material-icons iconVerticalAlign">pages</span>
-                <span>Models</models>
-                  <span id="modelsLoader" class="loader"></span>
-                </button>
-              </li>
-            </ul>
-
-            <div class="tab-content">
-              <div class="tab-pane fade show active" role="tabpanel" aria-labelledby="videosTab" id="videosTabContent">
-                <div>
-                  <br>
-                  <table class="collapsedBorder">
-                    <tr>
-                      <td align="center" valign="top">
-                        <button id="uploadVideoFileButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#uploadVideoFileDialog">
-                          <span class="material-icons iconVerticalAlign">cloud_upload</span>
-                          <span class="iconVerticalAlign">Upload Video</span>
-                        </button>
-                      </td>
-                      <td width="10px"></td>
-                      <td align="center" valign="top">
-                        <button id="produceDatasetButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#produceDatasetDialog">
-                          <span class="material-icons iconVerticalAlign">construction</span>
-                          <span class="iconVerticalAlign">Produce Dataset</span>
-                        </button>
-                      </td>
-                      <td width="10px"></td>
-                      <td align="center" valign="top">
-                        <button id="deleteVideosButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteConfirmationDialog">
-                          <span class="material-icons iconVerticalAlign">delete</span>
-                          <span class="iconVerticalAlign">Delete Videos</span>
-                        </button>
-                      </td>
-                      <td width="10px"></td>
-                    </tr>
-                  </table>
-                  <br>
-                  <div id="videosListDiv" style="display: none;" class="pb-3">
-                    <table id="videosTable" class="table table-striped">
-                      <thead>
-                        <tr>
-                          <th rowspan="2"><input type="checkbox" id="videoCheckboxAll"></th>
-                          <th rowspan="2">Date Uploaded</th>
-                          <th rowspan="2" width="200px">Description</th>
-                          <th rowspan="2">Video Filename</th>
-                          <th rowspan="2">File Size</th>
-                          <th rowspan="2">Dimensions</th>
-                          <th rowspan="2">Duration</th>
-                          <th rowspan="2">Frames<br>per<br>Second</th>
-                          <th colspan="4">Number of Frames</th>
-                        </tr>                
-                        <tr>
-                          <th>In Video</th>
-                          <th>Extracted</th>
-                          <th>Labeled</th>
-                          <th>Excluded</th>
-                        </tr>
-                      </thead>
-                      <tr></tr>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              <div class="tab-pane fade" role="tabpanel" aria-labelledby="datasetsTab" id="datasetsTabContent">
-                <div>
-                  <br>
-                  <table class="collapsedBorder">
-                    <tr>
-                      <td align="center" valign="top">
-                        <button id="downloadDatasetButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#downloadDatasetDialog">
-                          <span class="material-icons iconVerticalAlign">cloud_download</span>
-                          <span class="iconVerticalAlign">Download Dataset</span>
-                        </button>
-                      </td>
-                      <td width="10px"></td>
-                      <td align="center" valign="top">
-                        <button id="startTrainingButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#startTrainingDialog">
-                          <span class="material-icons iconVerticalAlign">model_training</span>
-                          <span class="iconVerticalAlign">Start Training</span>
-                        </button>
-                      </td>
-                      <td width="10px"></td>
-                      <td align="center" valign="top">
-                        <button id="deleteDatasetsButton" class="btn btn-secondary">
-                          <span class="material-icons iconVerticalAlign">delete</span>
-                          <span class="iconVerticalAlign">Delete Datasets</span>
-                        </button>
-                      </td>
-                      <td width="10px"></td>
-                    </tr>
-                  </table>
-                  <br>
-                  <div id="datasetsListDiv" style="display: none;" class="pb-3">
-                    <table id="datasetsTable" class="table table-striped">
-                      <thead>
-                        <tr>
-                          <th rowspan="3" class="cellWithBorder"><input type="checkbox" id="datasetCheckboxAll"></th>
-                          <th rowspan="3" class="cellWithBorder">Date Produced</th>
-                          <th rowspan="3" class="cellWithBorder" width="200px">Description</th>
-                          <th colspan="4" class="cellWithBorder">Number of Frames</th>
-                          <th rowspan="3" class="cellWithBorder">Labels</th>
-                        </tr>
-                        <tr>
-                          <th colspan="2" class="cellWithBorder">Training</th>
-                          <th colspan="2" class="cellWithBorder">Evaluation</th>
-                        </tr>
-                        <tr>
-                          <th class="cellWithBorder">Total</th>
-                          <th class="cellWithBorder">Negative</th>
-                          <th class="cellWithBorder">Total</th>
-                          <th class="cellWithBorder">Negative</th>
-                        </tr>
-                      </thead>
-                      <tr></tr>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              <div class="tab-pane fade" role="tabpanel" aria-labelledby="modelsTab" id="modelsTabContent">
-
-                <div>
-                  <br>
-                  <table id="modelsTabDiv" class="table table-striped">
-                    <thead>
-                      <tr>
-                        <td align="center" valign="top">
-                          <button id="trainMoreButton" class="btn btn-secondary">
-                            <span class="material-icons iconVerticalAlign">model_training</span>
-                            <span class="iconVerticalAlign">More Training</span>
-                          </button>
-                        </td>
-                        <td width="10px"></td>
-                        <td align="center" valign="top">
-                          <button id="downloadTFLiteButton" class="btn btn-secondary">
-                            <span class="material-icons iconVerticalAlign">cloud_download</span>
-                            <span class="iconVerticalAlign">Download Model</span>
-                          </button>
-                        </td>
-                        <td width="10px"></td>
-                        <td align="center" valign="top">
-                          <button id="cancelTrainingButton" class="btn btn-secondary">
-                            <span class="material-icons iconVerticalAlign">cancel</span>
-                            <span class="iconVerticalAlign">Cancel Training</span>
-                          </button>
-                        </td>
-                        <td width="10px"></td>
-                        <td align="center" valign="top">
-                          <button id="deleteModelsButton" class="btn btn-secondary">
-                            <span class="material-icons iconVerticalAlign">delete</span>
-                            <span class="iconVerticalAlign">Delete Models</span>
-                          </button>
-                        </td>
-                        <td width="10px"></td>
-                      </tr>
-                    </thead>
-                    <tr><tr>
-                    </table>
-                    <br>
-                    <div id="modelsListDiv" style="display: none;" class="pb-3">
-                      <table id="modelsTable" class="table table-striped">
-                        <thead>
-                          <tr>
-                            <th class="cellWithBorder"><input type="checkbox" id="modelCheckboxAll"></th>
-                            <th class="cellWithBorder">Date Created</th>
-                            <th class="cellWithBorder" width="200px">Description</th>
-                            <th class="cellWithBorder">Starting Model</th>
-                            <th class="cellWithBorder">Steps Requested</th>
-                            <th class="cellWithBorder">Job State</th>
-                            <th class="cellWithBorder">Steps Completed</th>
-                            <th class="cellWithBorder">Training Time</th>
-                          </tr>
-                        </thead>
-                        <tr></tr>
-                      </table>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+<table style="width: 100%; border-spacing: 0px;">
+  <tr>
+    <td style="padding: 0px;">
+      <div class="tabButtonsDiv">
+        <button id="videosTabButton" class="tabButton">
+          <span class="material-icons iconVerticalAlign">video_library</span>
+          <span>Videos</span>
+          <span id="videosLoader" class="loader"></span>
+        </button>
+        <button id="datasetsTabButton" class="tabButton">
+          <span class="material-icons iconVerticalAlign">perm_media</span>
+          <span>Datasets</span>
+          <span id="datasetsLoader" class="loader"></span>
+        </button>
+        <button id="modelsTabButton" class="tabButton">
+          <span title="pages" class="material-icons iconVerticalAlign">pages</span>
+          <span>Models</models>
+          <span id="modelsLoader" class="loader"></span>
+        </button>
       </div>
+    </td>
+    <td align="right" valign="top">
+      <span>{{program}}</span>&nbsp;<span>{{team_number}}</span>
+      <button id="logoutButton" class="text-18">Log Out</button>
+    </td>
+  </tr>
+</table>
 
 
-      <div class="modal fade" id="uploadVideoFileDialog" tabindex="-1" aria-labelledby="uploadVideoFileLabel" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="exampleModalLabel">Upload Video File</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <input type="file" id="uvfVideoFileInput" accept="video/*" class="text-18" style="width: 100%">
-              <br><br>
-              <label for="uvfDescriptionInput">Description:</label><br>
-              <input type="text" maxlength="30" id="uvfDescriptionInput" class="form-control" style="width: 100%">
-              <br><br>
-              <button id="uvfUploadButton" class="btn btn-secondary" >Upload</button>
-              <h3 id="uvfUploadingH3" style="visibility: hidden;">Uploading Progress</h3>
-              <div><progress id="uvfUploadingProgress" style="visibility: hidden;"></progress></div>
-              <div id="uvfUploadingFinishedDiv" class="text-24" style="display: none;">
-                Uploading has finished.
-              </div>
-              <div id="uvfUploadingFailedDiv" class="text-24" style="display: none;">
-                Uploading has failed!
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="uvfDismissButton">Close</button>
-            </div>
-          </div>
-        </div>
-      </div>
+<div id="videosTabDiv" class="tabDiv">
+  <br>
+  <table class="collapsedBorder">
+    <tr>
+      <td align="center" valign="top">
+        <button id="uploadVideoFileButton" class="text-24">
+          <span class="material-icons iconVerticalAlign">cloud_upload</span>
+          <span class="iconVerticalAlign">Upload Video</span>
+        </button>
+      </td>
+      <td width="10px"></td>
+      <td align="center" valign="top">
+        <button id="produceDatasetButton" class="text-24">
+          <span class="material-icons iconVerticalAlign">construction</span>
+          <span class="iconVerticalAlign">Produce Dataset</span>
+        </button>
+      </td>
+      <td width="10px"></td>
+      <td align="center" valign="top">
+        <button id="deleteVideosButton" class="text-24">
+          <span class="material-icons iconVerticalAlign">delete</span>
+          <span class="iconVerticalAlign">Delete Videos</span>
+        </button>
+      </td>
+      <td width="10px"></td>
+    </tr>
+  </table>
+  <br>
+  <div id="videosListDiv" style="display: none;">
+    <table id="videosTable" class="collapsedBorder">
+      <tr>
+        <th rowspan="2" class="cellWithBorder"><input type="checkbox" id="videoCheckboxAll"></th>
+        <th rowspan="2" class="cellWithBorder">Date Uploaded</th>
+        <th rowspan="2" class="cellWithBorder" width="200px">Description</th>
+        <th rowspan="2" class="cellWithBorder">Video Filename</th>
+        <th rowspan="2" class="cellWithBorder">File Size</th>
+        <th rowspan="2" class="cellWithBorder">Dimensions</th>
+        <th rowspan="2" class="cellWithBorder">Duration</th>
+        <th rowspan="2" class="cellWithBorder">Frames<br>per<br>Second</th>
+        <th colspan="4" class="cellWithBorder">Number of Frames</th>
+      </tr>
+      <tr>
+        <th class="cellWithBorder">In Video</th>
+        <th class="cellWithBorder">Extracted</th>
+        <th class="cellWithBorder">Labeled</th>
+        <th class="cellWithBorder">Excluded</th>
+      </tr>
+    </table>
+  </div>
+</div>
 
-      <div class="modal fade" id="produceDatasetDialog" tabindex="-1" aria-labelledby="produceDatasetLabel" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="exampleModalLabel">Produce Dataset</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <table class="text-18">
-                <tr>
-                  <td>
-                    <label for="pdTrainPercentInput">Percentage of Frames for Training:</label>
-                  </td>
-                  <td>
-                    <input id="pdTrainPercentInput" type="number" class="rightText text-18" value="80" min="10" max="100" style="width: 5ch">&percnt;
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <label for="pdEvalPercentInput">Percentage of Frames for Evaluation:</label>
-                  </td>
-                  <td>
-                    <input id="pdEvalPercentInput" type="number" class="rightText text-18" value="20" min="0" max="90" style="width: 5ch">&percnt;
-                  </td>
-                </tr>
-              </table>
-              <br><br>
-              <label for="pdDescriptionInput">Description:</label><br>
-              <input type="text" maxlength="30" id="pdDescriptionInput" class="form-control" style="width: 100%">
-              <br><br>
-              <button id="pdStartButton" class="btn btn-secondary">Produce Dataset</button>
-              <div id="pdProgressDiv" style="visibility: hidden;">
-                <h3>Progress</h3>
-                <progress id="pdProgress"></progress>
-                <span id="pdProgressSpan"></span>
-              </div>
-              <div id="pdFinishedDiv" class="text-24" style="display: none;">Finished.</div>
-              <div id="pdFailedDiv" class="text-24" style="display: none;">Failed!</div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="pdDismissButton">Close</button>
-            </div>            
-          </div>
-        </div>
-      </div>
+<div id="uploadVideoFileDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <table>
+      <tr>
+        <td valign="top">
+          <button id="uvfDismissButton" class="material-icons iconVerticalAlign text-24">close</button>
+        </td>
+        <td valign="top"><span class="modal_dialog_title">Upload Video File</span></td>
+      </tr>
+    </table>
+    <br><br>
+    <input type="file" id="uvfVideoFileInput" accept="video/*" class="text-18" style="width: 100%">
+    <br><br>
+    <label for="uvfDescriptionInput">Description:</label><br>
+    <input type="text" maxlength="30" id="uvfDescriptionInput" class="text-18" style="width: 100%">
+    <br><br>
+    <button id="uvfUploadButton" class="text-18">Upload</button>
+    <h3 id="uvfUploadingH3" style="visibility: hidden;">Uploading Progress</h3>
+    <div><progress id="uvfUploadingProgress" style="visibility: hidden;"></progress></div>
+    <div id="uvfUploadingFinishedDiv" class="text-24" style="display: none;">
+      Uploading has finished.
+    </div>
+    <div id="uvfUploadingFailedDiv" class="text-24" style="display: none;">
+      Uploading has failed!
+    </div>
+  </div>
+</div></div>
 
+<div id="produceDatasetDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <table>
+      <tr>
+        <td valign="top">
+          <button id="pdDismissButton" class="material-icons iconVerticalAlign text-24">close</button>
+        </td>
+        <td valign="top"><span class="modal_dialog_title">Produce Dataset</span></td>
+      </tr>
+    </table>
+    <br><br>
+    <table class="text-18">
+      <tr>
+        <td><label for="pdTrainPercentInput">Percentage of Frames for Training:</label></td>
+        <td><input id="pdTrainPercentInput" type="number" class="rightText text-18"
+        value="80" min="10" max="100" style="width: 5ch">&percnt;</td>
+      </tr>
+      <tr>
+        <td><label for="pdEvalPercentInput">Percentage of Frames for Evaluation:</label></td>
+        <td><input id="pdEvalPercentInput" type="number" class="rightText text-18"
+        value="20" min="0" max="90" style="width: 5ch">&percnt;</td>
+      </tr>
+    </table>
+    <br><br>
+    <label for="pdDescriptionInput">Description:</label><br>
+    <input type="text" maxlength="30" id="pdDescriptionInput" class="text-18" style="width: 100%">
+    <br><br>
+    <button id="pdStartButton" class="text-24">Produce Dataset</button>
+    <div id="pdProgressDiv" style="visibility: hidden;">
+      <h3>Progress</h3>
+      <progress id="pdProgress"></progress>
+      <span id="pdProgressSpan"></span>
+    </div>
+    <div id="pdFinishedDiv" class="text-24" style="display: none;">Finished.</div>
+    <div id="pdFailedDiv" class="text-24" style="display: none;">Failed!</div>
+  </div>
+</div></div>
 
-      <div class="modal" id="deleteConfirmationDialog" tabindex="-1" aria-labelledby="uploadVideoFileLabel" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 id="dcTitleDiv" class="modal-title"></h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <center>          
-                <div id="dcMessageDiv"></div>
-                <br>
-              </center>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="dcNoButton">No</button>
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="dcYesButton">Yes</button>
-            </div>
-          </div>
-        </div>
-      </div>
+<div id="deleteConfirmationDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content"><center>
+    <div id="dcTitleDiv" class="modal_dialog_title"></div>
+    <br>
+    <div id="dcMessageDiv"></div>
+    <br>
+    <table width="100%">
+      <tr>
+        <td align="center"><button id="dcNoButton">No</button></td>
+        <td align="center"><button id="dcYesButton">Yes</button></td>
+      </tr>
+    </table>
+  </center></div>
+</div></div>
 
-
-      <div class="modal" id="deleteForbiddenDialog" tabindex="-1" aria-labelledby="deleteForbiddenLabel" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 id="dfTitleDiv" class="modal-title"></h5>
-              <button type="button" id="ddDismissButton" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <div id="dfMessageDiv" class="text-20"></div>
-              <br>
-              <div id="dfListDiv"></div>
-              <br><br>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="dfOKButton">OK</button>
-            </div>
-          </div>
-        </div>
-      </div>
+<div id="deleteForbiddenDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <center>
+      <div id="dfTitleDiv" class="modal_dialog_title"></div>
+    </center>
+    <br>
+    <div id="dfMessageDiv" class="text-20"></div>
+    <br>
+    <div id="dfListDiv"></div>
+    <br><br>
+    <center>
+      <button id="dfOKButton">OK</button>
+    </center>
+  </div>
+</div></div>
 
 <div id="datasetsTabDiv" class="tabDiv">
   <br>
@@ -420,9 +250,8 @@ limitations under the License.
     </tr>
   </table>
   <br>
-
   <div id="datasetsListDiv" style="display: none;">
-    <table id="datasetsTable" class="collapsedBorder">gre
+    <table id="datasetsTable" class="collapsedBorder">
       <tr>
         <th rowspan="3" class="cellWithBorder"><input type="checkbox" id="datasetCheckboxAll"></th>
         <th rowspan="3" class="cellWithBorder">Date Produced</th>
@@ -444,201 +273,205 @@ limitations under the License.
   </div>
 </div>
 
-      <div class="modal fade" id="downloadDatasetDialog" tabindex="-1" aria-labelledby="downloadDatasetLabel" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">Download Dataset</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div>
-                  <span class="text-18">This dataset consists of 1 labels file and </span>
-                  <span id="ddRecordCountSpan" class="text-18"></span>
-                  <span class="text-18"> records files.</span>
-                </div>
-                <br>
-                <div id="ddPartitionCountDiv" style="visibility: hidden;">
-                  <span id="ddPartitionCountSpan" class="text-18"></span><span class="text-18">&nbsp;will be
-                  created and then downloaded.</span>
-                </div>
-                <br>
-                <div id="ddProgressDiv">
-                  <h3>Progress</h3>
-                </div>
-                <div id="ddFinishedDiv" class="text-24" style="visibility: hidden;">Finished.</div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="uvfDismissButton">Close</button>
-            </div>
-          </div>
-        </div>
-      </div>
+<div id="downloadDatasetDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <table>
+      <tr>
+        <td valign="top">
+          <button id="ddDismissButton" class="material-icons iconVerticalAlign text-24">close</button>
+        </td>
+        <td valign="top"><span class="modal_dialog_title">Download Dataset</span></td>
+      </tr>
+    </table>
+    <br><br>
+    <div>
+      <span class="text-18">This dataset consists of 1 labels file and </span>
+      <span id="ddRecordCountSpan" class="text-18"></span>
+      <span class="text-18"> records files.</span>
+    </div>
+    <br>
+    <div id="ddPartitionCountDiv" style="visibility: hidden;">
+      <span id="ddPartitionCountSpan" class="text-18"></span><span class="text-18">&nbsp;will be
+        created and then downloaded.</span>
+    </div>
+    <br>
+    <div id="ddProgressDiv">
+      <h3>Progress</h3>
+    </div>
+    <div id="ddFinishedDiv" class="text-24" style="visibility: hidden;">Finished.</div>
+  </div>
+</div></div>
 
-      <div class="modal fade" id="startTrainingDialog" tabindex="-1" aria-labelledby="uploadVideoFileLabel" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">Start Training</h5>
-              <button type="button" id="stDismissButton" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
+<div id="startTrainingDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <table>
+      <tr>
+        <td valign="top">
+          <button id="stDismissButton" class="material-icons iconVerticalAlign text-24">close</button>
+        </td>
+        <td valign="top"><span class="modal_dialog_title">Start Training</span></td>
+      </tr>
+    </table>
+    <br><br>
+    <table class="text-18">
+      <tr>
+        <td colspan="2">
+          Each team is allowed <span id="stTotalTrainingMinutesSpan"></span> minutes of training
+          time.<br>Your team has <span id="stRemainingTrainingMinutesSpan"></span> minutes of training
+          time remaining.
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2"></td>
+      </tr>
+      <tr>
+        <td><label for="stMaxRunningMinutesInput">Maximum Training Time:</label></td>
+        <td><input id="stMaxRunningMinutesInput" type="number" class="rightText text-18"
+        style="width: 5ch">&nbsp;Minutes</td>
+      </tr>
+      <tr>
+        <td><label for="stStartingModelSelect">Starting Model:</label></td>
+        <td><select id="stStartingModelSelect" class="text-18"></td>
+      </tr>
+      <tr>
+        <td><label for="stNumTrainingStepsInput">Number of Training Steps:</label></td>
+        <td><input id="stNumTrainingStepsInput" type="number" class="rightText text-18"
+        style="width: 8ch"></td>
+      </tr>
+    </table>
+    <br><br>
+    <label for="stDescriptionInput">Description:</label><br>
+    <input type="text" maxlength="30" id="stDescriptionInput" class="text-18" style="width: 100%">
+    <br><br>
+    <button id="stStartButton" class="text-24">Start Training</button>
+    <br>
+    <div id="stInProgressDiv" style="display: none;">Submitting job request...</div>
+    <div id="stSuccessDiv" style="display: none;">Training job is queued.</div>
+    <div id="stFailedDiv" style="display: none;">Failed!</div>
+  </div>
+</div></div>
 
-                <table class="text-18">
-                  <tr>
-                    <td colspan="2">
-                      Each team is allowed <span id="stTotalTrainingMinutesSpan"></span> minutes of training
-                      time.<br>Your team has <span id="stRemainingTrainingMinutesSpan"></span> minutes of training
-                      time remaining.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td colspan="2"></td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <label for="stMaxRunningMinutesInput">Maximum Training Time:</label>
-                    </td>
-                    <td>
-                      <input id="stMaxRunningMinutesInput" type="number" class="rightText text-18" style="width: 5ch">&nbsp;Minutes
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <label for="stStartingModelSelect">Starting Model:</label>
-                    </td>
-                    <td>
-                      <select id="stStartingModelSelect" class="text-18"></select>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <label for="stNumTrainingStepsInput">Number of Training Steps:</label>
-                    </td>
-                    <td>
-                      <input id="stNumTrainingStepsInput" type="number" class="rightText text-18"
-                      style="width: 8ch">
-                    </td>
-                  </tr>
-                </table>
+<div id="modelsTabDiv" class="tabDiv">
+  <br>
+  <table class="collapsedBorder">
+    <tr>
+      <td align="center" valign="top">
+        <button id="trainMoreButton" class="text-24">
+          <span class="material-icons iconVerticalAlign">model_training</span>
+          <span class="iconVerticalAlign">More Training</span>
+        </button>
+      </td>
+      <td width="10px"></td>
+      <td align="center" valign="top">
+        <button id="downloadTFLiteButton" class="text-24">
+          <span class="material-icons iconVerticalAlign">cloud_download</span>
+          <span class="iconVerticalAlign">Download Model</span>
+        </button>
+      </td>
+      <td width="10px"></td>
+      <td align="center" valign="top">
+        <button id="cancelTrainingButton" class="text-24">
+          <span class="material-icons iconVerticalAlign">cancel</span>
+          <span class="iconVerticalAlign">Cancel Training</span>
+        </button>
+      </td>
+      <td width="10px"></td>
+      <td align="center" valign="top">
+        <button id="deleteModelsButton" class="text-24">
+          <span class="material-icons iconVerticalAlign">delete</span>
+          <span class="iconVerticalAlign">Delete Models</span>
+        </button>
+      </td>
+      <td width="10px"></td>
+    </tr>
+  </table>
+  <br>
+  <div id="modelsListDiv" style="display: none;">
+    <table id="modelsTable" class="collapsedBorder">
+      <tr>
+        <th class="cellWithBorder"><input type="checkbox" id="modelCheckboxAll"></th>
+        <th class="cellWithBorder">Date Created</th>
+        <th class="cellWithBorder" width="200px">Description</th>
+        <th class="cellWithBorder">Starting Model</th>
+        <th class="cellWithBorder">Steps Requested</th>
+        <th class="cellWithBorder">Job State</th>
+        <th class="cellWithBorder">Steps Completed</th>
+        <th class="cellWithBorder">Training Time</th>
+      </tr>
+    </table>
+  </div>
+</div>
 
-                <br><br>
-                <label for="stDescriptionInput">Description:</label><br>
-                <input type="text" maxlength="30" id="stDescriptionInput" class="form-control" style="width: 100%">
-                <br><br>
-                <button id="stStartButton" class="btn btn-secondary">Start Training</button>
-                <br>
-                <div id="stInProgressDiv" style="display: none;">Submitting job request...</div>
-                <div id="stSuccessDiv" style="display: none;">Training job is queued.</div>
-                <div id="stFailedDiv" style="display: none;">Failed!</div>
+<div id="trainMoreDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <table>
+      <tr>
+        <td valign="top">
+          <button id="tmDismissButton" class="material-icons iconVerticalAlign text-24">close</button>
+        </td>
+        <td valign="top"><span class="modal_dialog_title">Train More</span></td>
+      </tr>
+    </table>
+    <br><br>
+    <table class="text-18">
+      <tr>
+        <td colspan="2">
+          Each team is allowed <span id="tmTotalTrainingMinutesSpan"></span> minutes of training
+          time.<br>Your team has <span id="tmRemainingTrainingMinutesSpan"></span> minutes of training
+          time remaining.
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2"></td>
+      </tr>
+      <tr>
+        <td><label for="tmMaxRunningMinutesInput">Maximum Training Time:</label></td>
+        <td><input id="tmMaxRunningMinutesInput" type="number" class="rightText text-18"
+        style="width: 5ch">&nbsp;Minutes</td>
+      </tr>
+      <tr>
+        <td><label for="tmNumTrainingStepsInput">Number of Training Steps:</label></td>
+        <td><input id="tmNumTrainingStepsInput" type="number" class="rightText text-18"
+        style="width: 8ch"></td>
+      </tr>
+    </table>
+    <br><br>
+    <div id="tmDatasetContainerDiv">
+    </div>
+    <br><br>
+    <label for="tmDescriptionInput">Description:</label><br>
+    <input type="text" maxlength="30" id="tmDescriptionInput" class="text-18" style="width: 100%">
+    <br><br>
+    <button id="tmStartButton" class="text-24">Start Training</button>
+    <br>
+    <div id="tmInProgressDiv" style="display: none;">Submitting job request...</div>
+    <div id="tmSuccessDiv" style="display: none;">Training job is queued.</div>
+    <div id="tmFailedDiv" style="display: none;">Failed!</div>
+  </div>
+</div></div>
 
-
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="uvfDismissButton">Close</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div id="trainMoreDialog" class="modal_dialog">
-        <div class="modal_dialog_container">
-          <div class="modal_dialog_content">
-            <table>
-              <tr>
-                <td valign="top">
-                  <button id="tmDismissButton" class="btn btn-secondary">close</button>
-                </td>
-                <td valign="top"><span class="modal_dialog_title">Train More</span></td>
-              </tr>
-            </table>
-            <br><br>
-            <table class="text-18">
-              <tr>
-                <td colspan="2">
-                  Each team is allowed <span id="tmTotalTrainingMinutesSpan"></span> minutes of training
-                  time.<br>Your team has <span id="tmRemainingTrainingMinutesSpan"></span> minutes of training
-                  time remaining.
-                </td>
-              </tr>
-              <tr>
-                <td colspan="2"></td>
-              </tr>
-              <tr>
-                <td>
-                  <label for="tmMaxRunningMinutesInput">Maximum Training Time:</label>
-                </td>
-                <td>
-                  <input id="tmMaxRunningMinutesInput" type="number" class="rightText text-18" style="width: 5ch">&nbsp;Minutes
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <label for="tmNumTrainingStepsInput">Number of Training Steps:</label>
-                </td>
-                <td>
-                  <input id="tmNumTrainingStepsInput" type="number" class="rightText text-18" style="width: 8ch">
-                </td>
-              </tr>
-            </table>
-
-
-            <br><br>
-            <div id="tmDatasetContainerDiv">
-            </div>
-            <br><br>
-            <label for="tmDescriptionInput">Description:</label><br>
-            <input type="text" maxlength="30" id="tmDescriptionInput" class="form-control" style="width: 100%">
-            <br><br>
-            <button id="tmStartButton" class="btn btn-secondary">Start Training</button>
-            <br>
-            <div id="tmInProgressDiv" style="display: none;">Submitting job request...</div>
-            <div id="tmSuccessDiv" style="display: none;">Training job is queued.</div>
-            <div id="tmFailedDiv" style="display: none;">Failed!</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal fade" id="downloadModelDialog" tabindex="-1" aria-labelledby="uploadVideoFileLabel" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">Download Model</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <div>
-                <span class="text-18">Generating the TensorFlow Lite Model takes several minutes.</span>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="uvfDismissButton">Close</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-
+<div id="downloadModelDialog" class="modal_dialog"><div class="modal_dialog_container">
+  <div class="modal_dialog_content">
+    <table>
+      <tr>
+        <td valign="top">
+          <button id="dmDismissButton" class="material-icons iconVerticalAlign text-24">close</button>
+        </td>
+        <td valign="top"><span class="modal_dialog_title">Download Model</span></td>
+      </tr>
+    </table>
+    <br><br>
+    <div>
+      <span class="text-18">Generating the TensorFlow Lite Model takes several minutes.</span>
     </div>
   </div>
-</main>
-
-
-
-<footer>
-  <div class="container d-flex justify-content-between" style="padding: 20px 0;">
-    <a href="https://research.google/people/LizLooney/" target="_blank">Powered by Liz</a>
-    <div>© 2021 <i>FIRST</i><br>
-    <a href="/terms/t_and_c">Terms and Conditions</a><br>
-    <a href="/terms/privacy">Privacy Policy</a></div>
-  </div>
-</footer>
-
+</div></div>
 
 <script type="text/javascript">
   window.addEventListener('load', function() {
     const util = new fmltc.Util('root',
-      {{ team_preferences|tojson }},
-      {{ starting_models|tojson }});
+        {{ team_preferences|tojson }},
+        {{ starting_models|tojson }});
     util.setListModels(new fmltc.ListModels(util));
     util.setListDatasets(new fmltc.ListDatasets(util));
     util.setListVideos(new fmltc.ListVideos(util));
