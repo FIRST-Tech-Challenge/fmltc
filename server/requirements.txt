@@ -5,6 +5,7 @@ google-cloud-error-reporting
 google-cloud-logging==1.15.0
 google-cloud-storage==1.35.0
 gunicorn==20.1.0
+flask-oidc==1.4.0
 numpy==1.19.4
 object_detection-0.1_2.5.0.tar.gz
 opencv-contrib-python-headless==4.5.2.54
@@ -15,5 +16,6 @@ python-dateutil==2.8.1
 setuptools==57.0.0
 six==1.15.0
 slim-0.1.tar.gz
+sqlitedict==1.7.0
 tensorflow==2.5.0
 tflite-support==0.2.0
