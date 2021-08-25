@@ -184,6 +184,10 @@ def login():
         return login_via_oidc()
     elif flask.request.method == 'POST':
         if team_info.login(flask.request.form, flask.session):
+            #
+            # Local, privately, hosted instances get the team admin role by default.
+            #
+            flask.session['user_roles'] = [Role.TEAM_ADMIN]
             return flask.redirect(flask.url_for('index'))
         else:
             error_message = 'You have entered an invalid team number or team code.'
@@ -198,7 +202,6 @@ def login():
 @app.route('/')
 @handle_exceptions
 @redirect_to_login_if_needed
-@roles_required(Role.TEAM_ADMIN)
 def index():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
