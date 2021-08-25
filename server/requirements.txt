@@ -17,5 +17,5 @@ setuptools==57.0.0
 six==1.15.0
 slim-0.1.tar.gz
 sqlitedict==1.7.0
-tensorflow==2.5.0
+tensorflow==2.5.1
 tflite-support==0.2.0
