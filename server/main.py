@@ -163,10 +163,7 @@ def select_team():
 @app.route('/submitTeam', methods=['GET', 'POST'])
 def submit_team():
     if oidc.user_loggedin:
-        # roles = oidc.user_getfield('global_roles')
-        name = oidc.user_getfield('name')
         given_name = oidc.user_getfield('given_name')
-        family_name = oidc.user_getfield('family_name')
         team_roles = oidc.user_getfield('team_roles')
         flask.session['program'] = "FTC"
         flask.session['oidc_auth'] = "true"
@@ -176,6 +173,7 @@ def submit_team():
             team_num = flask.request.args.get('team')
         flask.session['user_roles'] = team_roles[team_num]
         flask.session['team_number'] = team_num
+        flask.session['name'] = given_name
         return flask.redirect(flask.url_for('index'))
     else:
         return flask.redirect('/403')
