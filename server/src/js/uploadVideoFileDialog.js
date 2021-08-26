@@ -42,6 +42,8 @@ fmltc.UploadVideoFileDialog = function(util, onVideoUploaded) {
   this.uploadingState = document.getElementById('uvfUploadingState');
   this.uploadingProgress = document.getElementById('uvfUploadingProgress');
   this.uploadingFailedDiv = document.getElementById('uvfUploadingFailedDiv');
+  // Bootstrap modal backdrop
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
 
   this.descriptionInput.value = '';
 
@@ -112,6 +114,7 @@ fmltc.UploadVideoFileDialog.prototype.dismissButton_onclick = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  this.backdrop.style.display = 'none';
 };
 
 fmltc.UploadVideoFileDialog.prototype.videoFileInput_onchange = function() {
