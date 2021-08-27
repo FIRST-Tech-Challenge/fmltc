@@ -101,7 +101,11 @@ limitations under the License.
                   <table class="collapsedBorder">
                     <tr>
                       <td align="center" valign="top">
-                        <button id="uploadVideoFileButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#uploadVideoFileDialog">
+                        {% if can_upload_video %}
+                          <button id="uploadVideoFileButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#uploadVideoFileDialog">
+                        {% else %}
+                          <button id="uploadVideoFileButton" disabled class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#uploadVideoFileDialog">
+                        {% endif %}
                           <span class="material-icons iconVerticalAlign">cloud_upload</span>
                           <span class="iconVerticalAlign">Upload Video</span>
                         </button>
@@ -272,7 +276,6 @@ limitations under the License.
         </div>
       </div>
 
-
       <div class="modal fade" id="uploadVideoFileDialog" tabindex="-1" aria-labelledby="uploadVideoFileLabel" aria-hidden="true">
         <div class="modal-dialog">
           <div class="modal-content">
@@ -288,6 +291,7 @@ limitations under the License.
               <br><br>
               <button id="uvfUploadButton" class="btn btn-secondary" >Upload</button>
               <h3 id="uvfUploadingH3" style="visibility: hidden;">Uploading Progress</h3>
+              <div id="uvfUploadingState"></div>
               <div><progress id="uvfUploadingProgress" style="visibility: hidden;"></progress></div>
               <div id="uvfUploadingFailedDiv" class="text-24" style="display: none;">
                 Uploading has failed!

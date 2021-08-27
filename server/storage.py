@@ -46,7 +46,7 @@ DS_KIND_ACTION = 'Action'
 
 # teams - public methods
 
-def retrieve_team_uuid(program, team_number, team_code):
+def retrieve_team_uuid(program, team_number):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         query = datastore_client.query(kind=DS_KIND_TEAM)

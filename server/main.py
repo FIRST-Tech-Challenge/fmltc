@@ -21,6 +21,8 @@ import time
 
 # Other Modules
 import flask
+from flask_oidc import OpenIDConnect
+from sqlitedict import SqliteDict
 
 # My Modules
 import action
@@ -31,11 +33,14 @@ import dataset_zipper
 import exceptions
 import frame_extractor
 import model_trainer
+import roles
 import storage
 import tflite_creator
 import team_info
 import tracking
 import util
+
+from roles import Role
 
 import logging
 
@@ -45,9 +50,26 @@ app.config.update(
     MAX_CONTENT_LENGTH=8 * 1024 * 1024,
     ALLOWED_EXTENSIONS=set(['png', 'jpg', 'jpeg', 'gif'])
 )
-app.debug = False
-app.testing = False
 
+app.config.update(
+    {
+        "SECRET_KEY": constants.SECRET_KEY,
+        "TESTING": True,
+        "DEBUG": True,
+        "OIDC_CLIENT_SECRETS": "client_secrets.json",
+        "OIDC_ID_TOKEN_COOKIE_SECURE": False,
+        "OIDC_REQUIRE_VERIFIED_EMAIL": False,
+        "OIDC_SCOPES": ["openid", "email", "roles"]
+    }
+)
+
+app.debug = True
+app.testing = True
+
+#
+# TODO: Replace with redis credentials store
+#
+oidc = OpenIDConnect(app, credentials_store=SqliteDict('users.db', autocommit=True))
 
 def redirect_to_login_if_needed(func):
     @wraps(func)
@@ -64,6 +86,26 @@ def login_required(func):
             return func(*args, **kwargs)
         return flask.redirect('/403')
     return wrapper
+
+def roles_required(*roles):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if set(roles).issubset(set(flask.session['user_roles'])):
+                return func(*args, **kwargs)
+            return flask.redirect('/403')
+        return wrapper
+    return decorator
+
+def roles_accepted(*roles):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if set(roles).isdisjoint(set(flask.session['user_roles'])):
+                return flask.redirect('/403')
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 def handle_exceptions(func):
     @wraps(func)
@@ -98,12 +140,54 @@ def strip_model_entity(model_entity):
         if prop in model_entity:
             model_entity.pop(prop)
 
+@oidc.require_login
+def login_via_oidc():
+    if oidc.user_loggedin:
+        team_roles = oidc.user_getfield('team_roles')
+        if len(team_roles) == 1:
+            team_num = next(iter(team_roles))
+            flask.session['team_number'] = team_num
+            flask.session['user_roles'] = team_roles[team_num]
+            return flask.redirect(flask.url_for('submit_team', team=team_num))
+        else:
+            return flask.redirect(flask.url_for('select_team', teams=list(team_roles.keys())))
+
 # pages
+
+@app.route('/selectTeam')
+@handle_exceptions
+def select_team():
+    teams = flask.request.args.getlist('teams')
+    return flask.render_template('selectTeam.html', teams=teams)
+
+@app.route('/submitTeam', methods=['GET', 'POST'])
+def submit_team():
+    if oidc.user_loggedin:
+        given_name = oidc.user_getfield('given_name')
+        team_roles = oidc.user_getfield('team_roles')
+        flask.session['program'] = "FTC"
+        flask.session['oidc_auth'] = "true"
+        if flask.request.method == 'POST':
+            team_num = flask.request.form['team_num']
+        else:
+            team_num = flask.request.args.get('team')
+        flask.session['user_roles'] = team_roles[team_num]
+        flask.session['team_number'] = team_num
+        flask.session['name'] = given_name
+        return flask.redirect(flask.url_for('index'))
+    else:
+        return flask.redirect('/403')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if flask.request.method == 'POST':
+    if constants.USE_OIDC is not None:
+        return login_via_oidc()
+    elif flask.request.method == 'POST':
         if team_info.login(flask.request.form, flask.session):
+            #
+            # Local, privately, hosted instances get the team admin role by default.
+            #
+            flask.session['user_roles'] = [Role.TEAM_ADMIN]
             return flask.redirect(flask.url_for('index'))
         else:
             error_message = 'You have entered an invalid team number or team code.'
@@ -122,7 +206,7 @@ def index():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('root.html', time_time=time.time(), project_id=constants.PROJECT_ID,
-        program=program, team_number=team_number,
+        program=program, team_number=team_number, can_upload_video=roles.can_upload_video(flask.session['user_roles']),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         starting_models=model_trainer.get_starting_model_names())
 
@@ -182,6 +266,12 @@ def ok():
 def logout():
     # Remove the team information from the flask.session if it's there.
     team_info.logout(flask.session)
+    flask.session.clear()
+    if constants.USE_OIDC:
+        #
+        # TODO: If using OIDC, logout of identity provider also.
+        #
+        oidc.logout()
     return 'OK'
 
 @app.route('/setUserPreference', methods=['POST'])
@@ -198,6 +288,7 @@ def set_user_preference():
 @app.route('/prepareToUploadVideo', methods=['POST'])
 @handle_exceptions
 @login_required
+@roles_required(roles.Role.TEAM_ADMIN)
 def prepare_to_upload_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = flask.request.form.to_dict(flat=True)
@@ -815,5 +906,6 @@ def perform_action(data, context):
 # For running locally:
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     app.run(host='127.0.0.1', port=8088, debug=True)
 
