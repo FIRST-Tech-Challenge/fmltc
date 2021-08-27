@@ -46,6 +46,7 @@ variable "gcp_service_list" {
     "compute.googleapis.com",
     "cloudbuild.googleapis.com",
     "appengine.googleapis.com",
+    "redis.googleapis.com",
     "serviceusage.googleapis.com"
   ]
 }
@@ -188,6 +189,7 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
   env_variables = {
     PROJECT_ID = var.project_id
     ORIGIN = "https://${var.project_id}.uc.r.appspot.com"
+    USE_OIDC = "true"
   }
 
 }

@@ -23,6 +23,7 @@ import time
 import flask
 from flask_oidc import OpenIDConnect
 from sqlitedict import SqliteDict
+from credentialstore import CredentialStore
 
 # My Modules
 import action
@@ -67,9 +68,14 @@ app.debug = True
 app.testing = True
 
 #
-# TODO: Replace with redis credentials store
+# If a redis server is specified, use it, otherwise use a
+# local sqlite database.
 #
-oidc = OpenIDConnect(app, credentials_store=SqliteDict('users.db', autocommit=True))
+if constants.REDIS_IP_ADDR is not None:
+    oidc = OpenIDConnect(app, credentials_store=CredentialStore())
+else:
+    oidc = OpenIDConnect(app, credentials_store=SqliteDict('users.db', autocommit=True))
+
 
 def redirect_to_login_if_needed(func):
     @wraps(func)
