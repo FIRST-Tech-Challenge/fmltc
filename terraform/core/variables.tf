@@ -9,5 +9,5 @@ variable "project_id"        { type = string }
 variable "project_name"      { type = string }
 variable "region"            { type = string }
 variable "app_engine_region" { type = string }
-variable "zone"              { type = string }
 variable "app_engine_url"    { type = string }
+variable "zone"              { type = string }

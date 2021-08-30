@@ -6,6 +6,6 @@ module "dev" {
   project_id        = var.project_id
   region            = var.region
   app_engine_region = var.app_engine_region
-  zone              = var.zone
   app_engine_url    = var.app_engine_url
+  zone              = var.zone
 }
