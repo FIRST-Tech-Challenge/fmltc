@@ -252,13 +252,13 @@ def monitor_training():
         video_entities_by_uuid=video_entities_by_uuid)
 
 
-#test is for debugging purposes only.
-#@app.route('/test')
-#@handle_exceptions
-#@redirect_to_login_if_needed
-#def test():
-#    return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID)
-
+# test is for debugging purposes only.
+# @app.route('/test')
+# @handle_exceptions
+# @redirect_to_login_if_needed
+# def test():
+#     return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+#                                  use_oidc=constants.USE_OIDC, redis_ip=constants.REDIS_IP_ADDR)
 
 # requests
 
