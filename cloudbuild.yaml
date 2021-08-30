@@ -2,7 +2,7 @@ steps:
   # Install dependencies
   - name: python
     entrypoint: pip
-    args: ["install", "-r", "requirements.txt", "--user"]
+    args: ["install", "-r", "server/requirements.txt", "--user"]
 
   # Docker Build
   - name: 'gcr.io/cloud-builders/docker'
