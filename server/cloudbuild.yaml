@@ -2,11 +2,9 @@ steps:
   # Install dependencies
   - name: python
     entrypoint: pip
-    dir: 'server'
     args: ["install", "-r", "requirements.txt", "--user"]
 
   # Docker Build
   - name: 'gcr.io/cloud-builders/docker'
-    dir: 'server'
-    args: ['build', '-f ../Dockerfile',
+    args: ['build',
            '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/fmltc:$SHORT_SHA', '.']
