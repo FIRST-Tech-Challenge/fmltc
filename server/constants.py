@@ -63,3 +63,9 @@ if ORIGIN == None:
 # Set to any value to turn on oidc authentication
 #
 USE_OIDC = os.getenv('USE_OIDC')
+
+#
+# Only applicable for OIDC, set to use a redis instance for session storage
+#
+REDIS_IP_ADDR = os.getenv('REDIS_IP_ADDR')
+

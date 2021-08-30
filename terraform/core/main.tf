@@ -2,7 +2,7 @@ terraform {
   required_providers {
     google = {
       source = "hashicorp/google"
-      version = "3.77.0"
+      version = "3.81.0"
     }
     google-ml = {
       source = "cmacfarl/google-ml"
@@ -46,6 +46,7 @@ variable "gcp_service_list" {
     "compute.googleapis.com",
     "cloudbuild.googleapis.com",
     "appengine.googleapis.com",
+    "redis.googleapis.com",
     "serviceusage.googleapis.com"
   ]
 }
@@ -159,6 +160,9 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
     update = "60m"
   }
 
+  vpc_access_connector {
+    name = "projects/${var.project_id}/locations/${var.region}/connectors/central-serverless"
+  }
   deployment {
     zip {
       source_url = "https://storage.googleapis.com/${google_storage_bucket.fmltc-gae-source.name}/${google_storage_bucket_object.app-server-archive.name}"
@@ -187,9 +191,12 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
 
   env_variables = {
     PROJECT_ID = var.project_id
-    ORIGIN = "https://${var.project_id}.uc.r.appspot.com"
+    ORIGIN = var.app_engine_url
+    USE_OIDC = "true"
+    REDIS_IP_ADDR = google_redis_instance.ml-redis-dev.host
   }
 
+  depends_on = [module.serverless-connector]
 }
 
 
