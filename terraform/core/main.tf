@@ -15,7 +15,7 @@ terraform {
     # So we must resort to hardcoded values for the bucket and
     # credentials.
     #
-    bucket = "ftc-ml-firstinpires-dev-tf-state"
+    bucket = "<your-project-name>-tf-state"
     credentials = "../../server/key.json"
   }
 }
