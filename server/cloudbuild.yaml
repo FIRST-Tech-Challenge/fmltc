@@ -2,6 +2,7 @@ steps:
   # Install dependencies
   - name: python
     entrypoint: pip
+    dir: 'server'
     args: ["install", "-r", "requirements.txt", "--user"]
 
   # Docker Build
