@@ -64,6 +64,7 @@ fmltc.TrainMoreDialog = function(
 
   // Create checkboxes for the datasets. Check and disable the checkboxes that correspond to
   // datasets that are already part of this model.
+  this.datasetContainerDiv.innerHTML = ''; // Remove previous children.
   for (let i = 0; i < this.datasetEntities.length; i++) {
     const checkbox = document.createElement('input');
     this.checkboxes[i] = checkbox;
