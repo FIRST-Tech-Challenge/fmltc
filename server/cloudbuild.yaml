@@ -7,5 +7,6 @@ steps:
 
   # Docker Build
   - name: 'gcr.io/cloud-builders/docker'
+    dir: 'server'
     args: ['build',
            '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/fmltc:$SHORT_SHA', '.']
