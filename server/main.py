@@ -17,6 +17,7 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timedelta
 from functools import wraps
+import logging
 import time
 
 # Other Modules
@@ -43,8 +44,6 @@ import util
 
 from roles import Role
 
-import logging
-
 app = flask.Flask(__name__)
 app.config.update(
     SECRET_KEY=constants.SECRET_KEY,
@@ -69,10 +68,7 @@ app.testing = True
 
 #
 # If a redis server is specified, use it, otherwise use a
-# local sqlite database
-#
-# If we are not using oidc, we still need an instance of an
-# oidc object so that the decorator won't complain.
+# local sqlite database.
 #
 if constants.USE_OIDC is not None:
     if constants.REDIS_IP_ADDR is not None:
@@ -80,7 +76,8 @@ if constants.USE_OIDC is not None:
     else:
         oidc = OpenIDConnect(app, credentials_store=SqliteDict('users.db', autocommit=True))
 else:
-    oidc = OpenIDConnect(app)
+    oidc = None
+
 
 def redirect_to_login_if_needed(func):
     @wraps(func)
@@ -95,6 +92,14 @@ def login_required(func):
     def wrapper(*args, **kwargs):
         if team_info.validate_team_info(flask.session):
             return func(*args, **kwargs)
+        return flask.redirect('/403')
+    return wrapper
+
+def oidc_require_login(func):
+    if constants.USE_OIDC is not None:
+        return oidc.require_login
+    @wraps(func)
+    def wrapper(*args, **kwargs):
         return flask.redirect('/403')
     return wrapper
 
@@ -151,7 +156,7 @@ def strip_model_entity(model_entity):
         if prop in model_entity:
             model_entity.pop(prop)
 
-@oidc.require_login
+@oidc_require_login
 def login_via_oidc():
     if oidc.user_loggedin:
         team_roles = oidc.user_getfield('team_roles')
