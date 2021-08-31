@@ -249,7 +249,7 @@ def monitor_training():
     model_uuid = flask.request.args.get('model_uuid')
     model_entities_by_uuid, dataset_entities_by_uuid, video_entities_by_uuid = storage.retrieve_entities_for_monitor_training(
         team_uuid, model_uuid, model_trainer.retrieve_model_list(team_uuid))
-    for model_uuid, model_entity in model_entities_by_uuid.items():
+    for _, model_entity in model_entities_by_uuid.items():
         strip_model_entity(model_entity)
     sanitize(model_entities_by_uuid)
     sanitize(dataset_entities_by_uuid)

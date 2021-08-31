@@ -99,6 +99,9 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         config_template_blob_name = 'static/training/models/%s' % (
             starting_model_data['pipeline_config'])
         fine_tune_checkpoint = starting_model_entity['trained_checkpoint_path']
+        # Remove trailing .index if it's there.
+        if fine_tune_checkpoint.endswith('.index'):
+            fine_tune_checkpoint = fine_tune_checkpoint[:-6]
 
     dataset_uuid_list = json.loads(dataset_uuids_json)
     dataset_entities = storage.retrieve_dataset_entities(team_uuid, dataset_uuid_list)

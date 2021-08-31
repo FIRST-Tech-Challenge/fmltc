@@ -15,6 +15,7 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
+import logging
 import os
 import shutil
 import uuid
