@@ -45,12 +45,7 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.loadingProgress = document.getElementById('loadingProgress');
   this.bboxCanvas = document.getElementById('bboxCanvas');
   this.videoFrameImg = document.getElementById('videoFrameImg');
-  this.includedFrameCountDiv = document.getElementById('includedFrameCountDiv');
-  this.includedFrameCountSpan = document.getElementById('includedFrameCountSpan');
-  this.unlabeledFrameCountDiv = document.getElementById('unlabeledFrameCountDiv');
-  this.unlabeledFrameCountSpan = document.getElementById('unlabeledFrameCountSpan');
   this.currentFrameSpan = document.getElementById('currentFrameSpan');
-  this.includeFrameInDatasetCheckbox = document.getElementById('includeFrameInDatasetCheckbox');
   this.labelingAreaTable = document.getElementById('labelingAreaTable');
   this.drawHintDiv = document.getElementById('drawHintDiv');
   this.labelHintDiv = document.getElementById('labelHintDiv');
@@ -60,6 +55,11 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.nextFrameButton = document.getElementById('nextFrameButton');
   this.nextTenFrameButton = document.getElementById('nextTenFrameButton');
   this.lastFrameButton = document.getElementById('lastFrameButton');
+  this.ignoreFrameCheckbox = document.getElementById('ignoreFrameCheckbox');
+  this.ignoredFrameCountSpan = document.getElementById('ignoredFrameCountSpan');
+  this.previousIgnoredFrameButton = document.getElementById('previousIgnoredFrameButton');
+  this.nextIgnoredFrameButton = document.getElementById('nextIgnoredFrameButton');
+  this.unlabeledFrameCountSpan = document.getElementById('unlabeledFrameCountSpan');
   this.previousUnlabeledFrameButton = document.getElementById('previousUnlabeledFrameButton');
   this.nextUnlabeledFrameButton = document.getElementById('nextUnlabeledFrameButton');
   this.playbackSpeedRangeInput = document.getElementById('playbackSpeedRangeInput');
@@ -94,9 +94,9 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.currentFrameNumber = 0;
   this.currentFrameSpan.textContent = String(this.currentFrameNumber + 1);
 
-  this.includedFrameCount = 0;
+  this.ignoredFrameCount = 0;
+  this.ignoredFrameCountSpan.textContent = String(this.ignoredFrameCount);
   this.unlabeledFrameCount = 0;
-  this.includedFrameCountSpan.textContent = String(this.includedFrameCount);
   this.unlabeledFrameCountSpan.textContent = String(this.unlabeledFrameCount);
 
   this.retryingGoToFrame = false;
@@ -142,6 +142,8 @@ fmltc.LabelVideo.MAX_CANVAS_WIDTH = 2000;
 fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   this.videoEntity = videoEntity;
 
+  this.minIgnoredFrameNumber = videoEntity.frame_count;
+  this.maxIgnoredFrameNumber = -1;
   this.minUnlabeledFrameNumber = videoEntity.frame_count;
   this.maxUnlabeledFrameNumber = -1;
 
@@ -163,13 +165,15 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   this.bboxCanvas.onmousemove = this.bboxCanvas_onmousemove.bind(this);
   this.bboxCanvas.onmouseleave = this.bboxCanvas_onmouseleave.bind(this);
   this.bboxCanvas.onmouseup = this.bboxCanvas_onmouseup.bind(this);
-  this.includeFrameInDatasetCheckbox.onclick = this.includeFrameInDatasetCheckbox_onclick.bind(this);
   this.firstFrameButton.onclick = this.firstFrameButton_onclick.bind(this);
   this.previousTenFrameButton.onclick = this.previousTenFrameButton_onclick.bind(this);
   this.previousFrameButton.onclick = this.previousFrameButton_onclick.bind(this);
   this.nextFrameButton.onclick = this.nextFrameButton_onclick.bind(this);
   this.nextTenFrameButton.onclick = this.nextTenFrameButton_onclick.bind(this);
   this.lastFrameButton.onclick = this.lastFrameButton_onclick.bind(this);
+  this.ignoreFrameCheckbox.onclick = this.ignoreFrameCheckbox_onclick.bind(this);
+  this.previousIgnoredFrameButton.onclick = this.previousIgnoredFrameButton_onclick.bind(this);
+  this.nextIgnoredFrameButton.onclick = this.nextIgnoredFrameButton_onclick.bind(this);
   this.previousUnlabeledFrameButton.onclick = this.previousUnlabeledFrameButton_onclick.bind(this);
   this.nextUnlabeledFrameButton.onclick = this.nextUnlabeledFrameButton_onclick.bind(this);
   this.reversePlayPauseButton.onclick = this.reversePlayPauseButton_onclick.bind(this);
@@ -263,12 +267,14 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.previousIgnoredFrameButton.disabled = true;
+    this.nextIgnoredFrameButton.disabled = true;
     this.previousUnlabeledFrameButton.disabled = true;
     this.nextUnlabeledFrameButton.disabled = true;
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
-    this.includeFrameInDatasetCheckbox.disabled = true;
+    this.ignoreFrameCheckbox.disabled = true;
     // TODO(lizlooney): Disable the bbox/label input boxes.
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
@@ -293,12 +299,14 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.previousIgnoredFrameButton.disabled = true;
+    this.nextIgnoredFrameButton.disabled = true;
     this.previousUnlabeledFrameButton.disabled = true;
     this.nextUnlabeledFrameButton.disabled = true;
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
-    this.includeFrameInDatasetCheckbox.disabled = true;
+    this.ignoreFrameCheckbox.disabled = true;
     // TODO(lizlooney): Disable the bbox/label input boxes.
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
@@ -317,12 +325,14 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.previousIgnoredFrameButton.disabled = true;
+    this.nextIgnoredFrameButton.disabled = true;
     this.previousUnlabeledFrameButton.disabled = true;
     this.nextUnlabeledFrameButton.disabled = true;
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = (this.playingDirection == 1);
     this.forwardPlayPauseButton.disabled = (this.playingDirection == -1);
-    this.includeFrameInDatasetCheckbox.disabled = true;
+    this.ignoreFrameCheckbox.disabled = true;
     // TODO(lizlooney): Disable the bbox/label input boxes.
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
@@ -338,12 +348,14 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.previousIgnoredFrameButton.disabled = true;
+    this.nextIgnoredFrameButton.disabled = true;
     this.previousUnlabeledFrameButton.disabled = true;
     this.nextUnlabeledFrameButton.disabled = true;
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
-    this.includeFrameInDatasetCheckbox.disabled = true;
+    this.ignoreFrameCheckbox.disabled = true;
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
     this.trackingStartButton.disabled = true;
@@ -359,6 +371,12 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
     this.nextTenFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
     this.lastFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
+    this.previousIgnoredFrameButton.disabled = (
+        this.loadedFrameEntityCount < this.videoEntity.frame_count ||
+        this.currentFrameNumber <= this.minIgnoredFrameNumber);
+    this.nextIgnoredFrameButton.disabled = (
+        this.loadedFrameEntityCount < this.videoEntity.frame_count ||
+        this.currentFrameNumber >= this.maxIgnoredFrameNumber);
     this.previousUnlabeledFrameButton.disabled = (
         this.loadedFrameEntityCount < this.videoEntity.frame_count ||
         this.currentFrameNumber <= this.minUnlabeledFrameNumber);
@@ -368,7 +386,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.playbackSpeedRangeInput.disabled = false;
     this.reversePlayPauseButton.disabled = (this.currentFrameNumber == 0);
     this.forwardPlayPauseButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
-    this.includeFrameInDatasetCheckbox.disabled = false;
+    this.ignoreFrameCheckbox.disabled = false;
     // TODO(lizlooney): Disable the bbox/label input boxes.
     this.trackingScaleInput.disabled = false;
     this.trackerSelect.disabled = false;
@@ -431,24 +449,20 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameEntitiesWithImageUrls_onreadyst
 
 fmltc.LabelVideo.prototype.videoFrameEntityLoaded = function(videoFrameEntity) {
   frameNumber = videoFrameEntity.frame_number
-  const previousIncludeFrameInDataset = this.videoFrameEntity[frameNumber]
-      ? this.videoFrameEntity[frameNumber].include_frame_in_dataset : false;
-  const previousBboxesText = this.videoFrameEntity[frameNumber]
-      ? this.videoFrameEntity[frameNumber].bboxes_text : '';
+  const previousIgnoreFrame = this.videoFrameEntity[frameNumber]
+      ? !this.videoFrameEntity[frameNumber].include_frame_in_dataset : false;
+  const previousUnlabeledFrame = this.videoFrameEntity[frameNumber]
+      ? this.isUnlabeled(this.videoFrameEntity[frameNumber].bboxes_text) : false;
 
-  const includeFrameInDataset = videoFrameEntity.include_frame_in_dataset;
-  const bboxesText = videoFrameEntity.bboxes_text;
+  const ignoreFrame = this.isIgnored(videoFrameEntity.include_frame_in_dataset);
+  const unlabeledFrame = this.isUnlabeled(videoFrameEntity.bboxes_text);
 
-  this.updateFrameCounts(frameNumber, previousIncludeFrameInDataset, previousBboxesText,
-      includeFrameInDataset, bboxesText);
+  this.updateFrameCounts(frameNumber, previousIgnoreFrame, ignoreFrame,
+      previousUnlabeledFrame, unlabeledFrame);
   this.videoFrameEntity[frameNumber] = videoFrameEntity;
   this.bboxes[frameNumber] = this.convertTextToBboxes(videoFrameEntity.bboxes_text);
 
   this.loadedFrameEntityCount++;
-  if (this.loadedFrameEntityCount == this.videoEntity.frame_count) {
-    this.includedFrameCountDiv.style.visibility = 'visible';
-    this.unlabeledFrameCountDiv.style.visibility = 'visible';
-  }
   this.loadingProgress.value++;
 
   setTimeout(this.retrieveVideoFrameImage.bind(this, frameNumber, videoFrameEntity.image_url, 0), 0);
@@ -460,29 +474,47 @@ fmltc.LabelVideo.prototype.videoFrameEntityLoaded = function(videoFrameEntity) {
 };
 
 fmltc.LabelVideo.prototype.updateFrameCounts = function(frameNumber,
-    previousIncludeFrameInDataset, previousBboxesText,
-    includeFrameInDataset, bboxesText) {
-  if (previousIncludeFrameInDataset) {
-    // This frame was included in the includedFrameCount.
-    if (!includeFrameInDataset) {
-      // This frame is now not included in the includedFrameCount.
-      this.includedFrameCount--;
-      this.includedFrameCountSpan.textContent = String(this.includedFrameCount);
+    previousIgnoreFrame, ignoreFrame,
+    previousUnlabeledFrame, unlabeledFrame) {
+  if (previousIgnoreFrame != ignoreFrame) {
+    if (ignoreFrame) {
+      this.ignoredFrameCount++;
+      // Since this frame is now ignored, we may need to update minIgnoredFrameNumber and
+      // maxIgnoredFrameNumber.
+      if (frameNumber < this.minIgnoredFrameNumber) {
+        this.minIgnoredFrameNumber = frameNumber;
+      }
+      if (frameNumber > this.maxIgnoredFrameNumber) {
+        this.maxIgnoredFrameNumber = frameNumber;
+      }
+    } else {
+      this.ignoredFrameCount--;
+      // Since this frame is now labeled, we may need to update minIgnoredFrameNumber and
+      // maxIgnoredFrameNumber.
+      if (frameNumber == this.minIgnoredFrameNumber) {
+        this.minIgnoredFrameNumber = this.findNextIgnoredFrameNumber(frameNumber + 1)
+      }
+      if (frameNumber == this.maxIgnoredFrameNumber) {
+        this.maxIgnoredFrameNumber = this.findPreviousIgnoredFrameNumber(frameNumber - 1)
+      }
     }
-  } else {
-    // This frame was not included in the includedFrameCount.
-    if (includeFrameInDataset) {
-      // This frame is now included in the includedFrameCount.
-      this.includedFrameCount++;
-      this.includedFrameCountSpan.textContent = String(this.includedFrameCount);
-    }
+    this.ignoredFrameCountSpan.textContent = String(this.ignoredFrameCount);
   }
-  if (previousIncludeFrameInDataset && previousBboxesText == '') {
-    // This frame was included in the unlabeledFrameCount.
-    if (!includeFrameInDataset || bboxesText != '') {
-      // This frame is now not included in the unlabeledFrameCount.
+  if (previousUnlabeledFrame != unlabeledFrame) {
+    if (unlabeledFrame) {
+      this.unlabeledFrameCount++;
+      // Since this frame is now unlabeled, we may need to update minUnlabeledFrameNumber and
+      // maxUnlabeledFrameNumber.
+      if (frameNumber < this.minUnlabeledFrameNumber) {
+        this.minUnlabeledFrameNumber = frameNumber;
+      }
+      if (frameNumber > this.maxUnlabeledFrameNumber) {
+        this.maxUnlabeledFrameNumber = frameNumber;
+      }
+    } else {
       this.unlabeledFrameCount--;
-      this.unlabeledFrameCountSpan.textContent = String(this.unlabeledFrameCount);
+      // Since this frame is now labeled, we may need to update minUnlabeledFrameNumber and
+      // maxUnlabeledFrameNumber.
       if (frameNumber == this.minUnlabeledFrameNumber) {
         this.minUnlabeledFrameNumber = this.findNextUnlabeledFrameNumber(frameNumber + 1)
       }
@@ -490,19 +522,7 @@ fmltc.LabelVideo.prototype.updateFrameCounts = function(frameNumber,
         this.maxUnlabeledFrameNumber = this.findPreviousUnlabeledFrameNumber(frameNumber - 1)
       }
     }
-  } else {
-    // This frame was not included in the unlabeledFrameCount.
-    if (includeFrameInDataset && bboxesText == '') {
-      // This frame is now included in the unlabeledFrameCount.
-      this.unlabeledFrameCount++;
-      this.unlabeledFrameCountSpan.textContent = String(this.unlabeledFrameCount);
-      if (frameNumber < this.minUnlabeledFrameNumber) {
-        this.minUnlabeledFrameNumber = frameNumber;
-      }
-      if (frameNumber > this.maxUnlabeledFrameNumber) {
-        this.maxUnlabeledFrameNumber = frameNumber;
-      }
-    }
+    this.unlabeledFrameCountSpan.textContent = String(this.unlabeledFrameCount);
   }
 };
 
@@ -597,6 +617,14 @@ fmltc.LabelVideo.prototype.missingLabelNames = function(bboxes) {
   return false;
 };
 
+fmltc.LabelVideo.prototype.isIgnored = function(includeFrameInDataset) {
+  return !includeFrameInDataset;
+};
+
+fmltc.LabelVideo.prototype.isUnlabeled = function(bboxesText) {
+  return bboxesText == '';
+};
+
 fmltc.LabelVideo.prototype.saveBboxes = function(callback) {
   if (this.bboxes[this.currentFrameNumber] == undefined ||
       this.videoFrameEntity[this.currentFrameNumber] == undefined) {
@@ -615,9 +643,11 @@ fmltc.LabelVideo.prototype.saveBboxes = function(callback) {
     return bboxesText;
   }
 
-  const includeFrameInDataset = this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset;
-  this.updateFrameCounts(this.currentFrameNumber, includeFrameInDataset, previousBboxesText,
-      includeFrameInDataset, bboxesText);
+  const ignoreFrame = this.isIgnored(this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset);
+  const previousUnlabeledFrame = this.isUnlabeled(previousBboxesText);
+  const unlabeledFrame = this.isUnlabeled(bboxesText);
+  this.updateFrameCounts(this.currentFrameNumber, ignoreFrame, ignoreFrame,
+      previousUnlabeledFrame, unlabeledFrame);
   this.videoFrameEntity[this.currentFrameNumber].bboxes_text = bboxesText;
 
   const xhr = new XMLHttpRequest();
@@ -674,8 +704,8 @@ fmltc.LabelVideo.prototype.refillLabelingArea = function(optLastLabelInputFocus)
     return;
   }
 
-  this.includeFrameInDatasetCheckbox.checked =
-      this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset;
+  this.ignoreFrameCheckbox.checked =
+      !this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset;
 
   const fields = ['x1', 'y1', 'x2', 'y2', 'label'];
   const types = ['number', 'number', 'number', 'number', 'text'];
@@ -797,27 +827,27 @@ fmltc.LabelVideo.prototype.goToFrameRetry = function(frameNumber, retryCount) {
   }
 };
 
-fmltc.LabelVideo.prototype.includeFrameInDatasetCheckbox_onclick = function() {
+fmltc.LabelVideo.prototype.ignoreFrameCheckbox_onclick = function() {
   if (this.videoFrameEntity[this.currentFrameNumber] == undefined) {
     return;
   }
-  const previousIncludeFrameInDataset = this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset;
-  const includeFrameInDataset = this.includeFrameInDatasetCheckbox.checked;
-  if (includeFrameInDataset == previousIncludeFrameInDataset) {
+  const previousIgnoreFrame = this.isIgnored(this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset);
+  const ignoreFrame = this.ignoreFrameCheckbox.checked;
+  if (ignoreFrame == previousIgnoreFrame) {
     // Don't save them if they haven't changed.
     return;
   }
 
-  const bboxesText = this.videoFrameEntity[this.currentFrameNumber].bboxes_text;
-  this.updateFrameCounts(this.currentFrameNumber, previousIncludeFrameInDataset, bboxesText,
-      includeFrameInDataset, bboxesText);
-  this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset = includeFrameInDataset;
+  const unlabeledFrame = this.isUnlabeled(this.videoFrameEntity[this.currentFrameNumber].bboxes_text);
+  this.updateFrameCounts(this.currentFrameNumber, previousIgnoreFrame, ignoreFrame,
+      unlabeledFrame, unlabeledFrame);
+  this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset = !ignoreFrame;
 
   const xhr = new XMLHttpRequest();
   const params =
       'video_uuid=' + encodeURIComponent(this.videoUuid) +
       '&frame_number=' + encodeURIComponent(this.currentFrameNumber) +
-      '&include_frame_in_dataset=' + encodeURIComponent(includeFrameInDataset);
+      '&include_frame_in_dataset=' + encodeURIComponent(!ignoreFrame);
   xhr.open('POST', '/storeVideoFrameIncludeInDataset', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_storeVideoFrameIncludeInDataset_onreadystatechange.bind(this, xhr, params,
@@ -863,6 +893,38 @@ fmltc.LabelVideo.prototype.lastFrameButton_onclick = function() {
   this.goToFrame(this.videoEntity.frame_count - 1);
 };
 
+fmltc.LabelVideo.prototype.previousIgnoredFrameButton_onclick = function() {
+  const i = this.findPreviousIgnoredFrameNumber(this.currentFrameNumber - 1);
+  if (i >= 0) {
+    this.goToFrame(i);
+  }
+};
+
+fmltc.LabelVideo.prototype.findPreviousIgnoredFrameNumber = function(start) {
+  for (let i = start; i >= 0; i--) {
+    if (this.isIgnored(this.videoFrameEntity[i].include_frame_in_dataset)) {
+      return i;
+    }
+  }
+  return -1;
+};
+
+fmltc.LabelVideo.prototype.nextIgnoredFrameButton_onclick = function() {
+  const i = this.findNextIgnoredFrameNumber(this.currentFrameNumber + 1);
+  if (i < this.videoEntity.frame_count) {
+    this.goToFrame(i);
+  }
+};
+
+fmltc.LabelVideo.prototype.findNextIgnoredFrameNumber = function(start) {
+  for (let i = start; i < this.videoEntity.frame_count; i++) {
+    if (this.isIgnored(this.videoFrameEntity[i].include_frame_in_dataset)) {
+      return i;
+    }
+  }
+  return this.videoEntity.frame_count;
+};
+
 fmltc.LabelVideo.prototype.previousUnlabeledFrameButton_onclick = function() {
   const i = this.findPreviousUnlabeledFrameNumber(this.currentFrameNumber - 1);
   if (i >= 0) {
@@ -871,8 +933,8 @@ fmltc.LabelVideo.prototype.previousUnlabeledFrameButton_onclick = function() {
 };
 
 fmltc.LabelVideo.prototype.findPreviousUnlabeledFrameNumber = function(start) {
-  for (let i = start; i >= 0; i++) {
-    if (this.videoFrameEntity[i].bboxes_text == '') {
+  for (let i = start; i >= 0; i--) {
+    if (this.isUnlabeled(this.videoFrameEntity[i].bboxes_text)) {
       return i;
     }
   }
@@ -888,13 +950,12 @@ fmltc.LabelVideo.prototype.nextUnlabeledFrameButton_onclick = function() {
 
 fmltc.LabelVideo.prototype.findNextUnlabeledFrameNumber = function(start) {
   for (let i = start; i < this.videoEntity.frame_count; i++) {
-    if (this.videoFrameEntity[i].bboxes_text == '') {
+    if (this.isUnlabeled(this.videoFrameEntity[i].bboxes_text)) {
       return i;
     }
   }
   return this.videoEntity.frame_count;
 };
-
 
 fmltc.LabelVideo.prototype.reversePlayPauseButton_onclick = function() {
   this.saveBboxes();
@@ -1207,10 +1268,11 @@ fmltc.LabelVideo.prototype.xhr_retrieveTrackedBboxes_onreadystatechange = functi
 
       } else if (response.frame_number == frameNumber) {
         const bboxesText = response.bboxes_text;
-        const previousBboxesText = this.videoFrameEntity[frameNumber].bboxes_text;
-        const includeFrameInDataset = this.videoFrameEntity[frameNumber].include_frame_in_dataset;
-        this.updateFrameCounts(frameNumber, includeFrameInDataset, previousBboxesText,
-            includeFrameInDataset, bboxesText);
+        const previousUnlabeledFrame = this.isUnlabeled(this.videoFrameEntity[frameNumber].bboxes_text);
+        const unlabeledFrame = this.isUnlabeled(bboxesText);
+        const ignoreFrame = !this.videoFrameEntity[frameNumber].include_frame_in_dataset;
+        this.updateFrameCounts(frameNumber, ignoreFrame, ignoreFrame,
+            previousUnlabeledFrame, unlabeledFrame);
         this.videoFrameEntity[frameNumber].bboxes_text = bboxesText;
         this.bboxes[frameNumber] = this.convertTextToBboxes(this.videoFrameEntity[frameNumber].bboxes_text);
 

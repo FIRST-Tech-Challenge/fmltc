@@ -85,6 +85,18 @@ body {
   font-size: 36px;
 }
 
+.margin-top-bottom {
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.vr {
+  height: 100px;
+  margin-left: 5px;
+  border-left: 1px solid gray;
+  margin-right: 5px;
+}
+
 .collapsedBorder {
   border-collapse: collapse;
 }
