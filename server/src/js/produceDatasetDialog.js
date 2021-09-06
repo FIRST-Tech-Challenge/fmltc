@@ -46,6 +46,8 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, totalFrameCount, onDatas
   this.progressSpan = document.getElementById('pdProgressSpan');
   this.finishedDiv = document.getElementById('pdFinishedDiv');
   this.failedDiv = document.getElementById('pdFailedDiv');
+  // Bootstrap modal backdrop
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
 
   this.startDatasetInProgress = false;
 
@@ -91,6 +93,7 @@ fmltc.ProduceDatasetDialog.prototype.dismissButton_onclick = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  this.backdrop.style.display = 'none';
 };
 
 fmltc.ProduceDatasetDialog.prototype.descriptionInput_oninput = function() {

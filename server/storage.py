@@ -65,6 +65,7 @@ def retrieve_team_uuid(program, team_number):
                 'create_time': datetime.now(timezone.utc),
                 'last_time': datetime.now(timezone.utc),
                 'preferences': {},
+                'last_video_uuid': '',
             })
         else:
             team_entity = team_entities[0]
@@ -102,11 +103,20 @@ def retrieve_user_preferences(team_uuid):
     team_entity = retrieve_team_entity(team_uuid)
     return team_entity['preferences']
 
+def __set_last_video_uuid(team_uuid, video_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        team_entity = retrieve_team_entity(team_uuid)
+        team_entity['last_video_uuid'] = video_uuid
+        team_entity['last_video_time'] = datetime.now(timezone.utc)
+        transaction.put(team_entity)
+
 # video - public methods
 
 def prepare_to_upload_video(team_uuid, content_type):
     video_uuid = str(uuid.uuid4().hex)
     upload_url = blob_storage.prepare_to_upload_video(team_uuid, video_uuid, content_type)
+    __set_last_video_uuid(team_uuid, video_uuid)
     return video_uuid, upload_url
 
 def create_video_entity(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms):
@@ -124,6 +134,7 @@ def create_video_entity(team_uuid, video_uuid, description, video_filename, file
             'create_time_ms': create_time_ms,
             'create_time': util.datetime_from_ms(create_time_ms),
             'video_blob_name': blob_storage.get_video_blob_name(team_uuid, video_uuid),
+            'entity_create_time': datetime.now(timezone.utc),
             'frame_extraction_triggered_time_ms': 0,
             'frame_extraction_active_time_ms': 0,
             'extracted_frame_count': 0,
@@ -179,6 +190,11 @@ def frame_extraction_done(team_uuid, video_uuid, frame_count):
         video_entity['frame_extraction_active_time'] = video_entity['frame_extraction_end_time']
         video_entity['frame_extraction_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extraction_active_time'])
         transaction.put(video_entity)
+        team_entity = retrieve_team_entity(team_uuid)
+        if team_entity['last_video_uuid'] == video_uuid:
+            team_entity['last_video_uuid'] = ''
+            team_entity.pop('last_video_time', None)
+            transaction.put(team_entity)
         return video_entity
 
 
@@ -202,6 +218,16 @@ def retrieve_video_entity(team_uuid, video_uuid):
         logging.critical(message)
         raise exceptions.HttpErrorNotFound(message)
     return video_entities[0]
+
+
+# Retrieves the video entity associated with the given team_uuid and video_uuid. If no such
+# entity exists, returns None.
+def maybe_retrieve_video_entity(team_uuid, video_uuid):
+    video_entities = __query_video_entity(team_uuid, video_uuid)
+    if len(video_entities) == 0:
+        return None
+    return video_entities[0]
+
 
 def retrieve_video_list(team_uuid):
     datastore_client = datastore.Client()

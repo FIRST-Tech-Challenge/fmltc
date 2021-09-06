@@ -296,7 +296,6 @@ limitations under the License.
               <div id="uvfUploadingFailedDiv" class="text-24" style="display: none;">
                 Uploading has failed!
               </div>
-              <div id="uvfUploadingState" class="text-24"></div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="uvfDismissButton">Close</button>
@@ -393,58 +392,6 @@ limitations under the License.
           </div>
         </div>
       </div>
-
-<div id="datasetsTabDiv" class="tabDiv">
-  <br>
-  <table class="collapsedBorder">
-    <tr>
-      <td align="center" valign="top">
-        <button id="downloadDatasetButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">cloud_download</span>
-          <span class="iconVerticalAlign">Download Dataset</span>
-        </button>
-      </td>
-      <td width="10px"></td>
-      <td align="center" valign="top">
-        <button id="startTrainingButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">model_training</span>
-          <span class="iconVerticalAlign">Start Training</span>
-        </button>
-      </td>
-      <td width="10px"></td>
-      <td align="center" valign="top">
-        <button id="deleteDatasetsButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">delete</span>
-          <span class="iconVerticalAlign">Delete Datasets</span>
-        </button>
-      </td>
-      <td width="10px"></td>
-    </tr>
-  </table>
-  <br>
-
-  <div id="datasetsListDiv" style="display: none;">
-    <table id="datasetsTable" class="collapsedBorder">gre
-      <tr>
-        <th rowspan="3" class="cellWithBorder"><input type="checkbox" id="datasetCheckboxAll"></th>
-        <th rowspan="3" class="cellWithBorder">Date Produced</th>
-        <th rowspan="3" class="cellWithBorder" width="200px">Description</th>
-        <th colspan="4" class="cellWithBorder">Number of Frames</th>
-        <th rowspan="3" class="cellWithBorder">Labels</th>
-      </tr>
-      <tr>
-        <th colspan="2" class="cellWithBorder">Training</th>
-        <th colspan="2" class="cellWithBorder">Evaluation</th>
-      </tr>
-      <tr>
-        <th class="cellWithBorder">Total</th>
-        <th class="cellWithBorder">Negative</th>
-        <th class="cellWithBorder">Total</th>
-        <th class="cellWithBorder">Negative</th>
-      </tr>
-    </table>
-  </div>
-</div>
 
       <div class="modal fade" id="downloadDatasetDialog" tabindex="-1" aria-labelledby="downloadDatasetLabel" aria-hidden="true">
         <div class="modal-dialog">

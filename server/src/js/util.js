@@ -172,7 +172,7 @@ fmltc.Util.prototype.getDateTimeString = function(millis) {
 }
 
 fmltc.Util.prototype.initializeTabs = function() {
-  let foundTabs = false;
+  this.foundTabs = false;
   const tabButtons = document.getElementsByClassName('tabButton');
   for (let i = 0; i < tabButtons.length; i++) {
     const id = tabButtons[i].id;
@@ -180,13 +180,14 @@ fmltc.Util.prototype.initializeTabs = function() {
     if (!id.endsWith('Button')) {
       console.log('Error: tabButton with id "' + id + '" should end with "Button".');
     }
-    foundTabs = true;
+    this.foundTabs = true;
     const idPrefix = id.substring(0, id.length - 'Button'.length);
     tabButtons[i].onclick = this.tabDiv_onclick.bind(this, idPrefix);
   }
 
-  if (foundTabs) {
-    this.showLastViewedTab();
+  this.showLastViewedTab();
+
+  if (this.foundTabs) {
     this.window_onresize();
     window.addEventListener('resize', this.window_onresize.bind(this));
   }
@@ -218,10 +219,10 @@ fmltc.Util.prototype.window_onresize = function() {
 fmltc.Util.prototype.showLastViewedTab = function() {
   switch (this.pageBasename) {
     case 'root':
-      this.tabDiv_onclick(this.getPreference('root.currentTab', 'videosTab'));
+      this.showTab(this.getPreference('root.currentTab', 'videosTab'));
       break;
     case 'monitorTraining':
-      this.tabDiv_onclick(this.getPreference('monitorTraining.currentTab', 'scalarsTab'));
+      this.showTab(this.getPreference('monitorTraining.currentTab', 'scalarsTab'));
       break;
   }
 };
@@ -239,38 +240,47 @@ fmltc.Util.prototype.getCurrentTabDivId = function() {
 };
 
 fmltc.Util.prototype.showVideosTab = function() {
-  this.tabDiv_onclick('videosTab');
+  this.showTab('videosTab');
 };
 
 fmltc.Util.prototype.showDatasetsTab = function() {
-  this.tabDiv_onclick('datasetsTab');
+  this.showTab('datasetsTab');
 };
 
 fmltc.Util.prototype.showModelsTab = function() {
-  this.tabDiv_onclick('modelsTab');
+  this.showTab('modelsTab');
 };
 
 fmltc.Util.prototype.tabDiv_onclick = function(idPrefix) {
-  // Hide all the tabDivs.
-  const tabDivs = document.getElementsByClassName('tabDiv');
-  for (let i = 0; i < tabDivs.length; i++) {
-    tabDivs[i].style.display = 'none';
-  }
+  this.showTab(idPrefix);
+};
 
-  // Remove the class "active" from all tabButtons.
-  const tabButtons = document.getElementsByClassName('tabButton');
-  for (let i = 0; i < tabButtons.length; i++) {
-    tabButtons[i].className = tabButtons[i].className.replace(' active', '');
-  }
+fmltc.Util.prototype.showTab = function(idPrefix) {
+  if (this.foundTabs) {
+    // Hide all the tabDivs.
+    const tabDivs = document.getElementsByClassName('tabDiv');
+    for (let i = 0; i < tabDivs.length; i++) {
+      tabDivs[i].style.display = 'none';
+    }
 
-  // Show the current tabDiv, and add an 'active' class to the current tabButton.
-  document.getElementById(idPrefix + 'Div').style.display = 'block';
-  document.getElementById(idPrefix + 'Button').className += ' active';
-  this.setPreference(this.pageBasename + '.currentTab', idPrefix);
+    // Remove the class "active" from all tabButtons.
+    const tabButtons = document.getElementsByClassName('tabButton');
+    for (let i = 0; i < tabButtons.length; i++) {
+      tabButtons[i].className = tabButtons[i].className.replace(' active', '');
+    }
 
-  this.currentTabDivId = idPrefix + 'Div';
-  for (let i = 0; i < this.tabClickListeners.length; i++) {
-    this.tabClickListeners[i](this.currentTabDivId);
+    // Show the current tabDiv, and add an 'active' class to the current tabButton.
+    document.getElementById(idPrefix + 'Div').style.display = 'block';
+    document.getElementById(idPrefix + 'Button').className += ' active';
+    this.setPreference(this.pageBasename + '.currentTab', idPrefix);
+
+    this.currentTabDivId = idPrefix + 'Div';
+    for (let i = 0; i < this.tabClickListeners.length; i++) {
+      this.tabClickListeners[i](this.currentTabDivId);
+    }
+  } else {
+    // root.html uses aria.
+    // TODO: Make it select the tab corresponding to idPrefix
   }
 };
 

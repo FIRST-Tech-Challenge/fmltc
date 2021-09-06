@@ -15,7 +15,7 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 import logging
 import time
@@ -132,6 +132,35 @@ def handle_exceptions(func):
             return e.status_description, e.status_code
     return wrapper
 
+def validate_keys(dict, expected_keys, check_all_keys=True, optional_keys=[]):
+    for k in expected_keys:
+        if k not in dict:
+            message = "Error: expected parameter '%s' is missing." % k
+            logging.critical(message)
+            raise exceptions.HttpErrorBadRequest(message)
+    if check_all_keys:
+        for k in dict.keys():
+            if k not in expected_keys and k not in optional_keys:
+                message = "Error: '%s' is not an expected or optional parameter." % k
+                logging.critical(message)
+                raise exceptions.HttpErrorBadRequest(message)
+    return dict
+
+
+def validate_uuid(s):
+    if len(s) != 32:
+        message = "Error: '%s is not a validate uuid." % s
+        logging.critical(message)
+        raise exceptions.HttpErrorBadRequest(message)
+    allowed = '0123456789abcdef'
+    for c in s:
+        if c not in allowed:
+            message = "Error: '%s is not a validate uuid." % s
+            logging.critical(message)
+            raise exceptions.HttpErrorBadRequest(message)
+    return s
+        
+
 def sanitize(o):
     if isinstance(o, list):
         for item in o:
@@ -154,7 +183,7 @@ def strip_model_entity(model_entity):
     ]
     for prop in props_to_remove:
         if prop in model_entity:
-            model_entity.pop(prop)
+            model_entity.pop(prop, None)
 
 @oidc_require_login
 def login_via_oidc():
@@ -231,7 +260,9 @@ def index():
 @redirect_to_login_if_needed
 def label_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    video_uuid = flask.request.args.get('video_uuid')
+    data = validate_keys(flask.request.args.to_dict(flat=True),
+        ['video_uuid'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
     video_entity = storage.retrieve_video_entity_for_labeling(team_uuid, video_uuid)
     video_frame_entity_0 = storage.retrieve_video_frame_entities_with_image_urls(
         team_uuid, video_uuid, 0, 0)[0]
@@ -246,7 +277,9 @@ def label_video():
 @redirect_to_login_if_needed
 def monitor_training():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    model_uuid = flask.request.args.get('model_uuid')
+    data = validate_keys(flask.request.args.to_dict(flat=True),
+        ['model_uuid'])
+    model_uuid = validate_uuid(data.get('model_uuid'))
     model_entities_by_uuid, dataset_entities_by_uuid, video_entities_by_uuid = storage.retrieve_entities_for_monitor_training(
         team_uuid, model_uuid, model_trainer.retrieve_model_list(team_uuid))
     for _, model_entity in model_entities_by_uuid.items():
@@ -295,7 +328,8 @@ def logout():
 @login_required
 def set_user_preference():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['key', 'value'])
     key = data.get('key')
     value = data.get('value')
     storage.store_user_preference(team_uuid, key, value)
@@ -307,43 +341,75 @@ def set_user_preference():
 @roles_required(roles.Role.TEAM_ADMIN)
 def prepare_to_upload_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['description', 'video_filename', 'file_size', 'content_type', 'create_time_ms'])
+    # Check whether the team is currently uploading a video or extracting frames for a video.
+    # We only allow one at a time.
+    team_entity = storage.retrieve_team_entity(team_uuid)
+    if 'last_video_uuid' in team_entity and team_entity['last_video_uuid'] != '':
+        last_video_entity = storage.maybe_retrieve_video_entity(team_uuid, team_entity['last_video_uuid'])
+        if last_video_entity is None:
+            # The last video hasn't been uploaded yet. Check if it has been less than 10 minutes
+            # since the upload was initiated.
+            if datetime.now(timezone.utc) - team_entity['last_video_time'] < timedelta(minutes=10):
+                # Send an message to the client.
+                response = {
+                    'video_uuid': '',
+                    'upload_url': '',
+                    'message': 'The previous video has not been uploaded yet. Please wait a few minutes and try again.'
+                }
+                return flask.jsonify(response)
+        elif 'frame_extraction_active_time' not in last_video_entity:
+            # Frame extraction of the last video hasn't started yet. Check if it has been less than
+            # 10 minutes since the video entity was created.
+            if datetime.now(timezone.utc) - last_video_entity['entity_create_time'] < timedelta(minutes=10):
+                # Send an message to the client.
+                response = {
+                    'video_uuid': '',
+                    'upload_url': '',
+                    'message': 'The previous video has not been processed yet. Please wait a few minutes and try again.'
+                }
+                return flask.jsonify(response)
+        else:
+            # Frame extraction of the last video hasn't finished yet. Check if it has been less
+            # than 10 minutes since the frame extraction was active.
+            if datetime.now(timezone.utc) - last_video_entity['frame_extraction_active_time'] < timedelta(minutes=10):
+                # Send an message to the client.
+                response = {
+                    'video_uuid': '',
+                    'upload_url': '',
+                    'message': 'The previous video has not been processed yet. Please wait a few minutes and try again.'
+                }
+                return flask.jsonify(response)
+    # If we get here, either the last video was fully processed or it failed to be uploaded or it
+    # failed to be processed. In these cases, we can let the user upload another video.
+    description = data.get('description')
+    video_filename = data.get('video_filename')
+    file_size = int(data.get('file_size'))
     content_type = data.get('content_type')
+    create_time_ms = int(data.get('create_time_ms'))
     video_uuid, upload_url = storage.prepare_to_upload_video(team_uuid, content_type)
+    frame_extractor.start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms)
     response = {
+        'message': '',
         'video_uuid': video_uuid,
         'upload_url': upload_url,
     }
     blob_storage.set_cors_policy_for_put()
     return flask.jsonify(response)
 
-@app.route('/createVideoEntity', methods=['POST'])
-@handle_exceptions
-@login_required
-def create_video_entity():
-    team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
-    description = data.get('description')
-    video_filename = data.get('video_filename')
-    file_size = int(data.get('file_size'))
-    content_type = data.get('content_type')
-    create_time_ms = int(data.get('create_time_ms'))
-    storage.create_video_entity(
-        team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms)
-    frame_extractor.start_frame_extraction(team_uuid, video_uuid)
-    return 'OK'
 
-@app.route('/startFrameExtraction', methods=['POST'])
+@app.route('/maybeRestartFrameExtraction', methods=['POST'])
 @handle_exceptions
 @login_required
-def start_frame_extraction():
+def maybe_restart_frame_extraction():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
-    video_entity = frame_extractor.start_frame_extraction(team_uuid, video_uuid)
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuid'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
+    restarted = frame_extractor.maybe_restart_frame_extraction(team_uuid, video_uuid)
     response = {
-        'video_entity': video_entity,
+        'restarted': restarted,
     }
     return flask.jsonify(response)
 
@@ -352,6 +418,7 @@ def start_frame_extraction():
 @login_required
 def retrieve_video_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    validate_keys(flask.request.form.to_dict(flat=True), [])
     video_entities = storage.retrieve_video_list(team_uuid)
     response = {
         'video_entities': video_entities,
@@ -364,8 +431,9 @@ def retrieve_video_entities():
 @login_required
 def retrieve_video_entity():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuid'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
     video_entity = storage.retrieve_video_entity(team_uuid, video_uuid)
     response = {
         'video_entity': video_entity,
@@ -378,7 +446,8 @@ def retrieve_video_entity():
 @login_required
 def can_delete_videos():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuids'])
     video_uuids_json = data.get('video_uuids')
     can_delete_videos, messages = storage.can_delete_videos(team_uuid, video_uuids_json)
     response = {
@@ -392,8 +461,9 @@ def can_delete_videos():
 @login_required
 def delete_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuid'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
     storage.delete_video(team_uuid, video_uuid)
     return 'OK'
 
@@ -402,8 +472,10 @@ def delete_video():
 @login_required
 def retrieve_video_frame_image():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.args.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
+    # This is a get request, so we use flask.request.args.
+    data = validate_keys(flask.request.args.to_dict(flat=True),
+        ['video_uuid'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
     frame_number = int(data.get('frame_number'))
     image_data, content_type = storage.retrieve_video_frame_image(team_uuid, video_uuid, frame_number)
     return Response(image_data, mimetype=content_type)
@@ -413,8 +485,9 @@ def retrieve_video_frame_image():
 @login_required
 def retrieve_video_frame_entities_with_image_urls():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuid', 'min_frame_number', 'max_frame_number'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
     min_frame_number = int(data.get('min_frame_number'))
     max_frame_number = int(data.get('max_frame_number'))
     video_frame_entities = storage.retrieve_video_frame_entities_with_image_urls(
@@ -432,8 +505,9 @@ def retrieve_video_frame_entities_with_image_urls():
 @login_required
 def store_video_frame_bboxes_text():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuid', 'frame_number', 'bboxes_text'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
     frame_number = int(data.get('frame_number'))
     bboxes_text = data.get('bboxes_text')
     storage.store_video_frame_bboxes_text(team_uuid, video_uuid, frame_number, bboxes_text)
@@ -444,8 +518,9 @@ def store_video_frame_bboxes_text():
 @login_required
 def store_video_frame_include_in_dataset():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuid', 'frame_number', 'include_frame_in_dataset'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
     frame_number = int(data.get('frame_number'))
     include_frame_in_dataset = (data.get('include_frame_in_dataset') == 'true')
     storage.store_video_frame_include_in_dataset(team_uuid, video_uuid, frame_number, include_frame_in_dataset)
@@ -456,8 +531,9 @@ def store_video_frame_include_in_dataset():
 @login_required
 def prepare_to_start_tracking():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuid', 'init_frame_number', 'init_bboxes_text', 'tracker_name', 'scale'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
     init_frame_number = int(data.get('init_frame_number'))
     init_bboxes_text = data.get('init_bboxes_text')
     tracker_name = data.get('tracker_name')
@@ -474,9 +550,10 @@ def prepare_to_start_tracking():
 @login_required
 def retrieve_tracked_bboxes():
     time_limit = datetime.now() + timedelta(seconds=25)
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
-    tracker_uuid = data.get('tracker_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuid', 'tracker_uuid', 'retrieve_frame_number'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
+    tracker_uuid = validate_uuid(data.get('tracker_uuid'))
     retrieve_frame_number = int(data.get('retrieve_frame_number'))
     tracker_failed, frame_number, bboxes_text = storage.retrieve_tracked_bboxes(
         video_uuid, tracker_uuid, retrieve_frame_number, time_limit)
@@ -493,9 +570,10 @@ def retrieve_tracked_bboxes():
 def continue_tracking():
     time_limit = datetime.now() + timedelta(seconds=25)
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
-    tracker_uuid = data.get('tracker_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuid', 'tracker_uuid', 'frame_number', 'bboxes_text'], optional_keys=['retrieve_frame_number'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
+    tracker_uuid = validate_uuid(data.get('tracker_uuid'))
     frame_number = int(data.get('frame_number'))
     bboxes_text = data.get('bboxes_text')
     storage.continue_tracking(team_uuid, video_uuid, tracker_uuid, frame_number, bboxes_text)
@@ -516,9 +594,10 @@ def continue_tracking():
 @handle_exceptions
 @login_required
 def tracking_client_still_alive():
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
-    tracker_uuid = data.get('tracker_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuid', 'tracker_uuid'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
+    tracker_uuid = validate_uuid(data.get('tracker_uuid'))
     storage.tracking_client_still_alive(video_uuid, tracker_uuid)
     return 'OK'
 
@@ -526,9 +605,10 @@ def tracking_client_still_alive():
 @handle_exceptions
 @login_required
 def stop_tracking():
-    data = flask.request.form.to_dict(flat=True)
-    video_uuid = data.get('video_uuid')
-    tracker_uuid = data.get('tracker_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['video_uuid', 'tracker_uuid'])
+    video_uuid = validate_uuid(data.get('video_uuid'))
+    tracker_uuid = validate_uuid(data.get('tracker_uuid'))
     storage.set_tracking_stop_requested(video_uuid, tracker_uuid)
     return 'OK'
 
@@ -537,7 +617,8 @@ def stop_tracking():
 @login_required
 def prepare_to_start_dataset_production():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['description', 'video_uuids', 'eval_percent', 'create_time_ms'])
     description = data.get('description')
     video_uuids_json = data.get('video_uuids')
     eval_percent = int(data.get('eval_percent'))
@@ -557,6 +638,7 @@ def prepare_to_start_dataset_production():
 @login_required
 def retrieve_dataset_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    validate_keys(flask.request.form.to_dict(flat=True), [])
     dataset_entities = storage.retrieve_dataset_list(team_uuid)
     response = {
         'dataset_entities': dataset_entities,
@@ -569,8 +651,9 @@ def retrieve_dataset_entities():
 @login_required
 def retrieve_dataset_entity():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    dataset_uuid = data.get('dataset_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['dataset_uuid'])
+    dataset_uuid = validate_uuid(data.get('dataset_uuid'))
     dataset_entity = storage.retrieve_dataset_entity(team_uuid, dataset_uuid)
     if dataset_entity['dataset_completed']:
         frames_written = None
@@ -589,7 +672,8 @@ def retrieve_dataset_entity():
 @login_required
 def can_delete_datasets():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['dataset_uuids'])
     dataset_uuids_json = data.get('dataset_uuids')
     can_delete_datasets, messages = storage.can_delete_datasets(team_uuid, dataset_uuids_json)
     response = {
@@ -603,8 +687,9 @@ def can_delete_datasets():
 @login_required
 def delete_dataset():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    dataset_uuid = data.get('dataset_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['dataset_uuid'])
+    dataset_uuid = validate_uuid(data.get('dataset_uuid'))
     storage.delete_dataset(team_uuid, dataset_uuid)
     return 'OK'
 
@@ -613,8 +698,9 @@ def delete_dataset():
 @login_required
 def prepare_to_zip_dataset():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    dataset_uuid = data.get('dataset_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['dataset_uuid'])
+    dataset_uuid = validate_uuid(data.get('dataset_uuid'))
     dataset_zip_uuid, partition_count = dataset_zipper.prepare_to_zip_dataset(
         team_uuid, dataset_uuid)
     action_parameters = dataset_zipper.make_action_parameters(
@@ -631,8 +717,9 @@ def prepare_to_zip_dataset():
 @login_required
 def get_dataset_zip_status():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    dataset_zip_uuid = data.get('dataset_zip_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['dataset_zip_uuid', 'partition_count'])
+    dataset_zip_uuid = validate_uuid(data.get('dataset_zip_uuid'))
     partition_count = int(data.get('partition_count'))
     exists_array, download_url_array = blob_storage.get_dataset_zip_download_url(
         team_uuid, dataset_zip_uuid, partition_count)
@@ -652,8 +739,9 @@ def get_dataset_zip_status():
 @login_required
 def delete_dataset_zip():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    dataset_zip_uuid = data.get('dataset_zip_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['dataset_zip_uuid', 'partition_index'])
+    dataset_zip_uuid = validate_uuid(data.get('dataset_zip_uuid'))
     partition_index = int(data.get('partition_index'))
     blob_storage.delete_dataset_zip(team_uuid, dataset_zip_uuid, partition_index)
     storage.delete_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index)
@@ -664,7 +752,8 @@ def delete_dataset_zip():
 @login_required
 def start_training_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['description', 'dataset_uuids', 'starting_model', 'max_running_minutes', 'num_training_steps', 'create_time_ms'])
     description = data.get('description')
     dataset_uuids_json = data.get('dataset_uuids')
     starting_model = data.get('starting_model')
@@ -688,8 +777,9 @@ def start_training_model():
 @login_required
 def start_monitor_training():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    model_uuid = data.get('model_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['model_uuid'])
+    model_uuid = validate_uuid(data.get('model_uuid'))
     model_entity = model_trainer.start_monitor_training(team_uuid, model_uuid)
     response = {
         'model_entity': model_entity,
@@ -701,8 +791,9 @@ def start_monitor_training():
 @login_required
 def retrieve_summaries_updated():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    model_uuid = data.get('model_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['model_uuid'])
+    model_uuid = validate_uuid(data.get('model_uuid'))
     model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
     training_dict_path_to_updated = blob_storage.get_event_file_paths(
         team_uuid, model_uuid, 'train')
@@ -726,8 +817,9 @@ def retrieve_summaries_updated():
 @login_required
 def retrieve_tags_and_steps():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    model_uuid = data.get('model_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['model_uuid', 'job_type', 'value_type'])
+    model_uuid = validate_uuid(data.get('model_uuid'))
     job_type = data.get('job_type')
     value_type = data.get('value_type')
     step_and_tag_pairs = model_trainer.retrieve_tags_and_steps(
@@ -742,8 +834,9 @@ def retrieve_tags_and_steps():
 @login_required
 def retrieve_summary_items():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    model_uuid = data.get('model_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['model_uuid', 'job_type', 'value_type'], check_all_keys=False)
+    model_uuid = validate_uuid(data.get('model_uuid'))
     job_type = data.get('job_type')
     value_type = data.get('value_type')
     # Create a dict from step to array of tags.
@@ -774,8 +867,9 @@ def retrieve_summary_items():
 @login_required
 def cancel_training_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    model_uuid = data.get('model_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['model_uuid'])
+    model_uuid = validate_uuid(data.get('model_uuid'))
     model_entity = model_trainer.cancel_training_model(team_uuid, model_uuid)
     strip_model_entity(model_entity)
     response = {
@@ -789,6 +883,7 @@ def cancel_training_model():
 @login_required
 def retrieve_model_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
+    validate_keys(flask.request.form.to_dict(flat=True), [])
     team_entity = storage.retrieve_team_entity(team_uuid)
     model_entities = model_trainer.retrieve_model_list(team_uuid)
     for model_entity in model_entities:
@@ -806,8 +901,9 @@ def retrieve_model_entities():
 @login_required
 def retrieve_model_entity():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    model_uuid = data.get('model_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['model_uuid'])
+    model_uuid = validate_uuid(data.get('model_uuid'))
     team_entity = storage.retrieve_team_entity(team_uuid)
     model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
     strip_model_entity(model_entity)
@@ -823,7 +919,8 @@ def retrieve_model_entity():
 @login_required
 def can_delete_models():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['model_uuids'])
     model_uuids_json = data.get('model_uuids')
     can_delete_models, messages = storage.can_delete_models(team_uuid, model_uuids_json)
     response = {
@@ -837,8 +934,9 @@ def can_delete_models():
 @login_required
 def delete_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    model_uuid = data.get('model_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['model_uuid'])
+    model_uuid = validate_uuid(data.get('model_uuid'))
     storage.delete_model(team_uuid, model_uuid)
     return 'OK'
 
@@ -847,8 +945,9 @@ def delete_model():
 @login_required
 def create_tflite():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    model_uuid = data.get('model_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['model_uuid'])
+    model_uuid = validate_uuid(data.get('model_uuid'))
     exists, download_url = blob_storage.get_tflite_model_with_metadata_url(team_uuid, model_uuid)
     if exists:
         blob_storage.set_cors_policy_for_get()
@@ -865,8 +964,9 @@ def create_tflite():
 @login_required
 def get_tflite_download_url():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
-    data = flask.request.form.to_dict(flat=True)
-    model_uuid = data.get('model_uuid')
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['model_uuid'])
+    model_uuid = validate_uuid(data.get('model_uuid'))
     exists, download_url = blob_storage.get_tflite_model_with_metadata_url(team_uuid, model_uuid)
     if exists:
         blob_storage.set_cors_policy_for_get()

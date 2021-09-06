@@ -45,18 +45,19 @@ ACTION_TIME_LIMIT = 'action_time_limit'
 ACTION_UUID = 'action_uuid'
 
 ACTION_NAME_TEST = 'test' # For testing purposes
+ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD = 'wait_for_video_upload'
+ACTION_NAME_FRAME_EXTRACTION = 'frame_extraction'
+ACTION_NAME_TRACKING = 'tracking'
 ACTION_NAME_DATASET_PRODUCE = 'dataset_produce'
 ACTION_NAME_DATASET_PRODUCE_RECORD = 'dataset_produce_record'
 ACTION_NAME_DELETE_DATASET_RECORD_WRITERS = 'delete_dataset_record_writers'
 ACTION_NAME_DATASET_ZIP = 'dataset_zip'
 ACTION_NAME_DATASET_ZIP_PARTITION = 'dataset_zip_partition'
-ACTION_NAME_DELETE_DATASET = 'delete_dataset'
-ACTION_NAME_DELETE_MODEL = 'delete_model'
-ACTION_NAME_DELETE_VIDEO = 'delete_video'
 ACTION_NAME_MONITOR_TRAINING = 'monitor_training'
-ACTION_NAME_FRAME_EXTRACTION = 'frame_extraction'
-ACTION_NAME_TRACKING = 'tracking'
 ACTION_NAME_CREATE_TFLITE = 'create_tflite'
+ACTION_NAME_DELETE_MODEL = 'delete_model'
+ACTION_NAME_DELETE_DATASET = 'delete_dataset'
+ACTION_NAME_DELETE_VIDEO = 'delete_video'
 
 def create_action_parameters(action_name):
     return {
@@ -98,18 +99,19 @@ def perform_action(action_parameters, time_limit):
 
     action_fns = {
         ACTION_NAME_TEST: test,
+        ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD: frame_extractor.wait_for_video_upload,
+        ACTION_NAME_FRAME_EXTRACTION: frame_extractor.extract_frames,
+        ACTION_NAME_TRACKING: tracking.start_tracking,
         ACTION_NAME_DATASET_PRODUCE: dataset_producer.produce_dataset,
         ACTION_NAME_DATASET_PRODUCE_RECORD: dataset_producer.produce_dataset_record,
         ACTION_NAME_DELETE_DATASET_RECORD_WRITERS: storage.finish_delete_dataset_record_writers,
         ACTION_NAME_DATASET_ZIP: dataset_zipper.zip_dataset,
         ACTION_NAME_DATASET_ZIP_PARTITION: dataset_zipper.zip_dataset_partition,
-        ACTION_NAME_DELETE_DATASET: storage.finish_delete_dataset,
-        ACTION_NAME_DELETE_MODEL: storage.finish_delete_model,
-        ACTION_NAME_DELETE_VIDEO: storage.finish_delete_video,
         ACTION_NAME_MONITOR_TRAINING: model_trainer.monitor_training,
-        ACTION_NAME_FRAME_EXTRACTION: frame_extractor.extract_frames,
-        ACTION_NAME_TRACKING: tracking.start_tracking,
         ACTION_NAME_CREATE_TFLITE: tflite_creator.create_tflite,
+        ACTION_NAME_DELETE_MODEL: storage.finish_delete_model,
+        ACTION_NAME_DELETE_DATASET: storage.finish_delete_dataset,
+        ACTION_NAME_DELETE_VIDEO: storage.finish_delete_video,
     }
     action_fn = action_fns.get(action_parameters[ACTION_NAME], None)
     if action_fn is not None:

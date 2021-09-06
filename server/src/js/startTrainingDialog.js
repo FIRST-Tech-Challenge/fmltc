@@ -47,6 +47,8 @@ fmltc.StartTrainingDialog = function(
   this.inProgressDiv = document.getElementById('stInProgressDiv');
   this.successDiv = document.getElementById('stSuccessDiv');
   this.failedDiv = document.getElementById('stFailedDiv');
+  // Bootstrap modal backdrop
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
 
   this.startTrainingInProgress = false;
 
@@ -89,6 +91,7 @@ fmltc.StartTrainingDialog.prototype.dismissButton_onclick = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  this.backdrop.style.display = 'none';
 };
 
 fmltc.StartTrainingDialog.prototype.descriptionInput_oninput = function() {

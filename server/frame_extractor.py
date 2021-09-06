@@ -15,6 +15,7 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
+from datetime import datetime, timedelta, timezone
 import logging
 import os
 import time
@@ -30,13 +31,68 @@ import exceptions
 import storage
 import util
 
-def start_frame_extraction(team_uuid, video_uuid):
-    video_entity = storage.prepare_to_start_frame_extraction(team_uuid, video_uuid)
+def start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms):
+    action_parameters = action.create_action_parameters(action.ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD)
+    action_parameters['team_uuid'] = team_uuid
+    action_parameters['video_uuid'] = video_uuid
+    action_parameters['description'] = description
+    action_parameters['video_filename'] = video_filename
+    action_parameters['file_size'] = file_size
+    action_parameters['content_type'] = content_type
+    action_parameters['create_time_ms'] = create_time_ms
+    action.trigger_action_via_blob(action_parameters)
+
+
+def wait_for_video_upload(action_parameters):
+    team_uuid = action_parameters['team_uuid']
+    video_uuid = action_parameters['video_uuid']
+    description = action_parameters['description']
+    video_filename = action_parameters['video_filename']
+    file_size = action_parameters['file_size']
+    content_type = action_parameters['content_type']
+    create_time_ms = action_parameters['create_time_ms']
+
+    while action.remaining_timedelta(action_parameters) > timedelta(seconds=30):
+        time.sleep(10)
+        # Check to see whether the blob exists.
+        if blob_storage.video_blob_exists(team_uuid, video_uuid):
+            storage.create_video_entity(
+                team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms)
+            __start_frame_extraction(team_uuid, video_uuid)
+            return
+        # Note that we don't retrigger this action. If the video isn't there by now, it's probably
+        # failed.
+
+
+def maybe_restart_frame_extraction(team_uuid, video_uuid):
+    video_entity = storage.maybe_retrieve_video_entity(team_uuid, video_uuid)
+    if video_entity is None:
+        return False
+    if 'frame_extraction_end_time' in video_entity:
+        return False
+    if 'frame_extraction_active_time' not in video_entity:
+        # Frame extraction hasn't started yet. Check if it has been more than 3 minutes since the video entity was created.
+        if datetime.now(timezone.utc) - video_entity['entity_create_time'] >= timedelta(minutes=3):
+            __start_frame_extraction(team_uuid, video_uuid)
+            return True
+        # It's been less than 3 minutes since the video entity was created. Give it more time
+        # before restarting frame extraction.
+        return False
+    # Frame extraction video hasn't finished yet. Check if it has been more than 3 minutes since the frame extraction was active.
+    if datetime.now(timezone.utc) - video_entity['frame_extraction_active_time'] >= timedelta(minutes=3):
+        __start_frame_extraction(team_uuid, video_uuid)
+        return True
+    # It's been less than 3 minutes since the frame extraction was active. Give it more time before
+    # restarting frame extraction.
+    return False
+
+
+def __start_frame_extraction(team_uuid, video_uuid):
     action_parameters = action.create_action_parameters(action.ACTION_NAME_FRAME_EXTRACTION)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['video_uuid'] = video_uuid
     action.trigger_action_via_blob(action_parameters)
-    return video_entity
+
 
 def extract_frames(action_parameters):
     team_uuid = action_parameters['team_uuid']

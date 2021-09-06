@@ -267,6 +267,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.ignoreFrameCheckbox.disabled = true;
     this.previousIgnoredFrameButton.disabled = true;
     this.nextIgnoredFrameButton.disabled = true;
     this.previousUnlabeledFrameButton.disabled = true;
@@ -274,7 +275,6 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
-    this.ignoreFrameCheckbox.disabled = true;
     // TODO(lizlooney): Disable the bbox/label input boxes.
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
@@ -299,6 +299,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.ignoreFrameCheckbox.disabled = true;
     this.previousIgnoredFrameButton.disabled = true;
     this.nextIgnoredFrameButton.disabled = true;
     this.previousUnlabeledFrameButton.disabled = true;
@@ -306,7 +307,6 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
-    this.ignoreFrameCheckbox.disabled = true;
     // TODO(lizlooney): Disable the bbox/label input boxes.
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
@@ -325,6 +325,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.ignoreFrameCheckbox.disabled = true;
     this.previousIgnoredFrameButton.disabled = true;
     this.nextIgnoredFrameButton.disabled = true;
     this.previousUnlabeledFrameButton.disabled = true;
@@ -332,7 +333,6 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = (this.playingDirection == 1);
     this.forwardPlayPauseButton.disabled = (this.playingDirection == -1);
-    this.ignoreFrameCheckbox.disabled = true;
     // TODO(lizlooney): Disable the bbox/label input boxes.
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
@@ -348,6 +348,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = true;
     this.nextTenFrameButton.disabled = true;
     this.lastFrameButton.disabled = true;
+    this.ignoreFrameCheckbox.disabled = true;
     this.previousIgnoredFrameButton.disabled = true;
     this.nextIgnoredFrameButton.disabled = true;
     this.previousUnlabeledFrameButton.disabled = true;
@@ -355,7 +356,6 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
-    this.ignoreFrameCheckbox.disabled = true;
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
     this.trackingStartButton.disabled = true;
@@ -371,6 +371,8 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.nextFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
     this.nextTenFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
     this.lastFrameButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
+    this.ignoreFrameCheckbox.disabled = (
+        this.loadedFrameEntityCount < this.videoEntity.frame_count);
     this.previousIgnoredFrameButton.disabled = (
         this.loadedFrameEntityCount < this.videoEntity.frame_count ||
         this.currentFrameNumber <= this.minIgnoredFrameNumber);
@@ -386,7 +388,6 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.playbackSpeedRangeInput.disabled = false;
     this.reversePlayPauseButton.disabled = (this.currentFrameNumber == 0);
     this.forwardPlayPauseButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
-    this.ignoreFrameCheckbox.disabled = false;
     // TODO(lizlooney): Disable the bbox/label input boxes.
     this.trackingScaleInput.disabled = false;
     this.trackerSelect.disabled = false;
