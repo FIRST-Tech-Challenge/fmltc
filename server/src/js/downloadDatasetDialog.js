@@ -41,6 +41,8 @@ fmltc.DownloadDatasetDialog = function(util, datasetEntity, downloadStartTime) {
   this.partitionCountSpan = document.getElementById('ddPartitionCountSpan');
   this.progressDiv = document.getElementById('ddProgressDiv');
   this.finishedDiv = document.getElementById('ddFinishedDiv');
+  // Bootstrap modal backdrop
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
 
   this.partitionCount = 0;
   this.downloadStartedArray = [];
@@ -83,6 +85,7 @@ fmltc.DownloadDatasetDialog.prototype.dismissButton_onclick = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  this.backdrop.style.display = 'none';
 };
 
 fmltc.DownloadDatasetDialog.prototype.prepareToZipDataset = function() {

@@ -125,6 +125,11 @@ def prepare_to_upload_video(team_uuid, video_uuid, content_type):
     signed_url = blob.generate_signed_url(expires_at_datetime, method='PUT', content_type=content_type)
     return signed_url
 
+def video_blob_exists(team_uuid, video_uuid):
+    video_blob_name = get_video_blob_name(team_uuid, video_uuid)
+    blob = util.storage_client().bucket(BUCKET_BLOBS).blob(video_blob_name)
+    return blob.exists()
+
 def retrieve_video(video_blob_name):
     return __retrieve_blob(video_blob_name)
 

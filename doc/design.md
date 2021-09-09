@@ -171,21 +171,25 @@ After a video is uploaded, frame extraction will start automatically.
 > * the client:
 >   * sends a /prepareToUploadVideo request to the server
 >   * the server, receiving the /prepareToUploadVideo request:
+>     * checks whether the team is currently uploading or extracting frame for
+>       another video. If so it responds with a message to display to the user.
 >     * creates a unique id for the video
 >     * generates a signed url for uploading the video file to Cloud Storage
->     * inserts a Video entity into Cloud Datastore/Firestore, setting the
->       team_uuid, video_uuid, description, video_filename, file_size,
->       video_content_type, create_time, and video_blob_name fields
->     * triggers the start of a Cloud Function that will extract the frames of
->       the video
->     * updates the Video entity, setting the frame_extraction_triggered_time
->       field
+>     * saves the video id and the current time in the team entity
+>     * triggers the start of a Cloud Function that will wait for the the video
+>       to be uploaded
 >     * responds with the video id and the upload url
 >
 > * the client:
->   * sends the video file to the upload url
+>   * sends the video file to the upload url using a PUT request.
 >
 > * the Cloud Function:
+>   * checks whether the video file has been uploaded
+>   * inserts a Video entity into Cloud Datastore/Firestore
+>   * triggers the start of a Cloud Function that will extract the frames of
+>     the video
+>
+> * the frame extraction Cloud Function:
 >   * reads the video file from Cloud Storage and writes it to a temporary file,
 >     waiting until the video file has finished uploading if necessary
 >   * opens the temporary file with OpenCV
@@ -206,6 +210,7 @@ After a video is uploaded, frame extraction will start automatically.
 >       * if it is within 70 seconds of the estimated time limit, triggers the
 >         start of another Cloud Function to continue extracting frames
 >       * if it is within 30 seconds of the estimated time limit, terminates
+>   * clears the video id and time from the team entity
 >   * before termination, deletes the temporary file
 >
 > * the client:
