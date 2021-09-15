@@ -39,6 +39,7 @@ fmltc.TrainMoreDialog = function(
 
   this.onTrainingStarted = onTrainingStarted;
   this.dialog = document.getElementById('trainMoreDialog');
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.dismissButton = document.getElementById('tmDismissButton');
   this.maxRunningMinutesInput = document.getElementById('tmMaxRunningMinutesInput');
   this.totalTrainingMinutesSpan = document.getElementById('tmTotalTrainingMinutesSpan');
@@ -114,6 +115,7 @@ fmltc.TrainMoreDialog.prototype.dismissButton_onclick = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  this.backdrop.style.display = 'none';
 };
 
 fmltc.TrainMoreDialog.prototype.descriptionInput_oninput = function() {

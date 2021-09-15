@@ -36,6 +36,7 @@ fmltc.StartTrainingDialog = function(
   this.datasetUuids = datasetUuids;
   this.onTrainingStarted = onTrainingStarted;
   this.dialog = document.getElementById('startTrainingDialog');
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.dismissButton = document.getElementById('stDismissButton');
   this.maxRunningMinutesInput = document.getElementById('stMaxRunningMinutesInput');
   this.totalTrainingMinutesSpan = document.getElementById('stTotalTrainingMinutesSpan');
@@ -47,8 +48,6 @@ fmltc.StartTrainingDialog = function(
   this.inProgressDiv = document.getElementById('stInProgressDiv');
   this.successDiv = document.getElementById('stSuccessDiv');
   this.failedDiv = document.getElementById('stFailedDiv');
-  // Bootstrap modal backdrop
-  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
 
   this.startTrainingInProgress = false;
 
