@@ -283,7 +283,7 @@ def get_trained_checkpoint_path(team_uuid, model_uuid):
     for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
         match = pattern.match(blob.name)
         if match is not None:
-            n = int(match.group(1))
+            n = int(float(match.group(1)))
             if max_number is None or n > max_number:
                 max_number = n
                 blob_name = blob.name
@@ -361,9 +361,10 @@ def store_tflite_model_with_metadata(team_uuid, model_uuid, tflite_model_with_me
 def get_tflite_model_with_metadata_url(team_uuid, model_uuid):
     return __get_download_url(__get_tflite_model_with_metadata_blob_name(team_uuid, model_uuid))
 
-def delete_model_blobs(team_uuid, model_uuid, action_parameters):
+def delete_model_blobs(team_uuid, model_uuid, action_parameters=None):
     client = util.storage_client()
     prefix = '%s/' % __get_model_folder(team_uuid, model_uuid)
     for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
         __delete_blob(blob.name)
-        action.retrigger_if_necessary(action_parameters)
+        if action_parameters is not None:
+            action.retrigger_if_necessary(action_parameters)

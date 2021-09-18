@@ -178,6 +178,7 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   this.nextUnlabeledFrameButton.onclick = this.nextUnlabeledFrameButton_onclick.bind(this);
   this.reversePlayPauseButton.onclick = this.reversePlayPauseButton_onclick.bind(this);
   this.forwardPlayPauseButton.onclick = this.forwardPlayPauseButton_onclick.bind(this);
+  this.trackingScaleInput.onchange = this.trackingScaleInput_onchange.bind(this);
   this.trackingStartButton.onclick = this.trackingStartButton_onclick.bind(this);
   this.trackingPauseButton.onclick = this.trackingPauseButton_onclick.bind(this);
   this.trackingContinueButton.onclick = this.trackingContinueButton_onclick.bind(this);
@@ -275,7 +276,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
-    // TODO(lizlooney): Disable the bbox/label input boxes.
+    this.disableLabelingArea(true);
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
     this.trackingStartButton.disabled = true;
@@ -307,7 +308,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = true;
     this.forwardPlayPauseButton.disabled = true;
-    // TODO(lizlooney): Disable the bbox/label input boxes.
+    this.disableLabelingArea(false);
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
     this.trackingStartButton.disabled = true;
@@ -333,7 +334,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.playbackSpeedRangeInput.disabled = true;
     this.reversePlayPauseButton.disabled = (this.playingDirection == 1);
     this.forwardPlayPauseButton.disabled = (this.playingDirection == -1);
-    // TODO(lizlooney): Disable the bbox/label input boxes.
+    this.disableLabelingArea(true);
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
     this.trackingStartButton.disabled = true;
@@ -359,7 +360,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.trackingScaleInput.disabled = true;
     this.trackerSelect.disabled = true;
     this.trackingStartButton.disabled = true;
-    // TODO(lizlooney): Disable the bbox/label input boxes based on (!this.trackingPaused || this.trackingWaitingForBboxes)
+    this.disableLabelingArea(!this.trackingPaused || this.trackingWaitingForBboxes);
     this.trackingPauseButton.disabled = this.trackingPaused; // (this.trackingPaused || this.trackingWaitingForBboxes);
     this.trackingContinueButton.disabled = (!this.trackingPaused || this.trackingWaitingForBboxes);
     this.trackingStopButton.disabled = (!this.trackingPaused || this.trackingWaitingForBboxes);
@@ -388,7 +389,7 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.playbackSpeedRangeInput.disabled = false;
     this.reversePlayPauseButton.disabled = (this.currentFrameNumber == 0);
     this.forwardPlayPauseButton.disabled = (this.currentFrameNumber == this.videoEntity.frame_count - 1);
-    // TODO(lizlooney): Disable the bbox/label input boxes.
+    this.disableLabelingArea(false);
     this.trackingScaleInput.disabled = false;
     this.trackerSelect.disabled = false;
     this.trackingStartButton.disabled = (
@@ -399,6 +400,24 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     this.trackingPauseButton.disabled = true;
     this.trackingContinueButton.disabled = true;
     this.trackingStopButton.disabled = true;
+  }
+};
+
+fmltc.LabelVideo.prototype.disableLabelingArea = function(disabled) {
+  for (let i = this.labelingAreaTable.rows.length - 1; i >= 1; i--) {
+    const row = this.labelingAreaTable.rows[i];
+    this.disableRecursively(row, disabled);
+  }
+};
+
+fmltc.LabelVideo.prototype.disableRecursively = function(element, disabled) {
+  if (element.nodeName == 'INPUT') {
+    element.disabled = disabled;
+  } else if (element.nodeName == 'BUTTON') {
+    element.disabled = disabled;
+  }
+  for (let i = 0; i < element.childNodes.length; i++) {
+    this.disableRecursively(element.childNodes[i], disabled);
   }
 };
 
@@ -529,6 +548,8 @@ fmltc.LabelVideo.prototype.updateFrameCounts = function(frameNumber,
 
 fmltc.LabelVideo.prototype.retrieveVideoFrameImage = function(frameNumber, imageUrl, failureCount) {
   const xhr = new XMLHttpRequest();
+  // Normally the imageUrl is the URL to download the image from cloud storage. If it's missing we
+  // will request the image from the server.
   if (!imageUrl) {
     imageUrl = '/retrieveVideoFrameImage?video_uuid=' + encodeURIComponent(this.videoUuid) +
         '&frame_number=' + encodeURIComponent(frameNumber);
@@ -1146,6 +1167,12 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseup = function(e) {
   }
 };
 
+
+fmltc.LabelVideo.prototype.trackingScaleInput_onchange = function() {
+  this.trackingScaleInput.value = Math.max(this.trackingScaleInput.min, Math.min(this.trackingScaleInput.value, this.trackingScaleInput.max));
+};
+
+
 fmltc.LabelVideo.prototype.trackingStartButton_onclick = function() {
   this.trackingFinishedDiv.style.visibility = 'hidden';
   this.trackingFailedDiv.style.visibility = 'hidden';
@@ -1159,6 +1186,7 @@ fmltc.LabelVideo.prototype.trackingStartButton_onclick = function() {
   this.updateUI();
 
   const bboxesText = this.saveBboxes();
+  const trackingScale = Math.max(this.trackingScaleInput.min, Math.min(this.trackingScaleInput.value, this.trackingScaleInput.max));
 
   const xhr = new XMLHttpRequest();
   const params =
@@ -1166,7 +1194,7 @@ fmltc.LabelVideo.prototype.trackingStartButton_onclick = function() {
       '&init_frame_number=' + encodeURIComponent(this.currentFrameNumber) +
       '&init_bboxes_text=' + encodeURIComponent(bboxesText) +
       '&tracker_name=' + encodeURIComponent(this.trackerSelect.options[this.trackerSelect.selectedIndex].value) +
-      '&scale=' + encodeURIComponent(this.trackingScaleInput.value);
+      '&scale=' + encodeURIComponent(trackingScale);
   xhr.open('POST', '/prepareToStartTracking', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_prepareToStartTracking_onreadystatechange.bind(this, xhr, params,

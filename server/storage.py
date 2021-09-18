@@ -18,6 +18,7 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 from datetime import datetime, timedelta, timezone
 import dateutil.parser
 import json
+import logging
 import time
 import uuid
 
@@ -26,9 +27,10 @@ from google.cloud import datastore
 
 # My Modules
 import action
+import bbox_writer
 import blob_storage
 import exceptions
-import logging
+import metrics
 import util
 import team_info
 
@@ -43,6 +45,30 @@ DS_KIND_DATASET_RECORD = 'DatasetRecord'
 DS_KIND_DATASET_ZIPPER = 'DatasetZipper'
 DS_KIND_MODEL = 'Model'
 DS_KIND_ACTION = 'Action'
+
+
+def validate_uuid(s):
+    if len(s) != 32:
+        message = "Error: '%s is not a valid uuid." % s
+        logging.critical(message)
+        raise exceptions.HttpErrorBadRequest(message)
+    allowed = '0123456789abcdef'
+    for c in s:
+        if c not in allowed:
+            message = "Error: '%s is not a valid uuid." % s
+            logging.critical(message)
+            raise exceptions.HttpErrorBadRequest(message)
+    return s
+
+def validate_uuids_json(s):
+    try:
+        for u in json.loads(s):
+            validate_uuid(u)
+    except:
+        message = "Error: '%s is not a valid argument." % s
+        logging.critical(message)
+        raise exceptions.HttpErrorBadRequest(message)
+    return s
 
 # teams - public methods
 
@@ -76,19 +102,25 @@ def retrieve_team_uuid(program, team_number):
         return team_entity['team_uuid']
 
 def retrieve_team_entity(team_uuid):
-    datastore_client = datastore.Client()
-    with datastore_client.transaction() as transaction:
-        query = datastore_client.query(kind=DS_KIND_TEAM)
-        query.add_filter('team_uuid', '=', team_uuid)
-        query.add_filter('last_time', '>', 0)
-        team_entities = list(query.fetch(1))
-        if len(team_entities) == 0:
-            message = 'Error: Team entity for team_uuid=%s not found.' % (team_uuid)
-            logging.critical(message)
-            raise exceptions.HttpErrorNotFound(message)
-        team_entity = team_entities[0]
-        team_entity['last_time'] = datetime.now(timezone.utc)
-        transaction.put(team_entity)
+    team_entity = None
+    try:
+        datastore_client = datastore.Client()
+        with datastore_client.transaction() as transaction:
+            query = datastore_client.query(kind=DS_KIND_TEAM)
+            query.add_filter('team_uuid', '=', team_uuid)
+            query.add_filter('last_time', '>', 0)
+            team_entities = list(query.fetch(1))
+            if len(team_entities) == 0:
+                message = 'Error: Team entity for team_uuid=%s not found.' % (team_uuid)
+                logging.critical(message)
+                raise exceptions.HttpErrorNotFound(message)
+            team_entity = team_entities[0]
+            team_entity['last_time'] = datetime.now(timezone.utc)
+            transaction.put(team_entity)
+            return team_entity
+    except exceptions.HttpErrorNotFound:
+        raise
+    except:
         return team_entity
 
 def store_user_preference(team_uuid, key, value):
@@ -135,6 +167,7 @@ def create_video_entity(team_uuid, video_uuid, description, video_filename, file
             'create_time': util.datetime_from_ms(create_time_ms),
             'video_blob_name': blob_storage.get_video_blob_name(team_uuid, video_uuid),
             'entity_create_time': datetime.now(timezone.utc),
+            'frame_extraction_failed': False,
             'frame_extraction_triggered_time_ms': 0,
             'frame_extraction_active_time_ms': 0,
             'extracted_frame_count': 0,
@@ -198,6 +231,24 @@ def frame_extraction_done(team_uuid, video_uuid, frame_count):
         return video_entity
 
 
+def frame_extraction_failed(team_uuid, video_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        video_entity = retrieve_video_entity(team_uuid, video_uuid)
+        video_entity['frame_extraction_failed'] = True
+        video_entity['frame_count'] = 0
+        video_entity['frame_extraction_end_time'] = datetime.now(timezone.utc)
+        video_entity['frame_extraction_active_time'] = video_entity['frame_extraction_end_time']
+        video_entity['frame_extraction_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extraction_active_time'])
+        transaction.put(video_entity)
+        team_entity = retrieve_team_entity(team_uuid)
+        if team_entity['last_video_uuid'] == video_uuid:
+            team_entity['last_video_uuid'] = ''
+            team_entity.pop('last_video_time', None)
+            transaction.put(team_entity)
+        return video_entity
+
+
 # Returns a list containing the video entity associated with the given team_uuid and
 # video_uuid. If no such entity exists, returns an empty list.
 def __query_video_entity(team_uuid, video_uuid):
@@ -247,13 +298,15 @@ def retrieve_video_entities(team_uuid, video_uuid_list):
     return video_entities
 
 def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
+    # This function is called from main.py for GAE /labelVideo request.
+    # The user wants to label the video.
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
         if video_entity['tracking_in_progress']:
             tracking_in_progress = True
             tracker_uuid = video_entity['tracker_uuid']
-            tracker_entity = retrieve_tracker_entity(video_uuid, tracker_uuid)
+            tracker_entity = maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
             if tracker_entity is None:
                 tracking_in_progress = False
                 util.log('Tracker is not in progress. Tracker entity is missing.')
@@ -264,7 +317,7 @@ def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
                     util.log('Tracker is not in progress. Elapsed time since last tracker update: %f seconds' %
                         timedelta_since_last_update.total_seconds())
                     tracking_in_progress = False
-            tracker_client_entity = retrieve_tracker_client_entity(video_uuid, tracker_uuid)
+            tracker_client_entity = maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
             if tracker_client_entity is None:
                 tracking_in_progress = False
                 util.log('Tracker is not in progress. Tracker client entity is missing.')
@@ -288,21 +341,31 @@ def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
 def can_delete_videos(team_uuid, video_uuids_json):
     can_delete_videos = True
     messages = []
-    video_uuid_list = json.loads(video_uuids_json)
+    video_uuid_requested_list = json.loads(video_uuids_json)
     all_video_entities = retrieve_video_list(team_uuid)
+    # Build a list of the video uuids that we found.
+    video_uuids_found_list = []
     # Build a dictionary to hold the descriptions of the videos that might be deleted.
     dict_video_uuid_to_description = {}
     # Build a dictionary to hold the descriptions of the datasets that use the videos that might be deleted.
     dict_video_uuid_to_dataset_descriptions = {}
     for video_entity in all_video_entities:
-        if video_entity['video_uuid'] in video_uuid_list:
-            dict_video_uuid_to_description[video_entity['video_uuid']] = video_entity['description']
-            dict_video_uuid_to_dataset_descriptions[video_entity['video_uuid']] = []
+        video_uuid = video_entity['video_uuid']
+        video_uuids_found_list.append(video_uuid)
+        if video_uuid in video_uuid_requested_list:
+            dict_video_uuid_to_description[video_uuid] = video_entity['description']
+            dict_video_uuid_to_dataset_descriptions[video_uuid] = []
+    # Make sure that all the requested videos were found.
+    for video_uuid in video_uuid_requested_list:
+        if video_uuid not in video_uuids_found_list:
+            message = 'Error: Video entity for video_uuid=%s not found.' % video_uuid
+            logging.critical(message)
+            raise exceptions.HttpErrorNotFound(message)
     all_dataset_entities = retrieve_dataset_list(team_uuid)
     # Check whether any datasets are using any of the the videos that might be deleted.
     for dataset_entity in all_dataset_entities:
         for video_uuid in dataset_entity['video_uuids']:
-            if video_uuid in video_uuid_list:
+            if video_uuid in video_uuid_requested_list:
                 can_delete_videos = False
                 dict_video_uuid_to_dataset_descriptions[video_uuid].append(dataset_entity['description'])
     if not can_delete_videos:
@@ -329,27 +392,33 @@ def delete_video(team_uuid, video_uuid):
         query.add_filter('team_uuid', '=', team_uuid)
         query.add_filter('video_uuid', '=', video_uuid)
         video_entities = list(query.fetch(1))
-        if len(video_entities) != 0:
-            video_entity = video_entities[0]
-            video_entity['delete_in_progress'] = True
-            transaction.put(video_entity)
-            action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_VIDEO)
-            action_parameters['team_uuid'] = team_uuid
-            action_parameters['video_uuid'] = video_uuid
-            action.trigger_action_via_blob(action_parameters)
+        if len(video_entities) == 0:
+            message = 'Error: Video entity for video_uuid=%s not found.' % video_uuid
+            logging.critical(message)
+            raise exceptions.HttpErrorNotFound(message)
+        video_entity = video_entities[0]
+        video_entity['delete_in_progress'] = True
+        if video_entity['tracking_in_progress']:
+            tracker_uuid = video_entity['tracker_uuid']
+            tracker_entity = maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
+            if tracker_entity is not None:
+                transaction.delete(tracker_entity.key)
+            tracker_client_entity = maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
+            if tracker_client_entity is not None:
+                transaction.delete(tracker_client_entity.key)
+            video_entity['tracking_in_progress'] = False
+            video_entity['tracker_uuid'] = ''
+        transaction.put(video_entity)
+        action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_VIDEO)
+        action_parameters['team_uuid'] = team_uuid
+        action_parameters['video_uuid'] = video_uuid
+        action.trigger_action_via_blob(action_parameters)
 
 
 def finish_delete_video(action_parameters):
     team_uuid = action_parameters['team_uuid']
     video_uuid = action_parameters['video_uuid']
     datastore_client = datastore.Client()
-    # Delete the video.
-    video_entities = __query_video_entity(team_uuid, video_uuid)
-    if len(video_entities) != 0:
-        video_entity = video_entities[0]
-        if 'video_blob_name' in video_entity:
-            blob_storage.delete_video_blob(video_entity['video_blob_name'])
-        datastore_client.delete(video_entity.key)
     # Delete the video frames, 500 at a time.
     while True:
         action.retrigger_if_necessary(action_parameters)
@@ -358,7 +427,7 @@ def finish_delete_video(action_parameters):
         query.add_filter('video_uuid', '=', video_uuid)
         video_frame_entities = list(query.fetch(500))
         if len(video_frame_entities) == 0:
-            return
+            break
         action.retrigger_if_necessary(action_parameters)
         blob_names = []
         keys = []
@@ -372,6 +441,16 @@ def finish_delete_video(action_parameters):
         action.retrigger_if_necessary(action_parameters)
         # Then, delete the video frame entities.
         datastore_client.delete_multi(keys)
+    # Finally, delete the video.
+    action.retrigger_if_necessary(action_parameters)
+    video_entities = __query_video_entity(team_uuid, video_uuid)
+    if len(video_entities) != 0:
+        video_entity = video_entities[0]
+        # Delete the video blob.
+        if 'video_blob_name' in video_entity:
+            blob_storage.delete_video_blob(video_entity['video_blob_name'])
+        # Delete the video entity.
+        datastore_client.delete(video_entity.key)
 
 
 # video frame - private methods
@@ -445,9 +524,6 @@ def store_frame_image(team_uuid, video_uuid, frame_number, content_type, image_d
         video_entity['included_frame_count'] = frame_number + 1
         video_entity['frame_extraction_active_time'] = datetime.now(timezone.utc)
         video_entity['frame_extraction_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extraction_active_time'])
-        if frame_number == 0:
-            video_entity['image_content_type'] = content_type
-            video_entity['image_blob_name'] = image_blob_name
         transaction.put(video_entity)
         # Return the video entity, not the video frame entity!
         return video_entity
@@ -482,6 +558,7 @@ def __store_video_frame_bboxes_text(transaction, team_uuid, video_uuid, frame_nu
         else:
             video_entity['labeled_frame_count'] -= 1
         transaction.put(video_entity)
+    metrics.save_labeling_metrics(bbox_writer.count_boxes(bboxes_text))
     return video_frame_entity
 
 def store_video_frame_include_in_dataset(team_uuid, video_uuid, frame_number, include_frame_in_dataset):
@@ -557,7 +634,9 @@ def tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_numb
         transaction.put(video_entity)
         return tracker_uuid
 
-def retrieve_tracker_entity(video_uuid, tracker_uuid):
+# Retrieves the tracker entity associated with the given tracker_uuid and video_uuid. If no such
+# entity exists, returns None.
+def maybe_retrieve_tracker_entity(video_uuid, tracker_uuid):
     datastore_client = datastore.Client()
     query = datastore_client.query(kind=DS_KIND_TRACKER)
     query.add_filter('tracker_uuid', '=', tracker_uuid)
@@ -567,7 +646,9 @@ def retrieve_tracker_entity(video_uuid, tracker_uuid):
         return None
     return tracker_entities[0]
 
-def retrieve_tracker_client_entity(video_uuid, tracker_uuid):
+# Retrieves the tracker client entity associated with the given tracker_uuid and video_uuid. If no
+# such entity exists, returns None.
+def maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid):
     datastore_client = datastore.Client()
     query = datastore_client.query(kind=DS_KIND_TRACKER_CLIENT)
     query.add_filter('tracker_uuid', '=', tracker_uuid)
@@ -580,7 +661,7 @@ def retrieve_tracker_client_entity(video_uuid, tracker_uuid):
 def store_tracked_bboxes(video_uuid, tracker_uuid, frame_number, bboxes_text):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
-        tracker_entity = retrieve_tracker_entity(video_uuid, tracker_uuid)
+        tracker_entity = maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
         if tracker_entity is not None:
             tracker_entity['frame_number'] = frame_number
             tracker_entity['bboxes_text'] = bboxes_text
@@ -590,14 +671,14 @@ def store_tracked_bboxes(video_uuid, tracker_uuid, frame_number, bboxes_text):
 def retrieve_tracked_bboxes(video_uuid, tracker_uuid, retrieve_frame_number, time_limit):
     tracking_client_still_alive(video_uuid, tracker_uuid)
     tracker_failed = False
-    tracker_entity = retrieve_tracker_entity(video_uuid, tracker_uuid)
+    tracker_entity = maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
     while True:
         if tracker_entity is None:
             util.log('Tracker appears to have failed. Tracker entity is missing.')
             return True, 0, ''
         if tracker_entity['frame_number'] == retrieve_frame_number:
             break
-        if datetime.now() >= time_limit - timedelta(seconds=5):
+        if datetime.now(timezone.utc) >= time_limit - timedelta(seconds=5):
             break
         # If it's been more than two minutes, assume the tracker has died.
         timedelta_since_last_update = datetime.now(timezone.utc) - tracker_entity['update_time']
@@ -608,13 +689,13 @@ def retrieve_tracked_bboxes(video_uuid, tracker_uuid, retrieve_frame_number, tim
             tracker_failed = True
             break
         time.sleep(0.1)
-        tracker_entity = retrieve_tracker_entity(video_uuid, tracker_uuid)
+        tracker_entity = maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
     return tracker_failed, tracker_entity['frame_number'], tracker_entity['bboxes_text']
 
 def tracking_client_still_alive(video_uuid, tracker_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
-        tracker_client_entity = retrieve_tracker_client_entity(video_uuid, tracker_uuid)
+        tracker_client_entity = maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
         if tracker_client_entity is not None:
             tracker_client_entity['update_time'] = datetime.now(timezone.utc)
             transaction.put(tracker_client_entity)
@@ -622,7 +703,7 @@ def tracking_client_still_alive(video_uuid, tracker_uuid):
 def continue_tracking(team_uuid, video_uuid, tracker_uuid, frame_number, bboxes_text):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
-        tracker_client_entity = retrieve_tracker_client_entity(video_uuid, tracker_uuid)
+        tracker_client_entity = maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
         if tracker_client_entity is not None:
             # Update the video_frame_entity (and the video_entity if necessary)
             __store_video_frame_bboxes_text(transaction, team_uuid, video_uuid, frame_number, bboxes_text)
@@ -635,7 +716,7 @@ def continue_tracking(team_uuid, video_uuid, tracker_uuid, frame_number, bboxes_
 def set_tracking_stop_requested(video_uuid, tracker_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
-        tracker_client_entity = retrieve_tracker_client_entity(video_uuid, tracker_uuid)
+        tracker_client_entity = maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
         if tracker_client_entity is not None:
             tracker_client_entity['tracking_stop_requested'] = True
             tracker_client_entity['update_time'] = datetime.now(timezone.utc)
@@ -648,10 +729,10 @@ def tracker_stopping(team_uuid, video_uuid, tracker_uuid):
         video_entity['tracking_in_progress'] = False
         video_entity['tracker_uuid'] = ''
         transaction.put(video_entity)
-        tracker_entity = retrieve_tracker_entity(video_uuid, tracker_uuid)
+        tracker_entity = maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
         if tracker_entity is not None:
             transaction.delete(tracker_entity.key)
-        tracker_client_entity = retrieve_tracker_client_entity(video_uuid, tracker_uuid)
+        tracker_client_entity = maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
         if tracker_client_entity is not None:
             transaction.delete(tracker_client_entity.key)
 
@@ -668,10 +749,24 @@ def __query_dataset(team_uuid, dataset_uuid):
 
 # dataset - public methods
 
+# prepare_to_start_dataset_production will raise HttpErrorNotFound
+# if any of the team_uuid/video_uuids is not found.
 def prepare_to_start_dataset_production(team_uuid, description, video_uuids, eval_percent, create_time_ms):
     dataset_uuid = str(uuid.uuid4().hex)
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
+        all_video_entities = retrieve_video_list(team_uuid)
+        # Build a list of the video uuids that we found.
+        video_uuids_found_list = []
+        for video_entity in all_video_entities:
+            video_uuid = video_entity['video_uuid']
+            video_uuids_found_list.append(video_uuid)
+        # Make sure that all the requested videos were found.
+        for video_uuid in video_uuids:
+            if video_uuid not in video_uuids_found_list:
+                message = 'Error: Video entity for video_uuid=%s not found.' % video_uuid
+                logging.critical(message)
+                raise exceptions.HttpErrorNotFound(message)
         incomplete_key = datastore_client.key(DS_KIND_DATASET)
         dataset_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
         dataset_entity.update({
@@ -813,27 +908,23 @@ def delete_dataset(team_uuid, dataset_uuid):
         query.add_filter('team_uuid', '=', team_uuid)
         query.add_filter('dataset_uuid', '=', dataset_uuid)
         dataset_entities = list(query.fetch(1))
-        if len(dataset_entities) != 0:
-            dataset_entity = dataset_entities[0]
-            dataset_entity['delete_in_progress'] = True
-            transaction.put(dataset_entity)
-            action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_DATASET)
-            action_parameters['team_uuid'] = team_uuid
-            action_parameters['dataset_uuid'] = dataset_uuid
-            action.trigger_action_via_blob(action_parameters)
+        if len(dataset_entities) == 0:
+            message = 'Error: Dataset entity for dataset_uuid=%s not found.' % dataset_uuid
+            logging.critical(message)
+            raise exceptions.HttpErrorNotFound(message)
+        dataset_entity = dataset_entities[0]
+        dataset_entity['delete_in_progress'] = True
+        transaction.put(dataset_entity)
+        action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_DATASET)
+        action_parameters['team_uuid'] = team_uuid
+        action_parameters['dataset_uuid'] = dataset_uuid
+        action.trigger_action_via_blob(action_parameters)
 
 
 def finish_delete_dataset(action_parameters):
     team_uuid = action_parameters['team_uuid']
     dataset_uuid = action_parameters['dataset_uuid']
     datastore_client = datastore.Client()
-    # Delete the dataset.
-    dataset_entities = __query_dataset(team_uuid, dataset_uuid)
-    if len(dataset_entities) != 0:
-        dataset_entity = dataset_entities[0]
-        datastore_client.delete(dataset_entity.key)
-    # Delete the label.pbtxt blob.
-    blob_storage.delete_dataset_blob(dataset_entity['label_map_blob_name'])
     # Delete the dataset records, 500 at a time.
     while True:
         action.retrigger_if_necessary(action_parameters)
@@ -842,7 +933,7 @@ def finish_delete_dataset(action_parameters):
         query.add_filter('dataset_uuid', '=', dataset_uuid)
         dataset_record_entities = list(query.fetch(500))
         if len(dataset_record_entities) == 0:
-            return
+            break
         action.retrigger_if_necessary(action_parameters)
         blob_names = []
         keys = []
@@ -856,6 +947,14 @@ def finish_delete_dataset(action_parameters):
         action.retrigger_if_necessary(action_parameters)
         # Then, delete the dataset record entities.
         datastore_client.delete_multi(keys)
+    # Finally, delete the dataset.
+    action.retrigger_if_necessary(action_parameters)
+    dataset_entities = __query_dataset(team_uuid, dataset_uuid)
+    if len(dataset_entities) != 0:
+        dataset_entity = dataset_entities[0]
+        datastore_client.delete(dataset_entity.key)
+    # Delete the label.pbtxt blob.
+    blob_storage.delete_dataset_blob(dataset_entity['label_map_blob_name'])
 
 
 # dataset record
@@ -977,7 +1076,7 @@ def create_dataset_zippers(team_uuid, dataset_zip_uuid, partition_count):
             })
             transaction.put(dataset_zipper_entity)
 
-def __retrieve_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index):
+def __maybe_retrieve_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index):
     datastore_client = datastore.Client()
     query = datastore_client.query(kind=DS_KIND_DATASET_ZIPPER)
     query.add_filter('team_uuid', '=', team_uuid)
@@ -991,7 +1090,7 @@ def __retrieve_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index):
 def update_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index, file_count, files_written):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
-        dataset_zipper_entity = __retrieve_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index)
+        dataset_zipper_entity = __maybe_retrieve_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index)
         if dataset_zipper_entity is not None:
             dataset_zipper_entity['file_count'] = file_count
             dataset_zipper_entity['files_written'] = files_written
@@ -1005,17 +1104,25 @@ def retrieve_dataset_zipper_files_written(team_uuid, dataset_zip_uuid, partition
     query.add_filter('dataset_zip_uuid', '=', dataset_zip_uuid)
     query.order = ['partition_index']
     dataset_zipper_entities = list(query.fetch(partition_count))
-    file_count_array = []
-    files_written_array = []
+    # Check that all the partitions were found
+    if len(dataset_zipper_entities) != partition_count:
+        message = 'Error: Dataset zipper entities for dataset_zip_uuid=%s partition_count=%d not all found.' % (
+                dataset_zip_uuid, partition_count)
+        logging.critical(message)
+        raise exceptions.HttpErrorNotFound(message)
+    file_count_array = [0 for i in range(partition_count)]
+    files_written_array = [0 for i in range(partition_count)]
     for dataset_zipper_entity in dataset_zipper_entities:
-        file_count_array.append(dataset_zipper_entity['file_count'])
-        files_written_array.append(dataset_zipper_entity['files_written'])
+        i = dataset_zipper_entity['partition_index']
+        file_count_array[i] = dataset_zipper_entity['file_count']
+        files_written_array[i] = dataset_zipper_entity['files_written']
     return file_count_array, files_written_array
 
 def delete_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index):
     datastore_client = datastore.Client()
-    dataset_zipper_entity =__retrieve_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index)
-    datastore_client.delete(dataset_zipper_entity.key)
+    dataset_zipper_entity = __maybe_retrieve_dataset_zipper(team_uuid, dataset_zip_uuid, partition_index)
+    if dataset_zipper_entity is not None:
+        datastore_client.delete(dataset_zipper_entity.key)
 
 # model - public methods
 
@@ -1040,7 +1147,7 @@ def model_trainer_failed_to_start(team_uuid, model_uuid, max_running_minutes):
         team_entity = retrieve_team_entity(team_uuid)
         team_entity['remaining_training_minutes'] += max_running_minutes
         transaction.put(team_entity)
-    delete_model(team_uuid, model_uuid)
+    blob_storage.delete_model_blobs(team_uuid, model_uuid)
 
 def model_trainer_started(team_uuid, model_uuid, description, tensorflow_version,
         dataset_uuids, create_time_ms, max_running_minutes, num_training_steps,
@@ -1148,6 +1255,16 @@ def retrieve_entities_for_monitor_training(team_uuid, model_uuid, all_model_enti
     model_entities_by_uuid = {}
     dataset_entities_by_uuid = {}
     video_entities_by_uuid = {}
+    # Check that model_uuid is valid.
+    found_model_uuid = False
+    for model_entity in all_model_entities:
+        if model_entity['model_uuid'] == model_uuid:
+            found_model_uuid = True
+            break
+    if not found_model_uuid:
+        message = 'Error: Model entity for model_uuid=%s not found.' % model_uuid
+        logging.critical(message)
+        raise exceptions.HttpErrorNotFound(message)
     all_dataset_entities = retrieve_dataset_list(team_uuid)
     all_video_entities = retrieve_video_list(team_uuid)
     __add_entities_for_model(model_uuid,
@@ -1320,21 +1437,31 @@ def retrieve_model_list(team_uuid):
 def can_delete_datasets(team_uuid, dataset_uuids_json):
     can_delete_datasets = True
     messages = []
-    dataset_uuid_list = json.loads(dataset_uuids_json)
+    dataset_uuid_requested_list = json.loads(dataset_uuids_json)
     all_dataset_entities = retrieve_dataset_list(team_uuid)
+    # Build a list of the dataset uuids that we found.
+    dataset_uuids_found_list = []
     # Build a dictionary to hold the descriptions of the datasets that might be deleted.
     dict_dataset_uuid_to_description = {}
     # Build a dictionary to hold the descriptions of the models that use the datasets that might be deleted.
     dict_dataset_uuid_to_model_descriptions = {}
     for dataset_entity in all_dataset_entities:
-        if dataset_entity['dataset_uuid'] in dataset_uuid_list:
-            dict_dataset_uuid_to_description[dataset_entity['dataset_uuid']] = dataset_entity['description']
-            dict_dataset_uuid_to_model_descriptions[dataset_entity['dataset_uuid']] = []
+        dataset_uuid = dataset_entity['dataset_uuid']
+        dataset_uuids_found_list.append(dataset_uuid)
+        if dataset_uuid in dataset_uuid_requested_list:
+            dict_dataset_uuid_to_description[dataset_uuid] = dataset_entity['description']
+            dict_dataset_uuid_to_model_descriptions[dataset_uuid] = []
+    # Make sure that all the requested datasets were found
+    for dataset_uuid in dataset_uuid_requested_list:
+        if dataset_uuid not in dataset_uuids_found_list:
+            message = 'Error: Dataset entity for dataset_uuid=%s not found.' % dataset_uuid
+            logging.critical(message)
+            raise exceptions.HttpErrorNotFound(message)
     all_model_entities = retrieve_model_list(team_uuid)
     # Check whether any models are using any of the the datasets that might be deleted.
     for model_entity in all_model_entities:
         for dataset_uuid in model_entity['dataset_uuids']:
-            if dataset_uuid in dataset_uuid_list:
+            if dataset_uuid in dataset_uuid_requested_list:
                 can_delete_datasets = False
                 dict_dataset_uuid_to_model_descriptions[dataset_uuid].append(model_entity['description'])
     if not can_delete_datasets:
@@ -1357,23 +1484,33 @@ def can_delete_datasets(team_uuid, dataset_uuids_json):
 def can_delete_models(team_uuid, model_uuids_json):
     can_delete_models = True
     messages = []
-    model_uuid_list = json.loads(model_uuids_json)
+    model_uuid_requested_list = json.loads(model_uuids_json)
     all_model_entities = retrieve_model_list(team_uuid)
+    # Build a list of the model uuids that we found.
+    model_uuids_found_list = []
     # Build a dictionary to hold the descriptions of the models that might be deleted.
     dict_model_uuid_to_description = {}
     # Build a dictionary to hold the descriptions of the models that use the models that might be deleted.
     dict_model_uuid_to_other_model_descriptions = {}
     for model_entity in all_model_entities:
-        if model_entity['model_uuid'] in model_uuid_list:
-            dict_model_uuid_to_description[model_entity['model_uuid']] = model_entity['description']
-            dict_model_uuid_to_other_model_descriptions[model_entity['model_uuid']] = []
+        model_uuid = model_entity['model_uuid']
+        model_uuids_found_list.append(model_uuid)
+        if model_uuid in model_uuid_requested_list:
+            dict_model_uuid_to_description[model_uuid] = model_entity['description']
+            dict_model_uuid_to_other_model_descriptions[model_uuid] = []
+    # Make sure that all the requested models were found
+    for model_uuid in model_uuid_requested_list:
+        if model_uuid not in model_uuids_found_list:
+            message = 'Error: Model entity for model_uuid=%s not found.' % model_uuid
+            logging.critical(message)
+            raise exceptions.HttpErrorNotFound(message)
     # Check whether any models (not being deleted) are using one of the models that might be
     # deleted.
     for model_entity in all_model_entities:
         # We don't need to check the models that are being deleted.
-        if model_entity['model_uuid'] in model_uuid_list:
+        if model_entity['model_uuid'] in model_uuid_requested_list:
             continue
-        if model_entity['starting_model'] in model_uuid_list:
+        if model_entity['starting_model'] in model_uuid_requested_list:
             can_delete_models = False
             dict_model_uuid_to_other_model_descriptions[model_entity['starting_model']].append(model_entity['description'])
     if not can_delete_models:
@@ -1393,6 +1530,7 @@ def can_delete_models(team_uuid, model_uuids_json):
                 messages.append(message)
     return can_delete_models, messages
 
+
 def delete_model(team_uuid, model_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -1400,23 +1538,25 @@ def delete_model(team_uuid, model_uuid):
         query.add_filter('team_uuid', '=', team_uuid)
         query.add_filter('model_uuid', '=', model_uuid)
         model_entities = list(query.fetch(1))
-        if len(model_entities) != 0:
-            model_entity = model_entities[0]
-            model_entity['delete_in_progress'] = True
-            transaction.put(model_entity)
-        # Since the pipeline.config blob is created before the model_entity, even if there is no
-        # model_entity in the database, we still trigger the action to delete the model.
+        if len(model_entities) == 0:
+            message = 'Error: Model entity for model_uuid=%s not found.' % model_uuid
+            logging.critical(message)
+            raise exceptions.HttpErrorNotFound(message)
+        model_entity = model_entities[0]
+        model_entity['delete_in_progress'] = True
+        transaction.put(model_entity)
         action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_MODEL)
         action_parameters['team_uuid'] = team_uuid
         action_parameters['model_uuid'] = model_uuid
         action.trigger_action_via_blob(action_parameters)
+
 
 def finish_delete_model(action_parameters):
     team_uuid = action_parameters['team_uuid']
     model_uuid = action_parameters['model_uuid']
     datastore_client = datastore.Client()
     # Delete the blobs.
-    blob_storage.delete_model_blobs(team_uuid, model_uuid, action_parameters)
+    blob_storage.delete_model_blobs(team_uuid, model_uuid, action_parameters=action_parameters)
     # Delete the model entity.
     model_entities = __query_model_entity(team_uuid, model_uuid)
     if len(model_entities) != 0:
@@ -1425,7 +1565,7 @@ def finish_delete_model(action_parameters):
 
 # action
 
-def action_on_create(action_name):
+def action_on_create(action_name, action_parameters):
     action_uuid = str(uuid.uuid4().hex)
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
@@ -1434,6 +1574,7 @@ def action_on_create(action_name):
         action_entity.update({
             'action_uuid': action_uuid,
             'action_name': action_name,
+            'action_parameters': action_parameters,
             'create_time': datetime.now(timezone.utc),
             'state': 'created',
             'start_times': [],
@@ -1484,3 +1625,4 @@ def action_on_destroy(action_uuid):
     datastore_client = datastore.Client()
     action_entity = __retrieve_action_entity(action_uuid)
     datastore_client.delete(action_entity.key)
+    return action_entity

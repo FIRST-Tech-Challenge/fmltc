@@ -52,6 +52,8 @@ FrameData = collections.namedtuple('FrameData', [
 
 
 def prepare_to_start_dataset_production(team_uuid, description, video_uuids_json, eval_percent, create_time_ms):
+    # storage.prepare_to_start_dataset_production will raise HttpErrorNotFound
+    # if any of the team_uuid/video_uuids is not found.
     dataset_uuid = storage.prepare_to_start_dataset_production(team_uuid, description,
         json.loads(video_uuids_json), eval_percent, create_time_ms)
     return dataset_uuid
