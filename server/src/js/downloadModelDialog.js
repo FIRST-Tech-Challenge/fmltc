@@ -37,6 +37,7 @@ fmltc.DownloadModelDialog = function(util, modelUuid, downloadStartTime, onModel
   this.onModelReady = onModelReady;
 
   this.dialog = document.getElementById('downloadModelDialog');
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.dismissButton = document.getElementById('dmDismissButton');
 
   this.dismissButton.disabled = true;
@@ -85,4 +86,5 @@ fmltc.DownloadModelDialog.prototype.dismissButton_onclick = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  this.backdrop.style.display = 'none';
 };

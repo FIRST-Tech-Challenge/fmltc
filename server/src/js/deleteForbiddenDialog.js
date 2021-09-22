@@ -33,6 +33,7 @@ fmltc.DeleteForbiddenDialog = function(util, title, message, list) {
   /** @type {!fmltc.Util} */
   this.util = util;
   this.dialog = document.getElementById('deleteForbiddenDialog');
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.okButton = document.getElementById('dfOKButton');
 
   document.getElementById('dfTitleDiv').textContent = title;
@@ -57,4 +58,5 @@ fmltc.DeleteForbiddenDialog.prototype.okButton_onclick = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  this.backdrop.style.display = 'none';
 };

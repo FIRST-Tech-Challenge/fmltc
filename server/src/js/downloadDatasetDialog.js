@@ -36,13 +36,12 @@ fmltc.DownloadDatasetDialog = function(util, datasetEntity, downloadStartTime) {
   this.downloadStartTime = downloadStartTime;
 
   this.dialog = document.getElementById('downloadDatasetDialog');
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.dismissButton = document.getElementById('ddDismissButton');
   this.partitionCountDiv = document.getElementById('ddPartitionCountDiv');
   this.partitionCountSpan = document.getElementById('ddPartitionCountSpan');
   this.progressDiv = document.getElementById('ddProgressDiv');
   this.finishedDiv = document.getElementById('ddFinishedDiv');
-  // Bootstrap modal backdrop
-  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
 
   this.partitionCount = 0;
   this.downloadStartedArray = [];
