@@ -359,23 +359,37 @@ fmltc.Util.prototype.isStateChangingSoon = function(cancelRequested, jobState) {
 };
 
 fmltc.Util.prototype.isStateCancelRequested = function(cancelRequested, jobState) {
-  return cancelRequested && !this.isJobDone(jobState) && !jobState.startsWith('CANCEL');
+  return cancelRequested && jobState != 'CANCELLING' && !this.isJobDone(jobState);
 };
 
 fmltc.Util.prototype.formatJobState = function(jobType, cancelRequested, jobState) {
-  if (this.isStateCancelRequested(cancelRequested, jobState)) {
-    return 'CANCEL REQUESTED';
+  if (jobType == 'train') {
+    if (cancelRequested && jobState != 'CANCELLING' && !this.isJobDone(jobState)) {
+      return 'CANCEL REQUESTED';
+    }
+
+    // If the user didn't request the job to be cancelled, but the state is cancelled, it means that
+    // it was cancelled because it hit the time limit. We show STOPPING/STOPPED.
+    if (!cancelRequested) {
+      if (jobState == 'CANCELLING') {
+        return 'STOPPING';
+      }
+      if (jobState == 'CANCELLED') {
+        return 'STOPPED';
+      }
+    }
+
+  } else if (jobType == 'eval') {
+    // Because the server (not the user) cancels the eval job when it has completed the last
+    // evaluation, we just show STOPPING/STOPPED.
+    if (jobState == 'CANCELLING') {
+      return 'STOPPING';
+    }
+    if (jobState == 'CANCELLED') {
+      return 'STOPPED';
+    }
   }
-  // If the user didn't request the job to be cancelled, but the state is cancelled, it means that
-  // it was cancelled because it hit the time limit. We show FINISHED.
-  if (jobState == 'CANCELLING' || jobState == 'CANCELLED') {
-    return 'FINISHED';
-  }
-  if (jobType == 'eval' && (jobState == 'CANCELLING' || this.isJobDone(jobState))) {
-    // Because the server cancels the eval job when it has completed the last evaluation, we just
-    // show FINISHED.
-    return 'FINISHED';
-  }
+
   return jobState;
 };
 

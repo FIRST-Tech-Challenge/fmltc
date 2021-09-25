@@ -46,6 +46,7 @@ fmltc.ListVideos = function(util) {
 
   // Arrays with one element per video. Note that these need to be spliced when a video is deleted.
   this.videoEntityArray = [];
+  this.frameExtractionFailed = [];
   this.frameExtractionComplete = [];
   this.trs = [];
   this.checkboxes = [];
@@ -108,6 +109,7 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     i = this.videoEntityArray.length;
     this.videoEntityArray.push(videoEntity);
 
+    this.frameExtractionFailed[i] = false;
     this.frameExtractionComplete[i] = false;
 
     const tr = this.videosTable.insertRow(-1);
@@ -187,7 +189,12 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
   this.labeledFrameCountTds[i].textContent = videoEntity.labeled_frame_count;
   this.excludedFrameCountTds[i].textContent =
       (videoEntity.extracted_frame_count - videoEntity.included_frame_count);
-  if (frameExtractionComplete) {
+
+  if ('frame_extraction_failed' in videoEntity && videoEntity.frame_extraction_failed) {
+    this.frameExtractionFailed[i] = true;
+    this.trs[i].className = 'frameExtractionFailed';
+
+  } else if (frameExtractionComplete) {
     this.frameExtractionComplete[i] = true;
     this.trs[i].className = 'frameExtractionComplete';
     // Make the description link to the labelVideo page, if it isn't already a link
@@ -305,19 +312,18 @@ fmltc.ListVideos.prototype.checkbox_onclick = function() {
 };
 
 fmltc.ListVideos.prototype.updateButtons = function() {
-  const countChecked = this.util.countChecked(this.checkboxes);
-  let frameExtractionIsNotComplete = false;
+  let countChecked = 0;
+  let countCanProduceDataset = 0;
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
-      if (!this.frameExtractionComplete[i]) {
-        frameExtractionIsNotComplete = true;
+      countChecked++;
+      if (!this.frameExtractionFailed[i] && this.frameExtractionComplete[i]) {
+        countCanProduceDataset++;
       }
     }
   }
-  this.produceDatasetButton.disabled = this.waitCursor || countChecked == 0 || frameExtractionIsNotComplete;
-  // TODO(lizlooney): Allow videos with incomplete frame extraction to be deleted (we'll need to
-  // cancel the frame extraction).
-  this.deleteVideosButton.disabled = this.waitCursor || countChecked == 0 || frameExtractionIsNotComplete;
+  this.produceDatasetButton.disabled = this.waitCursor || countChecked == 0 || countCanProduceDataset != countChecked;
+  this.deleteVideosButton.disabled = this.waitCursor || countChecked == 0;
 };
 
 

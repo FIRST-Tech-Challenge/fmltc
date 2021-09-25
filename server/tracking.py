@@ -34,6 +34,7 @@ import action
 import bbox_writer
 import blob_storage
 import exceptions
+import metrics
 import storage
 import util
 
@@ -48,9 +49,17 @@ tracker_fns = {
     'Boosting': cv2.legacy.TrackerBoosting_create,
 }
 
-TWO_MINUTES_IN_MS = 2 * 60 * 1000
+
+def validate_tracker_name(s):
+    if s not in tracker_fns:
+        message = "Error: '%s is not a valid argument." % s
+        logging.critical(message)
+        raise exceptions.HttpErrorBadRequest(message)
+    return s
+
 
 def prepare_to_start_tracking(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text):
+    metrics.save_tracking_metrics(tracker_name, scale, bbox_writer.count_boxes(init_bboxes_text))
     tracker_uuid = storage.tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text)
     action_parameters = action.create_action_parameters(action.ACTION_NAME_TRACKING)
     action_parameters['video_uuid'] = video_uuid
@@ -62,15 +71,15 @@ def start_tracking(action_parameters):
     video_uuid = action_parameters['video_uuid']
     tracker_uuid = action_parameters['tracker_uuid']
 
-    tracker_entity = storage.retrieve_tracker_entity(video_uuid, tracker_uuid)
+    tracker_entity = storage.maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
     if tracker_entity is None:
-        util.log('Unexpected: storage.retrieve_tracker_entity returned None')
+        util.log('Unexpected: storage.maybe_retrieve_tracker_entity returned None')
         return
     team_uuid = tracker_entity['team_uuid']
 
-    tracker_client_entity = storage.retrieve_tracker_client_entity(video_uuid, tracker_uuid)
+    tracker_client_entity = storage.maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
     if tracker_client_entity is None:
-        util.log('Unexpected: storage.retrieve_tracker_client_entity returned None')
+        util.log('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
         return
     if (tracker_client_entity['tracking_stop_requested'] or
             datetime.now(timezone.utc) - tracker_client_entity['update_time'] > timedelta(minutes=2)):
@@ -122,16 +131,16 @@ def start_tracking(action_parameters):
                         action_parameters):
                     return
                 time.sleep(0.1)
-                tracker_client_entity = storage.retrieve_tracker_client_entity(video_uuid, tracker_uuid)
+                tracker_client_entity = storage.maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
                 if tracker_client_entity is None:
-                    util.log('Unexpected: storage.retrieve_tracker_client_entity returned None')
+                    util.log('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
                     return
 
             # Separate bboxes_text into bboxes and classes.
             bboxes, classes = bbox_writer.parse_bboxes_text(tracker_client_entity['bboxes_text'], scale)
+
             # Create the trackers, one per bbox.
-            trackers = __create_trackers(tracker_fn, tracker_name,
-                tracker_entity['video_width'], tracker_entity['video_height'], frame, bboxes, classes)
+            trackers = __create_trackers(tracker_fn, tracker_name, frame, bboxes)
 
             while True:
                 # Read the next frame from the video file.
@@ -165,26 +174,25 @@ def start_tracking(action_parameters):
                     return
 
                 # Wait for the bboxes to be approved/adjusted.
-                tracker_client_entity = storage.retrieve_tracker_client_entity(video_uuid, tracker_uuid)
+                tracker_client_entity = storage.maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
                 if tracker_client_entity is None:
-                    util.log('Unexpected: storage.retrieve_tracker_client_entity returned None')
+                    util.log('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
                     return
                 while tracker_client_entity['frame_number'] != frame_number:
                     if __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity,
                             action_parameters):
                         return
                     time.sleep(0.1)
-                    tracker_client_entity = storage.retrieve_tracker_client_entity(video_uuid, tracker_uuid)
+                    tracker_client_entity = storage.maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
                     if tracker_client_entity is None:
-                        util.log('Unexpected: storage.retrieve_tracker_client_entity returned None')
+                        util.log('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
                         return
 
                 if tracker_client_entity['bboxes_text'] != tracked_bboxes_text:
                     # Separate bboxes_text into bboxes and classes.
                     bboxes, classes = bbox_writer.parse_bboxes_text(tracker_client_entity['bboxes_text'], scale)
                     # Create new trackers, one per bbox.
-                    trackers = __create_trackers(tracker_fn, tracker_name,
-                        tracker_entity['video_width'], tracker_entity['video_height'], frame, bboxes, classes)
+                    trackers = __create_trackers(tracker_fn, tracker_name, frame, bboxes)
 
         finally:
             # Release the cv2 video.
@@ -201,7 +209,7 @@ def __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity, ac
     action.retrigger_if_necessary(action_parameters)
     return False
 
-def __create_trackers(tracker_fn, tracker_name, video_width, video_height, frame, init_bboxes, classes):
+def __create_trackers(tracker_fn, tracker_name, frame, init_bboxes):
     trackers = []
     for i, bbox in enumerate(init_bboxes):
         rect = np.array(bbox, dtype=float).astype(int)

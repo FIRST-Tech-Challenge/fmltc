@@ -122,6 +122,20 @@ fmltc.DownloadDatasetDialog.prototype.xhr_prepareToZipDataset_onreadystatechange
 };
 
 fmltc.DownloadDatasetDialog.prototype.getDatasetZipStatus = function(datasetZipUuid) {
+  if (this.downloadStartedArray.length != 0) {
+    // Check if all the downloads have finished. If so, we don't need to send /getDatasetZipStatus.
+    let allDownloadsStarted = true;
+    for (let partitionIndex = 0; partitionIndex < this.partitionCount; partitionIndex++) {
+      if (!this.downloadStartedArray[partitionIndex]) {
+        allDownloadsStarted = false;
+        break;
+      }
+    }
+    if (allDownloadsStarted) {
+      return;
+    }
+  }
+
   const xhr = new XMLHttpRequest();
   const params =
       'dataset_zip_uuid=' + encodeURIComponent(datasetZipUuid) +

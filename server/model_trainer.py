@@ -15,7 +15,7 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import math
@@ -59,6 +59,17 @@ STARTING_MODELS = {
     },
 }
 
+def validate_starting_model(s):
+    if s not in STARTING_MODELS:
+        try:
+            return storage.validate_uuid(s)
+        except:
+            message = "Error: '%s is not a valid argument." % s
+            logging.critical(message)
+            raise exceptions.HttpErrorBadRequest(message)
+    return s
+
+
 def get_starting_model_names():
     names = list(STARTING_MODELS.keys())
     return names
@@ -83,6 +94,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
     else:
         # starting_model is the model_uuid of one of the user's own models.
         starting_model_uuid = starting_model
+        # retrieve_model_entity will raise HttpErrorNotFound
+        # if the team_uuid/starting_model_uuid is not found
         starting_model_entity = retrieve_model_entity(team_uuid, starting_model_uuid)
         if starting_model_entity['trained_checkpoint_path'] == '':
             message = 'Error: Trained checkpoint not found for model_uuid=%s.' % starting_model_uuid
@@ -170,17 +183,18 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         )
 
     packageUris = [
-        'gs://%s/static/training/object_detection-0.1_2.4.0.tar.gz' % BUCKET,
+        'gs://%s/static/training/object_detection-0.1_2.5.0.tar.gz' % BUCKET,
         'gs://%s/static/training/slim-0.1.tar.gz' % BUCKET,
         'gs://%s/static/training/pycocotools-2.0.tar.gz' % BUCKET,
     ]
     region = 'us-central1' # Choices are us-central1 or europe-west4
-    runtimeVersion = '2.4' # Not supported beginning April 16, 2022
+    runtimeVersion = '2.5' # Not supported beginning August 13, 2022
     pythonVersion = '3.7'
 
-    # storage.model_trainer_starting will raise an exception if the team doesn't have enough
-    # training time left.
+    # storage.model_trainer_starting will raise HttpErrorUnprocessableEntity
+    # if the max_running_minutes exceeds the team's remaining_training_minutes.
     model_uuid = storage.model_trainer_starting(team_uuid, max_running_minutes)
+
     try:
         pipeline_config_path = blob_storage.store_pipeline_config(team_uuid, model_uuid, pipeline_config)
 
@@ -190,7 +204,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
 
         train_job_id = __get_train_job_id(model_uuid)
         scheduling = {
-            'maxRunningTime': '%ds' % (max_running_minutes * 60),
+            'maxRunningTime': '%ds' % int(max_running_minutes * 60),
         }
         train_training_input = {
             'scaleTier': 'BASIC_TPU',
@@ -236,8 +250,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         ml = __get_ml_service()
         parent = __get_parent()
 
-        # Start the eval job first because it runs so slowly that otherwise it misses the first
-        # checkpoint.
+        # Start the eval job first to because it runs slower than the train job. This helps it to
+        # not miss the first checkpoint, but does not completely prevent that.
         try:
             if eval_frame_count > 0:
                 eval_job_response = ml.projects().jobs().create(parent=parent, body=eval_job).execute()
@@ -259,7 +273,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             raise
 
     except:
-        # storage.failed_to_start_training will adjust the team's remaining training time.
+        # storage.failed_to_start_training will adjust the team's remaining training time and delete
+        # any model blobs (such as the pipeline config file) that were created.
         storage.model_trainer_failed_to_start(team_uuid, model_uuid, max_running_minutes)
         raise
 
@@ -272,6 +287,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
         train_dict_label_to_count, eval_dict_label_to_count,
         train_job_response, eval_job_response)
+    __start_monitor_training(team_uuid, model_entity['model_uuid'])
     return model_entity
 
 def retrieve_model_list(team_uuid):
@@ -282,6 +298,8 @@ def retrieve_model_list(team_uuid):
     return model_entities
 
 def retrieve_model_entity(team_uuid, model_uuid):
+    # storage.retrieve_model_entity will raise HttpErrorNotFound
+    # if the team_uuid/model_uuid is not found.
     model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
     model_entity, _ = __update_model_entity_job_state(model_entity)
     return model_entity
@@ -323,6 +341,8 @@ def is_done(model_entity):
         __is_done(model_entity['eval_job_state']))
 
 def cancel_training_model(team_uuid, model_uuid):
+    # retrieve_model_entity will raise HttpErrorNotFound
+    # if the team_uuid/model_uuid is not found.
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
     ml = __get_ml_service()
     if __is_alive(model_entity['train_job_state']):
@@ -383,7 +403,45 @@ def __is_not_done(state):
 def __is_done(state):
     return not __is_not_done(state)
 
-def start_monitor_training(team_uuid, model_uuid):
+def maybe_restart_monitor_training(team_uuid, model_uuid):
+    # retrieve_model_entity will raise HttpErrorNotFound
+    # if the team_uuid/model_uuid is not found.
+    model_entity = retrieve_model_entity(team_uuid, model_uuid)
+
+    if ('monitor_training_finished' not in model_entity or
+            'monitor_training_triggered_time_ms' not in model_entity or
+            'monitor_training_active_time_ms' not in model_entity):
+        # Some models were trained before these fields were added.
+        return False, model_entity
+
+    if model_entity['monitor_training_finished']:
+        # The monitor training action finished.
+        return False, model_entity
+
+    if model_entity['monitor_training_triggered_time_ms'] != 0:
+        # The monitor training action was not triggered yet. It shouldn't be restarted since it
+        # hasn't even started the first time yet.
+        return False, model_entity
+
+    if model_entity['monitor_training_active_time_ms'] <= model_entity['monitor_training_triggered_time_ms']:
+        # The monitor training action was triggered, but not active.
+        # Check if it has been <= 3 minutes since it was triggered.
+        # Since monitor_training_triggered_time_ms is non-zero, we can use the
+        # monitor_training_triggered_time field.
+        if datetime.now(timezone.utc) - model_entity['monitor_training_triggered_time'] <= timedelta(minutes=3):
+            return False, model_entity
+    else:
+        # The monitor training action was active after it was triggered.
+        # Check if it has been <= 3 minutes since it was active.
+        # Since monitor_training_triggered_time_ms and monitor_training_active_time_ms are both
+        # non-zero, we can use the monitor_training_triggered_time and monitor_training_active_time
+        # fields.
+        if datetime.now(timezone.utc) - model_entity['monitor_training_active_time'] <= timedelta(minutes=3):
+            return False, model_entity
+
+    return True, __start_monitor_training(team_uuid, model_uuid)
+
+def __start_monitor_training(team_uuid, model_uuid):
     model_entity = storage.prepare_to_start_monitor_training(team_uuid, model_uuid)
     action_parameters = action.create_action_parameters(action.ACTION_NAME_MONITOR_TRAINING)
     action_parameters['team_uuid'] = team_uuid
@@ -491,6 +549,8 @@ def __make_key(step, tag):
 
 
 def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
+    # retrieve_model_entity will raise HttpErrorNotFound
+    # if the team_uuid/model_uuid is not found.
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
     summary_items_field_name = storage.get_model_entity_summary_items_field_name(job_type, value_type)
     if summary_items_field_name not in model_entity:
@@ -506,6 +566,8 @@ def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
 
 
 def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_step_to_tags):
+    # retrieve_model_entity will raise HttpErrorNotFound
+    # if the team_uuid/model_uuid is not found.
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
     summary_items_field_name = storage.get_model_entity_summary_items_field_name(job_type, value_type)
     if summary_items_field_name not in model_entity:

@@ -137,8 +137,10 @@ fmltc.UploadVideoFileDialog.prototype.descriptionInput_oninput = function() {
 
 fmltc.UploadVideoFileDialog.prototype.updateUploadButton = function() {
   this.uploadButton.disabled = (
-      this.state != fmltc.UploadVideoFileDialog.STATE_FILE_CHOSEN ||
-      this.descriptionInput.value.length == 0);
+      this.videoFileInput.files.length == 0 ||
+      this.videoFileInput.files[0].size == 0 ||
+      this.descriptionInput.value.length == 0 ||
+      this.descriptionInput.value.length > 30);
 };
 
 fmltc.UploadVideoFileDialog.prototype.uploadButton_onclick = function() {
@@ -214,7 +216,7 @@ fmltc.UploadVideoFileDialog.prototype.xhr_uploadVideoFile_onreadystatechange = f
     if (xhr.status === 200) {
       this.uploadingProgress.value = this.uploadingProgress.max;
       this.setState(fmltc.UploadVideoFileDialog.STATE_UPLOADING_FINISHED);
-      setTimeout(this.retrieveVideoEntity.bind(this, videoUuid), 10000);
+      setTimeout(this.doesVideoEntityExist.bind(this, videoUuid), 10000);
 
     } else {
       // TODO(lizlooney): handle error properly
@@ -224,31 +226,36 @@ fmltc.UploadVideoFileDialog.prototype.xhr_uploadVideoFile_onreadystatechange = f
   }
 };
 
-fmltc.UploadVideoFileDialog.prototype.retrieveVideoEntity = function(videoUuid) {
+fmltc.UploadVideoFileDialog.prototype.doesVideoEntityExist = function(videoUuid) {
   const xhr = new XMLHttpRequest();
   const params = 'video_uuid=' + encodeURIComponent(videoUuid)
-  xhr.open('POST', '/retrieveVideoEntity', true);
+  xhr.open('POST', '/doesVideoEntityExist', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveVideoEntity_onreadystatechange.bind(this, xhr, params,
+  xhr.onreadystatechange = this.xhr_doesVideoEntityExist_onreadystatechange.bind(this, xhr, params,
       videoUuid);
   xhr.send(params);
 };
 
-fmltc.UploadVideoFileDialog.prototype.xhr_retrieveVideoEntity_onreadystatechange = function(xhr, params,
+fmltc.UploadVideoFileDialog.prototype.xhr_doesVideoEntityExist_onreadystatechange = function(xhr, params,
     videoUuid) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      this.setState(fmltc.UploadVideoFileDialog.STATE_EXTRACTION_STARTING);
-      this.onVideoUploaded(videoUuid);
-      setTimeout(this.dismissButton_onclick.bind(this), 1000);
+      const response = JSON.parse(xhr.responseText);
+      if (response.video_entity_exists) {
+        this.setState(fmltc.UploadVideoFileDialog.STATE_EXTRACTION_STARTING);
+        this.onVideoUploaded(videoUuid);
+        setTimeout(this.dismissButton_onclick.bind(this), 1000);
+      } else {
+        setTimeout(this.doesVideoEntityExist.bind(this, videoUuid), 5000);
+      }
 
     } else {
-      console.log('Failure! /retrieveVideoEntity?' + params +
+      console.log('Failure! /doesVideoEntityExist?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      console.log('Will retry /retrieveVideoEntity?' + params + ' in 5 seconds.');
-      setTimeout(this.retrieveVideoEntity.bind(this, videoUuid), 5000);
+      console.log('Will retry /doesVideoEntityExist?' + params + ' in 5 seconds.');
+      setTimeout(this.doesVideoEntityExist.bind(this, videoUuid), 5000);
     }
   }
 };
