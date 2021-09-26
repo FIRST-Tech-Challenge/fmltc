@@ -172,22 +172,25 @@ fmltc.Util.prototype.getDateTimeString = function(millis) {
 }
 
 fmltc.Util.prototype.initializeTabs = function() {
-  this.foundTabs = false;
+  let foundOldTabs = false;
   const tabButtons = document.getElementsByClassName('tabButton');
   for (let i = 0; i < tabButtons.length; i++) {
-    const id = tabButtons[i].id;
-    // The id should end with Button.
-    if (!id.endsWith('Button')) {
-      console.log('Error: tabButton with id "' + id + '" should end with "Button".');
+    const tabButton = tabButtons[i];
+    const id = tabButton.id;
+    if (tabButton.getAttribute('role') == 'tab' && tabButton.getAttribute('aria-controls')) {
+      // This is a new tab button. It uses aria-controls.
+      const tabName = id;
+      tabButton.onclick = this.newTabButton_onclick.bind(this, tabName);
+    } else if (id.endsWith('Button')) {
+      foundOldTabs = true;
+      const tabName = id.substring(0, id.length - 'Button'.length);
+      tabButton.onclick = this.oldTabButton_onclick.bind(this, tabName);
     }
-    this.foundTabs = true;
-    const idPrefix = id.substring(0, id.length - 'Button'.length);
-    tabButtons[i].onclick = this.tabDiv_onclick.bind(this, idPrefix);
   }
 
   this.showLastViewedTab();
 
-  if (this.foundTabs) {
+  if (foundOldTabs) {
     this.window_onresize();
     window.addEventListener('resize', this.window_onresize.bind(this));
   }
@@ -251,36 +254,44 @@ fmltc.Util.prototype.showModelsTab = function() {
   this.showTab('modelsTab');
 };
 
-fmltc.Util.prototype.tabDiv_onclick = function(idPrefix) {
-  this.showTab(idPrefix);
+fmltc.Util.prototype.oldTabButton_onclick = function(tabName) {
+  // Hide all the tabDivs.
+  const tabDivs = document.getElementsByClassName('tabDiv');
+  for (let i = 0; i < tabDivs.length; i++) {
+    tabDivs[i].style.display = 'none';
+  }
+
+  // Remove the class "active" from all tabButtons.
+  const tabButtons = document.getElementsByClassName('tabButton');
+  for (let i = 0; i < tabButtons.length; i++) {
+    tabButtons[i].className = tabButtons[i].className.replace(' active', '');
+  }
+
+  // Show the current tabDiv, and add an 'active' class to the current tabButton.
+  document.getElementById(tabName + 'Div').style.display = 'block';
+  document.getElementById(tabName + 'Button').className += ' active';
+  this.setPreference(this.pageBasename + '.currentTab', tabName);
+
+  this.currentTabDivId = tabName + 'Div';
+  for (let i = 0; i < this.tabClickListeners.length; i++) {
+    this.tabClickListeners[i](this.currentTabDivId);
+  }
+
 };
 
-fmltc.Util.prototype.showTab = function(idPrefix) {
-  if (this.foundTabs) {
-    // Hide all the tabDivs.
-    const tabDivs = document.getElementsByClassName('tabDiv');
-    for (let i = 0; i < tabDivs.length; i++) {
-      tabDivs[i].style.display = 'none';
-    }
+fmltc.Util.prototype.newTabButton_onclick = function(tabName) {
+  this.setPreference(this.pageBasename + '.currentTab', tabName);
+};
 
-    // Remove the class "active" from all tabButtons.
-    const tabButtons = document.getElementsByClassName('tabButton');
-    for (let i = 0; i < tabButtons.length; i++) {
-      tabButtons[i].className = tabButtons[i].className.replace(' active', '');
-    }
-
-    // Show the current tabDiv, and add an 'active' class to the current tabButton.
-    document.getElementById(idPrefix + 'Div').style.display = 'block';
-    document.getElementById(idPrefix + 'Button').className += ' active';
-    this.setPreference(this.pageBasename + '.currentTab', idPrefix);
-
-    this.currentTabDivId = idPrefix + 'Div';
-    for (let i = 0; i < this.tabClickListeners.length; i++) {
-      this.tabClickListeners[i](this.currentTabDivId);
-    }
+fmltc.Util.prototype.showTab = function(tabName) {
+  const newTabButton = document.getElementById(tabName);
+  if (newTabButton) {
+    newTabButton.click();
   } else {
-    // root.html uses aria.
-    // TODO: Make it select the tab corresponding to idPrefix
+    const oldTabButton = document.getElementById(tabName + 'Button');
+    if (oldTabButton) {
+      oldTabButton.click();
+    }
   }
 };
 
