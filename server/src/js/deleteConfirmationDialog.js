@@ -62,5 +62,7 @@ fmltc.DeleteConfirmationDialog.prototype.dismiss = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
-  this.backdrop.style.display = 'none';
+  if (this.backdrop) {
+    this.backdrop.style.display = 'none';
+  }
 };

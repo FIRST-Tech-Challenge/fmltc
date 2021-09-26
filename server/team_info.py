@@ -27,7 +27,11 @@ BUCKET_BLOBS = ('%s-blobs' % constants.PROJECT_ID)
 TOTAL_TRAINING_MINUTES_PER_TEAM = 120
 
 def login(request_form, session):
-    if __validate_team_info(request_form['program'], request_form['team_number'], request_form['team_code']):
+    program = request_form.get('program')
+    team_number = request_form.get('team_number')
+    team_code = request_form.get('team_code')
+    if (program and team_number and team_code and
+            __validate_team_info(program, team_number, team_code)):
         session['program'] = request_form['program']
         session['team_number'] = request_form['team_number']
         session['team_code'] = request_form['team_code']
@@ -52,12 +56,10 @@ def __validate_team_oidc(session):
 
 def __validate_team_local(session):
     program = session.get('program')
-    if program:
-        team_number = session.get('team_number')
-        if team_number:
-            team_code = session.get('team_code')
-            if team_code:
-                return __validate_team_info(program, team_number, team_code)
+    team_number = session.get('team_number')
+    team_code = session.get('team_code')
+    if program and team_number and team_code:
+        return __validate_team_info(program, team_number, team_code)
     return False
 
 def __validate_team_info(program, team_number, team_code):

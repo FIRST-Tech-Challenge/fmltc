@@ -381,7 +381,7 @@ def can_delete_videos(team_uuid, video_uuids_json):
                     message += 'the datasets '
                     for i in range(len(dataset_descriptions) - 1):
                         message += '"' + dataset_descriptions[i] + '", '
-                    message += 'and "' + dataset_descriptions[len(other_descriptions) - 1] + '".'
+                    message += 'and "' + dataset_descriptions[len(dataset_descriptions) - 1] + '".'
                 messages.append(message)
     return can_delete_videos, messages
 
@@ -1141,16 +1141,16 @@ def model_trainer_starting(team_uuid, max_running_minutes):
     model_uuid = str(uuid.uuid4().hex)
     return model_uuid
 
-def model_trainer_failed_to_start(team_uuid, model_uuid, max_running_minutes):
+def model_trainer_failed_to_start(team_uuid, model_folder, max_running_minutes):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         team_entity = retrieve_team_entity(team_uuid)
         team_entity['remaining_training_minutes'] += max_running_minutes
         transaction.put(team_entity)
-    blob_storage.delete_model_blobs(team_uuid, model_uuid)
+    blob_storage.delete_model_blobs(model_folder)
 
-def model_trainer_started(team_uuid, model_uuid, description, tensorflow_version,
-        dataset_uuids, create_time_ms, max_running_minutes, num_training_steps,
+def model_trainer_started(team_uuid, model_uuid, description, model_folder,
+        tensorflow_version, dataset_uuids, create_time_ms, max_running_minutes, num_training_steps,
         previous_training_steps, starting_model, user_visible_starting_model,
         original_starting_model, fine_tune_checkpoint,
         sorted_label_list, label_map_path, train_input_path, eval_input_path,
@@ -1164,6 +1164,7 @@ def model_trainer_started(team_uuid, model_uuid, description, tensorflow_version
             'team_uuid': team_uuid,
             'model_uuid': model_uuid,
             'description': description,
+            'model_folder': model_folder,
             'tensorflow_version': tensorflow_version,
             'dataset_uuids': dataset_uuids,
             'create_time_ms': create_time_ms,
@@ -1238,6 +1239,9 @@ def __query_model_entity(team_uuid, model_uuid):
     query.add_filter('team_uuid', '=', team_uuid)
     query.add_filter('model_uuid', '=', model_uuid)
     model_entities = list(query.fetch(1))
+    for model_entity in model_entities:
+        if 'model_folder' not in model_entity:
+            model_entity['model_folder'] = blob_storage.get_old_model_folder(team_uuid, model_uuid)
     return model_entities
 
 
@@ -1249,7 +1253,8 @@ def retrieve_model_entity(team_uuid, model_uuid):
         message = 'Error: Model entity for model_uuid=%s not found.' % model_uuid
         logging.critical(message)
         raise exceptions.HttpErrorNotFound(message)
-    return model_entities[0]
+    model_entity = model_entities[0]
+    return model_entity
 
 def retrieve_entities_for_monitor_training(team_uuid, model_uuid, all_model_entities):
     model_entities_by_uuid = {}
@@ -1347,7 +1352,7 @@ def update_model_entity_job_state(team_uuid, model_uuid, train_job, eval_job):
         if eval_job is not None:
             __update_model_entity_job_state(model_entity, eval_job, 'eval_')
         # Set trained_checkpoint_path.
-        trained_checkpoint_path = blob_storage.get_trained_checkpoint_path(team_uuid, model_uuid)
+        trained_checkpoint_path = blob_storage.get_trained_checkpoint_path(model_entity['model_folder'])
         model_entity['trained_checkpoint_path'] = trained_checkpoint_path
         model_entity['update_time'] = datetime.now(timezone.utc)
         transaction.put(model_entity)
@@ -1432,6 +1437,9 @@ def retrieve_model_list(team_uuid):
     query.add_filter('delete_in_progress', '=', False)
     query.order = ['create_time']
     model_entities = list(query.fetch())
+    for model_entity in model_entities:
+        if 'model_folder' not in model_entity:
+            model_entity['model_folder'] = blob_storage.get_old_model_folder(team_uuid, model_entity['model_uuid'])
     return model_entities
 
 def can_delete_datasets(team_uuid, dataset_uuids_json):
@@ -1477,7 +1485,7 @@ def can_delete_datasets(team_uuid, dataset_uuids_json):
                     message += 'the models '
                     for i in range(len(model_descriptions) - 1):
                         message += '"' + model_descriptions[i] + '", '
-                    message += 'and "' + model_descriptions[len(other_descriptions) - 1] + '".'
+                    message += 'and "' + model_descriptions[len(model_descriptions) - 1] + '".'
                 messages.append(message)
     return can_delete_datasets, messages
 
@@ -1555,12 +1563,12 @@ def finish_delete_model(action_parameters):
     team_uuid = action_parameters['team_uuid']
     model_uuid = action_parameters['model_uuid']
     datastore_client = datastore.Client()
-    # Delete the blobs.
-    blob_storage.delete_model_blobs(team_uuid, model_uuid, action_parameters=action_parameters)
-    # Delete the model entity.
     model_entities = __query_model_entity(team_uuid, model_uuid)
     if len(model_entities) != 0:
         model_entity = model_entities[0]
+        # Delete the blobs.
+        blob_storage.delete_model_blobs(model_entity['model_folder'], action_parameters=action_parameters)
+        # Delete the model entity.
         datastore_client.delete(model_entity.key)
 
 # action

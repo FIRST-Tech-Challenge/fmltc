@@ -329,6 +329,16 @@ fmltc.ListVideos.prototype.updateButtons = function() {
 
 fmltc.ListVideos.prototype.deleteVideosButton_onclick = function() {
   const videoUuids = this.getCheckedVideoUuids();
+  new fmltc.DeleteConfirmationDialog(this.util, 'Delete Videos',
+      'Are you sure you want to delete the selected videos?',
+      this.canDeleteVideos.bind(this, videoUuids));
+};
+
+fmltc.ListVideos.prototype.canDeleteVideos = function(videoUuids) {
+  this.waitCursor = true;
+  this.util.setWaitCursor();
+  this.updateButtons();
+
   const videoUuidsJson = JSON.stringify(videoUuids);
 
   const xhr = new XMLHttpRequest();
@@ -345,12 +355,14 @@ fmltc.ListVideos.prototype.xhr_canDeleteVideos_onreadystatechange = function(xhr
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
+    this.util.clearWaitCursor();
+    this.waitCursor = false;
+    this.updateButtons();
+
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
       if (response.can_delete_videos) {
-        new fmltc.DeleteConfirmationDialog(this.util, 'Delete Videos',
-            'Are you sure you want to delete the selected videos?',
-            this.deleteVideos.bind(this, videoUuids));
+        this.deleteVideos(videoUuids);
       } else {
         const title = 'Delete Videos';
         const message = 'The selected videos cannot be deleted.';
