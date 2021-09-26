@@ -172,22 +172,25 @@ fmltc.Util.prototype.getDateTimeString = function(millis) {
 }
 
 fmltc.Util.prototype.initializeTabs = function() {
-  this.foundTabs = false;
+  this.foundOldTabs = false;
+  this.foundNewTabs = false;
   const tabButtons = document.getElementsByClassName('tabButton');
   for (let i = 0; i < tabButtons.length; i++) {
     const id = tabButtons[i].id;
-    // The id should end with Button.
-    if (!id.endsWith('Button')) {
-      console.log('Error: tabButton with id "' + id + '" should end with "Button".');
+    if (id.endsWith('Button')) {
+      this.foundOldTabs = true;
+      const tabName = id.substring(0, id.length - 'Button'.length);
+      tabButtons[i].onclick = this.tabButton_onclick.bind(this, tabName);
+    } else {
+      this.foundNewTabs = true;
+      const tabName = id;
+      tabButtons[i].onclick = this.tabButton_onclick.bind(this, tabName);
     }
-    this.foundTabs = true;
-    const idPrefix = id.substring(0, id.length - 'Button'.length);
-    tabButtons[i].onclick = this.tabDiv_onclick.bind(this, idPrefix);
   }
 
   this.showLastViewedTab();
 
-  if (this.foundTabs) {
+  if (this.foundOldTabs) {
     this.window_onresize();
     window.addEventListener('resize', this.window_onresize.bind(this));
   }
@@ -251,12 +254,8 @@ fmltc.Util.prototype.showModelsTab = function() {
   this.showTab('modelsTab');
 };
 
-fmltc.Util.prototype.tabDiv_onclick = function(idPrefix) {
-  this.showTab(idPrefix);
-};
-
-fmltc.Util.prototype.showTab = function(idPrefix) {
-  if (this.foundTabs) {
+fmltc.Util.prototype.tabButton_onclick = function(tabName) {
+  if (this.foundOldTabs) {
     // Hide all the tabDivs.
     const tabDivs = document.getElementsByClassName('tabDiv');
     for (let i = 0; i < tabDivs.length; i++) {
@@ -270,17 +269,25 @@ fmltc.Util.prototype.showTab = function(idPrefix) {
     }
 
     // Show the current tabDiv, and add an 'active' class to the current tabButton.
-    document.getElementById(idPrefix + 'Div').style.display = 'block';
-    document.getElementById(idPrefix + 'Button').className += ' active';
-    this.setPreference(this.pageBasename + '.currentTab', idPrefix);
+    document.getElementById(tabName + 'Div').style.display = 'block';
+    document.getElementById(tabName + 'Button').className += ' active';
 
-    this.currentTabDivId = idPrefix + 'Div';
+    this.currentTabDivId = tabName + 'Div';
     for (let i = 0; i < this.tabClickListeners.length; i++) {
       this.tabClickListeners[i](this.currentTabDivId);
     }
-  } else {
-    // root.html uses aria.
-    // TODO: Make it select the tab corresponding to idPrefix
+  } else if (this.foundNewTabs) {
+    // New tabs uses aria.
+  }
+
+  this.setPreference(this.pageBasename + '.currentTab', tabName);
+};
+
+fmltc.Util.prototype.showTab = function(tabName) {
+  if (this.foundOldTabs) {
+    document.getElementById(tabName + 'Button').click();
+  } else if (this.foundNewTabs) {
+    document.getElementById(tabName).click();
   }
 };
 
