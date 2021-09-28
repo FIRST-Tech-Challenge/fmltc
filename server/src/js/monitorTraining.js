@@ -131,6 +131,9 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.setRefreshIntervalRangeInputTitle();
 
   this.modelEntityUpdated(this.modelEntity);
+  if (!this.util.isTrainingDone(this.modelEntity)) {
+    this.util.showTab('modelTab');
+  }
 
   this.retrieveData();
 
