@@ -41,7 +41,8 @@ def prepare_to_zip_dataset(team_uuid, dataset_uuid):
     return dataset_zip_uuid, partition_count
 
 def make_action_parameters(team_uuid, dataset_uuid, dataset_zip_uuid, partition_count):
-    action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_ZIP)
+    action_parameters = action.create_action_parameters(
+        team_uuid, action.ACTION_NAME_DATASET_ZIP)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['dataset_uuid'] = dataset_uuid
     action_parameters['dataset_zip_uuid'] = dataset_zip_uuid
@@ -62,7 +63,8 @@ def zip_dataset(action_parameters):
         partition_lists[(i + 1) % partition_count].append(dataset_record_entity['tf_record_blob_name'])
 
     # Trigger actions for the partitions
-    action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_ZIP_PARTITION)
+    action_parameters = action.create_action_parameters(
+        team_uuid, action.ACTION_NAME_DATASET_ZIP_PARTITION)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['dataset_zip_uuid'] = dataset_zip_uuid
     for partition_index, partition_list in enumerate(partition_lists):

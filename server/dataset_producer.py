@@ -59,7 +59,8 @@ def prepare_to_start_dataset_production(team_uuid, description, video_uuids_json
     return dataset_uuid
 
 def make_action_parameters(team_uuid, dataset_uuid, video_uuids_json, eval_percent, create_time_ms):
-    action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCE)
+    action_parameters = action.create_action_parameters(
+        team_uuid, action.ACTION_NAME_DATASET_PRODUCE)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['dataset_uuid'] = dataset_uuid
     action_parameters['video_uuids_json'] = video_uuids_json
@@ -122,7 +123,8 @@ def produce_dataset(action_parameters):
     train_record_number = 0
     eval_record_number = 0
 
-    action_parameters = action.create_action_parameters(action.ACTION_NAME_DATASET_PRODUCE_RECORD)
+    action_parameters = action.create_action_parameters(
+        team_uuid, action.ACTION_NAME_DATASET_PRODUCE_RECORD)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['dataset_uuid'] = dataset_uuid
     action_parameters['sorted_label_list'] = sorted_label_list

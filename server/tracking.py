@@ -59,9 +59,12 @@ def validate_tracker_name(s):
 
 
 def prepare_to_start_tracking(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text):
-    metrics.save_tracking_metrics(tracker_name, scale, bbox_writer.count_boxes(init_bboxes_text))
+    # storage.tracker_starting will raise HttpErrorConflict if tracking is already in progress on
+    # this video.
     tracker_uuid = storage.tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text)
-    action_parameters = action.create_action_parameters(action.ACTION_NAME_TRACKING)
+    metrics.save_tracking_metrics(tracker_name, scale, bbox_writer.count_boxes(init_bboxes_text))
+    action_parameters = action.create_action_parameters(
+        team_uuid, action.ACTION_NAME_TRACKING)
     action_parameters['video_uuid'] = video_uuid
     action_parameters['tracker_uuid'] = tracker_uuid
     action.trigger_action_via_blob(action_parameters)

@@ -41,13 +41,15 @@ BUCKET_ACTION_PARAMETERS = ('%s-action-parameters' % constants.PROJECT_ID)
 ACTIVE_MEMORY_LIMIT = 2000000000
 
 # action_parameter fields
+# All the fields defined here begin with 'action'.
+# That distinguishes them from fields defined in other files.
+ACTION_TEAM_UUID = 'action_team_uuid'
 ACTION_NAME = 'action_name'
 ACTION_UUID = 'action_uuid'
 ACTION_TIME_LIMIT = 'action_time_limit'
 ACTION_RETRIGGERED = 'action_retriggered'
 
 # ACTION_NAME values
-ACTION_NAME_TEST = 'test' # For testing purposes
 ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD = 'wait_for_video_upload'
 ACTION_NAME_FRAME_EXTRACTION = 'frame_extraction'
 ACTION_NAME_TRACKING = 'tracking'
@@ -62,8 +64,9 @@ ACTION_NAME_DELETE_MODEL = 'delete_model'
 ACTION_NAME_DELETE_DATASET = 'delete_dataset'
 ACTION_NAME_DELETE_VIDEO = 'delete_video'
 
-def create_action_parameters(action_name):
+def create_action_parameters(team_uuid, action_name):
     return {
+        ACTION_TEAM_UUID: team_uuid,
         ACTION_NAME: action_name,
     }
 
@@ -77,7 +80,31 @@ def trigger_action_via_blob(action_parameters_arg):
 
     # Create the action_entity.
     if ACTION_UUID not in action_parameters:
-        action_parameters[ACTION_UUID] = storage.action_on_create(action_parameters[ACTION_NAME], action_parameters)
+        team_uuid = action_parameters[ACTION_TEAM_UUID]
+        action_name = action_parameters[ACTION_NAME]
+        # Check whether there is already an action with these parameters.
+        action_entities = storage.retrieve_action_list(team_uuid, action_name)
+        found_existing_action = False
+        for action_entity in action_entities:
+            action_entity_parameters = action_entity['action_parameters']
+            # Only check the parameters that are in action_parameters. action_entity_parameters
+            # has additional parameters that are added after the action starts.
+            parameters_equal = True
+            for key in action_parameters:
+                if key not in action_entity_parameters:
+                    parameters_equal = False
+                    break
+                if action_parameters[key] != action_entity_parameters[key]:
+                    parameters_equal = False
+                    break
+            if parameters_equal:
+                found_existing_action = True
+                break
+        if found_existing_action:
+            util.log('action.trigger_action_via_blob - %s - ignoring duplicate action' % action_name)
+            return
+        action_parameters[ACTION_UUID] = storage.action_on_create(
+            team_uuid, action_name, action_parameters)
 
     # Write the copied action_parameters to trigger the cloud function.
     action_parameters_blob_name= '%s/%s' % (action_parameters[ACTION_NAME], str(uuid.uuid4().hex))
@@ -103,7 +130,6 @@ def __perform_action(action_parameters, time_limit):
     storage.action_on_start(action_parameters[ACTION_UUID])
 
     action_fns = {
-        ACTION_NAME_TEST: test,
         ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD: frame_extractor.wait_for_video_upload,
         ACTION_NAME_FRAME_EXTRACTION: frame_extractor.extract_frames,
         ACTION_NAME_TRACKING: tracking.start_tracking,
@@ -155,17 +181,10 @@ def retrigger_if_necessary(action_parameters):
         raise Stop()
 
 
-class Stop(Exception):
-  def __init__(self):
-    Exception.__init__(self)
-
-
 def remaining_timedelta(action_parameters):
     return action_parameters[ACTION_TIME_LIMIT] - datetime.now(timezone.utc)
 
 
-def test(action_parameters):
-    action_finish_time = action_parameters['action_finish_time']
-    while util.ms_from_datetime(datetime.now(timezone.utc)) < action_finish_time:
-        time.sleep(20)
-        retrigger_if_necessary(action_parameters)
+class Stop(Exception):
+  def __init__(self):
+    Exception.__init__(self)

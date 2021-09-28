@@ -115,3 +115,9 @@ indexes:
   properties:
   - name: action_uuid
   - name: create_time
+
+- kind: Action
+  properties:
+  - name: team_uuid
+  - name: action_name
+  - name: create_time

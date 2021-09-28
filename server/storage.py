@@ -409,7 +409,8 @@ def delete_video(team_uuid, video_uuid):
             video_entity['tracking_in_progress'] = False
             video_entity['tracker_uuid'] = ''
         transaction.put(video_entity)
-        action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_VIDEO)
+        action_parameters = action.create_action_parameters(
+            team_uuid, action.ACTION_NAME_DELETE_VIDEO)
         action_parameters['team_uuid'] = team_uuid
         action_parameters['video_uuid'] = video_uuid
         action.trigger_action_via_blob(action_parameters)
@@ -915,7 +916,8 @@ def delete_dataset(team_uuid, dataset_uuid):
         dataset_entity = dataset_entities[0]
         dataset_entity['delete_in_progress'] = True
         transaction.put(dataset_entity)
-        action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_DATASET)
+        action_parameters = action.create_action_parameters(
+            team_uuid, action.ACTION_NAME_DELETE_DATASET)
         action_parameters['team_uuid'] = team_uuid
         action_parameters['dataset_uuid'] = dataset_uuid
         action.trigger_action_via_blob(action_parameters)
@@ -1033,7 +1035,8 @@ def retrieve_dataset_record_writer_frames_written(dataset_entity):
     return frames_written
 
 def __delete_dataset_record_writers(dataset_entity):
-    action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_DATASET_RECORD_WRITERS)
+    action_parameters = action.create_action_parameters(
+        dataset_entity['team_uuid'], action.ACTION_NAME_DELETE_DATASET_RECORD_WRITERS)
     action_parameters['team_uuid'] = dataset_entity['team_uuid']
     action_parameters['dataset_uuid'] = dataset_entity['dataset_uuid']
     action.trigger_action_via_blob(action_parameters)
@@ -1553,7 +1556,8 @@ def delete_model(team_uuid, model_uuid):
         model_entity = model_entities[0]
         model_entity['delete_in_progress'] = True
         transaction.put(model_entity)
-        action_parameters = action.create_action_parameters(action.ACTION_NAME_DELETE_MODEL)
+        action_parameters = action.create_action_parameters(
+            team_uuid, action.ACTION_NAME_DELETE_MODEL)
         action_parameters['team_uuid'] = team_uuid
         action_parameters['model_uuid'] = model_uuid
         action.trigger_action_via_blob(action_parameters)
@@ -1573,15 +1577,25 @@ def finish_delete_model(action_parameters):
 
 # action
 
-def action_on_create(action_name, action_parameters):
+def retrieve_action_list(team_uuid, action_name):
+    datastore_client = datastore.Client()
+    query = datastore_client.query(kind=DS_KIND_ACTION)
+    query.add_filter('team_uuid', '=', team_uuid)
+    query.add_filter('action_name', '=', action_name)
+    query.order = ['create_time']
+    action_entities = list(query.fetch())
+    return action_entities
+
+def action_on_create(team_uuid, action_name, action_parameters):
     action_uuid = str(uuid.uuid4().hex)
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_ACTION)
         action_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
         action_entity.update({
-            'action_uuid': action_uuid,
+            'team_uuid': team_uuid,
             'action_name': action_name,
+            'action_uuid': action_uuid,
             'action_parameters': action_parameters,
             'create_time': datetime.now(timezone.utc),
             'state': 'created',
