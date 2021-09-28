@@ -194,11 +194,12 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
     # storage.model_trainer_starting will raise HttpErrorUnprocessableEntity
     # if the max_running_minutes exceeds the team's remaining_training_minutes.
     model_uuid = storage.model_trainer_starting(team_uuid, max_running_minutes)
+    model_folder = blob_storage.get_model_folder(team_uuid, model_uuid)
 
     try:
-        pipeline_config_path = blob_storage.store_pipeline_config(team_uuid, model_uuid, pipeline_config)
+        pipeline_config_path = blob_storage.store_pipeline_config(model_folder, pipeline_config)
 
-        model_dir = blob_storage.get_model_folder_path(team_uuid, model_uuid)
+        model_dir = blob_storage.get_model_folder_path(model_folder)
         job_dir = model_dir
         checkpoint_dir = model_dir
 
@@ -275,18 +276,17 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
     except:
         # storage.failed_to_start_training will adjust the team's remaining training time and delete
         # any model blobs (such as the pipeline config file) that were created.
-        storage.model_trainer_failed_to_start(team_uuid, model_uuid, max_running_minutes)
+        storage.model_trainer_failed_to_start(team_uuid, model_folder, max_running_minutes)
         raise
 
     tensorflow_version = '2'
-    model_entity = storage.model_trainer_started(team_uuid, model_uuid, description,
+    model_entity = storage.model_trainer_started(team_uuid, model_uuid, description, model_folder,
         tensorflow_version, dataset_uuids, create_time_ms, max_running_minutes, num_training_steps,
         previous_training_steps, starting_model, user_visible_starting_model,
         original_starting_model, fine_tune_checkpoint,
         sorted_label_list, label_map_path, train_input_path, eval_input_path,
         train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
-        train_dict_label_to_count, eval_dict_label_to_count,
-        train_job_response, eval_job_response)
+        train_dict_label_to_count, eval_dict_label_to_count, train_job_response, eval_job_response)
     __start_monitor_training(team_uuid, model_entity['model_uuid'])
     return model_entity
 
@@ -454,6 +454,7 @@ def monitor_training(action_parameters):
     model_uuid = action_parameters['model_uuid']
 
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    model_folder = model_entity['model_folder']
     prev_training_done = __is_done(model_entity['train_job_state'])
 
     while True:
@@ -469,15 +470,14 @@ def monitor_training(action_parameters):
         previous_time_ms = model_entity['monitor_training_active_time_ms']
 
         for job_type in ['train', 'eval']:
-            dict_path_to_updated = blob_storage.get_event_file_paths(
-                team_uuid, model_uuid, job_type)
+            dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, job_type)
             for event_file_path, updated in dict_path_to_updated.items():
                 if ('dict_event_file_path_to_updated' in model_entity and
                         event_file_path in model_entity['dict_event_file_path_to_updated'] and
                         model_entity['dict_event_file_path_to_updated'][event_file_path] == updated):
                     continue
                 largest_step, scalar_summary_items, image_summary_items = __monitor_training_for_event_file(
-                    team_uuid, model_uuid, job_type, event_file_path, action_parameters)
+                    model_folder, job_type, event_file_path, action_parameters)
                 model_entity = storage.update_model_entity_summary_items(team_uuid, model_uuid, job_type,
                     event_file_path, updated, largest_step, scalar_summary_items, image_summary_items)
 
@@ -492,8 +492,7 @@ def monitor_training(action_parameters):
         action.retrigger_if_necessary(action_parameters)
 
 
-def __monitor_training_for_event_file(team_uuid, model_uuid, job_type,
-        event_file_path, action_parameters):
+def __monitor_training_for_event_file(model_folder, job_type, event_file_path, action_parameters):
     largest_step = None
     scalar_summary_items = {}
     image_summary_items = {}
@@ -532,7 +531,7 @@ def __monitor_training_for_event_file(team_uuid, model_uuid, job_type,
                 height = int(float(image_value[1].decode('utf-8')))
                 image_bytes = image_value[2]
                 # There might be more than one image, but we only look at the first one.
-                blob_storage.store_event_summary_image(team_uuid, model_uuid, job_type,
+                blob_storage.store_event_summary_image(model_folder, job_type,
                     event.step, value.tag, image_bytes)
                 item = {
                     'job_type': job_type,
@@ -552,9 +551,10 @@ def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
     # retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    model_folder = model_entity['model_folder']
     summary_items_field_name = storage.get_model_entity_summary_items_field_name(job_type, value_type)
     if summary_items_field_name not in model_entity:
-        return retrieve_tags_and_steps_from_event_file(team_uuid, model_uuid, job_type, value_type)
+        return __retrieve_tags_and_steps_from_event_file(model_folder, job_type, value_type)
     step_and_tag_pairs = []
     for key, item in model_entity[summary_items_field_name].items():
         pair = {
@@ -569,9 +569,10 @@ def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_ste
     # retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    model_folder = model_entity['model_folder']
     summary_items_field_name = storage.get_model_entity_summary_items_field_name(job_type, value_type)
     if summary_items_field_name not in model_entity:
-        return retrieve_summary_items_from_event_file(team_uuid, model_uuid, job_type, value_type, dict_step_to_tags)
+        return __retrieve_summary_items_from_event_file(model_folder, job_type, value_type, dict_step_to_tags)
     summary_items = []
     for step, tags in dict_step_to_tags.items():
         for tag in tags:
@@ -583,8 +584,8 @@ def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_ste
             if value_type == 'scalar':
                 summary_item['value'] = item['value']
             elif value_type == 'image':
-                exists, image_url = blob_storage.get_event_summary_image_download_url(team_uuid, model_uuid,
-                    item['job_type'], item['step'], item['tag'], None)
+                exists, image_url = blob_storage.get_event_summary_image_download_url(
+                    model_folder, item['job_type'], item['step'], item['tag'], None)
                 if not exists:
                     continue
                 summary_item['value'] = {
@@ -596,10 +597,9 @@ def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_ste
     return summary_items
 
 
-def retrieve_tags_and_steps_from_event_file(team_uuid, model_uuid, job_type, value_type):
+def __retrieve_tags_and_steps_from_event_file(model_folder, job_type, value_type):
     step_and_tag_pairs = []
-    dict_path_to_updated = blob_storage.get_event_file_paths(
-        team_uuid, model_uuid, job_type)
+    dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, job_type)
     for event_file_path, updated in dict_path_to_updated.items():
         for record in tf.data.TFRecordDataset(event_file_path):
             event = event_pb2.Event.FromString(record.numpy())
@@ -627,10 +627,9 @@ def retrieve_tags_and_steps_from_event_file(team_uuid, model_uuid, job_type, val
     return step_and_tag_pairs
 
 
-def retrieve_summary_items_from_event_file(team_uuid, model_uuid, job_type, value_type, dict_step_to_tags):
+def __retrieve_summary_items_from_event_file(model_folder, job_type, value_type, dict_step_to_tags):
     summary_items = []
-    dict_path_to_updated = blob_storage.get_event_file_paths(
-        team_uuid, model_uuid, job_type)
+    dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, job_type)
     for event_file_path, updated in dict_path_to_updated.items():
         for record in tf.data.TFRecordDataset(event_file_path):
             event = event_pb2.Event.FromString(record.numpy())
@@ -671,8 +670,8 @@ def retrieve_summary_items_from_event_file(team_uuid, model_uuid, job_type, valu
                     width = int(float(image_value[0].decode('utf-8')))
                     height = int(float(image_value[1].decode('utf-8')))
                     image_bytes = image_value[2]
-                    exists, image_url = blob_storage.get_event_summary_image_download_url(team_uuid, model_uuid,
-                        job_type, event.step, value.tag, image_bytes)
+                    exists, image_url = blob_storage.get_event_summary_image_download_url(
+                        model_folder, job_type, event.step, value.tag, image_bytes)
                     if not exists:
                         continue
                     summary_item['value'] = {

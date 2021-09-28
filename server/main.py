@@ -997,10 +997,9 @@ def retrieve_summaries_updated():
     # model_trainer.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
-    training_dict_path_to_updated = blob_storage.get_event_file_paths(
-        team_uuid, model_uuid, 'train')
-    eval_dict_path_to_updated = blob_storage.get_event_file_paths(
-        team_uuid, model_uuid, 'eval')
+    model_folder = model_entity['model_folder']
+    training_dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, 'train')
+    eval_dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, 'eval')
     strip_model_entity(model_entity)
     response = {
         'model_entity': model_entity,
@@ -1164,8 +1163,9 @@ def create_tflite():
     model_uuid = storage.validate_uuid(data.get('model_uuid'))
     # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
-    storage.retrieve_model_entity(team_uuid, model_uuid)
-    exists, download_url = blob_storage.get_tflite_model_with_metadata_url(team_uuid, model_uuid)
+    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
+    model_folder = model_entity['model_folder']
+    exists, download_url = blob_storage.get_tflite_model_with_metadata_url(model_folder)
     if exists:
         blob_storage.set_cors_policy_for_get()
     else:
@@ -1186,8 +1186,9 @@ def get_tflite_download_url():
     model_uuid = storage.validate_uuid(data.get('model_uuid'))
     # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
-    storage.retrieve_model_entity(team_uuid, model_uuid)
-    exists, download_url = blob_storage.get_tflite_model_with_metadata_url(team_uuid, model_uuid)
+    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
+    model_folder = model_entity['model_folder']
+    exists, download_url = blob_storage.get_tflite_model_with_metadata_url(model_folder)
     if exists:
         blob_storage.set_cors_policy_for_get()
     response = {

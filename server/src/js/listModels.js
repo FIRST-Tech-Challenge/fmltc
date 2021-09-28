@@ -320,6 +320,16 @@ fmltc.ListModels.prototype.xhr_cancelTraining_onreadystatechange = function(xhr,
 
 fmltc.ListModels.prototype.deleteModelsButton_onclick = function() {
   const modelUuids = this.getCheckedModelUuids();
+  new fmltc.DeleteConfirmationDialog(this.util, 'Delete Models',
+      'Are you sure you want to delete the selected models?',
+      this.canDeleteModels.bind(this, modelUuids));
+};
+
+fmltc.ListModels.prototype.canDeleteModels = function(modelUuids) {
+  this.waitCursor = true;
+  this.util.setWaitCursor();
+  this.updateButtons();
+
   const modelUuidsJson = JSON.stringify(modelUuids);
 
   const xhr = new XMLHttpRequest();
@@ -336,18 +346,19 @@ fmltc.ListModels.prototype.xhr_canDeleteModels_onreadystatechange = function(xhr
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
+    this.util.clearWaitCursor();
+    this.waitCursor = false;
+    this.updateButtons();
+
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
       if (response.can_delete_models) {
-        new fmltc.DeleteConfirmationDialog(this.util, 'Delete Models',
-            'Are you sure you want to delete the selected models?',
-            this.deleteModels.bind(this, modelUuids));
+        this.deleteModels(modelUuids);
       } else {
         const title = 'Delete Models';
         const message = 'The selected models cannot be deleted.';
         new fmltc.DeleteForbiddenDialog(this.util, title, message, response.messages);
       }
-
     } else {
       // TODO(lizlooney): handle error properly
       console.log('Failure! /canDeleteModels?' + params +
