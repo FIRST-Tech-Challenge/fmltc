@@ -58,12 +58,13 @@ fmltc.UploadVideoFileDialog = function(util, onVideoUploaded) {
 fmltc.UploadVideoFileDialog.STATE_ZERO = 0;
 fmltc.UploadVideoFileDialog.STATE_FILE_CHOSEN = 1;
 fmltc.UploadVideoFileDialog.STATE_PREPARING_TO_UPLOAD = 2;
-fmltc.UploadVideoFileDialog.STATE_UPLOADING = 3;
-fmltc.UploadVideoFileDialog.STATE_UPLOADING_FAILED = 4;
-fmltc.UploadVideoFileDialog.STATE_UPLOADING_FINISHED = 5;
-fmltc.UploadVideoFileDialog.STATE_EXTRACTION_STARTING = 6;
+fmltc.UploadVideoFileDialog.STATE_PREPARING_TO_UPLOAD_FAILED = 3;
+fmltc.UploadVideoFileDialog.STATE_UPLOADING = 4;
+fmltc.UploadVideoFileDialog.STATE_UPLOADING_FAILED = 5;
+fmltc.UploadVideoFileDialog.STATE_UPLOADING_FINISHED = 6;
+fmltc.UploadVideoFileDialog.STATE_EXTRACTION_STARTING = 7;
 
-fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
+fmltc.UploadVideoFileDialog.prototype.setState = function(state, optMessage) {
   this.state = state;
   switch (this.state) {
     case fmltc.UploadVideoFileDialog.STATE_ZERO:
@@ -72,6 +73,7 @@ fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
       this.dismissButton.disabled = false;
       this.updateUploadButton();
       this.uploadingH3.style.visibility = 'hidden';
+      this.uploadingState.textContent = '';
       this.uploadingProgress.style.visibility = 'hidden';
       this.uploadingFailedDiv.style.display = 'none';
       this.dialog.style.display = 'block';
@@ -87,6 +89,10 @@ fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
       this.uploadingProgress.style.visibility = 'visible';
       this.videoFileInput.disabled = true;
       break;
+    case fmltc.UploadVideoFileDialog.STATE_PREPARING_TO_UPLOAD_FAILED:
+      this.uploadingState.textContent = optMessage ? optMessage : 'Unable to upload video at this time. Please wait a few minutes and try again.';
+      this.dismissButton.disabled = false;
+      break;
     case fmltc.UploadVideoFileDialog.STATE_UPLOADING:
       this.uploadingState.textContent = 'Uploading the video file.';
       break;
@@ -96,7 +102,7 @@ fmltc.UploadVideoFileDialog.prototype.setState = function(state) {
       this.uploadingFailedDiv.style.display = 'block';
       break;
     case fmltc.UploadVideoFileDialog.STATE_UPLOADING_FINISHED:
-      this.uploadingState.textContent = 'Finished uploading the video file.';
+      this.uploadingState.textContent = 'Finished uploading the video file. Please wait for frame extraction to begin.';
       break;
     case fmltc.UploadVideoFileDialog.STATE_EXTRACTION_STARTING:
       this.uploadingState.textContent = 'Starting to extract frames from the video file.';
@@ -131,8 +137,10 @@ fmltc.UploadVideoFileDialog.prototype.descriptionInput_oninput = function() {
 
 fmltc.UploadVideoFileDialog.prototype.updateUploadButton = function() {
   this.uploadButton.disabled = (
-      this.state != fmltc.UploadVideoFileDialog.STATE_FILE_CHOSEN ||
-      this.descriptionInput.value.length == 0);
+      this.videoFileInput.files.length == 0 ||
+      this.videoFileInput.files[0].size == 0 ||
+      this.descriptionInput.value.length == 0 ||
+      this.descriptionInput.value.length > 30);
 };
 
 fmltc.UploadVideoFileDialog.prototype.uploadButton_onclick = function() {
@@ -149,7 +157,12 @@ fmltc.UploadVideoFileDialog.prototype.uploadButton_onclick = function() {
 
 fmltc.UploadVideoFileDialog.prototype.prepareToUploadVideo = function(description, videoFile, createTimeMs) {
   const xhr = new XMLHttpRequest();
-  const params = 'content_type=' + encodeURIComponent(videoFile.type);
+  const params = 'description=' + encodeURIComponent(description) +
+      '&video_filename=' + encodeURIComponent(videoFile.name) +
+      '&file_size=' + encodeURIComponent(videoFile.size) +
+      '&content_type=' + encodeURIComponent(videoFile.type) +
+      '&create_time_ms=' + createTimeMs;
+
   xhr.open('POST', '/prepareToUploadVideo', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_prepareToUploadVideo_onreadystatechange.bind(this, xhr, params,
@@ -164,11 +177,14 @@ fmltc.UploadVideoFileDialog.prototype.xhr_prepareToUploadVideo_onreadystatechang
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      this.setState(fmltc.UploadVideoFileDialog.STATE_UPLOADING);
-      this.uploadVideoFile(response.upload_url, response.video_uuid, description, videoFile, createTimeMs);
+      if (response.video_uuid) {
+        this.setState(fmltc.UploadVideoFileDialog.STATE_UPLOADING);
+        this.uploadVideoFile(response.upload_url, response.video_uuid, description, videoFile, createTimeMs);
+      } else {
+        this.setState(fmltc.UploadVideoFileDialog.STATE_PREPARING_TO_UPLOAD_FAILED, response.message);
+      }
 
     } else {
-      // TODO(lizlooney): handle error properly. We should retry
       console.log('Failure! /prepareToUploadVideo?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
       console.log('Will retry /prepareToUploadVideo?' + params + ' in 1 seconds.');
@@ -200,7 +216,7 @@ fmltc.UploadVideoFileDialog.prototype.xhr_uploadVideoFile_onreadystatechange = f
     if (xhr.status === 200) {
       this.uploadingProgress.value = this.uploadingProgress.max;
       this.setState(fmltc.UploadVideoFileDialog.STATE_UPLOADING_FINISHED);
-      this.createVideoEntity(videoUuid, description, videoFile, createTimeMs);
+      setTimeout(this.doesVideoEntityExist.bind(this, videoUuid), 10000);
 
     } else {
       // TODO(lizlooney): handle error properly
@@ -210,37 +226,36 @@ fmltc.UploadVideoFileDialog.prototype.xhr_uploadVideoFile_onreadystatechange = f
   }
 };
 
-fmltc.UploadVideoFileDialog.prototype.createVideoEntity = function(videoUuid, description, videoFile, createTimeMs) {
+fmltc.UploadVideoFileDialog.prototype.doesVideoEntityExist = function(videoUuid) {
   const xhr = new XMLHttpRequest();
-  const params =
-      'video_uuid=' + encodeURIComponent(videoUuid) +
-      '&description=' + encodeURIComponent(description) +
-      '&video_filename=' + encodeURIComponent(videoFile.name) +
-      '&file_size=' + encodeURIComponent(videoFile.size) +
-      '&content_type=' + encodeURIComponent(videoFile.type) +
-      '&create_time_ms=' + createTimeMs;
-  xhr.open('POST', '/createVideoEntity', true);
+  const params = 'video_uuid=' + encodeURIComponent(videoUuid)
+  xhr.open('POST', '/doesVideoEntityExist', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_createVideoEntity_onreadystatechange.bind(this, xhr, params,
-      videoUuid, description, videoFile, createTimeMs);
+  xhr.onreadystatechange = this.xhr_doesVideoEntityExist_onreadystatechange.bind(this, xhr, params,
+      videoUuid);
   xhr.send(params);
 };
 
-fmltc.UploadVideoFileDialog.prototype.xhr_createVideoEntity_onreadystatechange = function(xhr, params,
-    videoUuid, description, videoFile, createTimeMs) {
+fmltc.UploadVideoFileDialog.prototype.xhr_doesVideoEntityExist_onreadystatechange = function(xhr, params,
+    videoUuid) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      this.setState(fmltc.UploadVideoFileDialog.STATE_EXTRACTION_STARTING);
-      this.onVideoUploaded(videoUuid);
-      setTimeout(this.dismissButton_onclick.bind(this), 2000);
+      const response = JSON.parse(xhr.responseText);
+      if (response.video_entity_exists) {
+        this.setState(fmltc.UploadVideoFileDialog.STATE_EXTRACTION_STARTING);
+        this.onVideoUploaded(videoUuid);
+        setTimeout(this.dismissButton_onclick.bind(this), 1000);
+      } else {
+        setTimeout(this.doesVideoEntityExist.bind(this, videoUuid), 5000);
+      }
 
     } else {
-      console.log('Failure! /createVideoEntity?' + params +
+      console.log('Failure! /doesVideoEntityExist?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      console.log('Will retry /createVideoEntity?' + params + ' in 1 seconds.');
-      setTimeout(this.createVideoEntity.bind(this, videoUuid, description, videoFile, createTimeMs), 1000);
+      console.log('Will retry /doesVideoEntityExist?' + params + ' in 5 seconds.');
+      setTimeout(this.doesVideoEntityExist.bind(this, videoUuid), 5000);
     }
   }
 };

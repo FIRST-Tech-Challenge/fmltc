@@ -172,21 +172,25 @@ fmltc.Util.prototype.getDateTimeString = function(millis) {
 }
 
 fmltc.Util.prototype.initializeTabs = function() {
-  let foundTabs = false;
+  let foundOldTabs = false;
   const tabButtons = document.getElementsByClassName('tabButton');
   for (let i = 0; i < tabButtons.length; i++) {
-    const id = tabButtons[i].id;
-    // The id should end with Button.
-    if (!id.endsWith('Button')) {
-      console.log('Error: tabButton with id "' + id + '" should end with "Button".');
+    const tabButton = tabButtons[i];
+    const id = tabButton.id;
+    if (tabButton.getAttribute('role') == 'tab' && tabButton.getAttribute('aria-controls')) {
+      // This is a new tab button. It uses aria-controls.
+      const tabName = id;
+      tabButton.onclick = this.newTabButton_onclick.bind(this, tabName);
+    } else if (id.endsWith('Button')) {
+      foundOldTabs = true;
+      const tabName = id.substring(0, id.length - 'Button'.length);
+      tabButton.onclick = this.oldTabButton_onclick.bind(this, tabName);
     }
-    foundTabs = true;
-    const idPrefix = id.substring(0, id.length - 'Button'.length);
-    tabButtons[i].onclick = this.tabDiv_onclick.bind(this, idPrefix);
   }
 
-  if (foundTabs) {
-    this.showLastViewedTab();
+  this.showLastViewedTab();
+
+  if (foundOldTabs) {
     this.window_onresize();
     window.addEventListener('resize', this.window_onresize.bind(this));
   }
@@ -218,10 +222,10 @@ fmltc.Util.prototype.window_onresize = function() {
 fmltc.Util.prototype.showLastViewedTab = function() {
   switch (this.pageBasename) {
     case 'root':
-      this.tabDiv_onclick(this.getPreference('root.currentTab', 'videosTab'));
+      this.showTab(this.getPreference('root.currentTab', 'videosTab'));
       break;
     case 'monitorTraining':
-      this.tabDiv_onclick(this.getPreference('monitorTraining.currentTab', 'scalarsTab'));
+      this.showTab(this.getPreference('monitorTraining.currentTab', 'scalarsTab'));
       break;
   }
 };
@@ -239,18 +243,18 @@ fmltc.Util.prototype.getCurrentTabDivId = function() {
 };
 
 fmltc.Util.prototype.showVideosTab = function() {
-  this.tabDiv_onclick('videosTab');
+  this.showTab('videosTab');
 };
 
 fmltc.Util.prototype.showDatasetsTab = function() {
-  this.tabDiv_onclick('datasetsTab');
+  this.showTab('datasetsTab');
 };
 
 fmltc.Util.prototype.showModelsTab = function() {
-  this.tabDiv_onclick('modelsTab');
+  this.showTab('modelsTab');
 };
 
-fmltc.Util.prototype.tabDiv_onclick = function(idPrefix) {
+fmltc.Util.prototype.oldTabButton_onclick = function(tabName) {
   // Hide all the tabDivs.
   const tabDivs = document.getElementsByClassName('tabDiv');
   for (let i = 0; i < tabDivs.length; i++) {
@@ -264,13 +268,30 @@ fmltc.Util.prototype.tabDiv_onclick = function(idPrefix) {
   }
 
   // Show the current tabDiv, and add an 'active' class to the current tabButton.
-  document.getElementById(idPrefix + 'Div').style.display = 'block';
-  document.getElementById(idPrefix + 'Button').className += ' active';
-  this.setPreference(this.pageBasename + '.currentTab', idPrefix);
+  document.getElementById(tabName + 'Div').style.display = 'block';
+  document.getElementById(tabName + 'Button').className += ' active';
+  this.setPreference(this.pageBasename + '.currentTab', tabName);
 
-  this.currentTabDivId = idPrefix + 'Div';
+  this.currentTabDivId = tabName + 'Div';
   for (let i = 0; i < this.tabClickListeners.length; i++) {
     this.tabClickListeners[i](this.currentTabDivId);
+  }
+
+};
+
+fmltc.Util.prototype.newTabButton_onclick = function(tabName) {
+  this.setPreference(this.pageBasename + '.currentTab', tabName);
+};
+
+fmltc.Util.prototype.showTab = function(tabName) {
+  const newTabButton = document.getElementById(tabName);
+  if (newTabButton) {
+    newTabButton.click();
+  } else {
+    const oldTabButton = document.getElementById(tabName + 'Button');
+    if (oldTabButton) {
+      oldTabButton.click();
+    }
   }
 };
 
@@ -349,23 +370,37 @@ fmltc.Util.prototype.isStateChangingSoon = function(cancelRequested, jobState) {
 };
 
 fmltc.Util.prototype.isStateCancelRequested = function(cancelRequested, jobState) {
-  return cancelRequested && !this.isJobDone(jobState) && !jobState.startsWith('CANCEL');
+  return cancelRequested && jobState != 'CANCELLING' && !this.isJobDone(jobState);
 };
 
 fmltc.Util.prototype.formatJobState = function(jobType, cancelRequested, jobState) {
-  if (this.isStateCancelRequested(cancelRequested, jobState)) {
-    return 'CANCEL REQUESTED';
+  if (jobType == 'train') {
+    if (cancelRequested && jobState != 'CANCELLING' && !this.isJobDone(jobState)) {
+      return 'CANCEL REQUESTED';
+    }
+
+    // If the user didn't request the job to be cancelled, but the state is cancelled, it means that
+    // it was cancelled because it hit the time limit. We show STOPPING/STOPPED.
+    if (!cancelRequested) {
+      if (jobState == 'CANCELLING') {
+        return 'STOPPING';
+      }
+      if (jobState == 'CANCELLED') {
+        return 'STOPPED';
+      }
+    }
+
+  } else if (jobType == 'eval') {
+    // Because the server (not the user) cancels the eval job when it has completed the last
+    // evaluation, we just show STOPPING/STOPPED.
+    if (jobState == 'CANCELLING') {
+      return 'STOPPING';
+    }
+    if (jobState == 'CANCELLED') {
+      return 'STOPPED';
+    }
   }
-  // If the user didn't request the job to be cancelled, but the state is cancelled, it means that
-  // it was cancelled because it hit the time limit. We show FINISHED.
-  if (jobState == 'CANCELLING' || jobState == 'CANCELLED') {
-    return 'FINISHED';
-  }
-  if (jobType == 'eval' && (jobState == 'CANCELLING' || this.isJobDone(jobState))) {
-    // Because the server cancels the eval job when it has completed the last evaluation, we just
-    // show FINISHED.
-    return 'FINISHED';
-  }
+
   return jobState;
 };
 

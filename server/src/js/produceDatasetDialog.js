@@ -46,6 +46,8 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, totalFrameCount, onDatas
   this.progressSpan = document.getElementById('pdProgressSpan');
   this.finishedDiv = document.getElementById('pdFinishedDiv');
   this.failedDiv = document.getElementById('pdFailedDiv');
+  // Bootstrap modal backdrop
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
 
   this.startDatasetInProgress = false;
 
@@ -91,6 +93,7 @@ fmltc.ProduceDatasetDialog.prototype.dismissButton_onclick = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  this.backdrop.style.display = 'none';
 };
 
 fmltc.ProduceDatasetDialog.prototype.descriptionInput_oninput = function() {
@@ -100,17 +103,22 @@ fmltc.ProduceDatasetDialog.prototype.descriptionInput_oninput = function() {
 fmltc.ProduceDatasetDialog.prototype.updateStartButton = function() {
   this.startButton.disabled = (
       this.startDatasetInProgress ||
-      this.evalPercentInput.value < 0 ||
-      this.evalPercentInput.value > 100 ||
-      this.descriptionInput.value.length == 0);
+      Number(this.trainPercentInput.value) < Number(this.trainPercentInput.min) ||
+      Number(this.trainPercentInput.value) > Number(this.trainPercentInput.max) ||
+      Number(this.evalPercentInput.value) < Number(this.evalPercentInput.min) ||
+      Number(this.evalPercentInput.value) > Number(this.evalPercentInput.max) ||
+      this.descriptionInput.value.length == 0 ||
+      this.descriptionInput.value.length > 30);
 };
 
 fmltc.ProduceDatasetDialog.prototype.trainPercentInput_onchange = function() {
+  this.trainPercentInput.value = Math.max(this.trainPercentInput.min, Math.min(this.trainPercentInput.value, this.trainPercentInput.max));
   this.evalPercentInput.value = 100 - this.trainPercentInput.value;
   this.updateStartButton();
 };
 
 fmltc.ProduceDatasetDialog.prototype.evalPercentInput_onchange = function() {
+  this.evalPercentInput.value = Math.max(this.evalPercentInput.min, Math.min(this.evalPercentInput.value, this.evalPercentInput.max));
   this.trainPercentInput.value = 100 - this.evalPercentInput.value;
   this.updateStartButton();
 };

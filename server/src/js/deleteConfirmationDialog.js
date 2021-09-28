@@ -34,6 +34,7 @@ fmltc.DeleteConfirmationDialog = function(util, title, message, onYes) {
   this.util = util;
   this.onYes = onYes;
   this.dialog = document.getElementById('deleteConfirmationDialog');
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.yesButton = document.getElementById('dcYesButton');
   this.noButton = document.getElementById('dcNoButton');
 
@@ -61,4 +62,7 @@ fmltc.DeleteConfirmationDialog.prototype.dismiss = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  if (this.backdrop) {
+    this.backdrop.style.display = 'none';
+  }
 };

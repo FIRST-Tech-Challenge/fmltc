@@ -36,6 +36,7 @@ fmltc.DownloadDatasetDialog = function(util, datasetEntity, downloadStartTime) {
   this.downloadStartTime = downloadStartTime;
 
   this.dialog = document.getElementById('downloadDatasetDialog');
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.dismissButton = document.getElementById('ddDismissButton');
   this.partitionCountDiv = document.getElementById('ddPartitionCountDiv');
   this.partitionCountSpan = document.getElementById('ddPartitionCountSpan');
@@ -83,6 +84,7 @@ fmltc.DownloadDatasetDialog.prototype.dismissButton_onclick = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  this.backdrop.style.display = 'none';
 };
 
 fmltc.DownloadDatasetDialog.prototype.prepareToZipDataset = function() {
@@ -120,6 +122,20 @@ fmltc.DownloadDatasetDialog.prototype.xhr_prepareToZipDataset_onreadystatechange
 };
 
 fmltc.DownloadDatasetDialog.prototype.getDatasetZipStatus = function(datasetZipUuid) {
+  if (this.downloadStartedArray.length != 0) {
+    // Check if all the downloads have finished. If so, we don't need to send /getDatasetZipStatus.
+    let allDownloadsStarted = true;
+    for (let partitionIndex = 0; partitionIndex < this.partitionCount; partitionIndex++) {
+      if (!this.downloadStartedArray[partitionIndex]) {
+        allDownloadsStarted = false;
+        break;
+      }
+    }
+    if (allDownloadsStarted) {
+      return;
+    }
+  }
+
   const xhr = new XMLHttpRequest();
   const params =
       'dataset_zip_uuid=' + encodeURIComponent(datasetZipUuid) +

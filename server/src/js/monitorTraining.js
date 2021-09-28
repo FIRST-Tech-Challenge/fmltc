@@ -57,7 +57,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.scalarsLoader = document.getElementById('scalarsLoader');
   this.imagesLoader = document.getElementById('imagesLoader');
 
-  this.startMonitorTrainingTime = 0;
+  this.maybeRestartMonitorTrainingTime = 0;
 
   this.trainTimeIntervalId = 0;
 
@@ -76,7 +76,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.loaders['image'] = this.imagesLoader;
 
   this.trainingScalars = {};
-  this.trainingScalars.job_type = 'train';
+  this.trainingScalars.jobType = 'train';
   this.trainingScalars.valueType = 'scalar';
   this.trainingScalars.maxItemsPerRequest = 50;
   this.trainingScalars.scalarsHeading = this.trainingScalarsHeading;
@@ -91,7 +91,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.trainingScalars.items = {};
 
   this.evalScalars = {};
-  this.evalScalars.job_type = 'eval';
+  this.evalScalars.jobType = 'eval';
   this.evalScalars.valueType = 'scalar';
   this.evalScalars.maxItemsPerRequest = 50;
   this.evalScalars.scalarsHeading = this.evalScalarsHeading;
@@ -106,7 +106,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.evalScalars.items = {};
 
   this.evalImages = {};
-  this.evalImages.job_type = 'eval';
+  this.evalImages.jobType = 'eval';
   this.evalImages.valueType = 'image';
   this.evalImages.maxItemsPerRequest = 20;
   this.evalImages.parentDiv = this.evalImagesDiv;
@@ -131,6 +131,9 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.setRefreshIntervalRangeInputTitle();
 
   this.modelEntityUpdated(this.modelEntity);
+  if (!this.util.isTrainingDone(this.modelEntity)) {
+    this.util.showTab('modelTab');
+  }
 
   this.retrieveData();
 
@@ -337,7 +340,7 @@ fmltc.MonitorTraining.prototype.retrieveTagsAndSteps = function(o, failureCount)
   const xhr = new XMLHttpRequest();
   const params =
       'model_uuid=' + encodeURIComponent(this.modelUuid) +
-      '&job_type=' + encodeURIComponent(o.job_type) +
+      '&job_type=' + encodeURIComponent(o.jobType) +
       '&value_type=' + encodeURIComponent(o.valueType);
   xhr.open('POST', '/retrieveTagsAndSteps', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
@@ -466,7 +469,7 @@ fmltc.MonitorTraining.prototype.retrieveSummaryItems = function(o, requestStepAn
   const xhr = new XMLHttpRequest();
   let params =
       'model_uuid=' + encodeURIComponent(this.modelUuid) +
-      '&job_type=' + encodeURIComponent(o.job_type) +
+      '&job_type=' + encodeURIComponent(o.jobType) +
       '&value_type=' + encodeURIComponent(o.valueType);
   for (let i = 0; i < requestStepAndTagPairsNow.length; i++) {
     params +=
@@ -542,10 +545,10 @@ fmltc.MonitorTraining.prototype.modelEntityUpdated = function(newModelEntity) {
   if (this.modelEntity.trained_steps != this.modelEntity.num_training_steps ||
       this.modelEntity.evaled_steps != this.modelEntity.num_training_steps) {
     if (this.didMonitorTrainingFailToStart(this.modelEntity)) {
-      this.startMonitorTraining(this.modelEntity);
+      this.maybeRestartMonitorTraining(this.modelEntity);
 
     } else if (this.isMonitorTrainingStalled(this.modelEntity)) {
-      this.startMonitorTraining(this.modelEntity);
+      this.maybeRestartMonitorTraining(this.modelEntity);
     }
   }
 };
@@ -708,37 +711,38 @@ fmltc.MonitorTraining.prototype.isMonitorTrainingStalled = function(modelEntity)
   return true;
 };
 
-fmltc.MonitorTraining.prototype.startMonitorTraining = function(modelEntity) {
-  // Check this.startMonitorTrainingTime so we don't send more than one /startMonitorTraining
+fmltc.MonitorTraining.prototype.maybeRestartMonitorTraining = function(modelEntity) {
+  // Check this.maybeRestartMonitorTrainingTime so we don't send more than one /maybeRestartMonitorTraining
   // request before we get the response with the updated monitor_training_triggered_time_ms.
-  if (this.startMonitorTrainingTime > 0) {
-    const minutesSince = (Date.now() - this.startMonitorTrainingTime) / 60000;
+  if (this.maybeRestartMonitorTrainingTime > 0) {
+    const minutesSince = (Date.now() - this.maybeRestartMonitorTrainingTime) / 60000;
     if (minutesSince < 3) {
       return;
     }
   }
-  this.startMonitorTrainingTime = Date.now();
+  this.maybeRestartMonitorTrainingTime = Date.now();
   const xhr = new XMLHttpRequest();
   const params = 'model_uuid=' + encodeURIComponent(modelEntity.model_uuid);
-  xhr.open('POST', '/startMonitorTraining', true);
+  xhr.open('POST', '/maybeRestartMonitorTraining', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_startMonitorTraining_onreadystatechange.bind(this, xhr, params,
+  xhr.onreadystatechange = this.xhr_maybeRestartMonitorTraining_onreadystatechange.bind(this, xhr, params,
       modelEntity);
   xhr.send(params);
 };
 
-fmltc.MonitorTraining.prototype.xhr_startMonitorTraining_onreadystatechange = function(xhr, params,
+fmltc.MonitorTraining.prototype.xhr_maybeRestartMonitorTraining_onreadystatechange = function(xhr, params,
     modelEntity) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
+      // response.restarted is true if the monitor training action was restarted, false otherwise.
       this.modelEntityUpdated(response.model_entity);
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /startMonitorTraining?' + params +
+      console.log('Failure! /maybeRestartMonitorTraining?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }

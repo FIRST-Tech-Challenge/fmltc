@@ -72,21 +72,21 @@ limitations under the License.
 
           <ul class="nav nav-tabs" role="tablist">
             <li class="nav-item" role="presentation">
-              <button class="nav-link active" id="videosTab" data-bs-toggle="tab" data-bs-target="#videosTabContent" role="tab" aria-controls="videosTabContent" aria-selected="true">
+              <button class="nav-link active tabButton" id="videosTab" data-bs-toggle="tab" data-bs-target="#videosTabContent" role="tab" aria-controls="videosTabContent" aria-selected="true">
                 <span class="material-icons iconVerticalAlign">video_library</span>
                 <span>Videos</span>
                 <span id="videosLoader" class="loader"></span>
               </button>
             </li>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" id="datasetsTab" data-bs-toggle="tab" data-bs-target="#datasetsTabContent" role="tab" aria-controls="datasetsTabContent" aria-selected="false">
+              <button class="nav-link tabButton" id="datasetsTab" data-bs-toggle="tab" data-bs-target="#datasetsTabContent" role="tab" aria-controls="datasetsTabContent" aria-selected="false">
                 <span class="material-icons iconVerticalAlign">perm_media</span>
                 <span>Datasets</span>
                 <span id="datasetsLoader" class="loader"></span>
               </button>
             </li>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" id="modelsTab" data-bs-toggle="tab" data-bs-target="#modelsTabContent" role="tab" aria-controls="modelsTabContent" aria-selected="false">
+              <button class="nav-link tabButton" id="modelsTab" data-bs-toggle="tab" data-bs-target="#modelsTabContent" role="tab" aria-controls="modelsTabContent" aria-selected="false">
                 <span title="pages" class="material-icons iconVerticalAlign">pages</span>
                 <span>Models</models>
                   <span id="modelsLoader" class="loader"></span>
@@ -119,7 +119,7 @@ limitations under the License.
                       </td>
                       <td width="10px"></td>
                       <td align="center" valign="top">
-                        <button id="deleteVideosButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteConfirmationDialog">
+                        <button id="deleteVideosButton" class="btn btn-secondary">
                           <span class="material-icons iconVerticalAlign">delete</span>
                           <span class="iconVerticalAlign">Delete Videos</span>
                         </button>
@@ -212,14 +212,13 @@ limitations under the License.
               </div>
 
               <div class="tab-pane fade" role="tabpanel" aria-labelledby="modelsTab" id="modelsTabContent">
-
                 <div>
                   <br>
-                  <table id="modelsTabDiv" class="table table-striped">
+                  <table class="table table-striped">
                     <thead>
                       <tr>
                         <td align="center" valign="top">
-                          <button id="trainMoreButton" class="btn btn-secondary">
+                          <button id="trainMoreButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#trainMoreDialog">
                             <span class="material-icons iconVerticalAlign">model_training</span>
                             <span class="iconVerticalAlign">More Training</span>
                           </button>
@@ -286,7 +285,7 @@ limitations under the License.
             <div class="modal-body">
               <input type="file" id="uvfVideoFileInput" accept="video/*" class="text-18" style="width: 100%">
               <br><br>
-              <label for="uvfDescriptionInput">Description:</label><br>
+              <label for="uvfDescriptionInput" class="text-18">Description:</label><br>
               <input type="text" maxlength="30" id="uvfDescriptionInput" class="form-control" style="width: 100%">
               <br><br>
               <button id="uvfUploadButton" class="btn btn-secondary" >Upload</button>
@@ -296,7 +295,6 @@ limitations under the License.
               <div id="uvfUploadingFailedDiv" class="text-24" style="display: none;">
                 Uploading has failed!
               </div>
-              <div id="uvfUploadingState" class="text-24"></div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="uvfDismissButton">Close</button>
@@ -319,7 +317,7 @@ limitations under the License.
                     <label for="pdTrainPercentInput">Percentage of Frames for Training:</label>
                   </td>
                   <td>
-                    <input id="pdTrainPercentInput" type="number" class="rightText text-18" value="80" min="10" max="100" style="width: 5ch">&percnt;
+                    <input id="pdTrainPercentInput" type="number" class="rightText text-18" value="80" min="10" max="100" style="width: 8ch">&percnt;
                   </td>
                 </tr>
                 <tr>
@@ -327,12 +325,12 @@ limitations under the License.
                     <label for="pdEvalPercentInput">Percentage of Frames for Evaluation:</label>
                   </td>
                   <td>
-                    <input id="pdEvalPercentInput" type="number" class="rightText text-18" value="20" min="0" max="90" style="width: 5ch">&percnt;
+                    <input id="pdEvalPercentInput" type="number" class="rightText text-18" value="20" min="0" max="90" style="width: 8ch">&percnt;
                   </td>
                 </tr>
               </table>
               <br><br>
-              <label for="pdDescriptionInput">Description:</label><br>
+              <label for="pdDescriptionInput" class="text-18">Description:</label><br>
               <input type="text" maxlength="30" id="pdDescriptionInput" class="form-control" style="width: 100%">
               <br><br>
               <button id="pdStartButton" class="btn btn-secondary">Produce Dataset</button>
@@ -351,8 +349,7 @@ limitations under the License.
         </div>
       </div>
 
-
-      <div class="modal" id="deleteConfirmationDialog" tabindex="-1" aria-labelledby="uploadVideoFileLabel" aria-hidden="true">
+      <div class="modal" id="deleteConfirmationDialog" tabindex="-1" aria-labelledby="deleteConfirmationLabel" aria-hidden="true">
         <div class="modal-dialog">
           <div class="modal-content">
             <div class="modal-header">
@@ -394,58 +391,6 @@ limitations under the License.
         </div>
       </div>
 
-<div id="datasetsTabDiv" class="tabDiv">
-  <br>
-  <table class="collapsedBorder">
-    <tr>
-      <td align="center" valign="top">
-        <button id="downloadDatasetButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">cloud_download</span>
-          <span class="iconVerticalAlign">Download Dataset</span>
-        </button>
-      </td>
-      <td width="10px"></td>
-      <td align="center" valign="top">
-        <button id="startTrainingButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">model_training</span>
-          <span class="iconVerticalAlign">Start Training</span>
-        </button>
-      </td>
-      <td width="10px"></td>
-      <td align="center" valign="top">
-        <button id="deleteDatasetsButton" class="text-24">
-          <span class="material-icons iconVerticalAlign">delete</span>
-          <span class="iconVerticalAlign">Delete Datasets</span>
-        </button>
-      </td>
-      <td width="10px"></td>
-    </tr>
-  </table>
-  <br>
-
-  <div id="datasetsListDiv" style="display: none;">
-    <table id="datasetsTable" class="collapsedBorder">gre
-      <tr>
-        <th rowspan="3" class="cellWithBorder"><input type="checkbox" id="datasetCheckboxAll"></th>
-        <th rowspan="3" class="cellWithBorder">Date Produced</th>
-        <th rowspan="3" class="cellWithBorder" width="200px">Description</th>
-        <th colspan="4" class="cellWithBorder">Number of Frames</th>
-        <th rowspan="3" class="cellWithBorder">Labels</th>
-      </tr>
-      <tr>
-        <th colspan="2" class="cellWithBorder">Training</th>
-        <th colspan="2" class="cellWithBorder">Evaluation</th>
-      </tr>
-      <tr>
-        <th class="cellWithBorder">Total</th>
-        <th class="cellWithBorder">Negative</th>
-        <th class="cellWithBorder">Total</th>
-        <th class="cellWithBorder">Negative</th>
-      </tr>
-    </table>
-  </div>
-</div>
-
       <div class="modal fade" id="downloadDatasetDialog" tabindex="-1" aria-labelledby="downloadDatasetLabel" aria-hidden="true">
         <div class="modal-dialog">
           <div class="modal-content">
@@ -477,7 +422,7 @@ limitations under the License.
         </div>
       </div>
 
-      <div class="modal fade" id="startTrainingDialog" tabindex="-1" aria-labelledby="uploadVideoFileLabel" aria-hidden="true">
+      <div class="modal fade" id="startTrainingDialog" tabindex="-1" aria-labelledby="startTrainingLabel" aria-hidden="true">
         <div class="modal-dialog">
           <div class="modal-content">
             <div class="modal-header">
@@ -485,56 +430,51 @@ limitations under the License.
               <button type="button" id="stDismissButton" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-
-                <table class="text-18">
-                  <tr>
-                    <td colspan="2">
-                      Each team is allowed <span id="stTotalTrainingMinutesSpan"></span> minutes of training
-                      time.<br>Your team has <span id="stRemainingTrainingMinutesSpan"></span> minutes of training
-                      time remaining.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td colspan="2"></td>
-                  </tr>
+              <div class="text-18">
+                <table>
                   <tr>
                     <td>
-                      <label for="stMaxRunningMinutesInput">Maximum Training Time:</label>
+                      <label for="stStartingModelSelect">Starting&nbsp;Model:&nbsp;</label>
                     </td>
-                    <td>
-                      <input id="stMaxRunningMinutesInput" type="number" class="rightText text-18" style="width: 5ch">&nbsp;Minutes
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <label for="stStartingModelSelect">Starting Model:</label>
-                    </td>
-                    <td>
+                    <td colspan="3">
                       <select id="stStartingModelSelect" class="text-18"></select>
                     </td>
                   </tr>
+                </table>
+                <br>
+                <table>
                   <tr>
                     <td>
-                      <label for="stNumTrainingStepsInput">Number of Training Steps:</label>
+                      <label for="stNumTrainingStepsInput">Number&nbsp;of&nbsp;Training&nbsp;Steps:&nbsp;</label>
                     </td>
                     <td>
-                      <input id="stNumTrainingStepsInput" type="number" class="rightText text-18"
-                      style="width: 8ch">
+                      <input id="stNumTrainingStepsInput" type="number" class="rightText text-18" min="100" max="4000" style="width: 8ch">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <label for="stMaxRunningMinutesInput">Maximum&nbsp;Training&nbsp;Time:&nbsp;</label>
+                    </td>
+                    <td>
+                      <input id="stMaxRunningMinutesInput" type="number" class="rightText text-18" style="width: 8ch">&nbsp;Minutes
                     </td>
                   </tr>
                 </table>
-
-                <br><br>
-                <label for="stDescriptionInput">Description:</label><br>
-                <input type="text" maxlength="30" id="stDescriptionInput" class="form-control" style="width: 100%">
-                <br><br>
-                <button id="stStartButton" class="btn btn-secondary">Start Training</button>
                 <br>
-                <div id="stInProgressDiv" style="display: none;">Submitting job request...</div>
-                <div id="stSuccessDiv" style="display: none;">Training job is queued.</div>
-                <div id="stFailedDiv" style="display: none;">Failed!</div>
-
-
+                <div class="text-16">
+                  Each team is allowed <span id="stTotalTrainingMinutesSpan"></span> minutes of training time.<br>
+                  Your team has <span id="stRemainingTrainingMinutesSpan"></span> minutes of training time remaining.
+                </div>
+              </div>
+              <br>
+              <label for="stDescriptionInput" class="text-18">Description:</label><br>
+              <input type="text" maxlength="30" id="stDescriptionInput" class="form-control" style="width: 100%">
+              <br><br>
+              <button id="stStartButton" class="btn btn-secondary">Start Training</button>
+              <br>
+              <div id="stInProgressDiv" style="display: none;">Submitting job request...</div>
+              <div id="stSuccessDiv" style="display: none;">Training job is queued.</div>
+              <div id="stFailedDiv" style="display: none;">Failed!</div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="uvfDismissButton">Close</button>
@@ -542,65 +482,64 @@ limitations under the License.
           </div>
         </div>
       </div>
-      <div id="trainMoreDialog" class="modal_dialog">
-        <div class="modal_dialog_container">
-          <div class="modal_dialog_content">
-            <table>
-              <tr>
-                <td valign="top">
-                  <button id="tmDismissButton" class="btn btn-secondary">close</button>
-                </td>
-                <td valign="top"><span class="modal_dialog_title">Train More</span></td>
-              </tr>
-            </table>
-            <br><br>
-            <table class="text-18">
-              <tr>
-                <td colspan="2">
-                  Each team is allowed <span id="tmTotalTrainingMinutesSpan"></span> minutes of training
-                  time.<br>Your team has <span id="tmRemainingTrainingMinutesSpan"></span> minutes of training
-                  time remaining.
-                </td>
-              </tr>
-              <tr>
-                <td colspan="2"></td>
-              </tr>
-              <tr>
-                <td>
-                  <label for="tmMaxRunningMinutesInput">Maximum Training Time:</label>
-                </td>
-                <td>
-                  <input id="tmMaxRunningMinutesInput" type="number" class="rightText text-18" style="width: 5ch">&nbsp;Minutes
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <label for="tmNumTrainingStepsInput">Number of Training Steps:</label>
-                </td>
-                <td>
-                  <input id="tmNumTrainingStepsInput" type="number" class="rightText text-18" style="width: 8ch">
-                </td>
-              </tr>
-            </table>
 
-
-            <br><br>
-            <div id="tmDatasetContainerDiv">
+      <div class="modal fade" id="trainMoreDialog" tabindex="-1" aria-labelledby="trainMoreLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Train More</h5>
+              <button type="button" id="tmDismissButton" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <br><br>
-            <label for="tmDescriptionInput">Description:</label><br>
-            <input type="text" maxlength="30" id="tmDescriptionInput" class="form-control" style="width: 100%">
-            <br><br>
-            <button id="tmStartButton" class="btn btn-secondary">Start Training</button>
-            <br>
-            <div id="tmInProgressDiv" style="display: none;">Submitting job request...</div>
-            <div id="tmSuccessDiv" style="display: none;">Training job is queued.</div>
-            <div id="tmFailedDiv" style="display: none;">Failed!</div>
+            <div class="modal-body">
+              <div class="text-18">
+                <table>
+                  <tr>
+                    <td>
+                      <label for="tmNumTrainingStepsInput">Number&nbsp;of&nbsp;Training&nbsp;Steps:&nbsp;</label>
+                    </td>
+                    <td>
+                      <input id="tmNumTrainingStepsInput" type="number" class="rightText text-18" min="100" max="4000" style="width: 8ch">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <label for="tmMaxRunningMinutesInput">Maximum&nbsp;Training&nbsp;Time:&nbsp;</label>
+                    </td>
+                    <td>
+                      <input id="tmMaxRunningMinutesInput" type="number" class="rightText text-18" style="width: 8ch">&nbsp;Minutes
+                    </td>
+                  </tr>
+                </table>
+                <br>
+                <div class="text-16">
+                  Each team is allowed <span id="tmTotalTrainingMinutesSpan"></span> minutes of training time.<br>
+                  Your team has <span id="tmRemainingTrainingMinutesSpan"></span> minutes of training time remaining.
+                </div>
+              </div>
+              <br>
+              <div class="text-18" id="tmDatasetsHeaderDiv" style="display: none;">
+                You can add any of these datasets to the model:
+              </div>
+              <div id="tmDatasetsContainerDiv">
+              </div>
+              <br>
+              <label for="tmDescriptionInput" class="text-18">Description:</label><br>
+              <input type="text" maxlength="30" id="tmDescriptionInput" class="form-control" style="width: 100%">
+              <br><br>
+              <button id="tmStartButton" class="btn btn-secondary">Start Training</button>
+              <br>
+              <div id="tmInProgressDiv" style="display: none;">Submitting job request...</div>
+              <div id="tmSuccessDiv" style="display: none;">Training job is queued.</div>
+              <div id="tmFailedDiv" style="display: none;">Failed!</div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="uvfDismissButton">Close</button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="modal fade" id="downloadModelDialog" tabindex="-1" aria-labelledby="uploadVideoFileLabel" aria-hidden="true">
+      <div class="modal fade" id="downloadModelDialog" tabindex="-1" aria-labelledby="downloadModelLabel" aria-hidden="true">
         <div class="modal-dialog">
           <div class="modal-content">
             <div class="modal-header">
@@ -628,7 +567,7 @@ limitations under the License.
 
 <footer>
   <div class="container d-flex justify-content-between" style="padding: 20px 0;">
-    <a href="https://research.google/people/LizLooney/" target="_blank">Powered by Liz</a>
+    <a href="https://github.com/lizlooney" target="_blank">Powered by Liz</a>
     <div>© 2021 <i>FIRST</i><br>
     <a href="/terms/t_and_c">Terms and Conditions</a><br>
     <a href="/terms/privacy">Privacy Policy</a></div>

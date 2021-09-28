@@ -32,6 +32,8 @@ import util
 def prepare_to_zip_dataset(team_uuid, dataset_uuid):
     dataset_zip_uuid = str(uuid.uuid4().hex)
     max_files_per_partition = 10
+    # storage.retrieve_dataset_entity will raise HttpErrorNotFound
+    # if the team_uuid/dataset_uuid is not found.
     dataset_entity = storage.retrieve_dataset_entity(team_uuid, dataset_uuid)
     total_file_count = dataset_entity['total_record_count'] + 1
     partition_count = math.ceil(total_file_count / max_files_per_partition)

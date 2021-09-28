@@ -39,12 +39,14 @@ fmltc.TrainMoreDialog = function(
 
   this.onTrainingStarted = onTrainingStarted;
   this.dialog = document.getElementById('trainMoreDialog');
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.dismissButton = document.getElementById('tmDismissButton');
   this.maxRunningMinutesInput = document.getElementById('tmMaxRunningMinutesInput');
   this.totalTrainingMinutesSpan = document.getElementById('tmTotalTrainingMinutesSpan');
   this.remainingTrainingMinutesSpan = document.getElementById('tmRemainingTrainingMinutesSpan');
   this.numTrainingStepsInput = document.getElementById('tmNumTrainingStepsInput');
-  this.datasetContainerDiv = document.getElementById('tmDatasetContainerDiv');
+  this.datasetsHeaderDiv = document.getElementById('tmDatasetsHeaderDiv');
+  this.datasetsContainerDiv = document.getElementById('tmDatasetsContainerDiv');
   this.descriptionInput = document.getElementById('tmDescriptionInput');
   this.startButton = document.getElementById('tmStartButton');
   this.inProgressDiv = document.getElementById('tmInProgressDiv');
@@ -55,31 +57,35 @@ fmltc.TrainMoreDialog = function(
 
   this.startTrainingInProgress = false;
 
-  this.maxRunningMinutesInput.min = Math.min(20, remainingTrainingMinutes);
+  this.maxRunningMinutesInput.min = Math.min(10, remainingTrainingMinutes);
   this.maxRunningMinutesInput.max = remainingTrainingMinutes;
   this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
+
+  // The following min/max numbers (100 and 4000) should match the min/max values in root.html.
   this.numTrainingStepsInput.min = 100;
   this.numTrainingStepsInput.max = 4000;
   this.numTrainingStepsInput.value = 2000;
 
-  // Create checkboxes for the datasets. Check and disable the checkboxes that correspond to
-  // datasets that are already part of this model.
-  this.datasetContainerDiv.innerHTML = ''; // Remove previous children.
+  // Create checkboxes for the datasets. Omit the datasets that are already part of this model.
+  this.datasetsHeaderDiv.style.display = 'none';
+  this.datasetsContainerDiv.innerHTML = ''; // Remove previous children.
   for (let i = 0; i < this.datasetEntities.length; i++) {
+    if (this.isDatasetInModel(this.datasetEntities[i])) {
+      this.checkboxes[i] = null;
+      continue;
+    }
     const checkbox = document.createElement('input');
     this.checkboxes[i] = checkbox;
     checkbox.setAttribute('type', 'checkbox');
     checkbox.id = this.datasetEntities[i].dataset_uuid;
-    if (this.isDatasetInModel(this.datasetEntities[i])) {
-      checkbox.checked = true;
-      checkbox.disabled = true;
-    }
-    this.datasetContainerDiv.appendChild(checkbox);
+    this.datasetsContainerDiv.appendChild(checkbox);
     const label = document.createElement('label');
     label.textContent = this.datasetEntities[i].description;
     label.setAttribute('for', checkbox.id);
-    this.datasetContainerDiv.appendChild(label);
-    this.datasetContainerDiv.appendChild(document.createElement('br'));
+    label.style.paddingLeft = '4px';
+    this.datasetsContainerDiv.appendChild(label);
+    this.datasetsContainerDiv.appendChild(document.createElement('br'));
+    this.datasetsHeaderDiv.style.display = 'block';
   }
 
   this.descriptionInput.value = '';
@@ -92,6 +98,8 @@ fmltc.TrainMoreDialog = function(
   this.failedDiv.style.display = 'none';
 
   this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
+  this.numTrainingStepsInput.onchange = this.numTrainingStepsInput_onchange.bind(this);
+  this.maxRunningMinutesInput.onchange = this.maxRunningMinutesInput_onchange.bind(this);
   this.descriptionInput.oninput = this.descriptionInput_oninput.bind(this);
   this.startButton.onclick = this.startButton_onclick.bind(this);
   this.dialog.style.display = 'block';
@@ -114,6 +122,17 @@ fmltc.TrainMoreDialog.prototype.dismissButton_onclick = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  this.backdrop.style.display = 'none';
+};
+
+fmltc.TrainMoreDialog.prototype.numTrainingStepsInput_onchange = function() {
+  this.numTrainingStepsInput.value = Math.max(this.numTrainingStepsInput.min, Math.min(this.numTrainingStepsInput.value, this.numTrainingStepsInput.max));
+  this.updateStartButton();
+};
+
+fmltc.TrainMoreDialog.prototype.maxRunningMinutesInput_onchange = function() {
+  this.maxRunningMinutesInput.value = Math.max(this.maxRunningMinutesInput.min, Math.min(this.maxRunningMinutesInput.value, this.maxRunningMinutesInput.max));
+  this.updateStartButton();
 };
 
 fmltc.TrainMoreDialog.prototype.descriptionInput_oninput = function() {
@@ -123,7 +142,12 @@ fmltc.TrainMoreDialog.prototype.descriptionInput_oninput = function() {
 fmltc.TrainMoreDialog.prototype.updateStartButton = function() {
   this.startButton.disabled = (
       this.startTrainingInProgress ||
-      this.descriptionInput.value.length == 0);
+      Number(this.numTrainingStepsInput.value) < Number(this.numTrainingStepsInput.min) ||
+      Number(this.numTrainingStepsInput.value) > Number(this.numTrainingStepsInput.max) ||
+      Number(this.maxRunningMinutesInput.value) < Number(this.maxRunningMinutesInput.min) ||
+      Number(this.maxRunningMinutesInput.value) > Number(this.maxRunningMinutesInput.max) ||
+      this.descriptionInput.value.length == 0 ||
+      this.descriptionInput.value.length > 30);
 };
 
 fmltc.TrainMoreDialog.prototype.startButton_onclick = function() {
@@ -137,7 +161,7 @@ fmltc.TrainMoreDialog.prototype.startButton_onclick = function() {
   // Collect the dataset_uuids that correspond to the the enabled and checked checkboxes.
   const datasetUuids = [];
   for (let i = 0; i < this.datasetEntities.length; i++) {
-    if (!this.checkboxes[i].disabled && this.checkboxes[i].checked) {
+    if (this.checkboxes[i] != null && !this.checkboxes[i].disabled && this.checkboxes[i].checked) {
       datasetUuids.push(this.datasetEntities[i].dataset_uuid);
     }
   }

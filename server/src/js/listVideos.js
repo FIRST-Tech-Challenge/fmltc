@@ -46,6 +46,7 @@ fmltc.ListVideos = function(util) {
 
   // Arrays with one element per video. Note that these need to be spliced when a video is deleted.
   this.videoEntityArray = [];
+  this.frameExtractionFailed = [];
   this.frameExtractionComplete = [];
   this.trs = [];
   this.checkboxes = [];
@@ -108,6 +109,7 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     i = this.videoEntityArray.length;
     this.videoEntityArray.push(videoEntity);
 
+    this.frameExtractionFailed[i] = false;
     this.frameExtractionComplete[i] = false;
 
     const tr = this.videosTable.insertRow(-1);
@@ -187,7 +189,12 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
   this.labeledFrameCountTds[i].textContent = videoEntity.labeled_frame_count;
   this.excludedFrameCountTds[i].textContent =
       (videoEntity.extracted_frame_count - videoEntity.included_frame_count);
-  if (frameExtractionComplete) {
+
+  if ('frame_extraction_failed' in videoEntity && videoEntity.frame_extraction_failed) {
+    this.frameExtractionFailed[i] = true;
+    this.trs[i].className = 'frameExtractionFailed';
+
+  } else if (frameExtractionComplete) {
     this.frameExtractionComplete[i] = true;
     this.trs[i].className = 'frameExtractionComplete';
     // Make the description link to the labelVideo page, if it isn't already a link
@@ -200,40 +207,51 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
       this.descriptionTds[i].replaceChild(descriptionA, descriptionElement);
     }
 
-  } else if (this.didFrameExtractionFailToStart(videoEntity)) {
-    this.startFrameExtraction(videoEntity.video_uuid);
-
-  } else if (this.isFrameExtractionStalled(videoEntity)) {
-    this.startFrameExtraction(videoEntity.video_uuid);
-
   } else {
     this.trs[i].className = 'frameExtractionIncomplete';
-    setTimeout(this.retrieveVideoEntity.bind(this, videoEntity.video_uuid, true), 1000);
+
+    if (this.needToRestartFrameExtraction(videoEntity)) {
+      this.maybeRestartFrameExtraction(videoEntity.video_uuid);
+
+    } else {
+      // Frame extraction is happening. Set a timeout to retrieve the video entity so we can update
+      // the info on the screen.
+      let timeout = 5000;
+      if (videoEntity.frame_extraction_active_time_ms != 0) {
+        const millisSinceFrameExtractionWasActive = (Date.now() - videoEntity.frame_extraction_active_time_ms);
+        if (millisSinceFrameExtractionWasActive < 5000) {
+          timeout = 1000;
+        }
+      }
+      setTimeout(this.retrieveVideoEntity.bind(this, videoEntity.video_uuid, true, 0), timeout);
+    }
   }
 };
 
-fmltc.ListVideos.prototype.didFrameExtractionFailToStart = function(videoEntity) {
+fmltc.ListVideos.prototype.needToRestartFrameExtraction = function(videoEntity) {
   if (videoEntity.frame_extraction_triggered_time_ms != 0 &&
       videoEntity.frame_extraction_active_time_ms == 0) {
+    // Frame extraction was triggered, but it hasn't started.
     const minutesSinceFrameExtractionWasTriggered = (Date.now() - videoEntity.frame_extraction_triggered_time_ms) / 60000;
     if (minutesSinceFrameExtractionWasTriggered > 3) {
+      // It's been 3 minutes since it was triggered. It probably failed to start.
       return true;
     }
   }
-  return false;
-};
 
-fmltc.ListVideos.prototype.isFrameExtractionStalled = function(videoEntity) {
   if (videoEntity.frame_extraction_active_time_ms != 0) {
+    // Frame extraction started.
     const minutesSinceFrameExtractionWasActive = (Date.now() - videoEntity.frame_extraction_active_time_ms) / 60000;
     if (minutesSinceFrameExtractionWasActive > 3) {
+      // It's been 3 minutes since it was active. It probably died.
       return true;
     }
   }
+
   return false;
 };
 
-fmltc.ListVideos.prototype.retrieveVideoEntity = function(videoUuid, checkDeleted) {
+fmltc.ListVideos.prototype.retrieveVideoEntity = function(videoUuid, checkDeleted, failureCount) {
   if (checkDeleted && this.indexOfVideo(videoUuid) == -1) {
     // The video was deleted.
     return;
@@ -244,12 +262,12 @@ fmltc.ListVideos.prototype.retrieveVideoEntity = function(videoUuid, checkDelete
   xhr.open('POST', '/retrieveVideoEntity', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_retrieveVideoEntity_onreadystatechange.bind(this, xhr, params,
-      videoUuid, checkDeleted);
+      videoUuid, checkDeleted, failureCount);
   xhr.send(params);
 };
 
 fmltc.ListVideos.prototype.xhr_retrieveVideoEntity_onreadystatechange = function(xhr, params,
-    videoUuid, checkDeleted) {
+    videoUuid, checkDeleted, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -264,12 +282,14 @@ fmltc.ListVideos.prototype.xhr_retrieveVideoEntity_onreadystatechange = function
       this.onVideoEntityUpdated(videoEntity);
 
     } else {
-      // TODO(lizlooney): handle error properly. Currently we try again in 3 seconds, but that
-      // might not be the best idea.
-      console.log('Failure! /retrieveVideoEntity?' + params +
-          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      console.log('Will retry /retrieveVideoEntity?' + params + ' in 3 seconds.');
-      setTimeout(this.retrieveVideoEntity.bind(this, videoUuid, checkDeleted), 3000);
+      failureCount++;
+      if (failureCount < 5) {
+        const delay = Math.pow(2, failureCount);
+        console.log('Will retry /retrieveVideoEntity?' + params + ' in ' + delay + ' seconds.');
+        setTimeout(this.retrieveVideoEntity.bind(this, videoUuid, checkDeleted, failureCount), delay * 1000);
+      } else {
+        console.log('Unable to retrieve video entity.');
+      }
     }
   }
 };
@@ -279,7 +299,7 @@ fmltc.ListVideos.prototype.uploadVideoFileButton_onclick = function() {
 };
 
 fmltc.ListVideos.prototype.onVideoUploaded = function(videoUuid) {
-  this.retrieveVideoEntity(videoUuid, false);
+  this.retrieveVideoEntity(videoUuid, false, 0);
 };
 
 fmltc.ListVideos.prototype.videoCheckboxAll_onclick = function() {
@@ -292,24 +312,33 @@ fmltc.ListVideos.prototype.checkbox_onclick = function() {
 };
 
 fmltc.ListVideos.prototype.updateButtons = function() {
-  const countChecked = this.util.countChecked(this.checkboxes);
-  let frameExtractionIsNotComplete = false;
+  let countChecked = 0;
+  let countCanProduceDataset = 0;
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
-      if (!this.frameExtractionComplete[i]) {
-        frameExtractionIsNotComplete = true;
+      countChecked++;
+      if (!this.frameExtractionFailed[i] && this.frameExtractionComplete[i]) {
+        countCanProduceDataset++;
       }
     }
   }
-  this.produceDatasetButton.disabled = this.waitCursor || countChecked == 0 || frameExtractionIsNotComplete;
-  // TODO(lizlooney): Allow videos with incomplete frame extraction to be deleted (we'll need to
-  // cancel the frame extraction).
-  this.deleteVideosButton.disabled = this.waitCursor || countChecked == 0 || frameExtractionIsNotComplete;
+  this.produceDatasetButton.disabled = this.waitCursor || countChecked == 0 || countCanProduceDataset != countChecked;
+  this.deleteVideosButton.disabled = this.waitCursor || countChecked == 0;
 };
 
 
 fmltc.ListVideos.prototype.deleteVideosButton_onclick = function() {
   const videoUuids = this.getCheckedVideoUuids();
+  new fmltc.DeleteConfirmationDialog(this.util, 'Delete Videos',
+      'Are you sure you want to delete the selected videos?',
+      this.canDeleteVideos.bind(this, videoUuids));
+};
+
+fmltc.ListVideos.prototype.canDeleteVideos = function(videoUuids) {
+  this.waitCursor = true;
+  this.util.setWaitCursor();
+  this.updateButtons();
+
   const videoUuidsJson = JSON.stringify(videoUuids);
 
   const xhr = new XMLHttpRequest();
@@ -326,12 +355,14 @@ fmltc.ListVideos.prototype.xhr_canDeleteVideos_onreadystatechange = function(xhr
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
+    this.util.clearWaitCursor();
+    this.waitCursor = false;
+    this.updateButtons();
+
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
       if (response.can_delete_videos) {
-        new fmltc.DeleteConfirmationDialog(this.util, 'Delete Videos',
-            'Are you sure you want to delete the selected videos?',
-            this.deleteVideos.bind(this, videoUuids));
+        this.deleteVideos(videoUuids);
       } else {
         const title = 'Delete Videos';
         const message = 'The selected videos cannot be deleted.';
@@ -406,34 +437,33 @@ fmltc.ListVideos.prototype.xhr_deleteVideo_onreadystatechange = function(xhr, pa
   }
 };
 
-fmltc.ListVideos.prototype.startFrameExtraction = function(videoUuid) {
+fmltc.ListVideos.prototype.maybeRestartFrameExtraction = function(videoUuid) {
   const i = this.indexOfVideo(videoUuid);
   if (i != -1) {
     const xhr = new XMLHttpRequest();
     const params = 'video_uuid=' + encodeURIComponent(videoUuid);
-    xhr.open('POST', '/startFrameExtraction', true);
+    xhr.open('POST', '/maybeRestartFrameExtraction', true);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    xhr.onreadystatechange = this.xhr_startFrameExtraction_onreadystatechange.bind(this, xhr, params,
+    xhr.onreadystatechange = this.xhr_maybeRestartFrameExtraction_onreadystatechange.bind(this, xhr, params,
         videoUuid);
     xhr.send(params);
   }
 };
 
-fmltc.ListVideos.prototype.xhr_startFrameExtraction_onreadystatechange = function(xhr, params,
+fmltc.ListVideos.prototype.xhr_maybeRestartFrameExtraction_onreadystatechange = function(xhr, params,
     videoUuid) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      const i = this.indexOfVideo(videoUuid);
-      if (i != -1) {
-        this.trs[i].className = 'frameExtractionIncomplete';
+      const response = JSON.parse(xhr.responseText);
+      if (response.restarted) {
+        setTimeout(this.retrieveVideoEntity.bind(this, videoUuid, true, 0), 3000);
       }
-      setTimeout(this.retrieveVideoEntity.bind(this, videoUuid, true), 1000);
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /startFrameExtraction?' + params +
+      console.log('Failure! /maybeRestartFrameExtraction?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }

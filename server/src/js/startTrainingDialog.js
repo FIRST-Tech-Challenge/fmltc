@@ -34,8 +34,10 @@ fmltc.StartTrainingDialog = function(
   /** @type {!fmltc.Util} */
   this.util = util;
   this.datasetUuids = datasetUuids;
+
   this.onTrainingStarted = onTrainingStarted;
   this.dialog = document.getElementById('startTrainingDialog');
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.dismissButton = document.getElementById('stDismissButton');
   this.maxRunningMinutesInput = document.getElementById('stMaxRunningMinutesInput');
   this.totalTrainingMinutesSpan = document.getElementById('stTotalTrainingMinutesSpan');
@@ -50,7 +52,7 @@ fmltc.StartTrainingDialog = function(
 
   this.startTrainingInProgress = false;
 
-  this.maxRunningMinutesInput.min = Math.min(20, remainingTrainingMinutes);
+  this.maxRunningMinutesInput.min = Math.min(10, remainingTrainingMinutes);
   this.maxRunningMinutesInput.max = remainingTrainingMinutes;
   this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
 
@@ -63,9 +65,11 @@ fmltc.StartTrainingDialog = function(
     }
   }
 
+  // The following min/max numbers (100 and 4000) should match the min/max values in root.html.
   this.numTrainingStepsInput.min = 100;
   this.numTrainingStepsInput.max = 4000;
   this.numTrainingStepsInput.value = 2000;
+
   this.descriptionInput.value = '';
 
   this.updateStartButton();
@@ -76,6 +80,8 @@ fmltc.StartTrainingDialog = function(
   this.failedDiv.style.display = 'none';
 
   this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
+  this.numTrainingStepsInput.onchange = this.numTrainingStepsInput_onchange.bind(this);
+  this.maxRunningMinutesInput.onchange = this.maxRunningMinutesInput_onchange.bind(this);
   this.descriptionInput.oninput = this.descriptionInput_oninput.bind(this);
   this.startButton.onclick = this.startButton_onclick.bind(this);
   this.dialog.style.display = 'block';
@@ -89,6 +95,17 @@ fmltc.StartTrainingDialog.prototype.dismissButton_onclick = function() {
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
+  this.backdrop.style.display = 'none';
+};
+
+fmltc.StartTrainingDialog.prototype.numTrainingStepsInput_onchange = function() {
+  this.numTrainingStepsInput.value = Math.max(this.numTrainingStepsInput.min, Math.min(this.numTrainingStepsInput.value, this.numTrainingStepsInput.max));
+  this.updateStartButton();
+};
+
+fmltc.StartTrainingDialog.prototype.maxRunningMinutesInput_onchange = function() {
+  this.maxRunningMinutesInput.value = Math.max(this.maxRunningMinutesInput.min, Math.min(this.maxRunningMinutesInput.value, this.maxRunningMinutesInput.max));
+  this.updateStartButton();
 };
 
 fmltc.StartTrainingDialog.prototype.descriptionInput_oninput = function() {
@@ -98,7 +115,12 @@ fmltc.StartTrainingDialog.prototype.descriptionInput_oninput = function() {
 fmltc.StartTrainingDialog.prototype.updateStartButton = function() {
   this.startButton.disabled = (
       this.startTrainingInProgress ||
-      this.descriptionInput.value.length == 0);
+      Number(this.numTrainingStepsInput.value) < Number(this.numTrainingStepsInput.min) ||
+      Number(this.numTrainingStepsInput.value) > Number(this.numTrainingStepsInput.max) ||
+      Number(this.maxRunningMinutesInput.value) < Number(this.maxRunningMinutesInput.min) ||
+      Number(this.maxRunningMinutesInput.value) > Number(this.maxRunningMinutesInput.max) ||
+      this.descriptionInput.value.length == 0 ||
+      this.descriptionInput.value.length > 30);
 };
 
 fmltc.StartTrainingDialog.prototype.startButton_onclick = function() {

@@ -150,6 +150,16 @@ fmltc.ListDatasets.prototype.checkbox_onclick = function() {
 
 fmltc.ListDatasets.prototype.deleteDatasetsButton_onclick = function() {
   const datasetUuids = this.getCheckedDatasetUuids();
+  new fmltc.DeleteConfirmationDialog(this.util, 'Delete Datasets',
+      'Are you sure you want to delete the selected datasets?',
+      this.canDeleteDatasets.bind(this, datasetUuids));
+};
+
+fmltc.ListDatasets.prototype.canDeleteDatasets = function(datasetUuids) {
+  this.waitCursor = true;
+  this.util.setWaitCursor();
+  this.updateButtons();
+
   const datasetUuidsJson = JSON.stringify(datasetUuids);
 
   const xhr = new XMLHttpRequest();
@@ -166,12 +176,14 @@ fmltc.ListDatasets.prototype.xhr_canDeleteDatasets_onreadystatechange = function
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
+    this.util.clearWaitCursor();
+    this.waitCursor = false;
+    this.updateButtons();
+
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
       if (response.can_delete_datasets) {
-        new fmltc.DeleteConfirmationDialog(this.util, 'Delete Datasets',
-            'Are you sure you want to delete the selected datasets?',
-            this.deleteDatasets.bind(this, datasetUuids));
+        this.deleteDatasets(datasetUuids);
       } else {
         const title = 'Delete Datasets';
         const message = 'The selected datasets cannot be deleted.';

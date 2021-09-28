@@ -29,6 +29,7 @@ import constants
 import dataset_producer
 import dataset_zipper
 import frame_extractor
+import metrics
 import model_trainer
 import storage
 import tflite_creator
@@ -39,24 +40,27 @@ BUCKET_ACTION_PARAMETERS = ('%s-action-parameters' % constants.PROJECT_ID)
 
 ACTIVE_MEMORY_LIMIT = 2000000000
 
+# action_parameter fields
 ACTION_NAME = 'action_name'
-ACTION_RETRIGGERED = 'action_retriggered'
-ACTION_TIME_LIMIT = 'action_time_limit'
 ACTION_UUID = 'action_uuid'
+ACTION_TIME_LIMIT = 'action_time_limit'
+ACTION_RETRIGGERED = 'action_retriggered'
 
+# ACTION_NAME values
 ACTION_NAME_TEST = 'test' # For testing purposes
+ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD = 'wait_for_video_upload'
+ACTION_NAME_FRAME_EXTRACTION = 'frame_extraction'
+ACTION_NAME_TRACKING = 'tracking'
 ACTION_NAME_DATASET_PRODUCE = 'dataset_produce'
 ACTION_NAME_DATASET_PRODUCE_RECORD = 'dataset_produce_record'
 ACTION_NAME_DELETE_DATASET_RECORD_WRITERS = 'delete_dataset_record_writers'
 ACTION_NAME_DATASET_ZIP = 'dataset_zip'
 ACTION_NAME_DATASET_ZIP_PARTITION = 'dataset_zip_partition'
-ACTION_NAME_DELETE_DATASET = 'delete_dataset'
-ACTION_NAME_DELETE_MODEL = 'delete_model'
-ACTION_NAME_DELETE_VIDEO = 'delete_video'
 ACTION_NAME_MONITOR_TRAINING = 'monitor_training'
-ACTION_NAME_FRAME_EXTRACTION = 'frame_extraction'
-ACTION_NAME_TRACKING = 'tracking'
 ACTION_NAME_CREATE_TFLITE = 'create_tflite'
+ACTION_NAME_DELETE_MODEL = 'delete_model'
+ACTION_NAME_DELETE_DATASET = 'delete_dataset'
+ACTION_NAME_DELETE_VIDEO = 'delete_video'
 
 def create_action_parameters(action_name):
     return {
@@ -64,16 +68,22 @@ def create_action_parameters(action_name):
     }
 
 
-def trigger_action_via_blob(action_parameters):
-    # Copy the given action_parameters and remove the action_time_limit entry from the copy
-    action_parameters_copy = action_parameters.copy()
-    action_parameters_copy.pop(ACTION_TIME_LIMIT, None)
-    action_parameters_copy.pop(ACTION_RETRIGGERED, None)
+def trigger_action_via_blob(action_parameters_arg):
+    # Copy the given action_parameters and remove the ACTION_TIME_LIMIT and ACTION_RETRIGGERED
+    # fields from the copy.
+    action_parameters = action_parameters_arg.copy()
+    action_parameters.pop(ACTION_TIME_LIMIT, None)
+    action_parameters.pop(ACTION_RETRIGGERED, None)
+
+    # Create the action_entity.
+    if ACTION_UUID not in action_parameters:
+        action_parameters[ACTION_UUID] = storage.action_on_create(action_parameters[ACTION_NAME], action_parameters)
+
     # Write the copied action_parameters to trigger the cloud function.
-    action_parameters_blob_name= '%s/%s' % (action_parameters_copy[ACTION_NAME], str(uuid.uuid4().hex))
-    action_parameters_json = json.dumps(action_parameters_copy)
+    action_parameters_blob_name= '%s/%s' % (action_parameters[ACTION_NAME], str(uuid.uuid4().hex))
+    action_parameters_json = json.dumps(action_parameters)
     blob = util.storage_client().bucket(BUCKET_ACTION_PARAMETERS).blob(action_parameters_blob_name)
-    util.log('action.trigger_action_via_blob - %s' % action_parameters_copy[ACTION_NAME])
+    util.log('action.trigger_action_via_blob - %s' % action_parameters[ACTION_NAME])
     blob.upload_from_string(action_parameters_json, content_type="text/json")
 
 
@@ -84,32 +94,29 @@ def perform_action_from_blob(action_parameters_blob_name, time_limit):
         action_parameters_json = blob.download_as_string()
         blob.delete()
         action_parameters = json.loads(action_parameters_json)
-        perform_action(action_parameters, time_limit)
+        __perform_action(action_parameters, time_limit)
 
 
-def perform_action(action_parameters, time_limit):
+def __perform_action(action_parameters, time_limit):
     action_parameters[ACTION_TIME_LIMIT] = time_limit
-    if ACTION_UUID not in action_parameters:
-        util.log('action.perform_action - %s - create' % action_parameters[ACTION_NAME])
-        action_parameters[ACTION_UUID] = storage.action_on_create(action_parameters[ACTION_NAME])
     util.log('action.perform_action - %s - start' % action_parameters[ACTION_NAME])
     storage.action_on_start(action_parameters[ACTION_UUID])
 
-
     action_fns = {
         ACTION_NAME_TEST: test,
+        ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD: frame_extractor.wait_for_video_upload,
+        ACTION_NAME_FRAME_EXTRACTION: frame_extractor.extract_frames,
+        ACTION_NAME_TRACKING: tracking.start_tracking,
         ACTION_NAME_DATASET_PRODUCE: dataset_producer.produce_dataset,
         ACTION_NAME_DATASET_PRODUCE_RECORD: dataset_producer.produce_dataset_record,
         ACTION_NAME_DELETE_DATASET_RECORD_WRITERS: storage.finish_delete_dataset_record_writers,
         ACTION_NAME_DATASET_ZIP: dataset_zipper.zip_dataset,
         ACTION_NAME_DATASET_ZIP_PARTITION: dataset_zipper.zip_dataset_partition,
-        ACTION_NAME_DELETE_DATASET: storage.finish_delete_dataset,
-        ACTION_NAME_DELETE_MODEL: storage.finish_delete_model,
-        ACTION_NAME_DELETE_VIDEO: storage.finish_delete_video,
         ACTION_NAME_MONITOR_TRAINING: model_trainer.monitor_training,
-        ACTION_NAME_FRAME_EXTRACTION: frame_extractor.extract_frames,
-        ACTION_NAME_TRACKING: tracking.start_tracking,
         ACTION_NAME_CREATE_TFLITE: tflite_creator.create_tflite,
+        ACTION_NAME_DELETE_MODEL: storage.finish_delete_model,
+        ACTION_NAME_DELETE_DATASET: storage.finish_delete_dataset,
+        ACTION_NAME_DELETE_VIDEO: storage.finish_delete_video,
     }
     action_fn = action_fns.get(action_parameters[ACTION_NAME], None)
     if action_fn is not None:
@@ -127,7 +134,8 @@ def perform_action(action_parameters, time_limit):
     storage.action_on_stop(action_parameters[ACTION_UUID])
     if ACTION_RETRIGGERED not in action_parameters:
         util.log('action.perform_action - %s - destroy' % action_parameters[ACTION_NAME])
-        storage.action_on_destroy(action_parameters[ACTION_UUID])
+        action_entity = storage.action_on_destroy(action_parameters[ACTION_UUID])
+        metrics.save_action_metrics(action_entity)
 
 
 def __retrigger_action(action_parameters):
@@ -153,7 +161,7 @@ class Stop(Exception):
 
 
 def remaining_timedelta(action_parameters):
-    return action_parameters[ACTION_TIME_LIMIT] - datetime.now()
+    return action_parameters[ACTION_TIME_LIMIT] - datetime.now(timezone.utc)
 
 
 def test(action_parameters):

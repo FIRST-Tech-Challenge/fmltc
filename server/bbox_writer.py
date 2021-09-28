@@ -17,10 +17,14 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Inspired by
 # https://github.com/google/ftc-object-detection/tree/46197ce4ecaee954c2164d257d7dc24e85678285/training/training/bbox_writer.py
 
+# Python Standard Library
+import logging
+
 # Other Modules
 import numpy as np
 
 # My Modules
+import exceptions
 import util
 
 
@@ -64,6 +68,20 @@ def __convert_rects_to_bboxes(rects):
     return bboxes
 
 
+def validate_bboxes_text(s):
+    lines = s.split("\n")
+    for line in lines:
+        if len(line) > 0:
+            try:
+                *rect, label = line.strip().split(",")
+                assert(len(rect) == 4)
+                rect = np.array(rect, dtype=float).astype(int)
+            except:
+                message = "Error: '%s is not a valid argument." % s
+                logging.critical(message)
+                raise exceptions.HttpErrorBadRequest(message)
+    return s
+
 def convert_text_to_rects_and_labels(bboxes_text):
     rects = []
     labels = []
@@ -80,6 +98,21 @@ def convert_text_to_rects_and_labels(bboxes_text):
         except Exception as e:
             continue
     return rects, labels
+
+
+def count_boxes(bboxes_text):
+    count = 0
+    lines = bboxes_text.split("\n")
+    for line in lines:
+        try:
+            *rect, label = line.strip().split(",")
+            assert(len(rect) == 4)
+            # Ignore boxes with empty labels.
+            if label != '':
+                count += 1
+        except Exception as e:
+            continue
+    return count
 
 
 def __convert_text_to_bboxes_and_labels(bboxes_text):

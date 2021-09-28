@@ -15,7 +15,7 @@
 __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import math
@@ -59,6 +59,17 @@ STARTING_MODELS = {
     },
 }
 
+def validate_starting_model(s):
+    if s not in STARTING_MODELS:
+        try:
+            return storage.validate_uuid(s)
+        except:
+            message = "Error: '%s is not a valid argument." % s
+            logging.critical(message)
+            raise exceptions.HttpErrorBadRequest(message)
+    return s
+
+
 def get_starting_model_names():
     names = list(STARTING_MODELS.keys())
     return names
@@ -83,6 +94,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
     else:
         # starting_model is the model_uuid of one of the user's own models.
         starting_model_uuid = starting_model
+        # retrieve_model_entity will raise HttpErrorNotFound
+        # if the team_uuid/starting_model_uuid is not found
         starting_model_entity = retrieve_model_entity(team_uuid, starting_model_uuid)
         if starting_model_entity['trained_checkpoint_path'] == '':
             message = 'Error: Trained checkpoint not found for model_uuid=%s.' % starting_model_uuid
@@ -99,6 +112,9 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         config_template_blob_name = 'static/training/models/%s' % (
             starting_model_data['pipeline_config'])
         fine_tune_checkpoint = starting_model_entity['trained_checkpoint_path']
+        # Remove trailing .index if it's there.
+        if fine_tune_checkpoint.endswith('.index'):
+            fine_tune_checkpoint = fine_tune_checkpoint[:-6]
 
     dataset_uuid_list = json.loads(dataset_uuids_json)
     dataset_entities = storage.retrieve_dataset_entities(team_uuid, dataset_uuid_list)
@@ -167,27 +183,29 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         )
 
     packageUris = [
-        'gs://%s/static/training/object_detection-0.1_2.4.0.tar.gz' % BUCKET,
+        'gs://%s/static/training/object_detection-0.1_2.5.0.tar.gz' % BUCKET,
         'gs://%s/static/training/slim-0.1.tar.gz' % BUCKET,
         'gs://%s/static/training/pycocotools-2.0.tar.gz' % BUCKET,
     ]
     region = 'us-central1' # Choices are us-central1 or europe-west4
-    runtimeVersion = '2.4' # Not supported beginning April 16, 2022
+    runtimeVersion = '2.5' # Not supported beginning August 13, 2022
     pythonVersion = '3.7'
 
-    # storage.model_trainer_starting will raise an exception if the team doesn't have enough
-    # training time left.
+    # storage.model_trainer_starting will raise HttpErrorUnprocessableEntity
+    # if the max_running_minutes exceeds the team's remaining_training_minutes.
     model_uuid = storage.model_trainer_starting(team_uuid, max_running_minutes)
-    try:
-        pipeline_config_path = blob_storage.store_pipeline_config(team_uuid, model_uuid, pipeline_config)
+    model_folder = blob_storage.get_model_folder(team_uuid, model_uuid)
 
-        model_dir = blob_storage.get_model_folder_path(team_uuid, model_uuid)
+    try:
+        pipeline_config_path = blob_storage.store_pipeline_config(model_folder, pipeline_config)
+
+        model_dir = blob_storage.get_model_folder_path(model_folder)
         job_dir = model_dir
         checkpoint_dir = model_dir
 
         train_job_id = __get_train_job_id(model_uuid)
         scheduling = {
-            'maxRunningTime': '%ds' % (max_running_minutes * 60),
+            'maxRunningTime': '%ds' % int(max_running_minutes * 60),
         }
         train_training_input = {
             'scaleTier': 'BASIC_TPU',
@@ -233,8 +251,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         ml = __get_ml_service()
         parent = __get_parent()
 
-        # Start the eval job first because it runs so slowly that otherwise it misses the first
-        # checkpoint.
+        # Start the eval job first to because it runs slower than the train job. This helps it to
+        # not miss the first checkpoint, but does not completely prevent that.
         try:
             if eval_frame_count > 0:
                 eval_job_response = ml.projects().jobs().create(parent=parent, body=eval_job).execute()
@@ -256,19 +274,20 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             raise
 
     except:
-        # storage.failed_to_start_training will adjust the team's remaining training time.
-        storage.model_trainer_failed_to_start(team_uuid, model_uuid, max_running_minutes)
+        # storage.failed_to_start_training will adjust the team's remaining training time and delete
+        # any model blobs (such as the pipeline config file) that were created.
+        storage.model_trainer_failed_to_start(team_uuid, model_folder, max_running_minutes)
         raise
 
     tensorflow_version = '2'
-    model_entity = storage.model_trainer_started(team_uuid, model_uuid, description,
+    model_entity = storage.model_trainer_started(team_uuid, model_uuid, description, model_folder,
         tensorflow_version, dataset_uuids, create_time_ms, max_running_minutes, num_training_steps,
         previous_training_steps, starting_model, user_visible_starting_model,
         original_starting_model, fine_tune_checkpoint,
         sorted_label_list, label_map_path, train_input_path, eval_input_path,
         train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
-        train_dict_label_to_count, eval_dict_label_to_count,
-        train_job_response, eval_job_response)
+        train_dict_label_to_count, eval_dict_label_to_count, train_job_response, eval_job_response)
+    __start_monitor_training(team_uuid, model_entity['model_uuid'])
     return model_entity
 
 def retrieve_model_list(team_uuid):
@@ -279,6 +298,8 @@ def retrieve_model_list(team_uuid):
     return model_entities
 
 def retrieve_model_entity(team_uuid, model_uuid):
+    # storage.retrieve_model_entity will raise HttpErrorNotFound
+    # if the team_uuid/model_uuid is not found.
     model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
     model_entity, _ = __update_model_entity_job_state(model_entity)
     return model_entity
@@ -320,6 +341,8 @@ def is_done(model_entity):
         __is_done(model_entity['eval_job_state']))
 
 def cancel_training_model(team_uuid, model_uuid):
+    # retrieve_model_entity will raise HttpErrorNotFound
+    # if the team_uuid/model_uuid is not found.
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
     ml = __get_ml_service()
     if __is_alive(model_entity['train_job_state']):
@@ -380,7 +403,45 @@ def __is_not_done(state):
 def __is_done(state):
     return not __is_not_done(state)
 
-def start_monitor_training(team_uuid, model_uuid):
+def maybe_restart_monitor_training(team_uuid, model_uuid):
+    # retrieve_model_entity will raise HttpErrorNotFound
+    # if the team_uuid/model_uuid is not found.
+    model_entity = retrieve_model_entity(team_uuid, model_uuid)
+
+    if ('monitor_training_finished' not in model_entity or
+            'monitor_training_triggered_time_ms' not in model_entity or
+            'monitor_training_active_time_ms' not in model_entity):
+        # Some models were trained before these fields were added.
+        return False, model_entity
+
+    if model_entity['monitor_training_finished']:
+        # The monitor training action finished.
+        return False, model_entity
+
+    if model_entity['monitor_training_triggered_time_ms'] != 0:
+        # The monitor training action was not triggered yet. It shouldn't be restarted since it
+        # hasn't even started the first time yet.
+        return False, model_entity
+
+    if model_entity['monitor_training_active_time_ms'] <= model_entity['monitor_training_triggered_time_ms']:
+        # The monitor training action was triggered, but not active.
+        # Check if it has been <= 3 minutes since it was triggered.
+        # Since monitor_training_triggered_time_ms is non-zero, we can use the
+        # monitor_training_triggered_time field.
+        if datetime.now(timezone.utc) - model_entity['monitor_training_triggered_time'] <= timedelta(minutes=3):
+            return False, model_entity
+    else:
+        # The monitor training action was active after it was triggered.
+        # Check if it has been <= 3 minutes since it was active.
+        # Since monitor_training_triggered_time_ms and monitor_training_active_time_ms are both
+        # non-zero, we can use the monitor_training_triggered_time and monitor_training_active_time
+        # fields.
+        if datetime.now(timezone.utc) - model_entity['monitor_training_active_time'] <= timedelta(minutes=3):
+            return False, model_entity
+
+    return True, __start_monitor_training(team_uuid, model_uuid)
+
+def __start_monitor_training(team_uuid, model_uuid):
     model_entity = storage.prepare_to_start_monitor_training(team_uuid, model_uuid)
     action_parameters = action.create_action_parameters(action.ACTION_NAME_MONITOR_TRAINING)
     action_parameters['team_uuid'] = team_uuid
@@ -393,6 +454,7 @@ def monitor_training(action_parameters):
     model_uuid = action_parameters['model_uuid']
 
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    model_folder = model_entity['model_folder']
     prev_training_done = __is_done(model_entity['train_job_state'])
 
     while True:
@@ -408,15 +470,14 @@ def monitor_training(action_parameters):
         previous_time_ms = model_entity['monitor_training_active_time_ms']
 
         for job_type in ['train', 'eval']:
-            dict_path_to_updated = blob_storage.get_event_file_paths(
-                team_uuid, model_uuid, job_type)
+            dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, job_type)
             for event_file_path, updated in dict_path_to_updated.items():
                 if ('dict_event_file_path_to_updated' in model_entity and
                         event_file_path in model_entity['dict_event_file_path_to_updated'] and
                         model_entity['dict_event_file_path_to_updated'][event_file_path] == updated):
                     continue
                 largest_step, scalar_summary_items, image_summary_items = __monitor_training_for_event_file(
-                    team_uuid, model_uuid, job_type, event_file_path, action_parameters)
+                    model_folder, job_type, event_file_path, action_parameters)
                 model_entity = storage.update_model_entity_summary_items(team_uuid, model_uuid, job_type,
                     event_file_path, updated, largest_step, scalar_summary_items, image_summary_items)
 
@@ -431,8 +492,7 @@ def monitor_training(action_parameters):
         action.retrigger_if_necessary(action_parameters)
 
 
-def __monitor_training_for_event_file(team_uuid, model_uuid, job_type,
-        event_file_path, action_parameters):
+def __monitor_training_for_event_file(model_folder, job_type, event_file_path, action_parameters):
     largest_step = None
     scalar_summary_items = {}
     image_summary_items = {}
@@ -471,7 +531,7 @@ def __monitor_training_for_event_file(team_uuid, model_uuid, job_type,
                 height = int(float(image_value[1].decode('utf-8')))
                 image_bytes = image_value[2]
                 # There might be more than one image, but we only look at the first one.
-                blob_storage.store_event_summary_image(team_uuid, model_uuid, job_type,
+                blob_storage.store_event_summary_image(model_folder, job_type,
                     event.step, value.tag, image_bytes)
                 item = {
                     'job_type': job_type,
@@ -488,10 +548,13 @@ def __make_key(step, tag):
 
 
 def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
+    # retrieve_model_entity will raise HttpErrorNotFound
+    # if the team_uuid/model_uuid is not found.
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    model_folder = model_entity['model_folder']
     summary_items_field_name = storage.get_model_entity_summary_items_field_name(job_type, value_type)
     if summary_items_field_name not in model_entity:
-        return retrieve_tags_and_steps_from_event_file(team_uuid, model_uuid, job_type, value_type)
+        return __retrieve_tags_and_steps_from_event_file(model_folder, job_type, value_type)
     step_and_tag_pairs = []
     for key, item in model_entity[summary_items_field_name].items():
         pair = {
@@ -503,10 +566,13 @@ def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
 
 
 def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_step_to_tags):
+    # retrieve_model_entity will raise HttpErrorNotFound
+    # if the team_uuid/model_uuid is not found.
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    model_folder = model_entity['model_folder']
     summary_items_field_name = storage.get_model_entity_summary_items_field_name(job_type, value_type)
     if summary_items_field_name not in model_entity:
-        return retrieve_summary_items_from_event_file(team_uuid, model_uuid, job_type, value_type, dict_step_to_tags)
+        return __retrieve_summary_items_from_event_file(model_folder, job_type, value_type, dict_step_to_tags)
     summary_items = []
     for step, tags in dict_step_to_tags.items():
         for tag in tags:
@@ -518,8 +584,8 @@ def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_ste
             if value_type == 'scalar':
                 summary_item['value'] = item['value']
             elif value_type == 'image':
-                exists, image_url = blob_storage.get_event_summary_image_download_url(team_uuid, model_uuid,
-                    item['job_type'], item['step'], item['tag'], None)
+                exists, image_url = blob_storage.get_event_summary_image_download_url(
+                    model_folder, item['job_type'], item['step'], item['tag'], None)
                 if not exists:
                     continue
                 summary_item['value'] = {
@@ -531,10 +597,9 @@ def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_ste
     return summary_items
 
 
-def retrieve_tags_and_steps_from_event_file(team_uuid, model_uuid, job_type, value_type):
+def __retrieve_tags_and_steps_from_event_file(model_folder, job_type, value_type):
     step_and_tag_pairs = []
-    dict_path_to_updated = blob_storage.get_event_file_paths(
-        team_uuid, model_uuid, job_type)
+    dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, job_type)
     for event_file_path, updated in dict_path_to_updated.items():
         for record in tf.data.TFRecordDataset(event_file_path):
             event = event_pb2.Event.FromString(record.numpy())
@@ -562,10 +627,9 @@ def retrieve_tags_and_steps_from_event_file(team_uuid, model_uuid, job_type, val
     return step_and_tag_pairs
 
 
-def retrieve_summary_items_from_event_file(team_uuid, model_uuid, job_type, value_type, dict_step_to_tags):
+def __retrieve_summary_items_from_event_file(model_folder, job_type, value_type, dict_step_to_tags):
     summary_items = []
-    dict_path_to_updated = blob_storage.get_event_file_paths(
-        team_uuid, model_uuid, job_type)
+    dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, job_type)
     for event_file_path, updated in dict_path_to_updated.items():
         for record in tf.data.TFRecordDataset(event_file_path):
             event = event_pb2.Event.FromString(record.numpy())
@@ -606,8 +670,8 @@ def retrieve_summary_items_from_event_file(team_uuid, model_uuid, job_type, valu
                     width = int(float(image_value[0].decode('utf-8')))
                     height = int(float(image_value[1].decode('utf-8')))
                     image_bytes = image_value[2]
-                    exists, image_url = blob_storage.get_event_summary_image_download_url(team_uuid, model_uuid,
-                        job_type, event.step, value.tag, image_bytes)
+                    exists, image_url = blob_storage.get_event_summary_image_download_url(
+                        model_folder, job_type, event.step, value.tag, image_bytes)
                     if not exists:
                         continue
                     summary_item['value'] = {

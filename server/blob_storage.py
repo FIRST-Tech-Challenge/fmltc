@@ -116,7 +116,7 @@ def __delete_blobs(blob_names):
 # video files
 
 def get_video_blob_name(team_uuid, video_uuid):
-    return 'video_files/%s/%s' % (team_uuid, video_uuid)
+    return '%s/video_files/%s' % (team_uuid, video_uuid)
 
 def prepare_to_upload_video(team_uuid, video_uuid, content_type):
     video_blob_name = get_video_blob_name(team_uuid, video_uuid)
@@ -124,6 +124,11 @@ def prepare_to_upload_video(team_uuid, video_uuid, content_type):
     expires_at_datetime = datetime.utcnow() + timedelta(minutes=5)
     signed_url = blob.generate_signed_url(expires_at_datetime, method='PUT', content_type=content_type)
     return signed_url
+
+def video_blob_exists(team_uuid, video_uuid):
+    video_blob_name = get_video_blob_name(team_uuid, video_uuid)
+    blob = util.storage_client().bucket(BUCKET_BLOBS).blob(video_blob_name)
+    return blob.exists()
 
 def retrieve_video(video_blob_name):
     return __retrieve_blob(video_blob_name)
@@ -137,7 +142,7 @@ def delete_video_blob(video_blob_name):
 # video frame images
 
 def store_video_frame_image(team_uuid, video_uuid, frame_number, content_type, image):
-    image_blob_name = 'image_files/%s/%s/%05d' % (team_uuid, video_uuid, frame_number)
+    image_blob_name = '%s/image_files/%s/%05d' % (team_uuid, video_uuid, frame_number)
     __write_string_to_blob(image_blob_name, image, content_type)
     return image_blob_name
 
@@ -159,7 +164,7 @@ def delete_video_frame_images(image_blob_names):
 # dataset records
 
 def get_dataset_folder(team_uuid, dataset_uuid):
-    return 'tf_records/%s/%s' % (team_uuid, dataset_uuid)
+    return '%s/tf_records/%s' % (team_uuid, dataset_uuid)
 
 def get_dataset_folder_path(team_uuid, dataset_uuid):
     return __get_path(get_dataset_folder(team_uuid, dataset_uuid))
@@ -188,7 +193,7 @@ def delete_dataset_blobs(blob_names):
 # dataset zips
 
 def __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index):
-    return 'dataset_zips/%s/%s/%s' % (team_uuid, dataset_zip_uuid, partition_index)
+    return '%s/dataset_zips/%s/%s' % (team_uuid, dataset_zip_uuid, partition_index)
 
 def store_dataset_zip(team_uuid, dataset_zip_uuid, partition_index, zip_data):
     blob_name = __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index)
@@ -211,44 +216,43 @@ def delete_dataset_zip(team_uuid, dataset_zip_uuid, partition_index):
 
 # models
 
-def __get_model_folder(team_uuid, model_uuid):
+def get_old_model_folder(team_uuid, model_uuid):
     return 'models/%s/%s' % (team_uuid, model_uuid)
 
-def get_model_folder_path(team_uuid, model_uuid):
-    return __get_path(__get_model_folder(team_uuid, model_uuid))
+def get_model_folder(team_uuid, model_uuid):
+    return '%s/models/%s' % (team_uuid, model_uuid)
 
-def __get_pipeline_config_blob_name(team_uuid, model_uuid):
-    return '%s/%s' % (__get_model_folder(team_uuid, model_uuid), 'pipeline.config')
+def get_model_folder_path(model_folder):
+    return __get_path(model_folder)
 
-def get_pipeline_config_path(team_uuid, model_uuid):
-    return __get_path(__get_pipeline_config_blob_name(team_uuid, model_uuid))
+def __get_pipeline_config_blob_name(model_folder):
+    return '%s/pipeline.config' % model_folder
 
-def store_pipeline_config(team_uuid, model_uuid, pipeline_config):
-    pipeline_config_blob_name = __get_pipeline_config_blob_name(team_uuid, model_uuid)
+def get_pipeline_config_path(model_folder):
+    return __get_path(__get_pipeline_config_blob_name(model_folder))
+
+def store_pipeline_config(model_folder, pipeline_config):
+    pipeline_config_blob_name = __get_pipeline_config_blob_name(model_folder)
     __write_string_to_blob(pipeline_config_blob_name, pipeline_config, 'text/plain')
-    return get_pipeline_config_path(team_uuid, model_uuid)
+    return get_pipeline_config_path(model_folder)
 
-def write_pipeline_config_to_file(team_uuid, model_uuid, filename):
-    blob_name = __get_pipeline_config_blob_name(team_uuid, model_uuid)
-    __write_blob_to_file(blob_name, filename)
-
-def get_event_file_paths(team_uuid, model_uuid, job_type):
+def get_event_file_paths(model_folder, job_type):
     client = util.storage_client()
     if job_type == 'train':
-        folder = '%s/train' % __get_model_folder(team_uuid, model_uuid)
+        folder = '%s/train' % model_folder
     else: # 'eval'
-        folder = '%s/eval' % __get_model_folder(team_uuid, model_uuid)
+        folder = '%s/eval' % model_folder
     prefix = '%s/events.out.tfevents.' % folder
     dict_path_to_updated = {}
     for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
         dict_path_to_updated[__get_path(blob.name)] = blob.updated
     return dict_path_to_updated
 
-def get_event_summary_image_blob_name(team_uuid, model_uuid, job_type, step, tag):
-    return '%s/images_%s/step_%d_%s' % (__get_model_folder(team_uuid, model_uuid), job_type, step, tag.replace('/', '_'))
+def __get_event_summary_image_blob_name(model_folder, job_type, step, tag):
+    return '%s/images_%s/step_%d_%s' % (model_folder, job_type, step, tag.replace('/', '_'))
 
-def store_event_summary_image(team_uuid, model_uuid, job_type, step, tag, encoded_image_string):
-    blob_name = get_event_summary_image_blob_name(team_uuid, model_uuid, job_type, step, tag)
+def store_event_summary_image(model_folder, job_type, step, tag, encoded_image_string):
+    blob_name = __get_event_summary_image_blob_name(model_folder, job_type, step, tag)
     bucket = util.storage_client().bucket(BUCKET_BLOBS)
     blob = bucket.blob(blob_name)
     for i in range(5):
@@ -260,25 +264,25 @@ def store_event_summary_image(team_uuid, model_uuid, job_type, step, tag, encode
         util.log('blob_storage.store_event_summary_image - will try again in 3 seconds')
         time.sleep(3)
 
-def get_event_summary_image_download_url(team_uuid, model_uuid, job_type, step, tag, encoded_image_string):
-    blob_name = get_event_summary_image_blob_name(team_uuid, model_uuid, job_type, step, tag)
+def get_event_summary_image_download_url(model_folder, job_type, step, tag, encoded_image_string):
+    blob_name = __get_event_summary_image_blob_name(model_folder, job_type, step, tag)
     bucket = util.storage_client().bucket(BUCKET_BLOBS)
     blob = bucket.blob(blob_name)
     if not blob.exists() and encoded_image_string is not None:
         __write_string_to_blob(blob_name, encoded_image_string, 'image/png')
     return __get_download_url(blob_name)
 
-def get_trained_checkpoint_path(team_uuid, model_uuid):
+def get_trained_checkpoint_path(model_folder):
     client = util.storage_client()
     # We're looking for a file like this: ckpt-1.index
-    prefix = '%s/ckpt-' % __get_model_folder(team_uuid, model_uuid)
+    prefix = '%s/ckpt-' % model_folder
     pattern = re.compile(r'%s(\d*)\.index' % prefix)
     max_number = None
     blob_name = ''
     for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
         match = pattern.match(blob.name)
         if match is not None:
-            n = int(match.group(1))
+            n = int(float(match.group(1)))
             if max_number is None or n > max_number:
                 max_number = n
                 blob_name = blob.name
@@ -286,79 +290,80 @@ def get_trained_checkpoint_path(team_uuid, model_uuid):
         return __get_path(blob_name)
     return ''
 
-def __get_tflite_folder(team_uuid, model_uuid):
-    return '%s/tflite' % (__get_model_folder(team_uuid, model_uuid))
+def __get_tflite_folder(model_folder):
+    return '%s/tflite' % model_folder
 
-def get_tflite_folder_path(team_uuid, model_uuid):
-    return __get_path(__get_tflite_folder(team_uuid, model_uuid))
+def get_tflite_folder_path(model_folder):
+    return __get_path(__get_tflite_folder(model_folder))
 
-def __get_tflite_saved_model_folder(team_uuid, model_uuid):
-    return '%s/saved_model' % __get_tflite_folder(team_uuid, model_uuid)
+def __get_tflite_saved_model_folder(model_folder):
+    return '%s/saved_model' % __get_tflite_folder(model_folder)
 
-def get_tflite_saved_model_path(team_uuid, model_uuid):
-    return __get_path(__get_tflite_saved_model_folder(team_uuid, model_uuid))
+def get_tflite_saved_model_path(model_folder):
+    return __get_path(__get_tflite_saved_model_folder(model_folder))
 
-def tflite_saved_model_exists(team_uuid, model_uuid):
+def tflite_saved_model_exists(model_folder):
     client = util.storage_client()
     # saved_model is a directory. Check whether any files exist in the directory.
-    prefix = '%s/' % __get_tflite_saved_model_folder(team_uuid, model_uuid)
+    prefix = '%s/' % __get_tflite_saved_model_folder(model_folder)
     for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
         return True
     return False
 
-def __get_tflite_quantized_model_blob_name(team_uuid, model_uuid):
-    return '%s/quantized_model' % __get_tflite_folder(team_uuid, model_uuid)
+def __get_tflite_quantized_model_blob_name(model_folder):
+    return '%s/quantized_model' % __get_tflite_folder(model_folder)
 
-def tflite_quantized_model_exists(team_uuid, model_uuid):
+def tflite_quantized_model_exists(model_folder):
     client = util.storage_client()
-    blob_name = __get_tflite_quantized_model_blob_name(team_uuid, model_uuid)
+    blob_name = __get_tflite_quantized_model_blob_name(model_folder)
     blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
     return blob.exists()
 
-def store_tflite_quantized_model(team_uuid, model_uuid, tflite_quantized_model):
-    blob_name = __get_tflite_quantized_model_blob_name(team_uuid, model_uuid)
+def store_tflite_quantized_model(model_folder, tflite_quantized_model):
+    blob_name = __get_tflite_quantized_model_blob_name(model_folder)
     __write_string_to_blob(blob_name, tflite_quantized_model, 'application/octet-stream')
 
-def write_tflite_quantized_model_to_file(team_uuid, model_uuid, filename):
-    blob_name = __get_tflite_quantized_model_blob_name(team_uuid, model_uuid)
+def write_tflite_quantized_model_to_file(model_folder, filename):
+    blob_name = __get_tflite_quantized_model_blob_name(model_folder)
     return __write_blob_to_file(blob_name, filename)
 
-def __get_tflite_label_map_txt_blob_name(team_uuid, model_uuid):
-    return '%s/label_map.txt' % __get_tflite_folder(team_uuid, model_uuid)
+def __get_tflite_label_map_txt_blob_name(model_folder):
+    return '%s/label_map.txt' % __get_tflite_folder(model_folder)
 
-def tflite_label_map_txt_exists(team_uuid, model_uuid):
+def tflite_label_map_txt_exists(model_folder):
     client = util.storage_client()
-    blob_name = __get_tflite_label_map_txt_blob_name(team_uuid, model_uuid)
+    blob_name = __get_tflite_label_map_txt_blob_name(model_folder)
     blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
     return blob.exists()
 
-def store_tflite_label_map_txt(team_uuid, model_uuid, tflite_label_map_txt):
-    blob_name = __get_tflite_label_map_txt_blob_name(team_uuid, model_uuid)
+def store_tflite_label_map_txt(model_folder, tflite_label_map_txt):
+    blob_name = __get_tflite_label_map_txt_blob_name(model_folder)
     __write_string_to_blob(blob_name, tflite_label_map_txt, 'text/plain')
 
-def write_tflite_label_map_txt_to_file(team_uuid, model_uuid, filename):
-    blob_name = __get_tflite_label_map_txt_blob_name(team_uuid, model_uuid)
+def write_tflite_label_map_txt_to_file(model_folder, filename):
+    blob_name = __get_tflite_label_map_txt_blob_name(model_folder)
     return __write_blob_to_file(blob_name, filename)
 
-def __get_tflite_model_with_metadata_blob_name(team_uuid, model_uuid):
-    return '%s/model_with_metadata.tflite' % __get_tflite_folder(team_uuid, model_uuid)
+def __get_tflite_model_with_metadata_blob_name(model_folder):
+    return '%s/model_with_metadata.tflite' % __get_tflite_folder(model_folder)
 
-def tflite_model_with_metadata_exists(team_uuid, model_uuid):
+def tflite_model_with_metadata_exists(model_folder):
     client = util.storage_client()
-    blob_name = __get_tflite_model_with_metadata_blob_name(team_uuid, model_uuid)
+    blob_name = __get_tflite_model_with_metadata_blob_name(model_folder)
     blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
     return blob.exists()
 
-def store_tflite_model_with_metadata(team_uuid, model_uuid, tflite_model_with_metadata_filename):
-    blob_name = __get_tflite_model_with_metadata_blob_name(team_uuid, model_uuid)
+def store_tflite_model_with_metadata(model_folder, tflite_model_with_metadata_filename):
+    blob_name = __get_tflite_model_with_metadata_blob_name(model_folder)
     __write_file_to_blob(blob_name, tflite_model_with_metadata_filename, 'application/octet-stream')
 
-def get_tflite_model_with_metadata_url(team_uuid, model_uuid):
-    return __get_download_url(__get_tflite_model_with_metadata_blob_name(team_uuid, model_uuid))
+def get_tflite_model_with_metadata_url(model_folder):
+    return __get_download_url(__get_tflite_model_with_metadata_blob_name(model_folder))
 
-def delete_model_blobs(team_uuid, model_uuid, action_parameters):
+def delete_model_blobs(model_folder, action_parameters=None):
     client = util.storage_client()
-    prefix = '%s/' % __get_model_folder(team_uuid, model_uuid)
+    prefix = '%s/' % model_folder
     for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
         __delete_blob(blob.name)
-        action.retrigger_if_necessary(action_parameters)
+        if action_parameters is not None:
+            action.retrigger_if_necessary(action_parameters)
