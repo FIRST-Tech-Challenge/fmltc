@@ -38,7 +38,8 @@ import util
 
 
 def trigger_create_tflite(team_uuid, model_uuid):
-    action_parameters = action.create_action_parameters(action.ACTION_NAME_CREATE_TFLITE)
+    action_parameters = action.create_action_parameters(
+        team_uuid, action.ACTION_NAME_CREATE_TFLITE)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['model_uuid'] = model_uuid
     action.trigger_action_via_blob(action_parameters)

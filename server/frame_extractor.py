@@ -33,7 +33,8 @@ import storage
 import util
 
 def start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms):
-    action_parameters = action.create_action_parameters(action.ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD)
+    action_parameters = action.create_action_parameters(
+        team_uuid, action.ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['video_uuid'] = video_uuid
     action_parameters['description'] = description
@@ -94,7 +95,8 @@ def maybe_restart_frame_extraction(team_uuid, video_uuid):
 
 
 def __start_frame_extraction(video_entity):
-    action_parameters = action.create_action_parameters(action.ACTION_NAME_FRAME_EXTRACTION)
+    action_parameters = action.create_action_parameters(
+        video_entity['team_uuid'], action.ACTION_NAME_FRAME_EXTRACTION)
     action_parameters['team_uuid'] = video_entity['team_uuid']
     action_parameters['video_uuid'] = video_entity['video_uuid']
     action.trigger_action_via_blob(action_parameters)
