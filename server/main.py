@@ -98,7 +98,7 @@ def login_required(func):
 
 def oidc_require_login(func):
     if constants.USE_OIDC is not None:
-        return oidc.require_login
+        return oidc.require_login(func)
     @wraps(func)
     def wrapper(*args, **kwargs):
         return flask.redirect('/403')
