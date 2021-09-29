@@ -24,7 +24,7 @@ jobs:
     
     - name: Install Key
       working-directory: server
-      run: echo "$SERVICE_KEY" > key.json'
+      run: 'echo "$SERVICE_KEY" > key.json'
       shell: bash
       env:
         SERVICE_KEY: ${{secrets.SERVICE_KEY}}
