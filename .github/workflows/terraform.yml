@@ -51,6 +51,7 @@ jobs:
       run: terraform plan -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}}
       env:
         GOOGLE_CREDENTIALS: ${{secrets.SERVICE_KEY}}
+        GOOGLE_APPLICATION_CREDENTIALS: "../../server/key.json"
 
       # On push to main, build or change infrastructure according to Terraform configuration files
       # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
@@ -59,3 +60,4 @@ jobs:
       run: terraform apply -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}} -auto-approve
       env:
         GOOGLE_CREDENTIALS: ${{secrets.SERVICE_KEY}}
+        GOOGLE_APPLICATION_CREDENTIALS: "../../server/key.json"
