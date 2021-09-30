@@ -9,6 +9,5 @@ terraform {
     # for the first time.
     #
     bucket = "ftc-ml-firstinspires-dev-tf-state"
-    credentials = "../../server/key.json"
   }
 }

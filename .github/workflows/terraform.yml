@@ -42,6 +42,8 @@ jobs:
     - name: Terraform Init
       working-directory: terraform/dev
       run: terraform init -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}}
+      env:
+        GOOGLE_CREDENTIALS: ${{secrets.SERVICE_KEY}}
 
     # Generates an execution plan for Terraform
     - name: Terraform Plan
