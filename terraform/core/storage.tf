@@ -1,13 +1,13 @@
 
 resource "google_storage_bucket" "fmltc" {
-  name          = var.project_name
+  name          = var.project_id
   location      = "US"
   force_destroy = true
   depends_on = [google_project_service.gcp_services]
 }
 
 resource "google_storage_bucket" "fmltc-blobs" {
-  name          = "${var.project_name}-blobs"
+  name          = "${var.project_id}-blobs"
   location      = "US"
   force_destroy = true
 
@@ -21,21 +21,21 @@ resource "google_storage_default_object_access_control" "public_rule" {
 }
 
 resource "google_storage_bucket" "fmltc-action-parameters" {
-  name          = "${var.project_name}-action-parameters"
+  name          = "${var.project_id}-action-parameters"
   location      = "US"
   force_destroy = true
   depends_on = [google_project_service.gcp_services]
 }
 
 resource "google_storage_bucket" "fmltc-gcf-source" {
-  name          = "${var.project_name}-gcf-source"
+  name          = "${var.project_id}-gcf-source"
   location      = "US"
   force_destroy = true
   depends_on = [google_project_service.gcp_services]
 }
 
 resource "google_storage_bucket" "fmltc-gae-source" {
-  name          = "${var.project_name}-gae-source"
+  name          = "${var.project_id}-gae-source"
   location      = "US"
   force_destroy = true
   depends_on = [google_project_service.gcp_services]

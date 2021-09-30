@@ -9,15 +9,6 @@ terraform {
       version = "0.1.0"
     }
   }
-  backend "gcs" {
-    #
-    # Terraform is broken w.r.t. variables in a backend block.
-    # So we must resort to hardcoded values for the bucket and
-    # credentials.
-    #
-    bucket = "<your-project-name>-tf-state"
-    credentials = "../../server/key.json"
-  }
 }
 
 provider "google" {
@@ -45,6 +36,7 @@ variable "gcp_service_list" {
     "ml.googleapis.com",
     "compute.googleapis.com",
     "cloudbuild.googleapis.com",
+    "run.googleapis.com",
     "appengine.googleapis.com",
     "redis.googleapis.com",
     "serviceusage.googleapis.com"
@@ -108,7 +100,7 @@ resource "google_cloudfunctions_function" "frame-extraction" {
   source_archive_object = google_storage_bucket_object.cloud-function-archive.name
 
   environment_variables = {
-    PROJECT_ID = var.project_id
+    project_id = var.project_id
   }
 
   timeouts {
@@ -169,7 +161,22 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
     }
   }
 
+  #
+  # auth_fail_action, login, and security level will get assigned defaults by the API
+  # if they are not defined here causing terraform to think your resource has
+  # changed each time it runs a new plan.
+  #
+  #   https://github.com/hashicorp/terraform-provider-google/issues/9013
+  #
+  # Defaults from the API are
+  #   auth_fail_action = "AUTH_FAIL_ACTION_REDIRECT"
+  #   login            = "LOGIN_OPTIONAL"
+  #   security_level   = "SECURE_OPTIONAL"
+  #
   handlers {
+    auth_fail_action = "AUTH_FAIL_ACTION_REDIRECT"
+    login            = "LOGIN_OPTIONAL"
+    security_level   = "SECURE_OPTIONAL"
     url_regex = "/favicon.ico"
     static_files {
       path = "static/favicon.ico"
@@ -180,18 +187,35 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
 
   handlers {
     url_regex = "/.*"
+    auth_fail_action = "AUTH_FAIL_ACTION_REDIRECT"
+    login            = "LOGIN_OPTIONAL"
+    security_level = "SECURE_ALWAYS"
     script {
       script_path = "auto"
     }
-    security_level = "SECURE_ALWAYS"
     redirect_http_response_code = "REDIRECT_HTTP_RESPONSE_CODE_301"
+  }
+
+  #
+  # Again see:
+  #   https://github.com/hashicorp/terraform-provider-google/issues/9013
+  # The API automatically adds this entire handler.
+  #
+  handlers {
+    auth_fail_action = "AUTH_FAIL_ACTION_REDIRECT"
+    login            = "LOGIN_OPTIONAL"
+    security_level   = "SECURE_OPTIONAL"
+    url_regex = ".*"
+    script {
+      script_path = "auto"
+    }
   }
 
   instance_class = "F4"
 
   env_variables = {
     PROJECT_ID = var.project_id
-    ORIGIN = var.app_engine_url
+    ORIGIN = var.project_url
     USE_OIDC = "true"
     REDIS_IP_ADDR = google_redis_instance.ml-redis-dev.host
   }
