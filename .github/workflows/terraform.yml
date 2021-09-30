@@ -28,7 +28,11 @@ jobs:
       shell: bash
       env:
         SERVICE_KEY: ${{secrets.SERVICE_KEY}}
-        
+
+    - name: Closure Build
+      working-directory: server
+      run: ./gradlew compileJavascript
+
     # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v1
