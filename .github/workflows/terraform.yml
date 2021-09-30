@@ -40,11 +40,6 @@ jobs:
       working-directory: terraform/dev
       run: terraform init -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}}
 
-    # Checks that all Terraform configuration files adhere to a canonical format
-    - name: Terraform Format
-      working-directory: terraform/dev
-      run: terraform fmt -check
-
     # Generates an execution plan for Terraform
     - name: Terraform Plan
       working-directory: terraform/dev
