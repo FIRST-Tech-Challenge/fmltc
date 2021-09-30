@@ -50,7 +50,6 @@ jobs:
       working-directory: terraform/dev
       run: terraform plan -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}}
       env:
-        GOOGLE_CREDENTIALS: ${{secrets.SERVICE_KEY}}
         GOOGLE_APPLICATION_CREDENTIALS: "../../server/key.json"
 
       # On push to main, build or change infrastructure according to Terraform configuration files
