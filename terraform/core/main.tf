@@ -100,7 +100,7 @@ resource "google_cloudfunctions_function" "frame-extraction" {
   source_archive_object = google_storage_bucket_object.cloud-function-archive.name
 
   environment_variables = {
-    PROJECT_ID = var.project_id
+    project_id = var.project_id
   }
 
   timeouts {
@@ -215,7 +215,7 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
 
   env_variables = {
     PROJECT_ID = var.project_id
-    ORIGIN = var.app_engine_url
+    ORIGIN = var.project_url
     USE_OIDC = "true"
     REDIS_IP_ADDR = google_redis_instance.ml-redis-dev.host
   }
