@@ -26,7 +26,7 @@ jobs:
       working-directory: server
       run: |
         ls -l
-        echo ${{secrets.SERVICE_KEY}} > key.json
+        echo ${{secrets.SERVICE_KEY_FILE}} > key.json
         ls -l
 
     - name: Closure Build
@@ -58,5 +58,4 @@ jobs:
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: terraform apply -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}} -auto-approve
       env:
-        GOOGLE_CREDENTIALS: ${{secrets.SERVICE_KEY}}
         GOOGLE_APPLICATION_CREDENTIALS: "../../server/key.json"
