@@ -25,11 +25,9 @@ jobs:
     - name: Install Key
       working-directory: server
       run: |
-        'echo "$SERVICE_KEY" > key.json'
         ls -l
-      shell: bash
-      env:
-        SERVICE_KEY: ${{secrets.SERVICE_KEY}}
+        echo ${{secrets.SERVICE_KEY}} > key.json
+        ls -l
 
     - name: Closure Build
       run: ./gradlew compileJavascript
