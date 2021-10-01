@@ -26,9 +26,8 @@ jobs:
       working-directory: server
       run: |
         ls -l
-        echo "${{secrets.SERVICE_KEY_FILE}}" > key.json
+        echo "${{secrets.SERVICE_KEY}}" | base64 --decode > key.json
         ls -l
-        pwd
         cat key.json
 
     - name: Closure Build
@@ -45,7 +44,7 @@ jobs:
       working-directory: terraform/dev
       run: terraform init -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}}
       env:
-        GOOGLE_CREDENTIALS: ${{secrets.SERVICE_KEY}}
+        GOOGLE_APPLICATION_CREDENTIALS: "../../server/key.json"
 
     # Generates an execution plan for Terraform
     - name: Terraform Plan
