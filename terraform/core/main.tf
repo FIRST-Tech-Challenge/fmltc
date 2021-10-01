@@ -169,6 +169,10 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
   # if they are not defined here causing terraform to think your resource has
   # changed each time it runs a new plan.
   #
+  # This is particularly important in the context of GitHub Actions minutes where
+  # needlessly redeploying the app engine instance could significantly increase
+  # minutes usage.
+  #
   #   https://github.com/hashicorp/terraform-provider-google/issues/9013
   #
   # Defaults from the API are
@@ -205,10 +209,28 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
   # The API automatically adds this entire handler.
   #
   handlers {
+    url_regex = ".*"
     auth_fail_action = "AUTH_FAIL_ACTION_REDIRECT"
     login            = "LOGIN_OPTIONAL"
     security_level   = "SECURE_OPTIONAL"
+    script {
+      script_path = "auto"
+    }
+  }
+
+  #
+  # Yes, this is exactly the same as the handler block above, and
+  # yes, it needs to be repeated to prevent terraform plan from
+  # thinking it's removed.
+  #
+  # See: https://github.com/hashicorp/terraform-provider-google/issues/9013#issuecomment-848473266
+  # The terraform people call this problem a "perma-diff"
+  #
+  handlers {
     url_regex = ".*"
+    auth_fail_action = "AUTH_FAIL_ACTION_REDIRECT"
+    login            = "LOGIN_OPTIONAL"
+    security_level   = "SECURE_OPTIONAL"
     script {
       script_path = "auto"
     }
