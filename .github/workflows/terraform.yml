@@ -24,11 +24,12 @@ jobs:
     
     - name: Install Key
       working-directory: server
-      run: 'echo "$SERVICE_KEY" > key.json'
-      shell: bash
-      env:
-        SERVICE_KEY: ${{secrets.SERVICE_KEY}}
-        
+      run: |
+        echo "${{secrets.SERVICE_KEY}}" | base64 --decode > key.json
+
+    - name: Closure Build
+      run: ./gradlew compileJavascript
+
     # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v1
@@ -39,13 +40,28 @@ jobs:
     - name: Terraform Init
       working-directory: terraform/dev
       run: terraform init -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}}
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: "../../server/key.json"
 
     # Generates an execution plan for Terraform
     - name: Terraform Plan
+      id: plan
       working-directory: terraform/dev
       run: terraform plan -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}}
       env:
-        GOOGLE_CREDENTIALS: ${{secrets.SERVICE_KEY}}
+        GOOGLE_APPLICATION_CREDENTIALS: "../../server/key.json"
+
+    # Attach the plan to the GitHub PR.
+    - name: Post Plan
+      if: always() && github.ref != 'refs/heads/main' && (steps.plan.outcome == 'success' || steps.plan.outcome == 'failure')
+      uses: cmacfarl/terraform-pr-commenter@v1.5.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        EXPAND_SUMMARY_DETAILS: 'true' # Override global environment variable; expand details just for this step
+      with:
+        commenter_type: plan
+        commenter_input: ${{ format('{0}{1}', steps.plan.outputs.stdout, steps.plan.outputs.stderr) }}
+        commenter_exitcode: ${{ steps.plan.outputs.exitcode }}
 
       # On push to main, build or change infrastructure according to Terraform configuration files
       # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
@@ -53,4 +69,4 @@ jobs:
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: terraform apply -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}} -auto-approve
       env:
-        GOOGLE_CREDENTIALS: ${{secrets.SERVICE_KEY}}
+        GOOGLE_APPLICATION_CREDENTIALS: "../../server/key.json"

@@ -27,7 +27,7 @@ module "serverless-connector" {
     name        = "central-serverless"
     region      = "us-central1"
     subnet_name = module.ml-redis-vpc-module.subnets["us-central1/serverless-subnet"].name
-    machine_type  = "e2-standard-4"
+    machine_type  = "f1-micro"
     min_throughput = 200
     max_throughput = 700
   }

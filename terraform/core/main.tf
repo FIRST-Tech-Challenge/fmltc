@@ -6,21 +6,24 @@ terraform {
     }
     google-ml = {
       source = "cmacfarl/google-ml"
-      version = "0.1.0"
+      version = "0.1.1"
     }
   }
 }
 
+#
+# For credentials use either the Google Application Default Credentials
+# set via 'gcloud auth' or GOOGLE_APPLICATION_CREDENTIALS in the environment.
+#
+# Example: GOOGLE_APPLICATION_CREDENTIALS="<path-to-your-key-file>" terraform init/plan/apply
+#
 provider "google" {
-  credentials = file(var.credentials_file)
-
   project = var.project_id
   region  = var.region
   zone    = var.zone
 }
 
 provider "google-ml" {
-  credentials = var.credentials_file
   project     = var.project_id
 }
 
