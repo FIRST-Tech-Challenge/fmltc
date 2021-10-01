@@ -47,14 +47,14 @@ from roles import Role
 
 app = flask.Flask(__name__)
 app.config.update(
-    SECRET_KEY=constants.SECRET_KEY,
+    SECRET_KEY=constants.FLASK_SECRET_KEY,
     MAX_CONTENT_LENGTH=8 * 1024 * 1024,
     ALLOWED_EXTENSIONS=set(['png', 'jpg', 'jpeg', 'gif'])
 )
 
 app.config.update(
     {
-        "SECRET_KEY": constants.SECRET_KEY,
+        "SECRET_KEY": constants.FLASK_SECRET_KEY,
         "TESTING": True,
         "DEBUG": True,
         "OIDC_CLIENT_SECRETS": "client_secrets.json",
@@ -425,6 +425,14 @@ def monitor_training():
         dataset_entities_by_uuid=dataset_entities_by_uuid,
         video_entities_by_uuid=video_entities_by_uuid)
 
+
+# test is for debugging purposes only.
+# @app.route('/test')
+# @handle_exceptions
+# @redirect_to_login_if_needed
+# def test():
+#     return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+#                                  use_oidc=constants.USE_OIDC, redis_ip=constants.REDIS_IP_ADDR)
 
 # requests
 
@@ -1197,6 +1205,25 @@ def get_tflite_download_url():
     }
     return flask.jsonify(response)
 
+# performActionGAE is for debugging purposes only.
+# @app.route('/performActionGAE', methods=['POST'])
+# @handle_exceptions
+# @login_required
+# def perform_action_gae():
+#     start_time = datetime.now()
+#     action_parameters = flask.request.get_json()
+#     action.test(action_parameters)
+#     return 'OK'
+
+# performActionGCF is for debugging purposes only.
+# @app.route('/performActionGCF', methods=['POST'])
+# @handle_exceptions
+# @login_required
+# def perform_action_gcf():
+#     action_parameters = flask.request.get_json()
+#     action.trigger_action_via_blob(action_parameters)
+#     return 'OK'
+
 # errors
 
 @app.errorhandler(403)
@@ -1217,7 +1244,7 @@ def perform_action(data, context):
         time_limit = start_time + timedelta(seconds=500)
         action.perform_action_from_blob(data['name'], time_limit)
     else:
-        util.log('Called function on invalid bucket' + action.BUCKET_ACTION_PARAMETERS)
+        util.log('perform_action called on invalid bucket ' + action.BUCKET_ACTION_PARAMETERS)
     return 'OK'
 
 # For running locally:
