@@ -41,13 +41,6 @@ resource "google_storage_bucket" "fmltc-gae-source" {
   depends_on = [google_project_service.gcp_services]
 }
 
-resource "google_storage_bucket_object" "teams" {
-  name         = "team_info/teams"
-  source       = "${path.root}/../../teams"
-  bucket       = google_storage_bucket.fmltc-blobs.name
-  depends_on   = [google_storage_default_object_access_control.public_rule]
-}
-
 resource "google_storage_bucket_object" "styles" {
   name         = "static/css/styles.css"
   source       = "${path.root}/../../server/static/css/styles.css"
