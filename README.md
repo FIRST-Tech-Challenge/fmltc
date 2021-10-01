@@ -126,11 +126,11 @@ popd
 ```
 
 
-## Fill in the values in server/constants.py
+## Fill in the values in server/env_variables.yaml
 
-1. Replace `<Project ID>` with the Google Cloud Project ID for our project.
-1. Replace `<Secret Key>` with the secret key you want to use to configure flask.
-1. Replace `<Origin>` with the base URL that will serve the website.
+1. Replace `<YOUR-PROJECT-ID>` with the Google Cloud Project ID for your project.
+1. Replace `<YOUR-ORIGIN>` with the base URL that will serve the website.
+1. Replace `<YOUR-FLASK-SECRET-KEY>` with the key you want to use to configure flask.
 
 
 ## Setup the environment.

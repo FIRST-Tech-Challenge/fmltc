@@ -50,6 +50,7 @@ ACTION_TIME_LIMIT = 'action_time_limit'
 ACTION_RETRIGGERED = 'action_retriggered'
 
 # ACTION_NAME values
+# ACTION_NAME_TEST = 'test' # For debugging purposes only
 ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD = 'wait_for_video_upload'
 ACTION_NAME_FRAME_EXTRACTION = 'frame_extraction'
 ACTION_NAME_TRACKING = 'tracking'
@@ -130,6 +131,7 @@ def __perform_action(action_parameters, time_limit):
     storage.action_on_start(action_parameters[ACTION_UUID])
 
     action_fns = {
+        # ACTION_NAME_TEST: test, # For debugging purposes only
         ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD: frame_extractor.wait_for_video_upload,
         ACTION_NAME_FRAME_EXTRACTION: frame_extractor.extract_frames,
         ACTION_NAME_TRACKING: tracking.start_tracking,
@@ -188,3 +190,8 @@ def remaining_timedelta(action_parameters):
 class Stop(Exception):
   def __init__(self):
     Exception.__init__(self)
+
+
+# test is for debugging purposes only.
+# def test(action_parameters):
+#     util.log('action test')

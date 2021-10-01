@@ -1,6 +1,7 @@
 .index_updated
 __pycache__/
 compiled/*
+env_variables.yaml
 key.json
 teams
 venv*

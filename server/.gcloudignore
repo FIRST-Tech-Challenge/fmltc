@@ -10,6 +10,7 @@
 .git
 .gitignore
 .index_updated
+env_variables.yaml
 teams
 
 __pycache__/
