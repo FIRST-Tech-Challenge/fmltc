@@ -25,10 +25,7 @@ jobs:
     - name: Install Key
       working-directory: server
       run: |
-        ls -l
         echo "${{secrets.SERVICE_KEY}}" | base64 --decode > key.json
-        ls -l
-        cat key.json
 
     - name: Closure Build
       run: ./gradlew compileJavascript
