@@ -26,6 +26,7 @@ jobs:
       working-directory: server
       run: |
         echo "${{secrets.SERVICE_KEY}}" | base64 --decode > key.json
+        echo "${{secrets.OIDC_SECRETS}}" | base64 --decode > client_secrets.json
 
     - name: Closure Build
       run: ./gradlew compileJavascript
