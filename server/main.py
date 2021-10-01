@@ -432,7 +432,7 @@ def monitor_training():
 # @redirect_to_login_if_needed
 # def test():
 #     return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
-                                 use_oidc=constants.USE_OIDC, redis_ip=constants.REDIS_IP_ADDR)
+#                                  use_oidc=constants.USE_OIDC, redis_ip=constants.REDIS_IP_ADDR)
 
 # requests
 
