@@ -16,11 +16,16 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
 from datetime import datetime, timezone
+import json
 import logging
 
 # Other Modules
+from google.cloud import secretmanager
 import google.cloud.storage
+from google.oauth2 import service_account
 
+# My Modules
+import constants
 
 LOG_MESSAGE_PREFIX = 'FMLTC_LOG - '
 
@@ -44,7 +49,13 @@ def make_label_map(sorted_label_list):
 
 
 def storage_client():
-    return google.cloud.storage.Client.from_service_account_json('key.json')
+    secret_client = secretmanager.SecretManagerServiceClient()
+    name = "projects/%s/secrets/key_json/versions/latest" % constants.PROJECT_ID
+    payload = secret_client.access_secret_version(name=name).payload.data.decode("UTF-8")
+    credentials_dict = json.loads(payload)
+    credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+    return google.cloud.storage.Client(project=constants.PROJECT_ID, credentials=credentials)
+
 
 def extend_dict_label_to_count(dict, other_dict):
     for label, count in other_dict.items():
