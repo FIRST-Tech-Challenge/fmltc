@@ -11,7 +11,7 @@ This directory contains a [Terraform](https://www.terraform.io/) description of 
 - A new Google Cloud project with billing enabled. [Instructions](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 - A Terraform Installation. [Instructions](https://learn.hashicorp.com/tutorials/terraform/install-cli?in=terraform/gcp-get-started)
 - Gradle. [Instructions](https://gradle.org/install/)
-- A service key for the Google Cloud project (Granted Owner role).
+- A service key for the Google Cloud project (Granted Owner role), stored in [Secrets Manager](https://console.cloud.google.com/security/secret-manager)  Note that terraform will not enable this api.  Secrets are managed manually, out of band of, the rest of the infrastructure. 
 
 ## General Guidelines
 
