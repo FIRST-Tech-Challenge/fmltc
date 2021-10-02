@@ -79,7 +79,7 @@ def create_tflite(action_parameters):
         # Convert to a quantized tflite model
         saved_model_path = blob_storage.get_tflite_saved_model_path(model_folder)
         converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_path)
-        converter.optimizations = [tf.lite.Optimize.DEFAULT] # DEFAULT means the tflite model with be quantized.
+        converter.optimizations = [tf.lite.Optimize.DEFAULT] # DEFAULT means the tflite model will be quantized.
         tflite_quantized_model = converter.convert()
         blob_storage.store_tflite_quantized_model(model_folder, tflite_quantized_model)
 
