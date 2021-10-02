@@ -1,0 +1,46 @@
+#
+# This file contains environment variables that are specific to an individual
+# deployment.
+#
+
+env_variables:
+
+  # Replace <YOUR-PROJECT-ID> with the Google Cloud Project ID for your project.
+  # Note that things are easier all around if your project id is the same as
+  # your project name.
+  # To ensure that is the case, pick a name that the Google Cloud console
+  # doesn't want to append a random number onto.
+  #
+  # Best practice for project naming
+  #    - If you are associated with a FIRST team prepend the project name with
+  #      your program and team number.  e.g.  ftc25-* or frc5218-*
+  #    - Ensure it is globally unique so that the project name and id are
+  #      identical
+  #    - Don't use generic project names that might be globally useful in other
+  #      contexts.  e.g. first-machine-learning-* or similar.
+  #
+  PROJECT_ID: "<YOUR-PROJECT-ID>"
+
+  # Replace <YOUR-ORIGIN> with the base URL that will serve the website. In many
+  # cases, this will be https://<Project ID>.appspot.com
+  # The value should not end with a / and should not contain a path.
+  #
+  ORIGIN: "<YOUR-ORIGIN>"
+
+  # Replace <YOUR-FLASK-SECRET-KEY> with the key you want to use to configure
+  # flask. This should be kept secret and never be uploaded to the open source
+  # repo.
+  #
+  FLASK_SECRET_KEY: "<YOUR-FLASK-SECRET-KEY>"
+
+  # Uncomment the USE_OIDC line to turn on OIDC authentication.
+  # Note that the value ov USE_OIDC is not important; any value will turn on
+  # OIDC authentication.
+  #
+  #USE_OIDC: "true"
+
+  # REDIS_IP_ADDR is only applicable for OIDC.
+  # Uncomment the REDIS_IP_ADDR line and replace <YOUR-REDIS-IP-ADDR> with the
+  # IP address of your redis instance to use it for session storage.
+  #
+  #REDIS_IP_ADDR: "<YOUR-REDIS-IP-ADDR>"

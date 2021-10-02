@@ -17,7 +17,6 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timedelta
 import json
-import os
 import re
 import uuid
 

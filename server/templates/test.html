@@ -89,8 +89,7 @@ Redis IP: {{redis_ip}}
   function createActionParameters() {
     actionParameters = Object.create(null);
     actionParameters['action_name'] = 'test';
-    actionParameters['action_finish_time'] = Date.now() + 7 * 60 * 1000;
-    console.log('action_finish_time is ' + new Date(actionParameters['action_finish_time']).toLocaleString());
+    actionParameters['action_team_uuid'] = '';
     return actionParameters;
   }
 
