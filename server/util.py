@@ -20,11 +20,11 @@ import json
 import logging
 
 # Other Modules
-from google.cloud import secretmanager
 import google.cloud.storage
 from google.oauth2 import service_account
 
 # My Modules
+import cloud_secrets
 import constants
 
 LOG_MESSAGE_PREFIX = 'FMLTC_LOG - '
@@ -49,9 +49,7 @@ def make_label_map(sorted_label_list):
 
 
 def storage_client():
-    secret_client = secretmanager.SecretManagerServiceClient()
-    name = "projects/%s/secrets/key_json/versions/latest" % constants.PROJECT_ID
-    payload = secret_client.access_secret_version(name=name).payload.data.decode("UTF-8")
+    payload = cloud_secrets.get("key_json")
     credentials_dict = json.loads(payload)
     credentials = service_account.Credentials.from_service_account_info(credentials_dict)
     return google.cloud.storage.Client(project=constants.PROJECT_ID, credentials=credentials)

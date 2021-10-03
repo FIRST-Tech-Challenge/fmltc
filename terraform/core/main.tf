@@ -37,6 +37,7 @@ variable "gcp_service_list" {
     "datastore.googleapis.com",
     "firestore.googleapis.com",
     "ml.googleapis.com",
+    "secretmanager.googleapis.com",
     "compute.googleapis.com",
     "cloudbuild.googleapis.com",
     "run.googleapis.com",
