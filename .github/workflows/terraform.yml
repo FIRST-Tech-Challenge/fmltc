@@ -22,6 +22,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     
+    - name: Install Key
+      run: |
+        echo "${{secrets.SERVICE_KEY}}" | base64 --decode > key.json
+        echo "${{secrets.OIDC_SECRETS}}" | base64 --decode > client_secrets.json
+
     - name: Closure Build
       run: ./gradlew compileJavascript
 
