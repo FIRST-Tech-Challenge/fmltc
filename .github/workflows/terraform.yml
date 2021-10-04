@@ -27,6 +27,10 @@ jobs:
         echo "${{secrets.SERVICE_KEY}}" | base64 --decode > key.json
         echo "${{secrets.OIDC_SECRETS}}" | base64 --decode > client_secrets.json
 
+    - name: Write Properties
+      run: |
+        echo "{ \"version\" : \"$(git rev-parse --short $GITHUB_SHA) \" }" > server/application.properties
+
     - name: Closure Build
       run: ./gradlew compileJavascript
 

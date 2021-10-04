@@ -49,14 +49,13 @@ from roles import Role
 
 app = flask.Flask(__name__)
 app.config.update(
-    SECRET_KEY=constants.FLASK_SECRET_KEY,
     MAX_CONTENT_LENGTH=8 * 1024 * 1024,
     ALLOWED_EXTENSIONS=set(['png', 'jpg', 'jpeg', 'gif'])
 )
 
 app.config.update(
     {
-        "SECRET_KEY": constants.FLASK_SECRET_KEY,
+        "SECRET_KEY": cloud_secrets.get("flask_secret_key"),
         "TESTING": True,
         "DEBUG": True,
         "OIDC_ID_TOKEN_COOKIE_SECURE": False,
@@ -83,6 +82,7 @@ if constants.USE_OIDC is not None:
 else:
     oidc = None
 
+application_properties = json.load(open('app.properties', 'r'))
 
 def redirect_to_login_if_needed(func):
     @wraps(func)
@@ -334,7 +334,7 @@ def setXFrameOptions(response):
 @handle_exceptions
 def select_team():
     teams = flask.request.args.getlist('teams')
-    return flask.render_template('selectTeam.html', teams=teams)
+    return flask.render_template('selectTeam.html', version=application_properties['version'], teams=teams)
 
 @app.route('/submitTeam', methods=['GET', 'POST'])
 def submit_team():
@@ -372,7 +372,7 @@ def login():
         error_message = ''
         program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('login.html',
-        time_time=time.time(), project_id=constants.PROJECT_ID,
+        time_time=time.time(), version=application_properties['version'], project_id=constants.PROJECT_ID,
         error_message=error_message, program=program, team_number=team_number)
 
 @app.route('/')
@@ -381,7 +381,7 @@ def login():
 def index():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
-    return flask.render_template('root.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+    return flask.render_template('root.html', time_time=time.time(), version=application_properties['version'], project_id=constants.PROJECT_ID,
         program=program, team_number=team_number, can_upload_video=roles.can_upload_video(flask.session['user_roles']),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         starting_models=model_trainer.get_starting_model_names())

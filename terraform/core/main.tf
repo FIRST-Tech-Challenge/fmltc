@@ -103,7 +103,7 @@ resource "google_cloudfunctions_function" "perform-action" {
   source_archive_object = google_storage_bucket_object.cloud-function-archive.name
 
   environment_variables = {
-    project_id = var.project_id
+    PROJECT_ID = var.project_id
   }
 
   timeouts {
