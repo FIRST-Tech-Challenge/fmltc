@@ -2,6 +2,7 @@
 __pycache__/
 compiled/*
 env_variables.yaml
+client_secrets.json
 key.json
 teams
 venv*

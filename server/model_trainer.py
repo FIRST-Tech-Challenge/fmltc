@@ -23,7 +23,6 @@ import time
 import traceback
 
 # Other Modules
-from google.cloud import secretmanager
 from google.oauth2 import service_account
 import googleapiclient.discovery
 import tensorflow as tf
@@ -32,6 +31,7 @@ from tensorflow.core.util import event_pb2
 # My Modules
 import action
 import blob_storage
+import cloud_secrets
 import constants
 import exceptions
 import storage
@@ -363,9 +363,7 @@ def cancel_training_model(team_uuid, model_uuid):
     return storage.cancel_training_requested(team_uuid, model_uuid)
 
 def __get_ml_service():
-    secret_client = secretmanager.SecretManagerServiceClient()
-    name = "projects/%s/secrets/key_json/versions/latest" % constants.PROJECT_ID
-    payload = secret_client.access_secret_version(name=name).payload.data.decode("UTF-8")
+    payload = cloud_secrets.get("key_json")
     credentials_dict = json.loads(payload)
     scopes = ['https://www.googleapis.com/auth/cloud-platform']
     credentials = service_account.Credentials.from_service_account_info(credentials_dict, scopes=scopes)

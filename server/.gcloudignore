@@ -11,6 +11,7 @@
 .gitignore
 .index_updated
 env_variables.yaml
+client_secrets.json
 key.json
 teams
 

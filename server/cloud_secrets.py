@@ -14,9 +14,11 @@
 
 from google.cloud import secretmanager
 
+import constants
+
 
 def get(secret):
     secret_client = secretmanager.SecretManagerServiceClient()
-    name = "projects/{0}/secrets/{1}/versions/latest".format("625853399012", secret)
+    name = "projects/{0}/secrets/{1}/versions/latest".format(constants.PROJECT_ID, secret)
     payload = secret_client.access_secret_version(name=name).payload.data.decode("UTF-8")
     return payload
