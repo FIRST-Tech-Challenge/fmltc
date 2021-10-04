@@ -29,7 +29,7 @@ jobs:
 
     - name: Write Properties
       run: |
-        echo "{ \"version\" : \"$(git rev-parse --short $GITHUB_SHA) \" }" > server/application.properties
+        echo "{ \"version\" : \"$(git rev-parse --short $GITHUB_SHA) \" }" > server/app.properties
 
     - name: Closure Build
       run: ./gradlew compileJavascript
