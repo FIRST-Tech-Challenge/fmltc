@@ -64,8 +64,13 @@ app.config.update(
     }
 )
 
-app.debug = True
-app.testing = True
+if util.is_development_env():
+    app.debug = True
+    app.testing = True
+else:
+    app.debug = False
+    app.testing = False
+
 
 #
 # If a redis server is specified, use it, otherwise use a
@@ -95,9 +100,9 @@ def redirect_to_login_if_needed(func):
 def login_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if team_info.validate_team_info(flask.session):
+        if roles.can_login(flask.session['user_roles']) and team_info.validate_team_info(flask.session):
             return func(*args, **kwargs)
-        return flask.redirect('/403')
+        return forbidden("You do not have the required permissions to access this page")
     return wrapper
 
 def oidc_require_login(func):
@@ -105,7 +110,7 @@ def oidc_require_login(func):
         return oidc.require_login(func)
     @wraps(func)
     def wrapper(*args, **kwargs):
-        return flask.redirect('/403')
+        return forbidden("You do not have the required permissions to access this page")
     return wrapper
 
 def roles_required(*roles):
@@ -114,7 +119,7 @@ def roles_required(*roles):
         def wrapper(*args, **kwargs):
             if set(roles).issubset(set(flask.session['user_roles'])):
                 return func(*args, **kwargs)
-            return flask.redirect('/403')
+            return forbidden("You do not have the required permissions to access this page")
         return wrapper
     return decorator
 
@@ -123,7 +128,7 @@ def roles_accepted(*roles):
         @wraps(func)
         def wrapper(*args, **kwargs):
             if set(roles).isdisjoint(set(flask.session['user_roles'])):
-                return flask.redirect('/403')
+                return forbidden("You do not have the required permissions to access this page")
             return func(*args, **kwargs)
         return wrapper
     return decorator
@@ -314,11 +319,17 @@ def strip_model_entity(model_entity):
 @oidc_require_login
 def login_via_oidc():
     if oidc.user_loggedin:
+        flask.session['user_roles'] = [x.upper() for x in oidc.user_getfield('external_roles')]
+        flask.session['user_roles'].extend(oidc.user_getfield('global_roles'))
+
+        if not roles.can_login(flask.session['user_roles']):
+            return forbidden("You do not have the required permissions to access this page")
+
         team_roles = oidc.user_getfield('team_roles')
         if len(team_roles) == 1:
             team_num = next(iter(team_roles))
             flask.session['team_number'] = team_num
-            flask.session['user_roles'] = team_roles[team_num]
+            flask.session['user_roles'].extend(team_roles[team_num])
             return flask.redirect(flask.url_for('submit_team', team=team_num))
         else:
             return flask.redirect(flask.url_for('select_team', teams=list(team_roles.keys())))
@@ -347,12 +358,12 @@ def submit_team():
             team_num = flask.request.form['team_num']
         else:
             team_num = flask.request.args.get('team')
-        flask.session['user_roles'] = team_roles[team_num]
+        flask.session['user_roles'].extend(team_roles[team_num])
         flask.session['team_number'] = team_num
         flask.session['name'] = given_name
         return flask.redirect(flask.url_for('index'))
     else:
-        return flask.redirect('/403')
+        return forbidden("You do not have the required permissions to access this page")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -363,7 +374,7 @@ def login():
             #
             # Local, privately, hosted instances get the team admin role by default.
             #
-            flask.session['user_roles'] = [Role.TEAM_ADMIN]
+            flask.session['user_roles'].extend([Role.TEAM_ADMIN])
             return flask.redirect(flask.url_for('index'))
         else:
             error_message = 'You have entered an invalid team number or team code.'
