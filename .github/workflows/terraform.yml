@@ -23,7 +23,6 @@ jobs:
       uses: actions/checkout@v2
     
     - name: Install Key
-      working-directory: server
       run: |
         echo "${{secrets.SERVICE_KEY}}" | base64 --decode > key.json
         echo "${{secrets.OIDC_SECRETS}}" | base64 --decode > client_secrets.json
@@ -42,7 +41,7 @@ jobs:
       working-directory: terraform/dev
       run: terraform init -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}}
       env:
-        GOOGLE_APPLICATION_CREDENTIALS: "../../server/key.json"
+        GOOGLE_APPLICATION_CREDENTIALS: "../../key.json"
 
     # Generates an execution plan for Terraform
     - name: Terraform Plan
@@ -50,7 +49,7 @@ jobs:
       working-directory: terraform/dev
       run: terraform plan -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}}
       env:
-        GOOGLE_APPLICATION_CREDENTIALS: "../../server/key.json"
+        GOOGLE_APPLICATION_CREDENTIALS: "../../key.json"
 
     # Attach the plan to the GitHub PR.
     - name: Post Plan
@@ -71,4 +70,4 @@ jobs:
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: terraform apply -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}} -auto-approve
       env:
-        GOOGLE_APPLICATION_CREDENTIALS: "../../server/key.json"
+        GOOGLE_APPLICATION_CREDENTIALS: "../../key.json"

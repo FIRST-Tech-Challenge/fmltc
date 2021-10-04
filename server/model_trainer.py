@@ -31,6 +31,7 @@ from tensorflow.core.util import event_pb2
 # My Modules
 import action
 import blob_storage
+import cloud_secrets
 import constants
 import exceptions
 import storage
@@ -362,8 +363,10 @@ def cancel_training_model(team_uuid, model_uuid):
     return storage.cancel_training_requested(team_uuid, model_uuid)
 
 def __get_ml_service():
+    payload = cloud_secrets.get("key_json")
+    credentials_dict = json.loads(payload)
     scopes = ['https://www.googleapis.com/auth/cloud-platform']
-    credentials = service_account.Credentials.from_service_account_file('key.json', scopes=scopes)
+    credentials = service_account.Credentials.from_service_account_info(credentials_dict, scopes=scopes)
     return googleapiclient.discovery.build(
         serviceName='ml', version='v1', credentials=credentials, cache_discovery=False)
 

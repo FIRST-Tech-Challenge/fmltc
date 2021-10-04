@@ -11,7 +11,7 @@ This directory contains a [Terraform](https://www.terraform.io/) description of 
 - A new Google Cloud project with billing enabled. [Instructions](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 - A Terraform Installation. [Instructions](https://learn.hashicorp.com/tutorials/terraform/install-cli?in=terraform/gcp-get-started)
 - Gradle. [Instructions](https://gradle.org/install/)
-- A service key for the Google Cloud project (Granted Owner role).
+- A service key for the Google Cloud project (Granted Owner role), stored in [Secrets Manager](https://console.cloud.google.com/security/secret-manager)  Note that terraform will not enable this api.  Secrets are managed manually, out of band of, the rest of the infrastructure. 
 
 ## General Guidelines
 
@@ -38,7 +38,9 @@ It helps to have some knowledge of Terraform concepts.  The [tutorial](https://l
     1. Create a new Google Cloud project following naming guidelines above. [Instructions](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
     1. Enable billing on the new project. [Instructions](https://cloud.google.com/billing/docs/how-to/modify-project#confirm_billing_is_enabled_on_a_project)
     1. Create/Download a service key file granted the Owner role.  You want a JSON key, and you must assign it the Owner role.  [Instructions](https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating_service_account_keys)
-1. Copy the downloaded service key credentials file to the fmltc server directory and name it key.json.
+1. Copy the downloaded service key credentials file to a safe location and name it key.json.
+1. From a bash shell in the root of the project run the following, adjusting the location of key.json as nessary:
+    >gcloud secrets create key_json --replication-policy="automatic" --data-file="key.json"
 1. From a bash shell in the root of the project run:
     >gradle compileJavascript.
 1. Create a file named 'teams' in fmltc's root directory that has one line.  

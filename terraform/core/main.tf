@@ -90,9 +90,9 @@ resource "google_storage_bucket_object" "app-server-archive" {
   bucket = google_storage_bucket.fmltc-gae-source.name
 }
 
-resource "google_cloudfunctions_function" "frame-extraction" {
+resource "google_cloudfunctions_function" "perform-action" {
   name        = "perform_action"
-  description = "Extracts frames after a video upload"
+  description = "Performs long running actions, such as extracting frames after a video upload"
   runtime     = "python39"
 
   available_memory_mb   = 8192

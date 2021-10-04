@@ -25,24 +25,35 @@ FIRST Machine Learning Toolchain
     ```
     gcloud config set project ${FMLTC_GCLOUD_PROJECT_ID}
     ```
-1. Create a service account and generate the key.json file.\
+
+1. Enable APIs.
+   ```
+   gcloud services enable cloudfunctions.googleapis.com
+   gcloud services enable ml.googleapis.com
+   gcloud services enable secretmanager.googleapis.com
+   gcloud services enable compute.googleapis.com
+   gcloud services enable cloudbuild.googleapis.com
+   ```
+
+1. Create a service account, generate a key.json file, and store it as a secret.\
    **Important!** Make sure the current working directory is the fmltc directory when you run these
    commands.
     ```
     gcloud iam service-accounts create ${FMLTC_GCLOUD_PROJECT_ID}-service-account
     gcloud projects add-iam-policy-binding ${FMLTC_GCLOUD_PROJECT_ID} --member "serviceAccount:${FMLTC_GCLOUD_PROJECT_ID}-service-account@${FMLTC_GCLOUD_PROJECT_ID}.iam.gserviceaccount.com" --role "roles/owner"
     gcloud iam service-accounts keys create key.json --iam-account ${FMLTC_GCLOUD_PROJECT_ID}-service-account@${FMLTC_GCLOUD_PROJECT_ID}.iam.gserviceaccount.com
+    gcloud secrets create key_json --replication-policy="automatic" --data-file="key.json"
     ```
-1. Move key.json to server/key.json
-   
-1. Enable APIs.
-   ```
-   gcloud services enable cloudfunctions.googleapis.com
-   gcloud services enable ml.googleapis.com
-   gcloud services enable compute.googleapis.com
-   gcloud services enable cloudbuild.googleapis.com
-   ```
-   
+
+1. Give the App Engine default service account access to the secret.
+   - [ ] Go to https://console.cloud.google.com/iam-admin/iam?project=my_project_id (replace my_project_id with your actual project ID)
+   - [ ] Look for the row that shows `App Engine default service account` in the Name column.
+   - [ ] At the far right of that row, click on the pencil icon (hint text says `Edit principal`)
+   - [ ] Click `+ ADD ANOTHER ROLE`
+   - [ ] Under `Select a role`, where it says `Type to filter` enter `secret accessor`
+   - [ ] Click `Secret Manager Secret Accessor`
+   - [ ] Click SAVE
+
 1. Create cloud storage buckets.
     ```
     gsutil mb -c standard gs://${FMLTC_GCLOUD_PROJECT_ID}
@@ -50,13 +61,13 @@ FIRST Machine Learning Toolchain
     gsutil mb -c standard gs://${FMLTC_GCLOUD_PROJECT_ID}-blobs
     gsutil mb -c standard gs://${FMLTC_GCLOUD_PROJECT_ID}-action-parameters
     ```
-   
+
 1. Create the Datastore.
    - [ ] Go to https://console.cloud.google.com/datastore/welcome?project=my_project_id (replace my_project_id with your actual project ID)
    - [ ] Click `SELECT NATIVE MODE`
    - [ ] Click `Select a location` and choose a location.
    - [ ] Click `CREATE DATABASE`
-    
+
 1. Grant the ml.serviceAgent role to your TPU service account.
    - [ ] Run the following command
     ```
@@ -169,7 +180,7 @@ source env_setup.sh
     Allow unauthenticated invocations of new function 
     [perform_action]? (y/N)? 
     ```
-   
+
 1. Deploy the App Engine code.
     ```
     source env_setup.sh

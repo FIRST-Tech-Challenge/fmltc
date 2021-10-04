@@ -3,9 +3,11 @@ google-api-python-client==1.9.0
 google-cloud-datastore==2.1.0
 google-cloud-error-reporting
 google-cloud-logging==1.15.0
+google-cloud-resource-manager==1.1.2
+google-cloud-secret-manager==2.7.0
 google-cloud-storage==1.35.0
 gunicorn==20.1.0
-flask-oidc==1.4.0
+flask-oidc-ext==1.4.3
 numpy==1.19.4
 object_detection-0.1_2.5.0.tar.gz
 opencv-contrib-python-headless==4.5.2.54

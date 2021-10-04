@@ -17,12 +17,13 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+import json
 import logging
 import time
 
 # Other Modules
 import flask
-from flask_oidc import OpenIDConnect
+from flask_oidc_ext import OpenIDConnect
 from sqlitedict import SqliteDict
 from credentialstore import CredentialStore
 
@@ -37,6 +38,7 @@ import exceptions
 import frame_extractor
 import model_trainer
 import roles
+import cloud_secrets
 import storage
 import tflite_creator
 import team_info
@@ -57,7 +59,6 @@ app.config.update(
         "SECRET_KEY": constants.FLASK_SECRET_KEY,
         "TESTING": True,
         "DEBUG": True,
-        "OIDC_CLIENT_SECRETS": "client_secrets.json",
         "OIDC_ID_TOKEN_COOKIE_SECURE": False,
         "OIDC_REQUIRE_VERIFIED_EMAIL": False,
         "OIDC_SCOPES": ["openid", "email", "roles"]
@@ -72,6 +73,9 @@ app.testing = True
 # local sqlite database.
 #
 if constants.USE_OIDC is not None:
+    payload = cloud_secrets.get("client_secrets")
+    credentials_dict = json.loads(payload)
+    app.config.update({"OIDC_CLIENT_SECRETS": credentials_dict})
     if constants.REDIS_IP_ADDR is not None:
         oidc = OpenIDConnect(app, credentials_store=CredentialStore())
     else:
