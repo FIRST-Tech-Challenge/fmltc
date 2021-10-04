@@ -48,8 +48,6 @@ import util
 from roles import Role
 
 app = flask.Flask(__name__)
-app.config.update(
-)
 
 app.config.update(
     {
