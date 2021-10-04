@@ -60,9 +60,6 @@ app.config.update(
         "OIDC_ID_TOKEN_COOKIE_SECURE": False,
         "OIDC_REQUIRE_VERIFIED_EMAIL": False,
         "OIDC_SCOPES": ["openid", "email", "roles"],
-
-        # "TESTING": True,
-        # "DEBUG": True,
     }
 )
 
