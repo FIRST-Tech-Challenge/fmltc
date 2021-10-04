@@ -49,18 +49,22 @@ from roles import Role
 
 app = flask.Flask(__name__)
 app.config.update(
-    MAX_CONTENT_LENGTH=8 * 1024 * 1024,
-    ALLOWED_EXTENSIONS=set(['png', 'jpg', 'jpeg', 'gif'])
 )
 
 app.config.update(
     {
+        # Flask properties
         "SECRET_KEY": cloud_secrets.get("flask_secret_key"),
-        "TESTING": True,
-        "DEBUG": True,
+        "MAX_CONTENT_LENGTH": 8 * 1024 * 1024,
+        "ALLOWED_EXTENSIONS": {'png', 'jpg', 'jpeg', 'gif'},
+
+        # OIDC properties
         "OIDC_ID_TOKEN_COOKIE_SECURE": False,
         "OIDC_REQUIRE_VERIFIED_EMAIL": False,
-        "OIDC_SCOPES": ["openid", "email", "roles"]
+        "OIDC_SCOPES": ["openid", "email", "roles"],
+
+        # "TESTING": True,
+        # "DEBUG": True,
     }
 )
 
