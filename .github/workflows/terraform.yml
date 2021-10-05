@@ -43,7 +43,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       working-directory: terraform/dev
-      run: terraform init -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}}
+      run: terraform init -var project_id=${{secrets.PROJECT_ID}} -var project_url="${{secrets.PROJECT_URL}}"
       env:
         GOOGLE_APPLICATION_CREDENTIALS: "../../key.json"
 
