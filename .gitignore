@@ -8,4 +8,5 @@ teams
 venv*
 generated/
 .idea/
-terraform/dev/.terraform/
+terraform/dev/.terraform*
+terraform/dev/*.tfstate

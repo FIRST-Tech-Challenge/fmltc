@@ -28,6 +28,8 @@ import cloud_secrets
 import constants
 
 LOG_MESSAGE_PREFIX = 'FMLTC_LOG - '
+ENV_DEVELOPMENT = "development"
+ENV_PRODUCTION = "production"
 
 def log(message):
     logging.critical('%s%s' % (LOG_MESSAGE_PREFIX, message))
@@ -61,3 +63,17 @@ def extend_dict_label_to_count(dict, other_dict):
             dict[label] += count
         else:
             dict[label] = count
+
+
+def is_development_env():
+    if (constants.ENVIRONMENT == ENV_DEVELOPMENT):
+        return True
+    else:
+        return False
+
+
+def is_production_env():
+    if (constants.ENVIRONMENT == ENV_PRODUCTION):
+        return True
+    else:
+        return False

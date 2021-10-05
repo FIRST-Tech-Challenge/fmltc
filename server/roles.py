@@ -14,15 +14,31 @@
 
 from enum import Enum
 
+import util
+
 
 class Role(str, Enum):
+    GLOBAL_ADMIN = 'GLOBAL_ADMIN'
+    ML_DEVELOPER = 'ML_DEVELOPER'
     TEAM_ADMIN = 'TEAM_ADMIN'
     TEAM_MEMBER = 'TEAM_MEMBER'
 
 
 def can_upload_video(roles):
-    if Role.TEAM_ADMIN in roles:
-        return True
+    return Role.TEAM_ADMIN in roles
+
+
+def can_login(roles):
+    if util.is_development_env():
+        return is_global_admin(roles) or is_ml_developer(roles)
     else:
-        return False
+        return True
+
+
+def is_global_admin(roles):
+    return Role.GLOBAL_ADMIN in roles
+
+
+def is_ml_developer(roles):
+    return Role.ML_DEVELOPER in roles
 

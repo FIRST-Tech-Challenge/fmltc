@@ -103,7 +103,7 @@ resource "google_cloudfunctions_function" "perform-action" {
   source_archive_object = google_storage_bucket_object.cloud-function-archive.name
 
   environment_variables = {
-    project_id = var.project_id
+    PROJECT_ID = var.project_id
   }
 
   timeouts {
@@ -243,6 +243,7 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
     ORIGIN = var.project_url
     USE_OIDC = "true"
     REDIS_IP_ADDR = google_redis_instance.ml-redis-dev.host
+    ENVIRONMENT = "development"
   }
 
   depends_on = [module.serverless-connector]
