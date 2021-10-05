@@ -29,7 +29,7 @@ def can_upload_video(roles):
 
 
 def can_login(roles):
-    if util.is_development_env():
+    if util.is_development_env() and util.use_oidc():
         return is_global_admin(roles) or is_ml_developer(roles)
     else:
         return True

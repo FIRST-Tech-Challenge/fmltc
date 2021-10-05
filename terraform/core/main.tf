@@ -66,14 +66,14 @@ resource "google_project_service" "gcp_services" {
 
 data "archive_file" "cloud-function-src" {
   type        = "zip"
-  source_dir  = "${path.root}/../../server"
+  source_dir  = "${path.root}/../../server/cloud_function"
   output_path = "${path.root}/../../generated/gcf-src.zip"
   excludes = [ "__pycache__", "static" ]
 }
 
-data "archive_file" "app-server-src" {
+data "archive_file" "app-engine-src" {
   type        = "zip"
-  source_dir  = "${path.root}/../../server"
+  source_dir  = "${path.root}/../../server/app_engine"
   output_path = "${path.root}/../../generated/gae-src.zip"
   excludes = [ "__pycache__", "static/training" ]
 }
@@ -84,8 +84,8 @@ resource "google_storage_bucket_object" "cloud-function-archive" {
   bucket = google_storage_bucket.fmltc-gcf-source.name
 }
 
-resource "google_storage_bucket_object" "app-server-archive" {
-  name   = "${data.archive_file.app-server-src.output_md5}.zip"
+resource "google_storage_bucket_object" "app-engine-archive" {
+  name   = "${data.archive_file.app-engine-src.output_md5}.zip"
   source = "${path.root}/../../generated/gae-src.zip"
   bucket = google_storage_bucket.fmltc-gae-source.name
 }
@@ -160,7 +160,7 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
   }
   deployment {
     zip {
-      source_url = "https://storage.googleapis.com/${google_storage_bucket.fmltc-gae-source.name}/${google_storage_bucket_object.app-server-archive.name}"
+      source_url = "https://storage.googleapis.com/${google_storage_bucket.fmltc-gae-source.name}/${google_storage_bucket_object.app-engine-archive.name}"
     }
   }
 

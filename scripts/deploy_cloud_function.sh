@@ -4,7 +4,7 @@ if [[ "${FMLTC_GCLOUD_PROJECT_ID}" == "" ]]; then
 fi
 
 
-pushd server
+pushd server/cloud_function
 gcloud functions deploy perform_action \
     --runtime=python39 \
     --set-env-vars PROJECT_ID=${FMLTC_GCLOUD_PROJECT_ID} \

@@ -76,7 +76,7 @@ else:
 # If a redis server is specified, use it, otherwise use a
 # local sqlite database.
 #
-if constants.USE_OIDC is not None:
+if util.use_oidc():
     payload = cloud_secrets.get("client_secrets")
     credentials_dict = json.loads(payload)
     app.config.update({"OIDC_CLIENT_SECRETS": credentials_dict})
@@ -106,7 +106,7 @@ def login_required(func):
     return wrapper
 
 def oidc_require_login(func):
-    if constants.USE_OIDC is not None:
+    if util.use_oidc():
         return oidc.require_login(func)
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -367,7 +367,7 @@ def submit_team():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if constants.USE_OIDC is not None:
+    if util.use_oidc():
         return login_via_oidc()
     elif flask.request.method == 'POST':
         if team_info.login(flask.request.form, flask.session):
@@ -442,12 +442,14 @@ def monitor_training():
 
 
 # test is for debugging purposes only.
-# @app.route('/test')
-# @handle_exceptions
-# @redirect_to_login_if_needed
-# def test():
-#     return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
-#                                  use_oidc=constants.USE_OIDC, redis_ip=constants.REDIS_IP_ADDR)
+@app.route('/test')
+@handle_exceptions
+@redirect_to_login_if_needed
+def test():
+    if util.is_production_env():
+        raise exceptions.HttpErrorNotFound("Not found")
+    return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+                                 use_oidc=constants.USE_OIDC, redis_ip=constants.REDIS_IP_ADDR)
 
 # requests
 
@@ -462,7 +464,7 @@ def logout():
     # Remove the team information from the flask.session if it's there.
     team_info.logout(flask.session)
     flask.session.clear()
-    if constants.USE_OIDC:
+    if util.use_oidc():
         #
         # TODO: If using OIDC, logout of identity provider also.
         #
@@ -1221,23 +1223,27 @@ def get_tflite_download_url():
     return flask.jsonify(response)
 
 # performActionGAE is for debugging purposes only.
-# @app.route('/performActionGAE', methods=['POST'])
-# @handle_exceptions
-# @login_required
-# def perform_action_gae():
-#     start_time = datetime.now()
-#     action_parameters = flask.request.get_json()
-#     action.test(action_parameters)
-#     return 'OK'
+@app.route('/performActionGAE', methods=['POST'])
+@handle_exceptions
+@login_required
+def perform_action_gae():
+    if util.is_production_env():
+        raise exceptions.HttpErrorNotFound("Not found")
+    start_time = datetime.now()
+    action_parameters = flask.request.get_json()
+    action.test(action_parameters)
+    return 'OK'
 
 # performActionGCF is for debugging purposes only.
-# @app.route('/performActionGCF', methods=['POST'])
-# @handle_exceptions
-# @login_required
-# def perform_action_gcf():
-#     action_parameters = flask.request.get_json()
-#     action.trigger_action_via_blob(action_parameters)
-#     return 'OK'
+@app.route('/performActionGCF', methods=['POST'])
+@handle_exceptions
+@login_required
+def perform_action_gcf():
+    if util.is_production_env():
+        raise exceptions.HttpErrorNotFound("Not found")
+    action_parameters = flask.request.get_json()
+    action.trigger_action_via_blob(action_parameters)
+    return 'OK'
 
 # errors
 
@@ -1250,21 +1256,3 @@ def forbidden(e):
 def server_error(e):
     logging.exception('An internal error occurred.')
     return "An internal error occurred: <pre>{}</pre>".format(e), 500
-
-# cloud functions
-
-def perform_action(data, context):
-    start_time = datetime.now(timezone.utc)
-    if data['bucket'] == action.BUCKET_ACTION_PARAMETERS:
-        time_limit = start_time + timedelta(seconds=500)
-        action.perform_action_from_blob(data['name'], time_limit)
-    else:
-        util.log('perform_action called on invalid bucket ' + action.BUCKET_ACTION_PARAMETERS)
-    return 'OK'
-
-# For running locally:
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-    app.run(host='127.0.0.1', port=8088, debug=True)
-

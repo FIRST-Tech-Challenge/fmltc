@@ -145,7 +145,7 @@ popd
 ```
 
 
-## Fill in the values in server/env_variables.yaml
+## Fill in the values in server/app_engine/env_variables.yaml
 
 1. Replace `<YOUR-PROJECT-ID>` with the Google Cloud Project ID for your project.
 1. Replace `<YOUR-ORIGIN>` with the base URL that will serve the website.

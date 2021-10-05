@@ -77,3 +77,10 @@ def is_production_env():
         return True
     else:
         return False
+
+
+def use_oidc():
+    if constants.USE_OIDC is not None:
+        return True
+    else:
+        return False

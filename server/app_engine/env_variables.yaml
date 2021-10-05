@@ -27,6 +27,10 @@ env_variables:
   #
   ORIGIN: "<YOUR-ORIGIN>"
 
+  # ENVIRONMENT can be 'development' or 'production'.
+  #
+  ENVIRONMENT: "production"
+
   # Uncomment the USE_OIDC line to turn on OIDC authentication.
   # Note that the value ov USE_OIDC is not important; any value will turn on
   # OIDC authentication.

@@ -1,0 +1,1 @@
+../common/team_info.py
