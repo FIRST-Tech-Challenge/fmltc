@@ -57,6 +57,7 @@ app.config.update(
         "ALLOWED_EXTENSIONS": {'png', 'jpg', 'jpeg', 'gif'},
 
         # OIDC properties
+
         "OIDC_ID_TOKEN_COOKIE_SECURE": False,
         "OIDC_REQUIRE_VERIFIED_EMAIL": False,
         "OIDC_SCOPES": ["openid", "email", "roles"],
@@ -373,7 +374,7 @@ def login():
             #
             # Local, privately, hosted instances get the team admin role by default.
             #
-            flask.session['user_roles'].extend([Role.TEAM_ADMIN])
+            flask.session['user_roles'] = [Role.TEAM_ADMIN]
             return flask.redirect(flask.url_for('index'))
         else:
             error_message = 'You have entered an invalid team number or team code.'
