@@ -22,9 +22,6 @@ PROJECT_ID = os.getenv('PROJECT_ID')
 # ORIGIN is set in the environment in app engine, but not cloud functions.
 ORIGIN = os.getenv('ORIGIN')
 
-# FLASK_SECRET_KEY is set in the environment in app engine, but not cloud functions.
-FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY')
-
 # USE_OIDC may be set in the environment in app engine, but not cloud functions.
 USE_OIDC = os.getenv('USE_OIDC')
 

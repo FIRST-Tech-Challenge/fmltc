@@ -45,6 +45,14 @@ FIRST Machine Learning Toolchain
     gcloud secrets create key_json --replication-policy="automatic" --data-file="key.json"
     ```
 
+1. Create a secret key for configuring flask. The secret key can be any text you want, but you should keep it private.
+   Execute the following commands, replacing `<YOUR-FLASK-SECRET-KEY>` with the key you want to use.
+    ```
+    echo "<YOUR-FLASK-SECRET-KEY>" >flask_secret_key.txt
+    gcloud secrets create flask_secret_key --replication-policy="automatic" --data-file=flask_secret_key.txt
+    rm flask_secret_key.txt
+    ```
+
 1. Give the App Engine default service account access to the secret.
    - [ ] Go to https://console.cloud.google.com/iam-admin/iam?project=my_project_id (replace my_project_id with your actual project ID)
    - [ ] Look for the row that shows `App Engine default service account` in the Name column.
@@ -141,7 +149,6 @@ popd
 
 1. Replace `<YOUR-PROJECT-ID>` with the Google Cloud Project ID for your project.
 1. Replace `<YOUR-ORIGIN>` with the base URL that will serve the website.
-1. Replace `<YOUR-FLASK-SECRET-KEY>` with the key you want to use to configure flask.
 
 
 ## Setup the environment.

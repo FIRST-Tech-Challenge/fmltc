@@ -27,12 +27,6 @@ env_variables:
   #
   ORIGIN: "<YOUR-ORIGIN>"
 
-  # Replace <YOUR-FLASK-SECRET-KEY> with the key you want to use to configure
-  # flask. This should be kept secret and never be uploaded to the open source
-  # repo.
-  #
-  FLASK_SECRET_KEY: "<YOUR-FLASK-SECRET-KEY>"
-
   # Uncomment the USE_OIDC line to turn on OIDC authentication.
   # Note that the value ov USE_OIDC is not important; any value will turn on
   # OIDC authentication.
