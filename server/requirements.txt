@@ -10,7 +10,7 @@ gunicorn==20.1.0
 flask-oidc-ext==1.4.3
 numpy==1.19.4
 object_detection-0.1_2.5.0.tar.gz
-opencv-contrib-python-headless==4.5.3.54
+opencv-contrib-python-headless==4.5.3.56
 Pillow==8.3.2
 protobuf==3.17.3
 psutil==5.8.0
