@@ -6,7 +6,7 @@ steps:
     args: ["install", "-r", "requirements.txt", "--user"]
 
   # Docker Build
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: 'gcr.io/cloud-builders/docker@sha256:ffbb134124db40e2d6b073d267aed08465d29d0e9fe4bb023318c4f7c753c0cd'
     dir: 'server'
     args: ['build',
            '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/fmltc:$SHORT_SHA', '.']
