@@ -43,7 +43,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       working-directory: terraform/dev
-      run: terraform init -var project_id=${{secrets.PROJECT_ID}} -var project_url="${{secrets.PROJECT_URL}}"
+      run: terraform init -var project_id=${{secrets.PROJECT_ID}} -var project_url="${{secrets.PROJECT_URL}}" -var environment="development"
       env:
         GOOGLE_APPLICATION_CREDENTIALS: "../../key.json"
 
@@ -51,7 +51,7 @@ jobs:
     - name: Terraform Plan
       id: plan
       working-directory: terraform/dev
-      run: terraform plan -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}}
+      run: terraform plan -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}} -var environment="development"
       env:
         GOOGLE_APPLICATION_CREDENTIALS: "../../key.json"
 
@@ -72,6 +72,6 @@ jobs:
     - name: Terraform Apply
       working-directory: terraform/dev
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: terraform apply -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}} -auto-approve
+      run: terraform apply -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}} -var environment="development" -auto-approve
       env:
         GOOGLE_APPLICATION_CREDENTIALS: "../../key.json"

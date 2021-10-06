@@ -20,6 +20,7 @@ import util
 class Role(str, Enum):
     GLOBAL_ADMIN = 'GLOBAL_ADMIN'
     ML_DEVELOPER = 'ML_DEVELOPER'
+    ML_TEST = 'ML_TEST'
     TEAM_ADMIN = 'TEAM_ADMIN'
     TEAM_MEMBER = 'TEAM_MEMBER'
 
@@ -29,8 +30,8 @@ def can_upload_video(roles):
 
 
 def can_login(roles):
-    if util.is_development_env():
-        return is_global_admin(roles) or is_ml_developer(roles)
+    if util.is_production_env() or util.is_development_env():
+        return is_global_admin(roles) or is_ml_developer(roles) or is_ml_test()
     else:
         return True
 
@@ -42,3 +43,6 @@ def is_global_admin(roles):
 def is_ml_developer(roles):
     return Role.ML_DEVELOPER in roles
 
+
+def is_ml_test(roles):
+    return Role.ML_TEST in roles

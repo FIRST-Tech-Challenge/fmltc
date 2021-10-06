@@ -11,5 +11,6 @@ variable "zone"              { type = string }
 #
 # The following variables must be set in the environment
 #
-variable "project_id"        { type = string }
-variable "project_url"    { type = string }
+variable "project_id"  { type = string }
+variable "project_url" { type = string }
+variable "environment" { type = string }

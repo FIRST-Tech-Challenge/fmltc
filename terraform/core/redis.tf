@@ -5,7 +5,7 @@ resource "google_redis_instance" "ml-redis-dev" {
   region         = var.region
   redis_version  = "REDIS_5_0"
 
-  authorized_network = "projects/ftc-ml-firstinspires-dev/global/networks/ml-redis-vpc-dev"
+  authorized_network = "projects/${var.project_id}/global/networks/ml-redis-vpc-dev"
 
   depends_on = [google_project_service.gcp_services]
 }
