@@ -3,7 +3,7 @@ on:
     types: [published]
 
 jobs:
-  build:
+  push-to-prod:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
