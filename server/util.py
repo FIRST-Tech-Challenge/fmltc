@@ -23,6 +23,8 @@ import logging
 import google.cloud.storage
 from google.oauth2 import service_account
 
+from werkzeug.wrappers import Response
+
 # My Modules
 import cloud_secrets
 import constants
@@ -77,3 +79,50 @@ def is_production_env():
         return True
     else:
         return False
+
+
+def redirect(location: str, code: int = 302) -> "Response":
+    """Returns a response object (a WSGI application) that, if called,
+    redirects the client to the target location. Supported codes are
+    301, 302, 303, 305, 307, and 308. 300 is not supported because
+    it's not a real redirect and 304 because it's the answer for a
+    request with a request with defined If-Modified-Since headers.
+
+    .. versionadded:: 0.6
+       The location can now be a unicode string that is encoded using
+       the :func:`iri_to_uri` function.
+
+    .. versionadded:: 0.10
+        The class used for the Response object can now be passed in.
+
+    :param location: the location the response should redirect to.
+    :param code: the redirect status code. defaults to 302.
+    :param class Response: a Response class to use when instantiating a
+        response. The default is :class:`werkzeug.wrappers.Response` if
+        unspecified.
+    """
+    import html
+
+    from werkzeug.wrappers import Response  # type: ignore
+    from werkzeug.urls import iri_to_uri
+
+    display_location = html.escape(location)
+    if isinstance(location, str):
+        # Safe conversion is necessary here as we might redirect
+        # to a broken URI scheme (for instance itms-services).
+
+        location = iri_to_uri(location, safe_conversion=True)
+
+    response = Response(
+        '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">\n'
+        "<title>Redirecting...</title>\n"
+        "<h1>Redirecting...</h1>\n"
+        "<p>You should be redirected automatically to target URL: "
+        f'<a href="{html.escape(location)}">{display_location}</a>. If'
+        " not click the link.",
+        code,
+        mimetype="text/html",
+    )
+    response.headers["Location"] = location
+    return response
+
