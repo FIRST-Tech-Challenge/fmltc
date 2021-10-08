@@ -26,6 +26,7 @@ import flask
 from flask_oidc_ext import OpenIDConnect
 from sqlitedict import SqliteDict
 from credentialstore import CredentialStore
+import sentry_sdk
 
 # My Modules
 import action
@@ -46,6 +47,27 @@ import tracking
 import util
 
 from roles import Role
+
+import sentry_sdk
+from flask import Flask
+from sentry_sdk.integrations.flask import FlaskIntegration
+
+sentry_dsn = cloud_secrets.get('sentry_dsn')
+sentry_sdk.init(
+    dsn=sentry_dsn,
+    integrations=[FlaskIntegration()],
+
+     # Set traces_sample_rate to 1.0 to capture 100%
+     # of transactions for performance monitoring.
+     # We recommend adjusting this value in production.
+     traces_sample_rate=1.0,
+
+    # By default the SDK will try to use the SENTRY_RELEASE
+    # environment variable, or infer a git commit
+    # SHA as release, however you may want to set
+    # something more human-readable.
+    # release="myapp@1.0.0",
+    )
 
 app = flask.Flask(__name__)
 
@@ -1271,3 +1293,11 @@ def forbidden(e):
 def server_error(e):
     logging.exception('An internal error occurred.')
     return "An internal error occurred: <pre>{}</pre>".format(e), 500
+
+
+# For running locally:
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
+    app.run(host='127.0.0.1', port=8088, debug=True)
