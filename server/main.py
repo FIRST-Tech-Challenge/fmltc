@@ -456,18 +456,32 @@ def monitor_training():
 def ok():
     return 'OK'
 
+
 @app.route('/logout', methods=['POST'])
 @handle_exceptions
 def logout():
-    # Remove the team information from the flask.session if it's there.
     team_info.logout(flask.session)
     flask.session.clear()
     if constants.USE_OIDC:
-        #
-        # TODO: If using OIDC, logout of identity provider also.
-        #
         oidc.logout()
+
     return 'OK'
+
+
+@app.route('/logoutinfo', methods=['GET'])
+@handle_exceptions
+def logoutinfo():
+    if constants.USE_OIDC:
+        #
+        # If using OIDC, send the user over to the identity provider so they can logout
+        # there also.
+        #
+        secrets = app.config.get('OIDC_CLIENT_SECRETS')
+        logout_uri = secrets['web']['logout_uri']
+        return util.redirect(logout_uri)
+    else:
+        return flask.render_template('/login.html')
+
 
 @app.route('/setUserPreference', methods=['POST'])
 @handle_exceptions
@@ -480,6 +494,7 @@ def set_user_preference():
     value = data.get('value')
     storage.store_user_preference(team_uuid, key, value)
     return 'OK'
+
 
 @app.route('/prepareToUploadVideo', methods=['POST'])
 @handle_exceptions

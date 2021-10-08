@@ -54,7 +54,7 @@ fmltc.Util.prototype.logoutButton_onclick = function() {
 fmltc.Util.prototype.xhr_logout_onreadystatechange = function(xhr) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
-    window.location.replace('/');
+    window.location.replace('/logoutinfo');
   }
 };
 
