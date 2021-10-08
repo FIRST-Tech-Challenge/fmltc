@@ -1,6 +1,6 @@
 steps:
   # Install dependencies
-  - name: python
+  - name: python:3.9
     entrypoint: pip
     dir: 'server/app_engine'
     args: ["install", "-r", "requirements.txt", "--user"]

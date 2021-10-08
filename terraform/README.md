@@ -47,11 +47,9 @@ It helps to have some knowledge of Terraform concepts.  The [tutorial](https://l
     >FTC, \<your team number>, \<password>
 
     Note that you should be careful to not upload this file to public repositories and you should choose a password that is not easily guessed.
-1. Navigate to terraform/bootstrap. (This step requires modifying the terraform scripts for your local project.  It can be skipped if you don't want to run terraform with a remote backend.  If so you need to remove the backend block from terraform/dev)
-1. Run:
-     >terraform init<br>
-     >terraform apply
 1. Navigate to terraform/dev.
+1. Create storage bucket on GCP to hold the backend terraform state.
+1. Edit backend.tf such that it reflects the name of your storage bucket.
 1. Edit terraform.tfvars to reflect your, project_name and project_id.
 1. Run:
      >terraform init<br>

@@ -1,0 +1,18 @@
+on:
+  release:
+    types: [published]
+
+jobs:
+  push-to-prod:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # Note, uses personal access token to cause GitHub to run another action on push
+          # from this action.  Care should be taken to ensure recursive runs do not ensue.
+          token: ${{secrets.ACTION_PAT}}
+          fetch-depth: 0
+      - run: |
+          git checkout main
+          git push origin HEAD:prod

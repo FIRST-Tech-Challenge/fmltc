@@ -1,0 +1,108 @@
+name: 'Production Deploy'
+
+on:
+  push:
+    branches:
+    - prod
+
+jobs:
+  terraform-plan:
+    name: 'Plan'
+    runs-on: ubuntu-latest
+    environment: production
+
+    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Key
+        run: |
+          echo "${{secrets.SERVICE_KEY}}" | base64 --decode > key.json
+          echo "${{secrets.OIDC_SECRETS}}" | base64 --decode > client_secrets.json
+
+      - name: Write Properties
+        run: |
+          sha=$(git rev-list --tags --max-count=1)
+          echo "{ \"version\" : \"$(git describe --tags $sha)\" }" > server/app.properties
+
+      - name: Closure Build
+        run: ./gradlew compileJavascript
+
+      # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 0.14.4
+
+      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+      - name: Terraform Init
+        working-directory: terraform/prod
+        run: terraform init -var project_id=${{secrets.PROJECT_ID}} -var project_url="${{secrets.PROJECT_URL}}" -var environment="production"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: "../../key.json"
+
+      # Generates an execution plan for Terraform
+      - name: Terraform Plan
+        id: plan
+        working-directory: terraform/prod
+        run: terraform plan -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}} -var environment="production"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: "../../key.json"
+
+  terraform-apply:
+    name: 'Apply'
+    needs: terraform-plan
+    runs-on: ubuntu-latest
+    environment: production
+
+    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Install Key
+        run: |
+          echo "${{secrets.SERVICE_KEY}}" | base64 --decode > key.json
+          echo "${{secrets.OIDC_SECRETS}}" | base64 --decode > client_secrets.json
+
+      - name: Write Properties
+        run: |
+          sha=$(git rev-list --tags --max-count=1)
+          echo "{ \"version\" : \"$(git describe --tags $sha)\" }" > server/app.properties
+
+      - name: Closure Build
+        run: ./gradlew compileJavascript
+
+      # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 0.14.4
+
+      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+      - name: Terraform Init
+        working-directory: terraform/prod
+        run: terraform init -var project_id=${{secrets.PROJECT_ID}} -var project_url="${{secrets.PROJECT_URL}}" -var environment="production"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: "../../key.json"
+
+        # On push to prod, build or change infrastructure according to Terraform configuration files
+      - name: Terraform Apply
+        working-directory: terraform/prod
+        run: terraform apply -var project_id=${{secrets.PROJECT_ID}} -var project_url=${{secrets.PROJECT_URL}} -var environment="production" -auto-approve
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: "../../key.json"
+
