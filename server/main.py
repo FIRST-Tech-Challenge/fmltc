@@ -1290,10 +1290,6 @@ def server_error(e):
 
 # cloud functions
 
-@app.route('/debug-sentry')
-def trigger_error():
-    division_by_zero = 1 / 0
-
 def perform_action(data, context):
     start_time = datetime.now(timezone.utc)
     if data['bucket'] == action.BUCKET_ACTION_PARAMETERS:
