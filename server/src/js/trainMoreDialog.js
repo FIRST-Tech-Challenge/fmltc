@@ -40,7 +40,8 @@ fmltc.TrainMoreDialog = function(
   this.onTrainingStarted = onTrainingStarted;
   this.dialog = document.getElementById('trainMoreDialog');
   this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
-  this.dismissButton = document.getElementById('tmDismissButton');
+  this.xButton = document.getElementById('tmXButton');
+  this.closeButton = document.getElementById('tmCloseButton');
   this.maxRunningMinutesInput = document.getElementById('tmMaxRunningMinutesInput');
   this.totalTrainingMinutesSpan = document.getElementById('tmTotalTrainingMinutesSpan');
   this.remainingTrainingMinutesSpan = document.getElementById('tmRemainingTrainingMinutesSpan');
@@ -97,7 +98,7 @@ fmltc.TrainMoreDialog = function(
   this.successDiv.style.display = 'none';
   this.failedDiv.style.display = 'none';
 
-  this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
+  this.xButton.onclick = this.closeButton.onclick = this.closeButton_onclick.bind(this);
   this.numTrainingStepsInput.onchange = this.numTrainingStepsInput_onchange.bind(this);
   this.maxRunningMinutesInput.onchange = this.maxRunningMinutesInput_onchange.bind(this);
   this.descriptionInput.oninput = this.descriptionInput_oninput.bind(this);
@@ -114,9 +115,9 @@ fmltc.TrainMoreDialog.prototype.isDatasetInModel = function(datasetEntity) {
   return false;
 };
 
-fmltc.TrainMoreDialog.prototype.dismissButton_onclick = function() {
+fmltc.TrainMoreDialog.prototype.closeButton_onclick = function() {
   // Clear event handlers.
-  this.dismissButton.onclick = null;
+  this.xButton.onclick = this.closeButton.onclick = null;
   this.descriptionInput.oninput = null;
   this.startButton.onclick = null;
 
@@ -201,7 +202,7 @@ fmltc.TrainMoreDialog.prototype.xhr_startTrainingModel_onreadystatechange = func
       this.util.clearWaitCursor();
 
       this.onTrainingStarted(remainingTrainingMinutes, modelEntity);
-      setTimeout(this.dismissButton_onclick.bind(this), 1000);
+      setTimeout(this.closeButton_onclick.bind(this), 1000);
 
     } else {
       // TODO(lizlooney): handle error properly

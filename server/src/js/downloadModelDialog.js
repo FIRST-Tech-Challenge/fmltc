@@ -38,11 +38,12 @@ fmltc.DownloadModelDialog = function(util, modelUuid, downloadStartTime, onModel
 
   this.dialog = document.getElementById('downloadModelDialog');
   this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
-  this.dismissButton = document.getElementById('dmDismissButton');
+  this.xButton = document.getElementById('dmXButton');
+  this.closeButton = document.getElementById('dmCloseButton');
 
-  this.dismissButton.disabled = true;
+  this.xButton.disabled = this.closeButton.disabled = true;
 
-  this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
+  this.xButton.onclick = this.closeButton.onclick = this.closeButton_onclick.bind(this);
   this.dialog.style.display = 'block';
 
   setTimeout(this.getTFLiteDownloadUrl.bind(this), 5000);
@@ -64,9 +65,9 @@ fmltc.DownloadModelDialog.prototype.xhr_getTFLiteDownloadUrl_onreadystatechange 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
       if (response.exists) {
-        this.dismissButton.disabled = false;
+        this.xButton.disabled = this.closeButton.disabled = false;
         this.onModelReady(this.downloadStartTime, response.download_url);
-        setTimeout(this.dismissButton_onclick.bind(this), 1000);
+        setTimeout(this.closeButton_onclick.bind(this), 1000);
 
       } else {
         setTimeout(this.getTFLiteDownloadUrl.bind(this, this.modelUuid, this.downloadStartTime), 5000);
@@ -80,9 +81,9 @@ fmltc.DownloadModelDialog.prototype.xhr_getTFLiteDownloadUrl_onreadystatechange 
   }
 };
 
-fmltc.DownloadModelDialog.prototype.dismissButton_onclick = function() {
+fmltc.DownloadModelDialog.prototype.closeButton_onclick = function() {
   // Clear event handlers.
-  this.dismissButton.onclick = null;
+  this.xButton.onclick = this.closeButton.onclick = null;
 
   // Hide the dialog.
   this.dialog.style.display = 'none';

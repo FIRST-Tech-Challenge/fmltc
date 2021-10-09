@@ -39,7 +39,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.datasetEntitiesByUuid = datasetEntitiesByUuid;
 
   this.activeTrainingDiv = document.getElementById('activeTrainingDiv');
-  this.cancelTrainingButton = document.getElementById('cancelTrainingButton');
+  this.stopTrainingButton = document.getElementById('stopTrainingButton');
   this.refreshIntervalRangeInput = document.getElementById('refreshIntervalRangeInput');
   this.refreshButton = document.getElementById('refreshButton');
   this.trainTimeTd = document.getElementById('trainTimeTd');
@@ -144,8 +144,8 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.util.addTabResizeListener(this.tab_onresize.bind(this));
   this.util.addTabClickListener(this.tab_onclick.bind(this));
 
-  document.getElementById('dismissButton').onclick = this.dismissButton_onclick.bind(this);
-  this.cancelTrainingButton.onclick = this.cancelTrainingButton_onclick.bind(this);
+  document.getElementById('backButton').onclick = this.backButton_onclick.bind(this);
+  this.stopTrainingButton.onclick = this.stopTrainingButton_onclick.bind(this);
   this.refreshIntervalRangeInput.onchange = this.refreshIntervalRangeInput_onchange.bind(this);
   this.refreshButton.onclick = this.refreshButton_onclick.bind(this);
   this.firstPageButton.onclick = this.firstPageButton_onclick.bind(this);
@@ -154,33 +154,33 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.lastPageButton.onclick = this.lastPageButton_onclick.bind(this);
 };
 
-fmltc.MonitorTraining.prototype.dismissButton_onclick = function() {
+fmltc.MonitorTraining.prototype.backButton_onclick = function() {
   window.history.back();
 };
 
 fmltc.MonitorTraining.prototype.updateButtons = function() {
-  let canCancelTraining = true;
+  let canStopTraining = true;
   if (this.util.isTrainingDone(this.modelEntity)) {
-    canCancelTraining = false;
+    canStopTraining = false;
   } else {
     if (this.modelEntity.cancel_requested) {
-      canCancelTraining = false;
+      canStopTraining = false;
     }
   }
 
-  this.cancelTrainingButton.disabled = !canCancelTraining;
+  this.stopTrainingButton.disabled = !canStopTraining;
 };
 
-fmltc.MonitorTraining.prototype.cancelTrainingButton_onclick = function() {
+fmltc.MonitorTraining.prototype.stopTrainingButton_onclick = function() {
   const xhr = new XMLHttpRequest();
   const params = 'model_uuid=' + encodeURIComponent(this.modelUuid);
-  xhr.open('POST', '/cancelTrainingModel', true);
+  xhr.open('POST', '/stopTrainingModel', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_cancelTraining_onreadystatechange.bind(this, xhr, params);
+  xhr.onreadystatechange = this.xhr_stopTraining_onreadystatechange.bind(this, xhr, params);
   xhr.send(params);
 };
 
-fmltc.MonitorTraining.prototype.xhr_cancelTraining_onreadystatechange = function(xhr, params) {
+fmltc.MonitorTraining.prototype.xhr_stopTraining_onreadystatechange = function(xhr, params) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
@@ -191,7 +191,7 @@ fmltc.MonitorTraining.prototype.xhr_cancelTraining_onreadystatechange = function
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /cancelTraining?' + params +
+      console.log('Failure! /stopTraining?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
@@ -631,7 +631,7 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
   }
 
   document.getElementById('trainStateTd').textContent = this.util.formatJobState(
-      'train', this.modelEntity.cancel_requested, this.modelEntity.train_job_state);
+      'train', this.modelEntity);
 
   document.getElementById('numStepsCompletedTd').textContent =
       new Number(this.modelEntity.trained_steps).toLocaleString();
@@ -644,7 +644,7 @@ fmltc.MonitorTraining.prototype.updateModelUI = function() {
   }
 
   document.getElementById('evalStateTd').textContent = this.util.formatJobState(
-      'eval', this.modelEntity.cancel_requested, this.modelEntity.eval_job_state);
+      'eval', this.modelEntity);
 
   this.modelLoader.style.visibility = 'hidden';
 };

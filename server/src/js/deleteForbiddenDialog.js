@@ -34,6 +34,7 @@ fmltc.DeleteForbiddenDialog = function(util, title, message, list) {
   this.util = util;
   this.dialog = document.getElementById('deleteForbiddenDialog');
   this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
+  this.xButton = document.getElementById('dfXButton');
   this.okButton = document.getElementById('dfOKButton');
 
   document.getElementById('dfTitleDiv').textContent = title;
@@ -48,13 +49,13 @@ fmltc.DeleteForbiddenDialog = function(util, title, message, list) {
     }
   }
 
-  this.okButton.onclick = this.okButton_onclick.bind(this);
+  this.xButton.onclick = this.okButton.onclick = this.okButton_onclick.bind(this);
   this.dialog.style.display = 'block';
 };
 
 fmltc.DeleteForbiddenDialog.prototype.okButton_onclick = function() {
   // Clear event handlers.
-  this.okButton.onclick = null;
+  this.xButton.onclick = this.okButton.onclick = null;
 
   // Hide the dialog.
   this.dialog.style.display = 'none';

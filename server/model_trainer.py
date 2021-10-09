@@ -340,7 +340,7 @@ def is_done(model_entity):
         __is_done(model_entity['train_job_state']) and
         __is_done(model_entity['eval_job_state']))
 
-def cancel_training_model(team_uuid, model_uuid):
+def stop_training_model(team_uuid, model_uuid):
     # retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
@@ -350,7 +350,7 @@ def cancel_training_model(team_uuid, model_uuid):
             train_job_name = __get_train_job_name(model_uuid)
             ml.projects().jobs().cancel(name=train_job_name).execute()
         except:
-            util.log('model_trainer.cancel_training_model - canceling training job - except %s' %
+            util.log('model_trainer.stop_training_model - canceling training job - except %s' %
                 traceback.format_exc().replace('\n', ' ... '))
     if model_entity['eval_job']:
         if __is_alive(model_entity['eval_job_state']):
@@ -358,9 +358,9 @@ def cancel_training_model(team_uuid, model_uuid):
                 eval_job_name = __get_eval_job_name(model_uuid)
                 ml.projects().jobs().cancel(name=eval_job_name).execute()
             except:
-                util.log('model_trainer.cancel_training_model - canceling eval job - except %s' %
+                util.log('model_trainer.stop_training_model - canceling eval job - except %s' %
                     traceback.format_exc().replace('\n', ' ... '))
-    return storage.cancel_training_requested(team_uuid, model_uuid)
+    return storage.stop_training_requested(team_uuid, model_uuid)
 
 def __get_ml_service():
     payload = cloud_secrets.get("key_json")

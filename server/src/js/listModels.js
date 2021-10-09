@@ -38,7 +38,7 @@ fmltc.ListModels = function(util) {
   this.modelCheckboxAll = document.getElementById('modelCheckboxAll');
   this.trainMoreButton = document.getElementById('trainMoreButton');
   this.downloadTFLiteButton = document.getElementById('downloadTFLiteButton');
-  this.cancelTrainingButton = document.getElementById('cancelTrainingButton');
+  this.stopTrainingButton = document.getElementById('stopTrainingButton');
   this.deleteModelsButton = document.getElementById('deleteModelsButton');
 
   this.headerRowCount = this.modelsTable.rows.length;
@@ -65,7 +65,7 @@ fmltc.ListModels = function(util) {
   this.modelCheckboxAll.onclick = this.modelCheckboxAll_onclick.bind(this);
   this.trainMoreButton.onclick = this.trainMoreButton_onclick.bind(this);
   this.downloadTFLiteButton.onclick = this.downloadTFLiteButton_onclick.bind(this);
-  this.cancelTrainingButton.onclick = this.cancelTrainingButton_onclick.bind(this);
+  this.stopTrainingButton.onclick = this.stopTrainingButton_onclick.bind(this);
   this.deleteModelsButton.onclick = this.deleteModelsButton_onclick.bind(this);
 };
 
@@ -122,7 +122,7 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
 
     const descriptionTd = this.util.insertCellWithClass(tr, 'cellWithBorder');
     const descriptionTextNode = document.createTextNode(modelEntity.description);
-    if ('tensorflow_version' in modelEntity && modelEntity.tensorflow_version == '2') {
+    if (this.util.isModelTensorFlow2(modelEntity)) {
       // Make the description link to the monitorTraining page.
       const descriptionA = document.createElement('a'); // a for anchor
       const url = 'monitorTraining?model_uuid=' + encodeURIComponent(modelEntity.model_uuid);
@@ -154,7 +154,7 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
   }
 
   this.trainStateTds[i].textContent = this.util.formatJobState(
-      'train', modelEntity.cancel_requested, modelEntity.train_job_state);
+      'train', modelEntity);
 
   this.trainedStepsTds[i].textContent =
       new Number(modelEntity.trained_steps).toLocaleString();
@@ -177,7 +177,7 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
         this.util.isStateChangingSoon(modelEntity.cancel_requested, modelEntity.train_job_state) ||
         this.util.isStateChangingSoon(modelEntity.cancel_requested, modelEntity.eval_job_state))
         ? 10 * 1000 : 60 * 1000;
-    setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid), timeout);
+    setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid, 0), timeout);
     if (!this.trainTimeIntervalId) {
       this.trainTimeIntervalId = setInterval(this.updateTrainTime.bind(this), 500);
     }
@@ -218,7 +218,7 @@ fmltc.ListModels.prototype.clearTrainTimeIntervalIfNecessary = function() {
 };
 
 
-fmltc.ListModels.prototype.retrieveModelEntity = function(modelUuid) {
+fmltc.ListModels.prototype.retrieveModelEntity = function(modelUuid, failureCount) {
   if (this.indexOfModel(modelUuid) == -1) {
     // This model was deleted.
     return;
@@ -229,17 +229,16 @@ fmltc.ListModels.prototype.retrieveModelEntity = function(modelUuid) {
   xhr.open('POST', '/retrieveModelEntity', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_retrieveModelEntity_onreadystatechange.bind(this, xhr, params,
-      modelUuid);
+      modelUuid, failureCount);
   xhr.send(params);
 };
 
 fmltc.ListModels.prototype.xhr_retrieveModelEntity_onreadystatechange = function(xhr, params,
-    modelUuid) {
+    modelUuid, failureCount) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
-    const i = this.indexOfModel(modelUuid);
-    if (i == -1) {
+    if (this.indexOfModel(modelUuid) == -1) {
       // This model was deleted.
       return;
     }
@@ -251,12 +250,14 @@ fmltc.ListModels.prototype.xhr_retrieveModelEntity_onreadystatechange = function
       this.onModelEntityUpdated(modelEntity);
 
     } else {
-      // TODO(lizlooney): handle error properly. Currently we try again in 1 second, but that
-      // might not be the best idea.
-      console.log('Failure! /retrieveModelEntity?' + params +
-          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
-      console.log('Will retry /retrieveModelEntity?' + params + ' in 1 second.');
-      setTimeout(this.retrieveModelEntity.bind(this, modelUuid), 1000);
+      failureCount++;
+      if (failureCount < 5) {
+        const delay = Math.pow(2, failureCount);
+        console.log('Will retry /retrieveModelEntity?' + params + ' in ' + delay + ' seconds.');
+        setTimeout(this.retrieveModelEntity.bind(this, modelUuid, failureCount), delay * 1000);
+      } else {
+        console.log('Unable to retrieve model entity.');
+      }
     }
   }
 };
@@ -275,36 +276,36 @@ fmltc.ListModels.prototype.checkbox_onclick = function() {
   this.updateButtons();
 };
 
-fmltc.ListModels.prototype.cancelTrainingButton_onclick = function() {
+fmltc.ListModels.prototype.stopTrainingButton_onclick = function() {
   const modelUuids = this.getCheckedModelUuids();
   for (let i = 0; i < modelUuids.length; i++) {
     const modelUuid = modelUuids[i];
     const index = this.indexOfModel(modelUuid);
     if (index != -1) {
       if (!this.util.isTrainingDone(this.modelEntityArray[index])) {
-        this.cancelTraining(modelUuid);
+        this.stopTraining(modelUuid);
       }
     }
   }
 };
 
-fmltc.ListModels.prototype.cancelTraining = function(modelUuid) {
+fmltc.ListModels.prototype.stopTraining = function(modelUuid) {
   const xhr = new XMLHttpRequest();
   const params = 'model_uuid=' + encodeURIComponent(modelUuid);
-  xhr.open('POST', '/cancelTrainingModel', true);
+  xhr.open('POST', '/stopTrainingModel', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_cancelTraining_onreadystatechange.bind(this, xhr, params,
+  xhr.onreadystatechange = this.xhr_stopTraining_onreadystatechange.bind(this, xhr, params,
       modelUuid);
   xhr.send(params);
 };
 
-fmltc.ListModels.prototype.xhr_cancelTraining_onreadystatechange = function(xhr, params,
+fmltc.ListModels.prototype.xhr_stopTraining_onreadystatechange = function(xhr, params,
     modelUuid) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      //console.log('Success! /cancelTrainingModel');
+      //console.log('Success! /stopTrainingModel');
       const response = JSON.parse(xhr.responseText);
 
       const modelEntity = response.model_entity;
@@ -312,7 +313,7 @@ fmltc.ListModels.prototype.xhr_cancelTraining_onreadystatechange = function(xhr,
 
     } else {
       // TODO(lizlooney): handle error properly
-      console.log('Failure! /cancelTraining?' + params +
+      console.log('Failure! /stopTraining?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
   }
@@ -444,16 +445,13 @@ fmltc.ListModels.prototype.updateButtons = function() {
   const countChecked = this.util.countChecked(this.checkboxes);
   let canTrainMore = true;
   let canDownloadTFLite = true;
-  let canCancelTraining = true;
+  let canStopTraining = true;
   let canDeleteModels = true;
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
       if (this.util.isTrainingDone(this.modelEntityArray[i])) {
-        canCancelTraining = false;
-
-        if (this.modelEntityArray[i].trained_checkpoint_path == '' ||
-            !('tensorflow_version' in this.modelEntityArray[i]) ||
-            this.modelEntityArray[i].tensorflow_version != '2') {
+        canStopTraining = false;
+        if (this.util.modelHasCheckpoint(this.modelEntityArray[i])) {
           canTrainMore = false;
           canDownloadTFLite = false;
         }
@@ -462,7 +460,7 @@ fmltc.ListModels.prototype.updateButtons = function() {
         canDownloadTFLite = false;
         canDeleteModels = false;
         if (this.modelEntityArray[i].cancel_requested) {
-          canCancelTraining = false;
+          canStopTraining = false;
         }
       }
     }
@@ -470,7 +468,7 @@ fmltc.ListModels.prototype.updateButtons = function() {
 
   this.trainMoreButton.disabled = this.waitCursor || countChecked != 1 || !canTrainMore;
   this.downloadTFLiteButton.disabled = this.waitCursor || countChecked != 1 || !canDownloadTFLite;
-  this.cancelTrainingButton.disabled = this.waitCursor || countChecked != 1 || !canCancelTraining;
+  this.stopTrainingButton.disabled = this.waitCursor || countChecked != 1 || !canStopTraining;
   this.deleteModelsButton.disabled = this.waitCursor || countChecked == 0 || !canDeleteModels;
 };
 

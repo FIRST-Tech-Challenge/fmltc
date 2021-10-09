@@ -37,7 +37,8 @@ fmltc.DownloadDatasetDialog = function(util, datasetEntity, downloadStartTime) {
 
   this.dialog = document.getElementById('downloadDatasetDialog');
   this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
-  this.dismissButton = document.getElementById('ddDismissButton');
+  this.xButton = document.getElementById('ddXButton');
+  this.closeButton = document.getElementById('ddCloseButton');
   this.partitionCountDiv = document.getElementById('ddPartitionCountDiv');
   this.partitionCountSpan = document.getElementById('ddPartitionCountSpan');
   this.progressDiv = document.getElementById('ddProgressDiv');
@@ -58,15 +59,15 @@ fmltc.DownloadDatasetDialog = function(util, datasetEntity, downloadStartTime) {
   this.progressDiv.style.visibility = 'hidden';
   this.progressDiv.innerHTML = ''; // Remove all children
   this.finishedDiv.style.visibility = 'hidden';
-  this.dismissButton.disabled = true;
+  this.xButton.disabled = this.closeButton.disabled = true;
 
-  this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
+  this.xButton.onclick = this.closeButton.onclick = this.closeButton_onclick.bind(this);
   this.dialog.style.display = 'block';
 
   this.prepareToZipDataset();
 };
 
-fmltc.DownloadDatasetDialog.prototype.dismissButton_onclick = function() {
+fmltc.DownloadDatasetDialog.prototype.closeButton_onclick = function() {
   this.downloadStartedArray = [];
   this.downloadFinishedArray = [];
   this.zipProgressArray = [];
@@ -80,7 +81,7 @@ fmltc.DownloadDatasetDialog.prototype.dismissButton_onclick = function() {
   this.finishedDiv.style.visibility = 'hidden';
 
   // Clear event handlers.
-  this.dismissButton.onclick = null;
+  this.xButton.onclick = this.closeButton.onclick = null;
 
   // Hide the dialog.
   this.dialog.style.display = 'none';
@@ -308,8 +309,8 @@ fmltc.DownloadDatasetDialog.prototype.allDone = function(datasetZipUuid) {
           datasetZipUuid, partitionIndex, 0), 30000);
   }
 
-  this.dismissButton.disabled = false;
-  setTimeout(this.dismissButton_onclick.bind(this), 1000);
+  this.xButton.disabled = this.closeButton.disabled = false;
+  setTimeout(this.closeButton_onclick.bind(this), 1000);
 };
 
 fmltc.DownloadDatasetDialog.prototype.deleteDatasetZip = function(datasetZipUuid, partitionIndex, failureCount) {
