@@ -22,3 +22,10 @@ def get(secret):
     name = "projects/{0}/secrets/{1}/versions/latest".format(constants.PROJECT_ID, secret)
     payload = secret_client.access_secret_version(name=name).payload.data.decode("UTF-8")
     return payload
+
+
+def get_or_none(secret):
+    try:
+        return get(secret)
+    except:
+        return None

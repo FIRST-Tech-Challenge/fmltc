@@ -23,51 +23,51 @@ import time
 
 # Other Modules
 import flask
+from flask import Flask
 from flask_oidc_ext import OpenIDConnect
 from sqlitedict import SqliteDict
-from credentialstore import CredentialStore
 import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
 # My Modules
 import action
 import bbox_writer
 import blob_storage
+import cloud_secrets
 import constants
+from credentialstore import CredentialStore
 import dataset_producer
 import dataset_zipper
 import exceptions
 import frame_extractor
 import model_trainer
 import roles
-import cloud_secrets
+from roles import Role
 import storage
-import tflite_creator
 import team_info
+import tflite_creator
 import tracking
 import util
 
-from roles import Role
 
-import sentry_sdk
-from flask import Flask
-from sentry_sdk.integrations.flask import FlaskIntegration
 
-sentry_dsn = cloud_secrets.get('sentry_dsn')
-sentry_sdk.init(
-    dsn=sentry_dsn,
-    integrations=[FlaskIntegration()],
+sentry_dsn = cloud_secrets.get_or_none('sentry_dsn')
+if sentry_dsn is not None:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[FlaskIntegration()],
 
-     # Set traces_sample_rate to 1.0 to capture 100%
-     # of transactions for performance monitoring.
-     # We recommend adjusting this value in production.
-     traces_sample_rate=1.0,
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for performance monitoring.
+        # We recommend adjusting this value in production.
+        traces_sample_rate=1.0,
 
-    # By default the SDK will try to use the SENTRY_RELEASE
-    # environment variable, or infer a git commit
-    # SHA as release, however you may want to set
-    # something more human-readable.
-    # release="myapp@1.0.0",
-    )
+        # By default the SDK will try to use the SENTRY_RELEASE
+        # environment variable, or infer a git commit
+        # SHA as release, however you may want to set
+        # something more human-readable.
+        # release="myapp@1.0.0",
+        )
 
 app = flask.Flask(__name__)
 
@@ -98,8 +98,8 @@ else:
 # If a redis server is specified, use it, otherwise use a
 # local sqlite database.
 #
-if constants.USE_OIDC is not None:
-    payload = cloud_secrets.get("client_secrets")
+payload = cloud_secrets.get_or_none("client_secrets")
+if payload is not None:
     credentials_dict = json.loads(payload)
     app.config.update({"OIDC_CLIENT_SECRETS": credentials_dict})
     if constants.REDIS_IP_ADDR is not None:
@@ -128,7 +128,7 @@ def login_required(func):
     return wrapper
 
 def oidc_require_login(func):
-    if constants.USE_OIDC is not None:
+    if oidc is not None:
         return oidc.require_login(func)
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -389,7 +389,7 @@ def submit_team():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if constants.USE_OIDC is not None:
+    if oidc is not None:
         return login_via_oidc()
     elif flask.request.method == 'POST':
         if team_info.login(flask.request.form, flask.session):
@@ -471,7 +471,7 @@ def test():
     if util.is_production_env():
         raise exceptions.HttpErrorNotFound("Not found")
     return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
-                                 use_oidc=constants.USE_OIDC, redis_ip=constants.REDIS_IP_ADDR)
+                                 use_oidc=(oidc is not None), redis_ip=constants.REDIS_IP_ADDR)
 
 # requests
 
@@ -486,7 +486,7 @@ def ok():
 def logout():
     team_info.logout(flask.session)
     flask.session.clear()
-    if constants.USE_OIDC:
+    if oidc is not None:
         oidc.logout()
 
     return 'OK'
@@ -495,7 +495,7 @@ def logout():
 @app.route('/logoutinfo', methods=['GET'])
 @handle_exceptions
 def logoutinfo():
-    if constants.USE_OIDC:
+    if oidc is not None:
         #
         # If using OIDC, send the user over to the identity provider so they can logout
         # there also.

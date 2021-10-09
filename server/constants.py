@@ -22,9 +22,6 @@ PROJECT_ID = os.getenv('PROJECT_ID')
 # ORIGIN is set in the environment in app engine, but not cloud functions.
 ORIGIN = os.getenv('ORIGIN')
 
-# USE_OIDC may be set in the environment in app engine, but not cloud functions.
-USE_OIDC = os.getenv('USE_OIDC')
-
 # REDIS_IP_ADDR may be set in the environment in app engine, but not cloud functions.
 REDIS_IP_ADDR = os.getenv('REDIS_IP_ADDR')
 
