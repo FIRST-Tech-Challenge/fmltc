@@ -464,12 +464,14 @@ def monitor_training():
 
 
 # test is for debugging purposes only.
-# @app.route('/test')
-# @handle_exceptions
-# @redirect_to_login_if_needed
-# def test():
-#     return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
-#                                  use_oidc=constants.USE_OIDC, redis_ip=constants.REDIS_IP_ADDR)
+@app.route('/test')
+@handle_exceptions
+@redirect_to_login_if_needed
+def test():
+    if util.is_production_env():
+        raise exceptions.HttpErrorNotFound("Not found")
+    return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+                                 use_oidc=constants.USE_OIDC, redis_ip=constants.REDIS_IP_ADDR)
 
 # requests
 
@@ -1258,23 +1260,27 @@ def get_tflite_download_url():
     return flask.jsonify(response)
 
 # performActionGAE is for debugging purposes only.
-# @app.route('/performActionGAE', methods=['POST'])
-# @handle_exceptions
-# @login_required
-# def perform_action_gae():
-#     start_time = datetime.now()
-#     action_parameters = flask.request.get_json()
-#     action.test(action_parameters)
-#     return 'OK'
+@app.route('/performActionGAE', methods=['POST'])
+@handle_exceptions
+@login_required
+def perform_action_gae():
+    if util.is_production_env():
+        raise exceptions.HttpErrorNotFound("Not found")
+    start_time = datetime.now()
+    action_parameters = flask.request.get_json()
+    action.test(action_parameters)
+    return 'OK'
 
 # performActionGCF is for debugging purposes only.
-# @app.route('/performActionGCF', methods=['POST'])
-# @handle_exceptions
-# @login_required
-# def perform_action_gcf():
-#     action_parameters = flask.request.get_json()
-#     action.trigger_action_via_blob(action_parameters)
-#     return 'OK'
+@app.route('/performActionGCF', methods=['POST'])
+@handle_exceptions
+@login_required
+def perform_action_gcf():
+    if util.is_production_env():
+        raise exceptions.HttpErrorNotFound("Not found")
+    action_parameters = flask.request.get_json()
+    action.trigger_action_via_blob(action_parameters)
+    return 'OK'
 
 # errors
 
@@ -1288,16 +1294,6 @@ def server_error(e):
     logging.exception('An internal error occurred.')
     return "An internal error occurred: <pre>{}</pre>".format(e), 500
 
-# cloud functions
-
-def perform_action(data, context):
-    start_time = datetime.now(timezone.utc)
-    if data['bucket'] == action.BUCKET_ACTION_PARAMETERS:
-        time_limit = start_time + timedelta(seconds=500)
-        action.perform_action_from_blob(data['name'], time_limit)
-    else:
-        util.log('perform_action called on invalid bucket ' + action.BUCKET_ACTION_PARAMETERS)
-    return 'OK'
 
 # For running locally:
 
