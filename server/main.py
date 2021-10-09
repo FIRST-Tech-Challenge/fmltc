@@ -22,11 +22,11 @@ import logging
 import time
 
 # Other Modules
+from credentialstore import CredentialStore
 import flask
 from flask_oidc_ext import OpenIDConnect
 from sqlitedict import SqliteDict
-from credentialstore import CredentialStore
-import sentry_sdk
+from oauth2client.client import HttpAccessTokenRefreshError
 
 # My Modules
 import action
@@ -49,7 +49,6 @@ import util
 from roles import Role
 
 import sentry_sdk
-from flask import Flask
 from sentry_sdk.integrations.flask import FlaskIntegration
 
 sentry_dsn = cloud_secrets.get('sentry_dsn')
@@ -94,6 +93,22 @@ else:
     app.testing = False
 
 
+def oidc_connect():
+    if constants.REDIS_IP_ADDR is not None:
+        return OpenIDConnect(app, credentials_store=CredentialStore())
+    else:
+        return OpenIDConnect(app, credentials_store=SqliteDict('users.db', autocommit=True))
+
+
+def oidc_init():
+    try:
+        return oidc_connect()
+    except HttpAccessTokenRefreshError:
+        team_info.logout(flask.session)
+        flask.session.clear()
+        oidc.logout()
+        return oidc_connect()
+
 #
 # If a redis server is specified, use it, otherwise use a
 # local sqlite database.
@@ -102,14 +117,12 @@ if constants.USE_OIDC is not None:
     payload = cloud_secrets.get("client_secrets")
     credentials_dict = json.loads(payload)
     app.config.update({"OIDC_CLIENT_SECRETS": credentials_dict})
-    if constants.REDIS_IP_ADDR is not None:
-        oidc = OpenIDConnect(app, credentials_store=CredentialStore())
-    else:
-        oidc = OpenIDConnect(app, credentials_store=SqliteDict('users.db', autocommit=True))
+    oidc = oidc_init()
 else:
     oidc = None
 
 application_properties = json.load(open('app.properties', 'r'))
+
 
 def redirect_to_login_if_needed(func):
     @wraps(func)
