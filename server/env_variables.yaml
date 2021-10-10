@@ -22,7 +22,7 @@ env_variables:
   PROJECT_ID: "<YOUR-PROJECT-ID>"
 
   # Replace <YOUR-ORIGIN> with the base URL that will serve the website. In many
-  # cases, this will be https://<Project ID>.appspot.com
+  # cases, this will be https://<Project ID>.uc.r.appspot.com
   # The value should not end with a / and should not contain a path.
   #
   ORIGIN: "<YOUR-ORIGIN>"
