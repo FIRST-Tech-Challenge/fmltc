@@ -144,6 +144,29 @@ unzip ~/tmp_fmltc/closure-library_v20200406.zip
 popd
 ```
 
+## Install JDK
+Depending on your OS and distribution there are various ways to install JDK.
+
+- Ubuntu/Debian
+
+```
+sudo apt install openjdk-11-jdk #Ubuntu
+```
+- Manjaro
+
+```
+sudo pacman -S jre11-openjdk-headless jre11-openjdk jdk11-openjdk openjdk11-doc openjdk11-src
+```
+
+- Arch
+
+```
+sudo pacman -S jdk11-openjdk
+```
+- Other Linux distributions 
+
+https://openjdk.java.net/install/
+
 
 ## Fill in the values in server/env_variables.yaml
 
@@ -196,4 +219,4 @@ source env_setup.sh
 
 ## Try it out
 
-Go to https://my_project_id.appspot.com  (replace my_project_id with your actual project ID)
+Go to https://my_project_id.uc.r.appspot.com  (replace my_project_id with your actual project ID)
