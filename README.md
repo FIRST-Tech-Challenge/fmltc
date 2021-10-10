@@ -150,7 +150,7 @@ Depending on your OS and distribution there are various ways to install JDK.
 - Ubuntu/Debian
 
 ```
-sudo apt install openjdk-11-jdk #Ubuntu
+sudo apt install openjdk-11-jdk
 ```
 - Manjaro
 
