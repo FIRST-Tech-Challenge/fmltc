@@ -100,6 +100,7 @@ else:
 #
 payload = cloud_secrets.get_or_none("client_secrets")
 if payload is not None:
+    use_oidc = True
     credentials_dict = json.loads(payload)
     app.config.update({"OIDC_CLIENT_SECRETS": credentials_dict})
     if constants.REDIS_IP_ADDR is not None:
@@ -107,6 +108,7 @@ if payload is not None:
     else:
         oidc = OpenIDConnect(app, credentials_store=SqliteDict('users.db', autocommit=True))
 else:
+    use_oidc = False
     oidc = None
 
 application_properties = json.load(open('app.properties', 'r'))
@@ -128,7 +130,7 @@ def login_required(func):
     return wrapper
 
 def oidc_require_login(func):
-    if oidc is not None:
+    if use_oidc:
         return oidc.require_login(func)
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -389,7 +391,7 @@ def submit_team():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if oidc is not None:
+    if use_oidc:
         return login_via_oidc()
     elif flask.request.method == 'POST':
         if team_info.login(flask.request.form, flask.session):
@@ -471,7 +473,7 @@ def test():
     if util.is_production_env():
         raise exceptions.HttpErrorNotFound("Not found")
     return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
-                                 use_oidc=(oidc is not None), redis_ip=constants.REDIS_IP_ADDR)
+                                 use_oidc=use_oidc, redis_ip=constants.REDIS_IP_ADDR)
 
 # requests
 
@@ -486,7 +488,7 @@ def ok():
 def logout():
     team_info.logout(flask.session)
     flask.session.clear()
-    if oidc is not None:
+    if use_oidc:
         oidc.logout()
 
     return 'OK'
@@ -495,7 +497,7 @@ def logout():
 @app.route('/logoutinfo', methods=['GET'])
 @handle_exceptions
 def logoutinfo():
-    if oidc is not None:
+    if use_oidc:
         #
         # If using OIDC, send the user over to the identity provider so they can logout
         # there also.

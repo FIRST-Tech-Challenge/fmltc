@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from google.api_core.exceptions import NotFound
 from google.cloud import secretmanager
 
 import constants
@@ -27,5 +28,5 @@ def get(secret):
 def get_or_none(secret):
     try:
         return get(secret)
-    except:
+    except NotFound:
         return None
