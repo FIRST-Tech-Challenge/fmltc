@@ -31,7 +31,7 @@ def can_upload_video(roles):
 
 def can_login(roles):
     if util.is_production_env() or util.is_development_env():
-        return is_global_admin(roles) or is_ml_developer(roles) or is_ml_test()
+        return is_global_admin(roles) or is_ml_developer(roles) or is_ml_test(roles)
     else:
         return True
 

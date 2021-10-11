@@ -133,7 +133,7 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
   version_id = "v1"
 
   entrypoint {
-    shell = "gunicorn -b :$PORT main:app"
+    shell = "gunicorn -b :$PORT app_engine:app"
   }
 
   automatic_scaling {
