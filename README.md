@@ -186,6 +186,15 @@ https://openjdk.java.net/install/
 1. Replace `<YOUR-PROJECT-ID>` with the Google Cloud Project ID for your project.
 1. Replace `<YOUR-ORIGIN>` with the base URL that will serve the website.
 
+## Set Version
+**Important!** Make sure the current working directory is the fmltc root directory when you run this
+  commands.
+
+This will set the version of fmltc to the commit hash
+
+```
+echo "{ \"version\": \"$(git rev-parse --short HEAD)\" }" > server/app.properties
+```
 
 ## Setup the environment.
 **Important!** Make sure the current working directory is the fmltc directory when you run these
