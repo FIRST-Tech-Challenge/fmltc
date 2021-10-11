@@ -28,6 +28,7 @@ from flask_oidc_ext import OpenIDConnect
 from sqlitedict import SqliteDict
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
+from sentry_sdk.integrations.redis import RedisIntegration
 
 # My Modules
 import action
@@ -53,21 +54,25 @@ import util
 
 sentry_dsn = cloud_secrets.get_or_none('sentry_dsn')
 if sentry_dsn is not None:
+    if constants.REDIS_IP_ADDR is not None:
+        sentry_integrations = [FlaskIntegration(), RedisIntegration()]
+    else:
+        sentry_integrations = [FlaskIntegration()]
     sentry_sdk.init(
-        dsn=sentry_dsn,
-        integrations=[FlaskIntegration()],
+    dsn=sentry_dsn,
+    integrations=sentry_integrations,
 
-        # Set traces_sample_rate to 1.0 to capture 100%
-        # of transactions for performance monitoring.
-        # We recommend adjusting this value in production.
-        traces_sample_rate=1.0,
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production.
+    traces_sample_rate=1.0,
 
-        # By default the SDK will try to use the SENTRY_RELEASE
-        # environment variable, or infer a git commit
-        # SHA as release, however you may want to set
-        # something more human-readable.
-        # release="myapp@1.0.0",
-        )
+    # By default the SDK will try to use the SENTRY_RELEASE
+    # environment variable, or infer a git commit
+    # SHA as release, however you may want to set
+    # something more human-readable.
+    # release="myapp@1.0.0",
+    )
 
 app = flask.Flask(__name__)
 
@@ -1296,6 +1301,10 @@ def server_error(e):
     logging.exception('An internal error occurred.')
     return "An internal error occurred: <pre>{}</pre>".format(e), 500
 
+
+@app.errorhandler(AttributeError)
+def exception_handler(e):
+    return flask.render_template('displayException.html', error_message=repr(e), version=application_properties['version']), 200
 
 # For running locally:
 
