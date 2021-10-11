@@ -5,6 +5,7 @@ FIRST Machine Learning Toolchain
 ## Google Cloud
 
 1. Install the Google Cloud SDK
+
    See https://cloud.google.com/sdk/install for instructions.
 1. Create a Google Cloud Project.
    - [ ] Go to https://console.cloud.google.com/home/dashboard
@@ -102,12 +103,14 @@ FIRST Machine Learning Toolchain
     ```
    - Program must be FTC or FRC.
    - Team number should be the team number.
-   - Team code should be the code that is given to that team. It can contain any characters and can be any length.
+   - Team code should be the code that is given to that team. It can contain any characters and can be any length. It is in essence the user password.
+   - It can be delimited by either `,` or `, `
+   
    Here's an example
     ```
     FTC, 25,    094e801d
-    FTC, 724,   3ac64ab3
-    FTC, 3595,  051699ac
+    FTC, 217,   676F6174
+    FTC, 4634,  65796573
     FTC, 11115, 6629ab97
     FRC, 67,    8bfef8bf
     FRC, 254,   f929a006
@@ -152,13 +155,17 @@ Depending on your OS and distribution there are various ways to install JDK. See
 1. Replace `<YOUR-ORIGIN>` with the base URL that will serve the website.
 
 ## Set Version
-**Important!** Make sure the current working directory is the fmltc root directory when you run this
+**Important!** Make sure the current working directory is the fmltc root directory when you run these
   commands.
 
-This will set the version of fmltc to the commit hash
+The following command will set the version of fmltc displayed to the user to the current git commit hash.
 
 ```
 echo "{ \"version\": \"$(git rev-parse --short HEAD)\" }" > server/app.properties
+```
+If you wish the version to be set to something other than the current git commit hash you can use the following code replacing `<VERSION_NAME>` with the desired name of your version
+```
+echo "{ \"version\": \"<VERSION_NAME>\" }" > server/app.properties
 ```
 
 ## Setup the environment.
