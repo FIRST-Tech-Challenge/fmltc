@@ -298,7 +298,7 @@ def retrieve_video_entities(team_uuid, video_uuid_list):
     return video_entities
 
 def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
-    # This function is called from main.py for GAE /labelVideo request.
+    # This function is called from app_engine.py for GAE /labelVideo request.
     # The user wants to label the video.
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:

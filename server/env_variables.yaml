@@ -27,11 +27,9 @@ env_variables:
   #
   ORIGIN: "<YOUR-ORIGIN>"
 
-  # Uncomment the USE_OIDC line to turn on OIDC authentication.
-  # Note that the value ov USE_OIDC is not important; any value will turn on
-  # OIDC authentication.
+  # ENVIRONMENT can be 'development' or 'production'.
   #
-  #USE_OIDC: "true"
+  ENVIRONMENT: "production"
 
   # REDIS_IP_ADDR is only applicable for OIDC.
   # Uncomment the REDIS_IP_ADDR line and replace <YOUR-REDIS-IP-ADDR> with the
