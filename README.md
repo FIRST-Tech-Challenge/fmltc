@@ -144,42 +144,7 @@ popd
 ```
 
 ## Install JDK
-Depending on your OS and distribution there are various ways to install JDK.
-
-- Ubuntu/Debian
-
-```
-sudo apt install openjdk-11-jdk
-```
-- Manjaro
-
-```
-sudo pacman -S jre11-openjdk-headless jre11-openjdk jdk11-openjdk openjdk11-doc openjdk11-src
-```
-
-- Arch
-
-```
-sudo pacman -S jdk11-openjdk
-```
-- Other Linux distributions 
-
-https://openjdk.java.net/install/
-
-- Mac OS
-
-    * [Home Brew](https://brew.sh/)
-        - ```brew install openjdk@11```
-    * [Manual](https://docs.oracle.com/en/java/javase/15/install/installation-jdk-macos.html#GUID-2FE451B0-9572-4E38-A1A5-568B77B146DE) 
-
-- Windows
-
-    * [Winget](https://github.com/microsoft/winget-cli)
-       - ```winget install Microsoft.OpenJDK.11```
-    * [Manual](https://openjdk.java.net/install/)  
-
-
-
+Depending on your OS and distribution there are various ways to install JDK. See https://www.oracle.com/java/technologies/downloads/ for instructions. 
 
 ## Fill in the values in server/env_variables.yaml
 
@@ -241,4 +206,4 @@ source env_setup.sh
 
 ## Try it out
 
-Go to the URL you found earlier at https://console.cloud.google.com/appengine?project=YOUR-PROJECT-ID(replace my_project_id with your actual project ID)
+Go to the URL you found earlier at https://console.cloud.google.com/appengine?project=YOUR-PROJECT-ID (replace my_project_id with your actual project ID)
