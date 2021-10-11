@@ -13,7 +13,7 @@ instance_class: F4
 #  idle_timeout: 30m
 # >
 
-entrypoint: gunicorn -b :$PORT main:app
+entrypoint: gunicorn -b :$PORT app_engine:app
 
 handlers:
 

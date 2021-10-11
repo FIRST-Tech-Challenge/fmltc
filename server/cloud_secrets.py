@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from google.api_core.exceptions import NotFound
 from google.cloud import secretmanager
 
 import constants
@@ -22,3 +23,10 @@ def get(secret):
     name = "projects/{0}/secrets/{1}/versions/latest".format(constants.PROJECT_ID, secret)
     payload = secret_client.access_secret_version(name=name).payload.data.decode("UTF-8")
     return payload
+
+
+def get_or_none(secret):
+    try:
+        return get(secret)
+    except NotFound:
+        return None
