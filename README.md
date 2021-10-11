@@ -1,11 +1,11 @@
 # fmltc
 FIRST Machine Learning Toolchain
-
 # Setup
 
 ## Google Cloud
 
 1. Install the Google Cloud SDK
+
    See https://cloud.google.com/sdk/install for instructions.
 1. Create a Google Cloud Project.
    - [ ] Go to https://console.cloud.google.com/home/dashboard
@@ -103,12 +103,14 @@ FIRST Machine Learning Toolchain
     ```
    - Program must be FTC or FRC.
    - Team number should be the team number.
-   - Team code should be the code that is given to that team. It can contain any characters and can be any length.
+   - Team code should be the code that is given to that team. It can contain any characters and can be any length. It is in essence the user password.
+   - It can be delimited by either `,` or `, `
+   
    Here's an example
     ```
     FTC, 25,    094e801d
-    FTC, 724,   3ac64ab3
-    FTC, 3595,  051699ac
+    FTC, 217,   676F6174
+    FTC, 4634,  65796573
     FTC, 11115, 6629ab97
     FRC, 67,    8bfef8bf
     FRC, 254,   f929a006
@@ -144,12 +146,27 @@ unzip ~/tmp_fmltc/closure-library_v20200406.zip
 popd
 ```
 
+## Install JDK
+Depending on your OS and distribution there are various ways to install JDK. See https://www.oracle.com/java/technologies/downloads/ for instructions. 
 
 ## Fill in the values in server/env_variables.yaml
 
 1. Replace `<YOUR-PROJECT-ID>` with the Google Cloud Project ID for your project.
 1. Replace `<YOUR-ORIGIN>` with the base URL that will serve the website.
 
+## Set Version
+**Important!** Make sure the current working directory is the fmltc root directory when you run these
+  commands.
+
+The following command will set the version of fmltc displayed to the user to the current git commit hash.
+
+```
+echo "{ \"version\": \"$(git rev-parse --short HEAD)\" }" > server/app.properties
+```
+If you wish the version to be set to something other than the current git commit hash you can use the following code replacing `<VERSION_NAME>` with the desired name of your version
+```
+echo "{ \"version\": \"<VERSION_NAME>\" }" > server/app.properties
+```
 
 ## Setup the environment.
 **Important!** Make sure the current working directory is the fmltc directory when you run these
@@ -196,4 +213,4 @@ source env_setup.sh
 
 ## Try it out
 
-Go to https://my_project_id.appspot.com  (replace my_project_id with your actual project ID)
+Go to the URL you found earlier at https://console.cloud.google.com/appengine?project=YOUR-PROJECT-ID (replace my_project_id with your actual project ID)
