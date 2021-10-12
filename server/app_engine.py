@@ -268,7 +268,7 @@ def strip_model_entity(model_entity):
     ]
     for prop in props_to_remove:
         if prop in model_entity:
-            model_entity.puser_roles(prop, None)
+            model_entity.pop(prop, None)
 
 
 @oidc_require_login
