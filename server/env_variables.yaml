@@ -3,6 +3,8 @@
 # deployment.
 #
 
+# Important: If you modify this file, you may also need to modify terraform/core/main.tf.
+
 env_variables:
 
   # Replace <YOUR-PROJECT-ID> with the Google Cloud Project ID for your project.

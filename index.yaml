@@ -1,3 +1,5 @@
+# Important: If you modify this file, you must also modify terraform/core/indexes.tf.
+
 indexes:
 - kind: Team
   properties:

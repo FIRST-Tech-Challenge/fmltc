@@ -299,7 +299,7 @@ resource "google_datastore_index" "model3" {
   depends_on = [google_datastore_index.model2]
 }
 
-resource "google_datastore_index" "action" {
+resource "google_datastore_index" "action1" {
   kind = "Action"
   properties {
     name = "action_uuid"
@@ -310,4 +310,21 @@ resource "google_datastore_index" "action" {
     direction = "ASCENDING"
   }
   depends_on = [google_app_engine_application.fmltc-app]
+}
+
+resource "google_datastore_index" "action2" {
+  kind = "Action"
+  properties {
+    name = "action_uuid"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "action_name"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "create_time"
+    direction = "ASCENDING"
+  }
+  depends_on = [google_datastore_index.action1]
 }
