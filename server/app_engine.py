@@ -59,20 +59,9 @@ if sentry_dsn is not None:
     else:
         sentry_integrations = [FlaskIntegration()]
     sentry_sdk.init(
-    dsn=sentry_dsn,
-    integrations=sentry_integrations,
-
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for performance monitoring.
-    # We recommend adjusting this value in production.
-    traces_sample_rate=1.0,
-
-    # By default the SDK will try to use the SENTRY_RELEASE
-    # environment variable, or infer a git commit
-    # SHA as release, however you may want to set
-    # something more human-readable.
-    # release="myapp@1.0.0",
-    )
+        dsn=sentry_dsn,
+        integrations=sentry_integrations,
+        traces_sample_rate=1.0)
 
 app = flask.Flask(__name__)
 
@@ -348,17 +337,19 @@ def strip_model_entity(model_entity):
 @oidc_require_login
 def login_via_oidc():
     if oidc.user_loggedin:
-        flask.session['user_roles'] = [x.upper() for x in oidc.user_getfield('external_roles')]
+        ext_roles = oidc.user_getfield('external_roles')
+        flask.session['user_roles'] = [x.upper() for x in ext_roles]
         flask.session['user_roles'].extend(oidc.user_getfield('global_roles'))
-
-        if not roles.can_login(flask.session['user_roles']):
-            return forbidden("You do not have the required permissions to access this page")
 
         team_roles = oidc.user_getfield('team_roles')
         if len(team_roles) == 1:
             team_num = next(iter(team_roles))
             flask.session['team_number'] = team_num
             flask.session['user_roles'].extend(team_roles[team_num])
+
+            if not roles.can_login(flask.session['user_roles']):
+                return forbidden("You do not have the required permissions to access this page")
+
             return flask.redirect(flask.url_for('submit_team', team=team_num))
         else:
             return flask.redirect(flask.url_for('select_team', teams=list(team_roles.keys())))
@@ -419,6 +410,9 @@ def login():
 @handle_exceptions
 @redirect_to_login_if_needed
 def index():
+    if not roles.can_login(flask.session['user_roles']):
+        return forbidden("You do not have the required permissions to access this page")
+
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('root.html', time_time=time.time(), version=application_properties['version'], project_id=constants.PROJECT_ID,
@@ -480,7 +474,17 @@ def test():
     return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
                                  use_oidc=use_oidc, redis_ip=constants.REDIS_IP_ADDR)
 
+
+@app.route('/testExcept')
+@handle_exceptions
+@redirect_to_login_if_needed
+def testExcept():
+    if util.is_production_env():
+        raise exceptions.HttpErrorNotFound("Not found")
+    raise ArithmeticError("Exception Test")
+
 # requests
+
 
 @app.route('/ok', methods=['GET'])
 @handle_exceptions
@@ -1291,6 +1295,10 @@ def perform_action_gcf():
 
 # errors
 
+def add_userinfo_breadcrumb():
+    sentry_sdk.add_breadcrumb(category='auth', message="{} {}".format(flask.session['program'], flask.session['team_number']), level='info')
+    sentry_sdk.add_breadcrumb(category='auth', message=str(flask.session['user_roles']), level='info')
+
 @app.errorhandler(403)
 def forbidden(e):
     logging.exception('Forbidden.')
@@ -1299,11 +1307,14 @@ def forbidden(e):
 @app.errorhandler(500)
 def server_error(e):
     logging.exception('An internal error occurred.')
+    add_userinfo_breadcrumb()
     return "An internal error occurred: <pre>{}</pre>".format(e), 500
 
 
-@app.errorhandler(AttributeError)
+@app.errorhandler(Exception)
 def exception_handler(e):
+    add_userinfo_breadcrumb()
+    sentry_sdk.capture_exception(e)
     return flask.render_template('displayException.html', error_message=repr(e), version=application_properties['version']), 200
 
 # For running locally:
