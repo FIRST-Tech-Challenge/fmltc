@@ -1,3 +1,5 @@
+# Important: If you modify this file, you may also need to modify terraform/core/main.tf.
+
 # Standard
 runtime: python39
 
