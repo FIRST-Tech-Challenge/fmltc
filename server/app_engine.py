@@ -1214,10 +1214,21 @@ def perform_action_gcf():
 
 # errors
 def add_userinfo_breadcrumb():
-    if 'program' in flask.session:
-        sentry_sdk.add_breadcrumb(category='auth', message="{} {}".format(flask.session['program'], flask.session['team_number']), level='info')
-    if 'user_roles' in flask.session:
-        sentry_sdk.add_breadcrumb(category='auth', message=str(flask.session['user_roles']), level='info')
+    if sentry_dsn is not None:
+        if 'program' in flask.session:
+            sentry_sdk.add_breadcrumb(category='auth', message="{} {}".format(flask.session['program'], flask.session['team_number']), level='info')
+        if 'user_roles' in flask.session:
+            sentry_sdk.add_breadcrumb(category='auth', message=str(flask.session['user_roles']), level='info')
+
+
+def capture_exception(e):
+    if sentry_dsn is not None:
+        sentry_sdk.capture_exception(e)
+
+
+def capture_message(e):
+    if sentry_dsn is not None:
+        sentry_sdk.capture_message(message=e)
 
 
 @app.errorhandler(403)
@@ -1230,13 +1241,14 @@ def forbidden(e):
 def server_error(e):
     logging.exception('An internal error occurred.')
     add_userinfo_breadcrumb()
+    capture_message(e)
     return "An internal error occurred: <pre>{}</pre>".format(e), 500
 
 
 @app.errorhandler(Exception)
 def exception_handler(e):
     add_userinfo_breadcrumb()
-    sentry_sdk.capture_exception(e)
+    capture_exception(e)
     return flask.render_template('displayException.html', error_message=repr(e), version=application_properties['version']), 200
 
 
