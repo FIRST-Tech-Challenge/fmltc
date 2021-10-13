@@ -378,9 +378,8 @@ fmltc.Util.prototype.formatJobState = function(jobType, modelEntity) {
 
   if (jobType == 'train' && modelEntity.cancel_requested &&
       jobState != 'CANCELLING' && !this.isJobDone(jobState)) {
-      // The job hasn't responded to our request to cancel it.
-      return 'STOP REQUESTED';
-    }
+    // The job hasn't responded to our request to cancel it.
+    return 'STOP REQUESTED';
   }
 
   if (jobState == 'CANCELLING') {
