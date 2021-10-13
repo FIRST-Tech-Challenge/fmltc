@@ -16,19 +16,16 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
 from datetime import datetime, timedelta, timezone
-from functools import wraps
 import json
 import logging
 import time
 
 # Other Modules
 import flask
-from flask import Flask
-from flask_oidc_ext import OpenIDConnect
-from sqlitedict import SqliteDict
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
+from werkzeug.exceptions import Forbidden
 
 # My Modules
 import action
@@ -36,20 +33,25 @@ import bbox_writer
 import blob_storage
 import cloud_secrets
 import constants
-from credentialstore import CredentialStore
 import dataset_producer
 import dataset_zipper
 import exceptions
 import frame_extractor
 import model_trainer
+import oidc
 import roles
 from roles import Role
 import storage
 import team_info
+import test_routes
 import tflite_creator
 import tracking
 import util
-
+from wrappers import handle_exceptions
+from wrappers import redirect_to_login_if_needed
+from wrappers import login_required
+from wrappers import oidc_require_login
+from wrappers import roles_required
 
 
 sentry_dsn = cloud_secrets.get_or_none('sentry_dsn')
@@ -59,22 +61,12 @@ if sentry_dsn is not None:
     else:
         sentry_integrations = [FlaskIntegration()]
     sentry_sdk.init(
-    dsn=sentry_dsn,
-    integrations=sentry_integrations,
-
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for performance monitoring.
-    # We recommend adjusting this value in production.
-    traces_sample_rate=1.0,
-
-    # By default the SDK will try to use the SENTRY_RELEASE
-    # environment variable, or infer a git commit
-    # SHA as release, however you may want to set
-    # something more human-readable.
-    # release="myapp@1.0.0",
-    )
+        dsn=sentry_dsn,
+        integrations=sentry_integrations,
+        traces_sample_rate=1.0)
 
 app = flask.Flask(__name__)
+app.register_blueprint(test_routes.test_routes)
 
 app.config.update(
     {
@@ -99,77 +91,9 @@ else:
     app.testing = False
 
 
-#
-# If a redis server is specified, use it, otherwise use a
-# local sqlite database.
-#
-payload = cloud_secrets.get_or_none("client_secrets")
-if payload is not None:
-    use_oidc = True
-    credentials_dict = json.loads(payload)
-    app.config.update({"OIDC_CLIENT_SECRETS": credentials_dict})
-    if constants.REDIS_IP_ADDR is not None:
-        oidc = OpenIDConnect(app, credentials_store=CredentialStore())
-    else:
-        oidc = OpenIDConnect(app, credentials_store=SqliteDict('users.db', autocommit=True))
-else:
-    use_oidc = False
-    oidc = None
+oidc.oidc_init(app)
 
 application_properties = json.load(open('app.properties', 'r'))
-
-def redirect_to_login_if_needed(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if team_info.validate_team_info(flask.session):
-            return func(*args, **kwargs)
-        return flask.redirect(flask.url_for('login'))
-    return wrapper
-
-def login_required(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if roles.can_login(flask.session['user_roles']) and team_info.validate_team_info(flask.session):
-            return func(*args, **kwargs)
-        return forbidden("You do not have the required permissions to access this page")
-    return wrapper
-
-def oidc_require_login(func):
-    if use_oidc:
-        return oidc.require_login(func)
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        return forbidden("You do not have the required permissions to access this page")
-    return wrapper
-
-def roles_required(*roles):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if set(roles).issubset(set(flask.session['user_roles'])):
-                return func(*args, **kwargs)
-            return forbidden("You do not have the required permissions to access this page")
-        return wrapper
-    return decorator
-
-def roles_accepted(*roles):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if set(roles).isdisjoint(set(flask.session['user_roles'])):
-                return forbidden("You do not have the required permissions to access this page")
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
-
-def handle_exceptions(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except exceptions.HttpError as e:
-            return e.status_description, e.status_code
-    return wrapper
 
 def validate_keys(dict, expected_keys, check_all_keys=True, optional_keys=[]):
     for k in expected_keys:
@@ -332,6 +256,7 @@ def sanitize(o):
             sanitize(value)
     return o
 
+
 def strip_model_entity(model_entity):
     props_to_remove = [
         'train_image_summary_items',
@@ -345,23 +270,27 @@ def strip_model_entity(model_entity):
         if prop in model_entity:
             model_entity.pop(prop, None)
 
+
 @oidc_require_login
 def login_via_oidc():
-    if oidc.user_loggedin:
-        flask.session['user_roles'] = [x.upper() for x in oidc.user_getfield('external_roles')]
+    if oidc.is_user_loggedin():
+        ext_roles = oidc.user_getfield('external_roles')
+        flask.session['user_roles'] = [x.upper() for x in ext_roles]
         flask.session['user_roles'].extend(oidc.user_getfield('global_roles'))
-
-        if not roles.can_login(flask.session['user_roles']):
-            return forbidden("You do not have the required permissions to access this page")
 
         team_roles = oidc.user_getfield('team_roles')
         if len(team_roles) == 1:
             team_num = next(iter(team_roles))
             flask.session['team_number'] = team_num
             flask.session['user_roles'].extend(team_roles[team_num])
+
+            if not roles.can_login(flask.session['user_roles']):
+                raise Forbidden("You do not have the required permissions to access this page")
+
             return flask.redirect(flask.url_for('submit_team', team=team_num))
         else:
             return flask.redirect(flask.url_for('select_team', teams=list(team_roles.keys())))
+
 
 @app.after_request
 def setXFrameOptions(response):
@@ -378,7 +307,7 @@ def select_team():
 
 @app.route('/submitTeam', methods=['GET', 'POST'])
 def submit_team():
-    if oidc.user_loggedin:
+    if oidc.is_user_loggedin():
         given_name = oidc.user_getfield('given_name')
         team_roles = oidc.user_getfield('team_roles')
         flask.session['program'] = "FTC"
@@ -392,11 +321,11 @@ def submit_team():
         flask.session['name'] = given_name
         return flask.redirect(flask.url_for('index'))
     else:
-        return forbidden("You do not have the required permissions to access this page")
+        raise Forbidden("You do not have the required permissions to access this page")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if use_oidc:
+    if oidc.is_using_oidc():
         return login_via_oidc()
     elif flask.request.method == 'POST':
         if team_info.login(flask.request.form, flask.session):
@@ -419,6 +348,9 @@ def login():
 @handle_exceptions
 @redirect_to_login_if_needed
 def index():
+    if not roles.can_login(flask.session['user_roles']):
+        raise Forbidden("You do not have the required permissions to access this page")
+
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('root.html', time_time=time.time(), version=application_properties['version'], project_id=constants.PROJECT_ID,
@@ -470,16 +402,6 @@ def monitor_training():
         video_entities_by_uuid=video_entities_by_uuid)
 
 
-# test is for debugging purposes only.
-@app.route('/test')
-@handle_exceptions
-@redirect_to_login_if_needed
-def test():
-    if util.is_production_env():
-        raise exceptions.HttpErrorNotFound("Not found")
-    return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
-                                 use_oidc=use_oidc, redis_ip=constants.REDIS_IP_ADDR)
-
 # requests
 
 @app.route('/ok', methods=['GET'])
@@ -493,7 +415,7 @@ def ok():
 def logout():
     team_info.logout(flask.session)
     flask.session.clear()
-    if use_oidc:
+    if oidc.is_using_oidc():
         oidc.logout()
 
     return 'OK'
@@ -502,7 +424,7 @@ def logout():
 @app.route('/logoutinfo', methods=['GET'])
 @handle_exceptions
 def logoutinfo():
-    if use_oidc:
+    if oidc.is_using_oidc():
         #
         # If using OIDC, send the user over to the identity provider so they can logout
         # there also.
@@ -1328,26 +1250,48 @@ def perform_action_gcf():
     action.trigger_action_via_blob(action_parameters)
     return 'OK'
 
+
 # errors
+def add_userinfo_breadcrumb():
+    if sentry_dsn is not None:
+        if 'program' in flask.session:
+            sentry_sdk.add_breadcrumb(category='auth', message="{} {}".format(flask.session['program'], flask.session['team_number']), level='info')
+        if 'user_roles' in flask.session:
+            sentry_sdk.add_breadcrumb(category='auth', message=str(flask.session['user_roles']), level='info')
+
+
+def capture_exception(e):
+    if sentry_dsn is not None:
+        sentry_sdk.capture_exception(e)
+
+
+def capture_message(e):
+    if sentry_dsn is not None:
+        sentry_sdk.capture_message(message=e)
+
 
 @app.errorhandler(403)
 def forbidden(e):
     logging.exception('Forbidden.')
     return "Forbidden: <pre>{}</pre>".format(e), 403
 
+
 @app.errorhandler(500)
 def server_error(e):
     logging.exception('An internal error occurred.')
+    add_userinfo_breadcrumb()
+    capture_message(e)
     return "An internal error occurred: <pre>{}</pre>".format(e), 500
 
 
-@app.errorhandler(AttributeError)
+@app.errorhandler(Exception)
 def exception_handler(e):
+    add_userinfo_breadcrumb()
+    capture_exception(e)
     return flask.render_template('displayException.html', error_message=repr(e), version=application_properties['version']), 200
 
+
 # For running locally:
-
-
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     app.run(host='127.0.0.1', port=8088, debug=True)
