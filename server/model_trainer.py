@@ -23,8 +23,9 @@ import time
 import traceback
 
 # Other Modules
-from google.oauth2 import service_account
+from google.api_core.exceptions import GoogleAPIError
 import googleapiclient.discovery
+from google.oauth2 import service_account
 import tensorflow as tf
 from tensorflow.core.util import event_pb2
 
@@ -326,8 +327,13 @@ def __update_model_entity_job_state(model_entity, ml=None):
                     eval_job_response = ml.projects().jobs().get(name=eval_job_name).execute()
         else:
             eval_job_response = None
-        model_entity = storage.update_model_entity_job_state(
-            model_entity['team_uuid'], model_entity['model_uuid'], train_job_response, eval_job_response)
+        try:
+            model_entity = storage.update_model_entity_job_state(
+                model_entity['team_uuid'], model_entity['model_uuid'], train_job_response, eval_job_response)
+        except GoogleAPIError:
+            # This happens from time to time. It's not fatal if we can't update the job state in
+            # the model entity.
+            pass
     return model_entity, ml
 
 def is_not_done(model_entity):
@@ -420,13 +426,13 @@ def maybe_restart_monitor_training(team_uuid, model_uuid):
         # The monitor training action finished.
         return False, model_entity
 
-    if model_entity['monitor_training_triggered_time_ms'] != 0:
+    if model_entity['monitor_training_triggered_time_ms'] == 0:
         # The monitor training action was not triggered yet. It shouldn't be restarted since it
         # hasn't even started the first time yet.
         return False, model_entity
 
     if model_entity['monitor_training_active_time_ms'] <= model_entity['monitor_training_triggered_time_ms']:
-        # The monitor training action was triggered, but not active.
+        # The monitor training action was triggered, but not active after it was triggered.
         # Check if it has been <= 3 minutes since it was triggered.
         # Since monitor_training_triggered_time_ms is non-zero, we can use the
         # monitor_training_triggered_time field.
