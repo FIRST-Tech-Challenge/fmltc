@@ -164,10 +164,19 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
         this.util.formatElapsedSeconds(modelEntity.train_job_elapsed_seconds);
   }
 
+  if (this.needToRestartMonitorTraining(modelEntity)) {
+    this.maybeRestartMonitorTraining(modelEntity.model_uuid);
+  }
+
   if (this.util.isTrainingDone(modelEntity)) {
     this.trs[i].className = 'trainingDone';
     this.trainingDone[i] = true;
     this.clearTrainTimeIntervalIfNecessary();
+
+    if ('monitor_training_finished' in modelEntity &&
+        !modelEntity.monitor_training_finished) {
+      setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid, 0), 10 * 1000);
+    }
 
   } else {
     this.trs[i].className = 'trainingNotDone';
@@ -185,6 +194,68 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
 
 
   this.updateButtons();
+};
+
+fmltc.ListModels.prototype.needToRestartMonitorTraining = function(modelEntity) {
+  if (! ('monitor_training_active_time_ms' in modelEntity &&
+         'monitor_training_finished' in modelEntity &&
+         'monitor_training_triggered_time_ms' in modelEntity)) {
+    return false;
+  }
+  if (modelEntity.monitor_training_finished) {
+    return false;
+  }
+  if (modelEntity.monitor_training_triggered_time_ms != 0 &&
+      modelEntity.monitor_training_active_time_ms == 0) {
+    // Monitor training was triggered, but it hasn't started.
+    const minutesSinceMonitorTrainingWasTriggered = (Date.now() - modelEntity.monitor_training_triggered_time_ms) / 60000;
+    if (minutesSinceMonitorTrainingWasTriggered > 3) {
+      // It's been 3 minutes since it was triggered. It probably failed to start.
+      return true;
+    }
+  }
+  if (modelEntity.monitor_training_active_time_ms != 0) {
+    // Frame extraction started.
+    const minutesSinceMonitorTrainingWasActive = (Date.now() - modelEntity.monitor_training_active_time_ms) / 60000;
+    if (minutesSinceMonitorTrainingWasActive > 3) {
+      // It's been 3 minutes since it was active. It probably died.
+      return true;
+    }
+  }
+
+  return false;
+};
+
+fmltc.ListModels.prototype.maybeRestartMonitorTraining = function(modelUuid) {
+  const i = this.indexOfModel(modelUuid);
+  if (i != -1) {
+    const xhr = new XMLHttpRequest();
+    const params = 'model_uuid=' + encodeURIComponent(modelUuid);
+    xhr.open('POST', '/maybeRestartMonitorTraining', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onreadystatechange = this.xhr_maybeRestartMonitorTraining_onreadystatechange.bind(this, xhr, params,
+        modelUuid);
+    xhr.send(params);
+  }
+};
+
+fmltc.ListModels.prototype.xhr_maybeRestartMonitorTraining_onreadystatechange = function(xhr, params,
+    modelUuid) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+      if (response.restarted) {
+        setTimeout(this.retrieveModelEntity.bind(this, modelUuid, 0), 3000);
+      }
+
+    } else {
+      // TODO(lizlooney): handle error properly
+      console.log('Failure! /maybeRestartMonitorTraining?' + params +
+          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+    }
+  }
 };
 
 fmltc.ListModels.prototype.updateTrainTime = function() {
@@ -451,7 +522,7 @@ fmltc.ListModels.prototype.updateButtons = function() {
     if (this.checkboxes[i].checked) {
       if (this.util.isTrainingDone(this.modelEntityArray[i])) {
         canStopTraining = false;
-        if (this.util.modelHasCheckpoint(this.modelEntityArray[i])) {
+        if (!this.util.modelHasCheckpoint(this.modelEntityArray[i])) {
           canTrainMore = false;
           canDownloadTFLite = false;
         }

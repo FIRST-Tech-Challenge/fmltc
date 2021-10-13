@@ -60,6 +60,7 @@ def wait_for_video_upload(action_parameters):
         if blob_storage.video_blob_exists(team_uuid, video_uuid):
             video_entity = storage.create_video_entity(
                 team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms)
+            storage.prepare_to_start_frame_extraction(team_uuid, video_uuid)
             __start_frame_extraction(video_entity)
             return
         # Note that we don't retrigger this action. If the video isn't there by now, it's probably
