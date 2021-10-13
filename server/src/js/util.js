@@ -407,7 +407,7 @@ fmltc.Util.prototype.modelHasCheckpoint = function(modelEntity) {
 };
 
 fmltc.Util.prototype.isModelTensorFlow2 = function(modelEntity) {
-  return 'tensorflow_version' in modelEntity && modelEntity.tensorflow_version != '2';
+  return 'tensorflow_version' in modelEntity && modelEntity.tensorflow_version == '2';
 };
 
 fmltc.Util.prototype.sortedLabelListsEqual = function(a1, a2) {

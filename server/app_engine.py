@@ -535,46 +535,7 @@ def prepare_to_upload_video():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['description', 'video_filename', 'file_size', 'content_type', 'create_time_ms'])
-    # Check whether the team is currently uploading a video or extracting frames for a video.
-    # We only allow one at a time.
-    team_entity = storage.retrieve_team_entity(team_uuid)
-    if 'last_video_uuid' in team_entity and team_entity['last_video_uuid'] != '':
-        last_video_entity = storage.maybe_retrieve_video_entity(team_uuid, team_entity['last_video_uuid'])
-        if last_video_entity is None:
-            # The last video hasn't been uploaded yet. Check if it has been less than 10 minutes
-            # since the upload was initiated.
-            if datetime.now(timezone.utc) - team_entity['last_video_time'] < timedelta(minutes=10):
-                # Send a message to the client.
-                response = {
-                    'video_uuid': '',
-                    'upload_url': '',
-                    'message': 'The previous video has not been uploaded yet. Please wait a few minutes and try again.'
-                }
-                return flask.jsonify(response)
-        elif 'frame_extraction_active_time' not in last_video_entity:
-            # Frame extraction of the last video hasn't started yet. Check if it has been less than
-            # 10 minutes since the video entity was created.
-            if datetime.now(timezone.utc) - last_video_entity['entity_create_time'] < timedelta(minutes=10):
-                # Send a message to the client.
-                response = {
-                    'video_uuid': '',
-                    'upload_url': '',
-                    'message': 'The previous video has not been processed yet. Please wait a few minutes and try again.'
-                }
-                return flask.jsonify(response)
-        else:
-            # Frame extraction of the last video hasn't finished yet. Check if it has been less
-            # than 10 minutes since the frame extraction was active.
-            if datetime.now(timezone.utc) - last_video_entity['frame_extraction_active_time'] < timedelta(minutes=10):
-                # Send a message to the client.
-                response = {
-                    'video_uuid': '',
-                    'upload_url': '',
-                    'message': 'The previous video has not been processed yet. Please wait a few minutes and try again.'
-                }
-                return flask.jsonify(response)
-    # If we get here, either the last video was fully processed or it failed to be uploaded or it
-    # failed to be processed. In these cases, we can let the user upload another video.
+    # First validate the parameters.
     try:
         description = validate_description(data.get('description'))
     except exceptions.HttpErrorBadRequest:
@@ -617,6 +578,47 @@ def prepare_to_upload_video():
         }
         return flask.jsonify(response)
 
+    # Check whether the team is currently uploading a video or extracting frames for a video.
+    # We only allow one at a time.
+    team_entity = storage.retrieve_team_entity(team_uuid)
+    if 'last_video_uuid' in team_entity and team_entity['last_video_uuid'] != '':
+        last_video_entity = storage.maybe_retrieve_video_entity(team_uuid, team_entity['last_video_uuid'])
+        if last_video_entity is None:
+            pass
+            # The last video hasn't been uploaded yet. Check if it has been less than 10 minutes
+            # since the upload was initiated.
+            ### TODO(lizlooney): Put this back after FIRST has figured out the problem with upload.
+            ### if datetime.now(timezone.utc) - team_entity['last_video_time'] < timedelta(minutes=10):
+            ###     # Send a message to the client.
+            ###     response = {
+            ###         'video_uuid': '',
+            ###         'upload_url': '',
+            ###         'message': 'The previous video has not been uploaded yet. Please wait a few minutes and try again.'
+            ###     }
+            ###     return flask.jsonify(response)
+        elif 'frame_extraction_active_time' not in last_video_entity:
+            # Frame extraction of the last video hasn't started yet. Check if it has been less than
+            # 10 minutes since the video entity was created.
+            if datetime.now(timezone.utc) - last_video_entity['entity_create_time'] < timedelta(minutes=10):
+                # Send a message to the client.
+                response = {
+                    'video_uuid': '',
+                    'upload_url': '',
+                    'message': 'The previous video has not been processed yet. Please wait a few minutes and try again.'
+                }
+                return flask.jsonify(response)
+        else:
+            # Frame extraction of the last video hasn't finished yet. Check if it has been less
+            # than 10 minutes since the frame extraction was active.
+            if datetime.now(timezone.utc) - last_video_entity['frame_extraction_active_time'] < timedelta(minutes=10):
+                # Send a message to the client.
+                response = {
+                    'video_uuid': '',
+                    'upload_url': '',
+                    'message': 'The previous video has not been processed yet. Please wait a few minutes and try again.'
+                }
+                return flask.jsonify(response)
+    # Proceed with the upload.
     video_uuid, upload_url = storage.prepare_to_upload_video(team_uuid, content_type)
     frame_extractor.start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms)
     response = {
