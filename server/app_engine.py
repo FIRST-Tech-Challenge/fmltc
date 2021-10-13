@@ -36,6 +36,7 @@ import constants
 import dataset_producer
 import dataset_zipper
 import exceptions
+from exceptions import NoRoles
 import frame_extractor
 import model_trainer
 import oidc
@@ -276,17 +277,30 @@ def login_via_oidc():
     if oidc.is_user_loggedin():
         ext_roles = oidc.user_getfield('external_roles')
         flask.session['user_roles'] = [x.upper() for x in ext_roles]
-        flask.session['user_roles'].extend(oidc.user_getfield('global_roles'))
+        global_roles = oidc.user_getfield('global_roles')
+        flask.session['user_roles'].extend(global_roles)
 
         team_roles = oidc.user_getfield('team_roles')
+
+        #
+        # There are a couple reasons that a user might have no team roles, lack
+        # of YPP screening or a global admin or custom role that is not also
+        # associated with a team.  The team number is a fundamental dependency
+        # so we will throw NoRoles if there are no team roles defined.
+        #
+        if len(team_roles) == 0:
+            raise NoRoles("No roles have been assigned to this account "
+                            "or no teams are associated with the user's given roles")
+
+
+        #
+        # A single team user goes straight to the workspace page, multiple teams
+        # users get redirected to a team selection page.
+        #
         if len(team_roles) == 1:
             team_num = next(iter(team_roles))
             flask.session['team_number'] = team_num
             flask.session['user_roles'].extend(team_roles[team_num])
-
-            if not roles.can_login(flask.session['user_roles']):
-                raise Forbidden("You do not have the required permissions to access this page")
-
             return flask.redirect(flask.url_for('submit_team', team=team_num))
         else:
             return flask.redirect(flask.url_for('select_team', teams=list(team_roles.keys())))
@@ -316,12 +330,22 @@ def submit_team():
             team_num = flask.request.form['team_num']
         else:
             team_num = flask.request.args.get('team')
+
+        #
+        # Prevent a user from using a team that the user is not associated with.
+        #
+        if not team_num in team_roles:
+            raise NoRoles()
+
         flask.session['user_roles'].extend(team_roles[team_num])
         flask.session['team_number'] = team_num
         flask.session['name'] = given_name
+
+        roles.can_login(flask.session['user_roles'])
+
         return flask.redirect(flask.url_for('index'))
     else:
-        raise Forbidden("You do not have the required permissions to access this page")
+        raise Forbidden()
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -348,8 +372,7 @@ def login():
 @handle_exceptions
 @redirect_to_login_if_needed
 def index():
-    if not roles.can_login(flask.session['user_roles']):
-        raise Forbidden("You do not have the required permissions to access this page")
+    roles.can_login(flask.session['user_roles'])
 
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
@@ -1255,9 +1278,17 @@ def perform_action_gcf():
 def add_userinfo_breadcrumb():
     if sentry_dsn is not None:
         if 'program' in flask.session:
-            sentry_sdk.add_breadcrumb(category='auth', message="{} {}".format(flask.session['program'], flask.session['team_number']), level='info')
+            sentry_sdk.add_breadcrumb(category='auth', message="Program: {}".format(flask.session['program']), level='info')
+        else:
+            sentry_sdk.add_breadcrumb(category='auth', message="No program", level='info')
+        if 'team_number' in flask.session:
+            sentry_sdk.add_breadcrumb(category='auth', message="Team: {}".format(flask.session['team_number']), level='info')
+        else:
+            sentry_sdk.add_breadcrumb(category='auth', message="No team", level='info')
         if 'user_roles' in flask.session:
             sentry_sdk.add_breadcrumb(category='auth', message=str(flask.session['user_roles']), level='info')
+        else:
+            sentry_sdk.add_breadcrumb(category='auth', message="No roles", level='info')
 
 
 def capture_exception(e):
@@ -1268,12 +1299,6 @@ def capture_exception(e):
 def capture_message(e):
     if sentry_dsn is not None:
         sentry_sdk.capture_message(message=e)
-
-
-@app.errorhandler(403)
-def forbidden(e):
-    logging.exception('Forbidden.')
-    return "Forbidden: <pre>{}</pre>".format(e), 403
 
 
 @app.errorhandler(500)
@@ -1288,7 +1313,23 @@ def server_error(e):
 def exception_handler(e):
     add_userinfo_breadcrumb()
     capture_exception(e)
-    return flask.render_template('displayException.html', error_message=repr(e), version=application_properties['version']), 200
+    return flask.render_template('displayException.html',
+                                 error_message=repr(e),
+                                 version=application_properties['version']), 200
+
+
+@app.errorhandler(NoRoles)
+def no_roles_handler(e):
+    return flask.render_template('noRoles.html',
+                                 error_message=repr(e),
+                                 version=application_properties['version'], program="", team_number=""), 200
+
+
+@app.errorhandler(Forbidden)
+def forbidden_handler(e):
+    return flask.render_template('forbidden.html',
+                                 error_message="You do not have the required permissions to access this page",
+                                 version=application_properties['version']), 403
 
 
 # For running locally:

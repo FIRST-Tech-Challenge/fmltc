@@ -15,6 +15,8 @@
 from enum import Enum
 
 import util
+from exceptions import NoRoles
+from werkzeug.exceptions import Forbidden
 
 
 class Role(str, Enum):
@@ -29,11 +31,22 @@ def can_upload_video(roles):
     return Role.TEAM_ADMIN in roles
 
 
+#
+# Silent if the user can login, raises either NoRoles or Forbidden if the use
+# can not login in.
+#
 def can_login(roles):
+    if not has_team_role(roles):
+        raise NoRoles("No roles have been assigned to this account "
+                      "or no teams are associated with the user's given roles")
+
     if util.is_production_env() or util.is_development_env():
-        return is_global_admin(roles) or is_ml_developer(roles) or is_ml_test(roles)
-    else:
-        return True
+        if not (is_global_admin(roles) or is_ml_developer(roles) or is_ml_test(roles)):
+            raise Forbidden()
+
+
+def has_team_role(roles):
+    return Role.TEAM_ADMIN in roles or Role.TEAM_MEMBER in roles
 
 
 def is_global_admin(roles):
