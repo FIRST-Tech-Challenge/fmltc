@@ -1225,7 +1225,7 @@ def model_trainer_started(team_uuid, model_uuid, description, model_folder,
         transaction.put(model_entity)
         return model_entity
 
-def cancel_training_requested(team_uuid, model_uuid):
+def stop_training_requested(team_uuid, model_uuid):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         model_entity = retrieve_model_entity(team_uuid, model_uuid)

@@ -39,7 +39,7 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
 
   this.startTime = Date.now();
 
-  this.dismissButton = document.getElementById('dismissButton');
+  this.backButton = document.getElementById('backButton');
   this.smallerImageButton = document.getElementById('smallerImageButton');
   this.largerImageButton = document.getElementById('largerImageButton');
   this.loadingProgress = document.getElementById('loadingProgress');
@@ -158,7 +158,7 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   this.rescaleCanvas();
   window.addEventListener('resize', this.repositionCanvas.bind(this));
 
-  this.dismissButton.onclick = this.dismissButton_onclick.bind(this);
+  this.backButton.onclick = this.backButton_onclick.bind(this);
   this.smallerImageButton.onclick = this.smallerImageButton_onclick.bind(this);
   this.largerImageButton.onclick = this.largerImageButton_onclick.bind(this);
   this.bboxCanvas.onmousedown = this.bboxCanvas_onmousedown.bind(this);
@@ -187,8 +187,8 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   this.updateUI();
 };
 
-fmltc.LabelVideo.prototype.dismissButton_onclick = function() {
-  this.dismissButton.disabled = true;
+fmltc.LabelVideo.prototype.backButton_onclick = function() {
+  this.backButton.disabled = true;
   this.saveBboxes(this.dismissAfterSaveBboxes.bind(this));
 };
 
@@ -196,7 +196,7 @@ fmltc.LabelVideo.prototype.dismissAfterSaveBboxes = function(success) {
   if (success) {
     window.history.back();
   } else {
-    this.dismissButton.disabled = false;
+    this.backButton.disabled = false;
   }
 };
 

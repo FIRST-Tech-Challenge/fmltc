@@ -232,9 +232,9 @@ limitations under the License.
                         </td>
                         <td width="10px"></td>
                         <td align="center" valign="top">
-                          <button id="cancelTrainingButton" class="btn btn-secondary">
+                          <button id="stopTrainingButton" class="btn btn-secondary">
                             <span class="material-icons iconVerticalAlign">cancel</span>
-                            <span class="iconVerticalAlign">Cancel Training</span>
+                            <span class="iconVerticalAlign">Stop Training</span>
                           </button>
                         </td>
                         <td width="10px"></td>
@@ -280,7 +280,7 @@ limitations under the License.
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title" id="exampleModalLabel">Upload Video File</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="uvfXButton"></button>
             </div>
             <div class="modal-body">
               <input type="file" id="uvfVideoFileInput" accept="video/*" class="text-18" style="width: 100%">
@@ -289,15 +289,15 @@ limitations under the License.
               <input type="text" maxlength="30" id="uvfDescriptionInput" class="form-control" style="width: 100%">
               <br><br>
               <button id="uvfUploadButton" class="btn btn-secondary" >Upload</button>
-              <h3 id="uvfUploadingH3" style="visibility: hidden;">Uploading Progress</h3>
               <div id="uvfUploadingState"></div>
-              <div><progress id="uvfUploadingProgress" style="visibility: hidden;"></progress></div>
+              <h4 id="uvfUploadingProgressHeader" style="display: none;">Uploading Progress</h4>
+              <div><progress id="uvfUploadingProgress" style="display: none;"></progress></div>
               <div id="uvfUploadingFailedDiv" class="text-24" style="display: none;">
                 Uploading has failed!
               </div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="uvfDismissButton">Close</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="uvfCloseButton">Close</button>
             </div>
           </div>
         </div>
@@ -308,7 +308,7 @@ limitations under the License.
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title" id="exampleModalLabel">Produce Dataset</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="pdXButton"></button>
             </div>
             <div class="modal-body">
               <table class="text-18">
@@ -343,7 +343,7 @@ limitations under the License.
               <div id="pdFailedDiv" class="text-24" style="display: none;">Failed!</div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="pdDismissButton">Close</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="pdCloseButton">Close</button>
             </div>            
           </div>
         </div>
@@ -354,7 +354,7 @@ limitations under the License.
           <div class="modal-content">
             <div class="modal-header">
               <h5 id="dcTitleDiv" class="modal-title"></h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="dcXButton"></button>
             </div>
             <div class="modal-body">
               <center>          
@@ -376,7 +376,7 @@ limitations under the License.
           <div class="modal-content">
             <div class="modal-header">
               <h5 id="dfTitleDiv" class="modal-title"></h5>
-              <button type="button" id="dfDismissButton" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="dfXButton"></button>
             </div>
             <div class="modal-body">
               <div id="dfMessageDiv" class="text-20"></div>
@@ -396,7 +396,7 @@ limitations under the License.
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">Download Dataset</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="ddXButton"></button>
             </div>
             <div class="modal-body">
                 <div>
@@ -416,7 +416,7 @@ limitations under the License.
                 <div id="ddFinishedDiv" class="text-24" style="visibility: hidden;">Finished.</div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="ddDismissButton">Close</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="ddCloseButton">Close</button>
             </div>
           </div>
         </div>
@@ -427,7 +427,7 @@ limitations under the License.
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">Start Training</h5>
-              <button type="button" id="stDismissButton" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="stXButton"></button>
             </div>
             <div class="modal-body">
               <div class="text-18">
@@ -477,7 +477,7 @@ limitations under the License.
               <div id="stFailedDiv" style="display: none;">Failed!</div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="stDismissButton">Close</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="stCloseButton">Close</button>
             </div>
           </div>
         </div>
@@ -488,7 +488,7 @@ limitations under the License.
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">Train More</h5>
-              <button type="button" id="tmDismissButton" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="tmXButton"></button>
             </div>
             <div class="modal-body">
               <div class="text-18">
@@ -533,7 +533,7 @@ limitations under the License.
               <div id="tmFailedDiv" style="display: none;">Failed!</div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="tmDismissButton">Close</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="tmCloseButton">Close</button>
             </div>
           </div>
         </div>
@@ -544,7 +544,7 @@ limitations under the License.
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">Download Model</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="dmXButton"></button>
             </div>
             <div class="modal-body">
               <div>
@@ -552,7 +552,7 @@ limitations under the License.
               </div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="dmDismissButton">Close</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="dmCloseButton">Close</button>
             </div>
           </div>
         </div>

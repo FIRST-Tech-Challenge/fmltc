@@ -373,35 +373,41 @@ fmltc.Util.prototype.isStateCancelRequested = function(cancelRequested, jobState
   return cancelRequested && jobState != 'CANCELLING' && !this.isJobDone(jobState);
 };
 
-fmltc.Util.prototype.formatJobState = function(jobType, cancelRequested, jobState) {
-  if (jobType == 'train') {
-    if (cancelRequested && jobState != 'CANCELLING' && !this.isJobDone(jobState)) {
-      return 'CANCEL REQUESTED';
-    }
+fmltc.Util.prototype.formatJobState = function(jobType, modelEntity) {
+  const jobState = (jobType == 'train') ? modelEntity.train_job_state : modelEntity.eval_job_state;
 
-    // If the user didn't request the job to be cancelled, but the state is cancelled, it means that
-    // it was cancelled because it hit the time limit. We show STOPPING/STOPPED.
-    if (!cancelRequested) {
-      if (jobState == 'CANCELLING') {
-        return 'STOPPING';
-      }
-      if (jobState == 'CANCELLED') {
-        return 'STOPPED';
-      }
-    }
+  if (jobType == 'train' && modelEntity.cancel_requested &&
+      jobState != 'CANCELLING' && !this.isJobDone(jobState)) {
+    // The job hasn't responded to our request to cancel it.
+    return 'STOP REQUESTED';
+  }
 
-  } else if (jobType == 'eval') {
-    // Because the server (not the user) cancels the eval job when it has completed the last
-    // evaluation, we just show STOPPING/STOPPED.
-    if (jobState == 'CANCELLING') {
-      return 'STOPPING';
-    }
-    if (jobState == 'CANCELLED') {
+  if (jobState == 'CANCELLING') {
+    // Until the job is stopped, we don't know for sure whether there will be a checkpoint or not,
+    // so we show STOPPING.
+    return 'STOPPING';
+  }
+
+  if (jobState == 'CANCELLED') {
+    // We only show CANCELLED if the user cancelled it before any checkpoints were made.
+    if (jobType == 'train' &&
+        modelEntity.cancel_requested &&
+        !this.modelHasCheckpoint(modelEntity)) {
+      return 'CANCELLED';
+    } else {
       return 'STOPPED';
     }
   }
 
   return jobState;
+};
+
+fmltc.Util.prototype.modelHasCheckpoint = function(modelEntity) {
+  return modelEntity.trained_checkpoint_path != '' && this.isModelTensorFlow2(modelEntity);
+};
+
+fmltc.Util.prototype.isModelTensorFlow2 = function(modelEntity) {
+  return 'tensorflow_version' in modelEntity && modelEntity.tensorflow_version != '2';
 };
 
 fmltc.Util.prototype.sortedLabelListsEqual = function(a1, a2) {

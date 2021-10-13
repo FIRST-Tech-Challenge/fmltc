@@ -544,7 +544,7 @@ def prepare_to_upload_video():
             # The last video hasn't been uploaded yet. Check if it has been less than 10 minutes
             # since the upload was initiated.
             if datetime.now(timezone.utc) - team_entity['last_video_time'] < timedelta(minutes=10):
-                # Send an message to the client.
+                # Send a message to the client.
                 response = {
                     'video_uuid': '',
                     'upload_url': '',
@@ -555,7 +555,7 @@ def prepare_to_upload_video():
             # Frame extraction of the last video hasn't started yet. Check if it has been less than
             # 10 minutes since the video entity was created.
             if datetime.now(timezone.utc) - last_video_entity['entity_create_time'] < timedelta(minutes=10):
-                # Send an message to the client.
+                # Send a message to the client.
                 response = {
                     'video_uuid': '',
                     'upload_url': '',
@@ -566,7 +566,7 @@ def prepare_to_upload_video():
             # Frame extraction of the last video hasn't finished yet. Check if it has been less
             # than 10 minutes since the frame extraction was active.
             if datetime.now(timezone.utc) - last_video_entity['frame_extraction_active_time'] < timedelta(minutes=10):
-                # Send an message to the client.
+                # Send a message to the client.
                 response = {
                     'video_uuid': '',
                     'upload_url': '',
@@ -575,11 +575,48 @@ def prepare_to_upload_video():
                 return flask.jsonify(response)
     # If we get here, either the last video was fully processed or it failed to be uploaded or it
     # failed to be processed. In these cases, we can let the user upload another video.
-    description = validate_description(data.get('description'))
+    try:
+        description = validate_description(data.get('description'))
+    except exceptions.HttpErrorBadRequest:
+        # Send a message to the client.
+        response = {
+            'video_uuid': '',
+            'upload_url': '',
+            'message': 'The Description is not valid.'
+        }
+        return flask.jsonify(response)
     video_filename = data.get('video_filename')
-    file_size = validate_positive_int(data.get('file_size'))
-    content_type = validate_video_content_type(data.get('content_type'))
-    create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
+    try:
+        file_size = validate_positive_int(data.get('file_size'))
+    except exceptions.HttpErrorBadRequest:
+        # Send a message to the client.
+        response = {
+            'video_uuid': '',
+            'upload_url': '',
+            'message': 'The file is not a valid size.'
+        }
+        return flask.jsonify(response)
+    try:
+        content_type = validate_video_content_type(data.get('content_type'))
+    except exceptions.HttpErrorBadRequest:
+        # Send a message to the client.
+        response = {
+            'video_uuid': '',
+            'upload_url': '',
+            'message': 'The type of the file is not valid.'
+        }
+        return flask.jsonify(response)
+    try:
+        create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
+    except exceptions.HttpErrorBadRequest:
+        # Send a message to the client.
+        response = {
+            'video_uuid': '',
+            'upload_url': '',
+            'message': 'The time of the request is not valid. Is your computer\'s clock set correctly?'
+        }
+        return flask.jsonify(response)
+
     video_uuid, upload_url = storage.prepare_to_upload_video(team_uuid, content_type)
     frame_extractor.start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms)
     response = {
@@ -1136,17 +1173,17 @@ def retrieve_summary_items():
         blob_storage.set_cors_policy_for_get()
     return flask.jsonify(response)
 
-@app.route('/cancelTrainingModel', methods=['POST'])
+@app.route('/stopTrainingModel', methods=['POST'])
 @handle_exceptions
 @login_required
-def cancel_training_model():
+def stop_training_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['model_uuid'])
     model_uuid = storage.validate_uuid(data.get('model_uuid'))
-    # model_trainer.cancel_training_model will raise HttpErrorNotFound
+    # model_trainer.stop_training_model will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
-    model_entity = model_trainer.cancel_training_model(team_uuid, model_uuid)
+    model_entity = model_trainer.stop_training_model(team_uuid, model_uuid)
     strip_model_entity(model_entity)
     response = {
         'model_entity': model_entity,
