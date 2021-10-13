@@ -315,7 +315,7 @@ resource "google_datastore_index" "action1" {
 resource "google_datastore_index" "action2" {
   kind = "Action"
   properties {
-    name = "action_uuid"
+    name = "team_uuid"
     direction = "ASCENDING"
   }
   properties {
