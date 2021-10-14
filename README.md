@@ -1,5 +1,10 @@
 # fmltc
 FIRST Machine Learning Toolchain
+
+# Usage
+
+Visit this [file](doc/usage.md) for a user guide.
+
 # Setup
 
 ## Google Cloud
