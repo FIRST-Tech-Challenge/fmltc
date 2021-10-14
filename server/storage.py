@@ -751,7 +751,8 @@ def __query_dataset(team_uuid, dataset_uuid):
 # dataset - public methods
 
 # prepare_to_start_dataset_production will raise HttpErrorNotFound
-# if any of the team_uuid/video_uuids is not found.
+# if any of the team_uuid/video_uuids is not found
+# or if none of the videos have labeled frames.
 def prepare_to_start_dataset_production(team_uuid, description, video_uuids, eval_percent, create_time_ms):
     dataset_uuid = str(uuid.uuid4().hex)
     datastore_client = datastore.Client()
@@ -759,15 +760,24 @@ def prepare_to_start_dataset_production(team_uuid, description, video_uuids, eva
         all_video_entities = retrieve_video_list(team_uuid)
         # Build a list of the video uuids that we found.
         video_uuids_found_list = []
+        # Also sum up the labeled_frame_counts.
+        total_labeled_frame_count = 0
         for video_entity in all_video_entities:
             video_uuid = video_entity['video_uuid']
             video_uuids_found_list.append(video_uuid)
+            if video_uuid in video_uuids:
+                total_labeled_frame_count += video_entity['labeled_frame_count']
         # Make sure that all the requested videos were found.
         for video_uuid in video_uuids:
             if video_uuid not in video_uuids_found_list:
                 message = 'Error: Video entity for video_uuid=%s not found.' % video_uuid
                 logging.critical(message)
                 raise exceptions.HttpErrorNotFound(message)
+        # Make sure the dataset will have at least one labeled frame.
+        if total_labeled_frame_count == 0:
+            message = 'Error: No labeled frames were found in the videos.'
+            logging.critical(message)
+            raise exceptions.HttpErrorNotFound(message)
         incomplete_key = datastore_client.key(DS_KIND_DATASET)
         dataset_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
         dataset_entity.update({

@@ -848,7 +848,7 @@ def prepare_to_start_dataset_production():
     eval_percent = validate_float(data.get('eval_percent'), min=0, max=90)
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
     # dataset_producer.prepare_to_start_dataset_production will raise HttpErrorNotFound
-    # if any of the team_uuid/video_uuids is not found.
+    # if any of the team_uuid/video_uuids is not found or if none of the videos have labeled frames.
     dataset_uuid = dataset_producer.prepare_to_start_dataset_production(
         team_uuid, description, video_uuids_json, eval_percent, create_time_ms)
     action_parameters = dataset_producer.make_action_parameters(
