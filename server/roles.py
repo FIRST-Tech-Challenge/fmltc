@@ -37,8 +37,7 @@ def can_upload_video(roles):
 #
 def can_login(roles):
     if not has_team_role(roles):
-        raise NoRoles("No roles have been assigned to this account "
-                      "or no teams are associated with the user's given roles")
+        raise NoRoles()
 
     if util.is_production_env() or util.is_development_env():
         if not (is_global_admin(roles) or is_ml_developer(roles) or is_ml_test(roles)):
