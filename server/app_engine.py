@@ -289,9 +289,7 @@ def login_via_oidc():
         # so we will throw NoRoles if there are no team roles defined.
         #
         if len(team_roles) == 0:
-            raise NoRoles("No roles have been assigned to this account "
-                            "or no teams are associated with the user's given roles")
-
+            raise NoRoles()
 
         #
         # A single team user goes straight to the workspace page, multiple teams
@@ -1321,7 +1319,6 @@ def exception_handler(e):
 @app.errorhandler(NoRoles)
 def no_roles_handler(e):
     return flask.render_template('noRoles.html',
-                                 error_message=repr(e),
                                  version=application_properties['version'], program="", team_number=""), 200
 
 
