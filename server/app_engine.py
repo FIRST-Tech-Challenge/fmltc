@@ -75,6 +75,17 @@ app.config.update(
         "MAX_CONTENT_LENGTH": 8 * 1024 * 1024,
         "ALLOWED_EXTENSIONS": {'png', 'jpg', 'jpeg', 'gif'},
 
+        # For SESSION_COOKIE_SECURE, True means that cookie are only sent to the server with an
+        # encrypted request over the HTTPS protocol.
+        # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#restrict_access_to_cookies
+        "SESSION_COOKIE_SECURE": True,
+
+        # For SESSION_COOKIE_SAMESITE, Lax means that cookies are not sent on normal cross-site
+        # subrequests (for example to load images or frames into a third party site), but are sent
+        # when a user is navigating to the origin site (i.e., when following a link).
+        # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#values
+        "SESSION_COOKIE_SAMESITE": "Lax",
+
         # OIDC properties
 
         "OIDC_ID_TOKEN_COOKIE_SECURE": False,
