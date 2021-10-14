@@ -313,16 +313,19 @@ fmltc.ListVideos.prototype.checkbox_onclick = function() {
 
 fmltc.ListVideos.prototype.updateButtons = function() {
   let countChecked = 0;
-  let countCanProduceDataset = 0;
+  let countFrameExtractionComplete = 0;
+  let totalLabeledFrameCount = 0
   for (let i = 0; i < this.checkboxes.length; i++) {
     if (this.checkboxes[i].checked) {
       countChecked++;
       if (!this.frameExtractionFailed[i] && this.frameExtractionComplete[i]) {
-        countCanProduceDataset++;
+        countFrameExtractionComplete++;
+        totalLabeledFrameCount += this.videoEntityArray[i].labeled_frame_count;
       }
     }
   }
-  this.produceDatasetButton.disabled = this.waitCursor || countChecked == 0 || countCanProduceDataset != countChecked;
+  this.produceDatasetButton.disabled = this.waitCursor || countChecked == 0 ||
+      countFrameExtractionComplete != countChecked || totalLabeledFrameCount == 0;
   this.deleteVideosButton.disabled = this.waitCursor || countChecked == 0;
 };
 
