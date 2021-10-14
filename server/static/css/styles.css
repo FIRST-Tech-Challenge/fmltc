@@ -218,3 +218,29 @@ body {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Tooltips */
+
+.hasTooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+
+.hasTooltip .isTooltipText {
+  visibility: hidden;
+  width: 300px;
+  background-color: #FFDEAD;
+  color: black;
+  border-radius: 6px;
+  padding: 0 10px;
+  margin-left: 5px;
+
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 1;
+}
+
+.hasTooltip:hover .isTooltipText {
+  visibility: visible;
+}

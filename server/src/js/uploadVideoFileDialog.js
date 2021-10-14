@@ -160,16 +160,54 @@ fmltc.UploadVideoFileDialog.prototype.updateUploadButton = function() {
 };
 
 fmltc.UploadVideoFileDialog.prototype.uploadButton_onclick = function() {
-  let description = this.descriptionInput.value;
-  let videoFile = this.videoFileInput.files[0];
-  let createTimeMs = Date.now();
-
-  this.uploadingProgress.value = 0;
-  this.uploadingProgress.max = videoFile.size;
+  const description = this.descriptionInput.value;
+  const videoFile = this.videoFileInput.files[0];
+  const createTimeMs = Date.now();
   this.setState(fmltc.UploadVideoFileDialog.STATE_PREPARING_TO_UPLOAD);
 
-  this.prepareToUploadVideo(description, videoFile, createTimeMs, 0);
-}
+  // Don't allow videos that are larger than 100 MB.
+  // The value 100 * 1000 * 1000 should match the value used in app_engine.py.
+  if (videoFile.size > 100 * 1000 * 1000) {
+    this.setState(fmltc.UploadVideoFileDialog.STATE_PREPARE_TO_UPLOAD_FAILED,
+        "The file is larger than 100 MB, which is the maximum size allowed.");
+    return;
+  }
+
+  const thisUploadVideoFileDialog = this;
+  const url = URL.createObjectURL(videoFile);
+  const video = document.createElement('video');
+  video.crossOrigin = 'anonymous';
+  video.onerror = function(event) {
+    thisUploadVideoFileDialog.setState(fmltc.UploadVideoFileDialog.STATE_PREPARE_TO_UPLOAD_FAILED,
+        "The file is not a valid video file.");
+    thisUploadVideoFileDialog.clearVideoElement(video);
+  };
+  video.onloadedmetadata = function(event) {
+    const duration = video.duration;
+
+    // Don't allow videos that are longer than 2 minutes.
+    // The value 120 should match the value used in frame_extractor.py.
+    if (duration > 120) {
+      thisUploadVideoFileDialog.setState(fmltc.UploadVideoFileDialog.STATE_PREPARE_TO_UPLOAD_FAILED,
+          "The video is longer than 2 minutes, which is the maximum duration allowed.");
+      thisUploadVideoFileDialog.clearVideoElement(video);
+      return;
+    }
+
+    thisUploadVideoFileDialog.clearVideoElement(video);
+
+    thisUploadVideoFileDialog.uploadingProgress.value = 0;
+    thisUploadVideoFileDialog.uploadingProgress.max = videoFile.size;
+    thisUploadVideoFileDialog.prepareToUploadVideo(description, videoFile, createTimeMs, 0);
+  };
+  video.src = url;
+};
+
+fmltc.UploadVideoFileDialog.prototype.clearVideoElement = function(video) {
+  video.onerror = null;
+  video.onloadedmetadata = null;
+  video.src = '';
+};
 
 fmltc.UploadVideoFileDialog.prototype.prepareToUploadVideo = function(description, videoFile, createTimeMs, failureCount) {
   const xhr = new XMLHttpRequest();
