@@ -93,10 +93,8 @@ def retrieve_team_uuid(program, team_number):
                 'preferences': {},
                 'last_video_uuid': '',
                 'videos_uploaded_today': 0,
-                'datasets_downloaded_today': 0,
                 'datasets_created_today': 0,
-                'models_downloaded_today': 0,
-                
+                'datasets_downloaded_today': 0,
             })
         else:
             team_entity = team_entities[0]
