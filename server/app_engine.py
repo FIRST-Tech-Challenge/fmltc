@@ -38,6 +38,7 @@ import constants
 import dataset_producer
 import dataset_zipper
 import exceptions
+from exceptions import NoRoles
 import frame_extractor
 import model_trainer
 import oidc
@@ -92,7 +93,7 @@ app.config.update(
 
         "OIDC_ID_TOKEN_COOKIE_SECURE": False,
         "OIDC_REQUIRE_VERIFIED_EMAIL": False,
-        "OIDC_SCOPES": ["openid", "email", "roles"],
+        "OIDC_SCOPES": ["openid", "profile", "email", "roles"],
     }
 )
 
@@ -107,6 +108,23 @@ else:
 oidc.oidc_init(app)
 
 application_properties = json.load(open('app.properties', 'r'))
+
+
+#
+# Jinja (神社) is kind of wonky when it comes to variables passed to
+# templates.  render_template() will not pass along variables to
+# base layouts, or parent templates, via the 'extends' mechanism.
+# app.content_processor stuffs variables into a dictionary that is
+# available to all templates. Hence, any variables that are used in
+# layout.html, which provides the consistent banner and footer,
+# need to be populated here.
+#
+@app.context_processor
+def inject_time():
+    program, team_number = team_info.retrieve_program_and_team_number(flask.session)
+    return dict(time_time=time.time(), project_id=constants.PROJECT_ID, name=flask.session.get('given_name'),
+                program=program, team_number=team_number, version=application_properties.get('version'))
+
 
 def validate_keys(dict, expected_keys, check_all_keys=True, optional_keys=[]):
     for k in expected_keys:
@@ -286,17 +304,30 @@ def login_via_oidc():
     if oidc.is_user_loggedin():
         ext_roles = oidc.user_getfield('external_roles')
         flask.session['user_roles'] = [x.upper() for x in ext_roles]
-        flask.session['user_roles'].extend(oidc.user_getfield('global_roles'))
+        global_roles = oidc.user_getfield('global_roles')
+        flask.session['user_roles'].extend(global_roles)
+
+        flask.session['given_name'] = oidc.user_getfield('given_name')
 
         team_roles = oidc.user_getfield('team_roles')
+
+        #
+        # There are a couple reasons that a user might have no team roles, lack
+        # of YPP screening or a global admin or custom role that is not also
+        # associated with a team.  The team number is a fundamental dependency
+        # so we will throw NoRoles if there are no team roles defined.
+        #
+        if len(team_roles) == 0:
+            raise NoRoles()
+
+        #
+        # A single team user goes straight to the workspace page, multiple teams
+        # users get redirected to a team selection page.
+        #
         if len(team_roles) == 1:
             team_num = next(iter(team_roles))
             flask.session['team_number'] = team_num
             flask.session['user_roles'].extend(team_roles[team_num])
-
-            if not roles.can_login(flask.session['user_roles']):
-                raise Forbidden("You do not have the required permissions to access this page")
-
             return flask.redirect(flask.url_for('submit_team', team=team_num))
         else:
             return flask.redirect(flask.url_for('select_team', teams=list(team_roles.keys())))
@@ -313,7 +344,7 @@ def setXFrameOptions(response):
 @handle_exceptions
 def select_team():
     teams = flask.request.args.getlist('teams')
-    return flask.render_template('selectTeam.html', version=application_properties['version'], teams=teams)
+    return flask.render_template('selectTeam.html', teams=teams)
 
 @app.route('/submitTeam', methods=['GET', 'POST'])
 def submit_team():
@@ -326,12 +357,22 @@ def submit_team():
             team_num = flask.request.form['team_num']
         else:
             team_num = flask.request.args.get('team')
+
+        #
+        # Prevent a user from using a team that the user is not associated with.
+        #
+        if not team_num in team_roles:
+            raise NoRoles()
+
         flask.session['user_roles'].extend(team_roles[team_num])
         flask.session['team_number'] = team_num
         flask.session['name'] = given_name
+
+        roles.can_login(flask.session['user_roles'])
+
         return flask.redirect(flask.url_for('index'))
     else:
-        raise Forbidden("You do not have the required permissions to access this page")
+        raise Forbidden()
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -351,20 +392,18 @@ def login():
         error_message = ''
         program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('login.html',
-        time_time=time.time(), version=application_properties['version'], project_id=constants.PROJECT_ID,
         error_message=error_message, program=program, team_number=team_number)
 
 @app.route('/')
 @handle_exceptions
 @redirect_to_login_if_needed
 def index():
-    if not roles.can_login(flask.session['user_roles']):
-        raise Forbidden("You do not have the required permissions to access this page")
+    roles.can_login(flask.session['user_roles'])
 
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
-    return flask.render_template('root.html', time_time=time.time(), version=application_properties['version'], project_id=constants.PROJECT_ID,
-        program=program, team_number=team_number, can_upload_video=roles.can_upload_video(flask.session['user_roles']),
+    return flask.render_template('root.html',
+        can_upload_video=roles.can_upload_video(flask.session['user_roles']),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         starting_models=model_trainer.get_starting_model_names())
 
@@ -383,7 +422,7 @@ def label_video():
         team_uuid, video_uuid, 0, 0)[0]
     sanitize(video_entity)
     sanitize(video_frame_entity_0)
-    return flask.render_template('labelVideo.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+    return flask.render_template('labelVideo.html',
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         video_uuid=video_uuid, video_entity=video_entity, video_frame_entity_0=video_frame_entity_0)
 
@@ -404,7 +443,7 @@ def monitor_training():
     sanitize(model_entities_by_uuid)
     sanitize(dataset_entities_by_uuid)
     sanitize(video_entities_by_uuid)
-    return flask.render_template('monitorTraining.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+    return flask.render_template('monitorTraining.html',
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         model_uuid=model_uuid,
         model_entities_by_uuid=model_entities_by_uuid,
@@ -1275,9 +1314,17 @@ def perform_action_gcf():
 def add_userinfo_breadcrumb():
     if sentry_dsn is not None:
         if 'program' in flask.session:
-            sentry_sdk.add_breadcrumb(category='auth', message="{} {}".format(flask.session['program'], flask.session['team_number']), level='info')
+            sentry_sdk.add_breadcrumb(category='auth', message="Program: {}".format(flask.session['program']), level='info')
+        else:
+            sentry_sdk.add_breadcrumb(category='auth', message="No program", level='info')
+        if 'team_number' in flask.session:
+            sentry_sdk.add_breadcrumb(category='auth', message="Team: {}".format(flask.session['team_number']), level='info')
+        else:
+            sentry_sdk.add_breadcrumb(category='auth', message="No team", level='info')
         if 'user_roles' in flask.session:
             sentry_sdk.add_breadcrumb(category='auth', message=str(flask.session['user_roles']), level='info')
+        else:
+            sentry_sdk.add_breadcrumb(category='auth', message="No roles", level='info')
 
 
 def capture_exception(e):
@@ -1294,12 +1341,6 @@ def capture_message(e):
         util.log('capture_message message: %s' % str(e))
 
 
-@app.errorhandler(403)
-def forbidden(e):
-    logging.exception('Forbidden.')
-    return "Forbidden: <pre>{}</pre>".format(e), 403
-
-
 @app.errorhandler(500)
 def server_error(e):
     logging.exception('An internal error occurred.')
@@ -1312,7 +1353,19 @@ def server_error(e):
 def exception_handler(e):
     add_userinfo_breadcrumb()
     capture_exception(e)
-    return flask.render_template('displayException.html', error_message=repr(e), version=application_properties['version']), 200
+    return flask.render_template('displayException.html',
+                                 error_message=repr(e)), 500
+
+
+@app.errorhandler(NoRoles)
+def no_roles_handler(e):
+    return flask.render_template('noRoles.html'), 200
+
+
+@app.errorhandler(Forbidden)
+def forbidden_handler(e):
+    return flask.render_template('forbidden.html',
+                                 error_message="You do not have the required permissions to access this page"), 403
 
 
 # For running locally:

@@ -21,6 +21,7 @@ import logging
 import constants
 import storage
 import util
+import roles
 
 BUCKET_BLOBS = ('%s-blobs' % constants.PROJECT_ID)
 
@@ -51,8 +52,20 @@ def validate_team_info(session):
     else:
         return __validate_team_local(session)
 
+
 def __validate_team_oidc(session):
-    return True
+    #
+    # A user can be logged in, but have no valid roles.  Don't allow any logged
+    # in route to execute in this case.  If the 'user_roles' field is empty, they
+    # somehow got here without logging in at all.  Paranoia.
+    #
+    user_roles = session.get('user_roles')
+    if user_roles:
+        roles.can_login(session['user_roles'])
+        return True
+    else:
+        return False
+
 
 def __validate_team_local(session):
     program = session.get('program')
