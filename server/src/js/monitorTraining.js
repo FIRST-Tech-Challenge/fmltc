@@ -144,7 +144,6 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.util.addTabResizeListener(this.tab_onresize.bind(this));
   this.util.addTabClickListener(this.tab_onclick.bind(this));
 
-  document.getElementById('backButton').onclick = this.backButton_onclick.bind(this);
   this.stopTrainingButton.onclick = this.stopTrainingButton_onclick.bind(this);
   this.refreshIntervalRangeInput.onchange = this.refreshIntervalRangeInput_onchange.bind(this);
   this.refreshButton.onclick = this.refreshButton_onclick.bind(this);
@@ -152,10 +151,6 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.previousPageButton.onclick = this.previousPageButton_onclick.bind(this);
   this.nextPageButton.onclick = this.nextPageButton_onclick.bind(this);
   this.lastPageButton.onclick = this.lastPageButton_onclick.bind(this);
-};
-
-fmltc.MonitorTraining.prototype.backButton_onclick = function() {
-  window.history.back();
 };
 
 fmltc.MonitorTraining.prototype.updateButtons = function() {
