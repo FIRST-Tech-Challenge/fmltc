@@ -39,7 +39,6 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
 
   this.startTime = Date.now();
 
-  this.backButton = document.getElementById('backButton');
   this.smallerImageButton = document.getElementById('smallerImageButton');
   this.largerImageButton = document.getElementById('largerImageButton');
   this.loadingProgress = document.getElementById('loadingProgress');
@@ -158,7 +157,7 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   this.rescaleCanvas();
   window.addEventListener('resize', this.repositionCanvas.bind(this));
 
-  this.backButton.onclick = this.backButton_onclick.bind(this);
+  window.onbeforeunload = this.window_onbeforeunload.bind(this);
   this.smallerImageButton.onclick = this.smallerImageButton_onclick.bind(this);
   this.largerImageButton.onclick = this.largerImageButton_onclick.bind(this);
   this.bboxCanvas.onmousedown = this.bboxCanvas_onmousedown.bind(this);
@@ -187,17 +186,8 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   this.updateUI();
 };
 
-fmltc.LabelVideo.prototype.backButton_onclick = function() {
-  this.backButton.disabled = true;
-  this.saveBboxes(this.dismissAfterSaveBboxes.bind(this));
-};
-
-fmltc.LabelVideo.prototype.dismissAfterSaveBboxes = function(success) {
-  if (success) {
-    window.history.back();
-  } else {
-    this.backButton.disabled = false;
-  }
+fmltc.LabelVideo.prototype.window_onbeforeunload = function() {
+  this.saveBboxes();
 };
 
 fmltc.LabelVideo.prototype.smallerImageButton_onclick = function() {
@@ -647,21 +637,15 @@ fmltc.LabelVideo.prototype.isUnlabeled = function(bboxesText) {
   return bboxesText == '';
 };
 
-fmltc.LabelVideo.prototype.saveBboxes = function(callback) {
+fmltc.LabelVideo.prototype.saveBboxes = function() {
   if (this.bboxes[this.currentFrameNumber] == undefined ||
       this.videoFrameEntity[this.currentFrameNumber] == undefined) {
-    if (callback) {
-      callback(true)
-    }
     return '';
   }
   const previousBboxesText = this.videoFrameEntity[this.currentFrameNumber].bboxes_text;
   const bboxesText = this.convertBboxesToText(this.bboxes[this.currentFrameNumber]);
   if (bboxesText == previousBboxesText) {
     // Don't save them if they haven't changed.
-    if (callback) {
-      callback(true)
-    }
     return bboxesText;
   }
 
@@ -680,25 +664,19 @@ fmltc.LabelVideo.prototype.saveBboxes = function(callback) {
   xhr.open('POST', '/storeVideoFrameBboxesText', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_storeVideoFrameBboxesText_onreadystatechange.bind(this, xhr, params,
-      this.currentFrameNumber, callback);
+      this.currentFrameNumber);
   xhr.send(params);
   return bboxesText;
 };
 
 fmltc.LabelVideo.prototype.xhr_storeVideoFrameBboxesText_onreadystatechange = function(xhr, params,
-    frame_number, callback) {
+    frame_number) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      if (callback) {
-        callback(true);
-      }
 
     } else {
-      if (callback) {
-        callback(false);
-      }
       // TODO(lizlooney): handle error properly
       console.log('Failure! /storeVideoFrameBboxesText?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
@@ -785,7 +763,7 @@ fmltc.LabelVideo.prototype.bboxFieldInput_oninput = function(i, input, field) {
     const box = this.bboxes[this.currentFrameNumber][i];
     box[field] = input.value;
     this.redrawBboxes();
-    this.saveBboxes()
+    this.saveBboxes();
   }
   this.updateUI();
 };
@@ -1150,7 +1128,7 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseup = function(e) {
     this.definingBbox = null;
     this.redrawBboxes();
     this.refillLabelingArea(true);
-    this.saveBboxes()
+    this.saveBboxes();
 
   } else if (this.resizingBbox) {
     // Erase the previous temporary box.
@@ -1163,7 +1141,7 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseup = function(e) {
     this.resizingBbox = null;
     this.redrawBboxes();
     this.refillLabelingArea();
-    this.saveBboxes()
+    this.saveBboxes();
   }
 };
 
@@ -1381,7 +1359,6 @@ fmltc.LabelVideo.prototype.xhr_continueTracking_onreadystatechange = function(xh
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      // This callback is only used when we are finishing tracking.
       this.trackingInProgress = false;
       this.trackingPaused = false;
       this.trackingWaitingForBboxes = false;
