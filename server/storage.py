@@ -92,6 +92,9 @@ def retrieve_team_uuid(program, team_number):
                 'last_time': datetime.now(timezone.utc),
                 'preferences': {},
                 'last_video_uuid': '',
+                'videos_uploaded_today': 0,
+                'datasets_created_today': 0,
+                'datasets_downloaded_today': 0,
             })
         else:
             team_entity = team_entities[0]
@@ -231,12 +234,19 @@ def frame_extraction_done(team_uuid, video_uuid, frame_count):
         return video_entity
 
 
-def frame_extraction_failed(team_uuid, video_uuid):
+def frame_extraction_failed(team_uuid, video_uuid, error_message, width=None, height=None, fps=None, frame_count=0):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         video_entity = retrieve_video_entity(team_uuid, video_uuid)
         video_entity['frame_extraction_failed'] = True
-        video_entity['frame_count'] = 0
+        video_entity['frame_extraction_error_message'] = error_message
+        if width is not None:
+            video_entity['width'] = width
+        if height is not None:
+            video_entity['height'] = height
+        if fps is not None:
+            video_entity['fps'] = fps
+        video_entity['frame_count'] = frame_count
         video_entity['frame_extraction_end_time'] = datetime.now(timezone.utc)
         video_entity['frame_extraction_active_time'] = video_entity['frame_extraction_end_time']
         video_entity['frame_extraction_active_time_ms'] = util.ms_from_datetime(video_entity['frame_extraction_active_time'])

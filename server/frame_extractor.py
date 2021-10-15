@@ -122,9 +122,8 @@ def extract_frames(action_parameters):
         os.makedirs(os.path.dirname(video_filename), exist_ok=True)
 
         if not blob_storage.write_video_to_file(video_blob_name, video_filename):
-            storage.frame_extraction_failed(team_uuid, video_uuid)
-            message = "Fatal Error: Unable to write video to file for video_uuid=%s." % video_uuid
-            logging.critical(message)
+            storage.frame_extraction_failed(team_uuid, video_uuid,
+                    "Unable to extract frames from the video.")
             return
 
         storage.frame_extraction_active(team_uuid, video_uuid)
@@ -133,9 +132,8 @@ def extract_frames(action_parameters):
             # Open the video file with cv2.
             vid = cv2.VideoCapture(video_filename)
             if not vid.isOpened():
-                storage.frame_extraction_failed(team_uuid, video_uuid)
-                message = "Fatal Error: Unable to open video for video_uuid=%s." % video_uuid
-                logging.critical(message)
+                storage.frame_extraction_failed(team_uuid, video_uuid,
+                        "Unable to the open the video file.")
                 return
             try:
                 # If we haven't extracted any frames yet, we need to create the video frame entities
@@ -155,6 +153,27 @@ def extract_frames(action_parameters):
                             # We've reached the end of the video. All finished counting!
                             break
                         frame_count += 1
+                    # Don't allow videos that are longer than 2 minutes.
+                    # The value 120 should match the value used in uploadVideoFileDialog.js.
+                    duration = frame_count / fps
+                    if duration > 120:
+                        storage.frame_extraction_failed(team_uuid, video_uuid,
+                                "This video is longer than 2 minutes, which is the maximum duration allowed.",
+                                width=width, height=height, fps=fps, frame_count=frame_count)
+                        return
+                    # Don't allow videos that have more than 1000 frames.
+                    if frame_count > 1000:
+                        storage.frame_extraction_failed(team_uuid, video_uuid,
+                                "This video has more than 1000 frames, which is the maximum allowed.",
+                                width=width, height=height, fps=fps, frame_count=frame_count)
+                        return
+                    # Don't allow videos with resolution larger than 3840 x 2160.
+                    if max(width, height) > 3840 or min(width, height) > 2160:
+                        storage.frame_extraction_failed(team_uuid, video_uuid,
+                                "This video's resolution is larger than 3840 x 2160, which is the maximum resolution allowed.",
+                                width=width, height=height, fps=fps, frame_count=frame_count)
+                        return
+
                     video_entity = storage.frame_extraction_starting(team_uuid, video_uuid,
                         width, height, fps, frame_count)
                     metrics.save_video_metrics(video_entity)
