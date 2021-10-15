@@ -373,3 +373,42 @@ body {
 	text-decoration: none;
 	color: inherit;
 }
+
+.white { color: #fff !important; }
+
+#logoutButton { cursor: pointer; }
+
+.navbar {
+  padding: .5rem 1rem;
+}
+
+.table {
+    font-size:12px;
+}
+
+.table-hover tbody tr:hover td, .table-hover tbody tr:not(:first-child):hover {
+    background-color: #e0e6e0;
+}
+
+.tba-badge {
+    font-size: 12px;
+}
+
+a:not([href]):not([tabindex]).tableShift {
+    color: #007bff;
+    cursor: pointer;
+}
+
+form {
+    margin-block-end: 1em;
+}
+
+#requestsLink {
+    white-space: nowrap;
+}
+#requestsLink span {
+    position: relative;
+    font-size: 10px;
+    top: -10px;
+}
+
