@@ -108,7 +108,9 @@ application_properties = json.load(open('app.properties', 'r'))
 #
 @app.context_processor
 def inject_time():
-    return dict(time_time=time.time(), project_id=constants.PROJECT_ID, name=flask.session['given_name'])
+    program, team_number = team_info.retrieve_program_and_team_number(flask.session)
+    return dict(time_time=time.time(), project_id=constants.PROJECT_ID, name=flask.session.get('given_name'),
+                program=program, team_number=team_number, version=application_properties.get('version'))
 
 
 def validate_keys(dict, expected_keys, check_all_keys=True, optional_keys=[]):
@@ -332,7 +334,7 @@ def setXFrameOptions(response):
 @handle_exceptions
 def select_team():
     teams = flask.request.args.getlist('teams')
-    return flask.render_template('selectTeam.html', version=application_properties['version'], teams=teams)
+    return flask.render_template('selectTeam.html', teams=teams)
 
 @app.route('/submitTeam', methods=['GET', 'POST'])
 def submit_team():
@@ -380,7 +382,6 @@ def login():
         error_message = ''
         program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('login.html',
-        version=application_properties['version'],
         error_message=error_message, program=program, team_number=team_number)
 
 @app.route('/')
@@ -391,8 +392,8 @@ def index():
 
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
-    return flask.render_template('root.html', version=application_properties['version'],
-        program=program, team_number=team_number, can_upload_video=roles.can_upload_video(flask.session['user_roles']),
+    return flask.render_template('root.html',
+        can_upload_video=roles.can_upload_video(flask.session['user_roles']),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         starting_models=model_trainer.get_starting_model_names())
 
@@ -1329,21 +1330,18 @@ def exception_handler(e):
     add_userinfo_breadcrumb()
     capture_exception(e)
     return flask.render_template('displayException.html',
-                                 error_message=repr(e),
-                                 version=application_properties['version']), 500
+                                 error_message=repr(e)), 500
 
 
 @app.errorhandler(NoRoles)
 def no_roles_handler(e):
-    return flask.render_template('noRoles.html',
-                                 version=application_properties['version'], program="", team_number=""), 200
+    return flask.render_template('noRoles.html'), 200
 
 
 @app.errorhandler(Forbidden)
 def forbidden_handler(e):
     return flask.render_template('forbidden.html',
-                                 error_message="You do not have the required permissions to access this page",
-                                 version=application_properties['version']), 403
+                                 error_message="You do not have the required permissions to access this page"), 403
 
 
 # For running locally:
