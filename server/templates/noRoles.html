@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <!--
 Copyright 2020 Google LLC
 
@@ -14,76 +13,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<html>
-<head>
-	<title>FIRST Machine Learning Toolchain</title>
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link rel="shortcut icon" href="https://www.firstinspires.org/sites/default/files/first-favicon.ico" type="image/vnd.microsoft.icon" />
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js" integrity="sha384-cVKIPhGWiC2Al4u+LWgxfKTRIcfu0JTxR+EQDz/bgldoEyl4H0zUF0QKbrJ0EcQF" crossorigin="anonymous"></script>
+{% extends 'layout.html' %}
 
-	<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
-	<link rel="stylesheet" type="text/css" href="https://storage.googleapis.com/{{project_id}}/static/css/styles.css?ignoreCache={{time_time}}">
-	<script type="text/javascript" src="https://storage.googleapis.com/{{project_id}}/compiled/js/fmltc.js?ignoreCache={{time_time}}"></script>
-	<style>
-    .white { color: #fff !important; }
-    #bodywrapper > .container {
-      background: #ffffff;
-      box-shadow: 0 1px 5px rgb(0 0 0 / 25%);
-    }
-  </style>
-</head>
-<body class="d-flex flex-column h-100">
-	<div id="bodywrapper">
-		<div class="container">
-			<nav class="navbar navbar-expand-md navbar-dark fixed-top pt-0">
-				<div class="container bg-dark d-block" style="height: 111px;">
-					<span class="d-block w-100 fs-3" style="text-align:center;color:#fff;"><span class="fst-italic">FIRST</span> Machine Learning Toolchain - {{version}}</span>
-
-					<a class="navbar-brand" href="/">
-						<img src="https://ftc-cloud-cdn.global-prod.ftclive.org/img/logo_horiz-4bc1dfb53e3adb7bb4458755.png" width="199" height="60" class="d-inline-block align-center" alt="">
-					</a>
-					<div style="float:right;">
-						<ul class="navbar-nav">
-							<li class="nav-item">
-								<a class="nav-link white" href="/resources/">Resources</a>
-							</li>
-							<li class="nav-item">
-								<a class="nav-link white" href="/feedback/">Help/Feedback</a>
-							</li>
-							<li class="nav-item">
-								<span class="nav-link white" id="logoutButton">{{program}}&nbsp;{{team_number}}&nbsp;Log Out</span>
-							</li>
-						</ul>
-					</div>
-				</div>
-			</nav>
-			<div class="container" style="padding-top: 122px;">
-				<hr class="onlyOnFull">
-				<div class="row justify-content-center">
-					<h3 class="text-center">No roles have been assigned to this account or no teams are associated with the given roles.</h3>
-				</div>
-			</div>
+{% block content %}
+	<main class="flex-shrink-0">
+		<div class="row justify-content-center">
+		  <h3 class="text-center">No roles have been assigned to this account or no teams are associated with the given roles.</h3>
 		</div>
-	</div>
-<script type="text/javascript">
-
-	document.getElementById("logoutButton").addEventListener("click", logoutClick);
-
-	function logoutClick() {
-	  const xhr = new XMLHttpRequest();
-	  xhr.open('POST', '/logout', true);
-	  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-	  xhr.onreadystatechange = function() {
-		  if (xhr.readyState === 4) {
-			xhr.onreadystatechange = null;
-			window.location.replace('/logoutinfo');
-		  }
-	  }
-	  xhr.send();
-	};
-
-</script>
-</body>
-</html>
+	</main>
+{% endblock %}

@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <!--
 Copyright 2020 Google LLC
 
@@ -14,71 +13,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<html>
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>FIRST Machine Learning Toolchain</title>
 
-	<link rel="shortcut icon" href="https://www.firstinspires.org/sites/default/files/first-favicon.ico" type="image/vnd.microsoft.icon" />
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js" integrity="sha384-cVKIPhGWiC2Al4u+LWgxfKTRIcfu0JTxR+EQDz/bgldoEyl4H0zUF0QKbrJ0EcQF" crossorigin="anonymous"></script>
+{% extends 'layout.html' %}
 
-	<style>
-		html,
-		body {
-			height: 100%;
-		}
-
-		body {
-			display: flex;
-			align-items: center;
-			padding-top: 40px;
-			padding-bottom: 40px;
-			background-color: #f5f5f5;
-		}
-
-		.form-signin {
-			width: 100%;
-			max-width: 330px;
-			padding: 15px;
-			margin: auto;
-		}
-
-		.form-signin .checkbox {
-			font-weight: 400;
-		}
-
-		.form-signin .form-floating:focus-within {
-			z-index: 2;
-		}
-
-		.form-signin input[type="email"] {
-			margin-bottom: -1px;
-			border-bottom-right-radius: 0;
-			border-bottom-left-radius: 0;
-		}
-
-		.form-signin input[type="password"] {
-			margin-bottom: 10px;
-			border-top-left-radius: 0;
-			border-top-right-radius: 0;
-		}
-	</style>
-
-</head>
-<body class="text-center">
-
-	<main class="form-signin text-center">
-			<img class="mb-4" src="https://www.firstinspires.org/sites/all/themes/first/assets/images/2020/first-horz-rgb.png" alt="" style="width: 250px; height: auto;">
-			<h1 class="h3 mb-3 fw-bold">First Machine<br>Learning Toolchain</h1>
-			<h2 class="h2 mb-3 fst-italic">Version {{version}}</h2>
-
-            The toolchain server is sad right now.  Headquarters has been notified.
-
-		<div class="errorMessage">{{error_message}}</div>
-	</main>
-
-
-</body>
-</html>
+{% block content %}
+<main class="flex-shrink-0">
+	<h3 class="text-center">The toolchain server is sad right now.  Headquarters has been notified.</h3>
+	<div class="errorMessage">{{error_message}}</div>
+</main>
+{% endblock %}

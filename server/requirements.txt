@@ -1,4 +1,4 @@
-Flask
+Flask==2.0.2
 blinker==1.4
 google-api-python-client==1.9.0
 google-cloud-datastore==2.1.0

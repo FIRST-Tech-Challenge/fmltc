@@ -80,7 +80,7 @@ app.config.update(
 
         "OIDC_ID_TOKEN_COOKIE_SECURE": False,
         "OIDC_REQUIRE_VERIFIED_EMAIL": False,
-        "OIDC_SCOPES": ["openid", "email", "roles"],
+        "OIDC_SCOPES": ["openid", "profile", "email", "roles"],
     }
 )
 
@@ -95,6 +95,21 @@ else:
 oidc.oidc_init(app)
 
 application_properties = json.load(open('app.properties', 'r'))
+
+
+#
+# Jinja (神社) is kind of wonky when it comes to variables passed to
+# templates.  render_template() will not pass along variables to
+# base layouts, or parent templates, via the 'extends' mechanism.
+# app.content_processor stuffs variables into a dictionary that is
+# available to all templates. Hence, any variables that are used in
+# layout.html, which provides the consistent banner and footer,
+# need to be populated here.
+#
+@app.context_processor
+def inject_time():
+    return dict(time_time=time.time(), project_id=constants.PROJECT_ID, name=flask.session['given_name'])
+
 
 def validate_keys(dict, expected_keys, check_all_keys=True, optional_keys=[]):
     for k in expected_keys:
@@ -280,6 +295,8 @@ def login_via_oidc():
         global_roles = oidc.user_getfield('global_roles')
         flask.session['user_roles'].extend(global_roles)
 
+        flask.session['given_name'] = oidc.user_getfield('given_name')
+
         team_roles = oidc.user_getfield('team_roles')
 
         #
@@ -363,7 +380,7 @@ def login():
         error_message = ''
         program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('login.html',
-        time_time=time.time(), version=application_properties['version'], project_id=constants.PROJECT_ID,
+        version=application_properties['version'],
         error_message=error_message, program=program, team_number=team_number)
 
 @app.route('/')
@@ -374,7 +391,7 @@ def index():
 
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
-    return flask.render_template('root.html', time_time=time.time(), version=application_properties['version'], project_id=constants.PROJECT_ID,
+    return flask.render_template('root.html', version=application_properties['version'],
         program=program, team_number=team_number, can_upload_video=roles.can_upload_video(flask.session['user_roles']),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         starting_models=model_trainer.get_starting_model_names())
@@ -394,7 +411,7 @@ def label_video():
         team_uuid, video_uuid, 0, 0)[0]
     sanitize(video_entity)
     sanitize(video_frame_entity_0)
-    return flask.render_template('labelVideo.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+    return flask.render_template('labelVideo.html',
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         video_uuid=video_uuid, video_entity=video_entity, video_frame_entity_0=video_frame_entity_0)
 
@@ -415,7 +432,7 @@ def monitor_training():
     sanitize(model_entities_by_uuid)
     sanitize(dataset_entities_by_uuid)
     sanitize(video_entities_by_uuid)
-    return flask.render_template('monitorTraining.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+    return flask.render_template('monitorTraining.html',
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         model_uuid=model_uuid,
         model_entities_by_uuid=model_entities_by_uuid,

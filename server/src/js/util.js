@@ -35,27 +35,7 @@ fmltc.Util = function(pageBasename, preferences, startingModels) {
   this.tabClickListeners = [];
   this.tabResizeListeners = [];
 
-  const logoutButton = document.getElementById('logoutButton');
-  if (logoutButton) {
-    logoutButton.onclick = this.logoutButton_onclick.bind(this);
-  }
-
   this.initializeTabs();
-};
-
-fmltc.Util.prototype.logoutButton_onclick = function() {
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/logout', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_logout_onreadystatechange.bind(this, xhr);
-  xhr.send();
-};
-
-fmltc.Util.prototype.xhr_logout_onreadystatechange = function(xhr) {
-  if (xhr.readyState === 4) {
-    xhr.onreadystatechange = null;
-    window.location.replace('/logoutinfo');
-  }
 };
 
 fmltc.Util.prototype.setListVideos = function(listVideos) {
