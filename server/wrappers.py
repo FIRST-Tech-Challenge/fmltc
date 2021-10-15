@@ -39,7 +39,7 @@ def redirect_to_login_if_needed(func):
 def login_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if roles.can_login(flask.session['user_roles']) and team_info.validate_team_info(flask.session):
+        if team_info.validate_team_info(flask.session):
             return func(*args, **kwargs)
         raise Forbidden("You do not have the required permissions to access this page")
     return wrapper

@@ -14,21 +14,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<html>
-<head>
-  <link rel="stylesheet"
-      href="https://fonts.googleapis.com/icon?family=Material+Icons">
-  <link rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
-  <link rel="stylesheet" type="text/css"
-      href="https://storage.googleapis.com/{{project_id}}/static/css/styles.css?ignoreCache={{time_time}}">
-  <script type="text/javascript"
-      src="https://storage.googleapis.com/{{project_id}}/compiled/js/fmltc.js?ignoreCache={{time_time}}">
-  </script>
-  <title>Test</title>
-</head>
-<body>
 
+{% extends 'layout.html' %}
+
+{% block content %}
 <button id="sendPerformActionGCF" class="text-36">Send /performActionGCF request</button>
 <br><br>
 <button id="sendPerformActionGAE" class="text-36">Send /performActionGAE request</button>
@@ -92,7 +81,5 @@ Redis IP: {{redis_ip}}
     actionParameters['action_team_uuid'] = '';
     return actionParameters;
   }
-
 </script>
-</body>
-</html>
+{% endblock %}

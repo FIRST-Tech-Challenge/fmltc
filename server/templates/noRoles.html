@@ -13,12 +13,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
 {% extends 'layout.html' %}
 
 {% block content %}
-<main class="flex-shrink-0">
-	<h3 class="text-center">The toolchain server is sad right now.  Headquarters has been notified.</h3>
-	<div class="errorMessage text-center">{{error_message}}</div>
-</main>
+	<main class="flex-shrink-0">
+		<div class="row justify-content-center">
+		  <h3 class="text-center">No roles have been assigned to this account or no teams are associated with the given roles.</h3>
+		</div>
+	</main>
 {% endblock %}
