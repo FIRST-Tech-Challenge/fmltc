@@ -1330,7 +1330,7 @@ def exception_handler(e):
     capture_exception(e)
     return flask.render_template('displayException.html',
                                  error_message=repr(e),
-                                 version=application_properties['version']), 200
+                                 version=application_properties['version']), 500
 
 
 @app.errorhandler(NoRoles)
