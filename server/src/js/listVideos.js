@@ -194,9 +194,23 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
     this.frameExtractionFailed[i] = true;
     this.trs[i].className = 'frameExtractionFailed';
 
+    // If there is an error message, add a tooltip to the description.
+    if ('frame_extraction_error_message' in videoEntity) {
+      const descriptionElement = this.descriptionTds[i].childNodes[0];
+      const descriptionWithTooltip = document.createElement('span');
+      descriptionWithTooltip.className = 'hasTooltip';
+      descriptionWithTooltip.appendChild(document.createTextNode(videoEntity.description));
+      const tooltip = document.createElement('span');
+      tooltip.className = 'isTooltipText';
+      tooltip.textContent = videoEntity.frame_extraction_error_message;
+      descriptionWithTooltip.appendChild(tooltip);
+      this.descriptionTds[i].replaceChild(descriptionWithTooltip, descriptionElement);
+    }
+
   } else if (frameExtractionComplete) {
     this.frameExtractionComplete[i] = true;
     this.trs[i].className = 'frameExtractionComplete';
+
     // Make the description link to the labelVideo page, if it isn't already a link
     const descriptionElement = this.descriptionTds[i].childNodes[0];
     if (descriptionElement.nodeName != 'A') {           // A for Anchor
@@ -220,7 +234,9 @@ fmltc.ListVideos.prototype.onVideoEntityUpdated = function(videoEntity) {
       if (videoEntity.frame_extraction_active_time_ms != 0) {
         const millisSinceFrameExtractionWasActive = (Date.now() - videoEntity.frame_extraction_active_time_ms);
         if (millisSinceFrameExtractionWasActive < 5000) {
-          timeout = 1000;
+          // Set the timeout based on the size of the video. Otherwise for large videos, we end up
+          // sending a lot of requests.
+          timeout = Math.max(1000, videoEntity.file_size / 20000);
         }
       }
       setTimeout(this.retrieveVideoEntity.bind(this, videoEntity.video_uuid, true, 0), timeout);

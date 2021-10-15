@@ -18,7 +18,9 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 from datetime import datetime, timedelta, timezone
 import json
 import logging
+import math
 import time
+import traceback
 
 # Other Modules
 import flask
@@ -244,12 +246,9 @@ def validate_create_time_ms(s):
     i = validate_positive_int(s)
     create_time = util.datetime_from_ms(i)
     now = datetime.now(timezone.utc)
-    delta = now - create_time
-    if delta < timedelta(seconds=0):
-        message = "Error: '%s is not a valid create time." % s
-        logging.critical(message)
-        raise exceptions.HttpErrorBadRequest(message)
-    if delta > timedelta(minutes=1):
+    delta_seconds = math.fabs((now - create_time).total_seconds())
+    # Allow a 3 minute difference between the user's clock and the server's clock.
+    if delta_seconds > 3 * 60:
         message = "Error: '%s is not a valid create time." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)
@@ -482,6 +481,16 @@ def prepare_to_upload_video():
     video_filename = data.get('video_filename')
     try:
         file_size = validate_positive_int(data.get('file_size'))
+        # Don't allow videos that are larger than 100 MB.
+        # The value 100 * 1000 * 1000 should match the value used in uploadVideoFileDialog.js.
+        if file_size > 100 * 1000 * 1000:
+            # Send a message to the client.
+            response = {
+                'video_uuid': '',
+                'upload_url': '',
+                'message': 'The file is larger than 100 MB, which is the maximum size allowed.'
+            }
+            return flask.jsonify(response)
     except exceptions.HttpErrorBadRequest:
         # Send a message to the client.
         response = {
@@ -1090,7 +1099,7 @@ def retrieve_summary_items():
         step_key = 'step' + str(i)
         tag_key = 'tag' + str(i)
         if step_key not in data or tag_key not in data:
-            break;
+            break
         step = data[step_key]
         if step not in dict_step_to_tags:
             dict_step_to_tags[step] = []
@@ -1274,11 +1283,15 @@ def add_userinfo_breadcrumb():
 def capture_exception(e):
     if sentry_dsn is not None:
         sentry_sdk.capture_exception(e)
+    else:
+        util.log('capture_exception traceback: %s' % traceback.format_exc().replace('\n', ' ... '))
 
 
 def capture_message(e):
     if sentry_dsn is not None:
         sentry_sdk.capture_message(message=e)
+    else:
+        util.log('capture_message message: %s' % str(e))
 
 
 @app.errorhandler(403)
