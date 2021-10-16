@@ -46,7 +46,6 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.videoFrameImg = document.getElementById('videoFrameImg');
   this.currentFrameSpan = document.getElementById('currentFrameSpan');
   this.labelingAreaTable = document.getElementById('labelingAreaTable');
-  this.drawHintDiv = document.getElementById('drawHintDiv');
   this.labelHintDiv = document.getElementById('labelHintDiv');
   this.firstFrameButton = document.getElementById('firstFrameButton');
   this.previousTenFrameButton = document.getElementById('previousTenFrameButton');
@@ -70,9 +69,7 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.trackingPauseButton = document.getElementById('trackingPauseButton');
   this.trackingContinueButton = document.getElementById('trackingContinueButton');
   this.trackingStopButton = document.getElementById('trackingStopButton');
-  this.trackingStoppedDiv = document.getElementById('trackingStoppedDiv');
-  this.trackingFinishedDiv = document.getElementById('trackingFinishedDiv');
-  this.trackingFailedDiv = document.getElementById('trackingFailedDiv');
+  this.trackingMessageDiv = document.getElementById('trackingMessageDiv');
 
   this.loadingProgress.value = 0;
 
@@ -120,7 +117,7 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.trackerUuid = '';
   this.trackingRequestSentTime = 0;
 
-  this.updateUI();
+  this.updateUI(true);
   this.setVideoEntity(videoEntity);
   this.videoFrameEntityLoaded(videoFrameEntity0, 0);
 
@@ -183,7 +180,7 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   this.trackingContinueButton.onclick = this.trackingContinueButton_onclick.bind(this);
   this.trackingStopButton.onclick = this.trackingStopButton_onclick.bind(this);
 
-  this.updateUI();
+  this.updateUI(true);
 };
 
 fmltc.LabelVideo.prototype.window_onbeforeunload = function() {
@@ -249,7 +246,7 @@ fmltc.LabelVideo.prototype.redrawBboxes = function() {
   }
 };
 
-fmltc.LabelVideo.prototype.updateUI = function() {
+fmltc.LabelVideo.prototype.updateUI = function(setMessageDivText) {
   if (!this.videoEntity ||
       this.bboxes[this.currentFrameNumber] == undefined) {
     this.firstFrameButton.disabled = true;
@@ -276,10 +273,12 @@ fmltc.LabelVideo.prototype.updateUI = function() {
     return;
   }
 
-  if (this.bboxes[this.currentFrameNumber].length == 0) {
-    this.util.showElement(this.drawHintDiv);
-  } else {
-    this.util.hideElement(this.drawHintDiv);
+  if (setMessageDivText) {
+    if (this.bboxes[this.currentFrameNumber].length == 0) {
+      this.trackingMessageDiv.textContent = 'To enable tracking, draw bounding boxes on this frame.';
+    } else {
+      this.trackingMessageDiv.textContent = '';
+    }
   }
 
   if (this.missingLabelNames(this.bboxes[this.currentFrameNumber])) {
@@ -453,7 +452,7 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameEntitiesWithImageUrls_onreadyst
       }
     }
 
-    this.updateUI();
+    this.updateUI(true);
   }
 };
 
@@ -581,7 +580,7 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameImage_onreadystatechange = func
       }
     }
 
-    this.updateUI();
+    this.updateUI(true);
   }
 };
 
@@ -656,6 +655,8 @@ fmltc.LabelVideo.prototype.saveBboxes = function() {
       previousUnlabeledFrame, unlabeledFrame);
   this.videoFrameEntity[this.currentFrameNumber].bboxes_text = bboxesText;
 
+  this.trackingMessageDiv.textContent = 'Saving.';
+
   const xhr = new XMLHttpRequest();
   const params =
       'video_uuid=' + encodeURIComponent(this.videoUuid) +
@@ -675,6 +676,7 @@ fmltc.LabelVideo.prototype.xhr_storeVideoFrameBboxesText_onreadystatechange = fu
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
+      this.trackingMessageDiv.textContent = '';
 
     } else {
       // TODO(lizlooney): handle error properly
@@ -765,7 +767,7 @@ fmltc.LabelVideo.prototype.bboxFieldInput_oninput = function(i, input, field) {
     this.redrawBboxes();
     this.saveBboxes();
   }
-  this.updateUI();
+  this.updateUI(true);
 };
 
 fmltc.LabelVideo.prototype.deleteButton_onclick = function(tr) {
@@ -774,7 +776,7 @@ fmltc.LabelVideo.prototype.deleteButton_onclick = function(tr) {
     this.bboxes[this.currentFrameNumber].splice(i, 1);
     this.redrawBboxes();
     this.refillLabelingArea();
-    this.updateUI();
+    this.updateUI(true);
     this.saveBboxes();
   }
 };
@@ -809,7 +811,7 @@ fmltc.LabelVideo.prototype.goToFrame = function(frameNumber) {
   this.updateVideoFrameImg();
   this.redrawBboxes();
   this.refillLabelingArea();
-  this.updateUI();
+  this.updateUI(true);
   return true;
 };
 
@@ -962,7 +964,7 @@ fmltc.LabelVideo.prototype.reversePlayPauseButton_onclick = function() {
 
   this.playing = !this.playing;
   this.reversePlayPauseButton.textContent = (this.playing) ? 'pause' : 'play_arrow';
-  this.updateUI();
+  this.updateUI(true);
 
   if (this.playing) {
     this.playingDirection = -1;
@@ -976,7 +978,7 @@ fmltc.LabelVideo.prototype.forwardPlayPauseButton_onclick = function() {
 
   this.playing = !this.playing;
   this.forwardPlayPauseButton.textContent = (this.playing) ? 'pause' : 'play_arrow';
-  this.updateUI();
+  this.updateUI(true);
 
   if (this.playing) {
     this.playingDirection = 1;
@@ -997,7 +999,7 @@ fmltc.LabelVideo.prototype.advanceFrame = function() {
         this.playing = false;
         this.reversePlayPauseButton.textContent = 'play_arrow';
         this.forwardPlayPauseButton.textContent = 'play_arrow';
-        this.updateUI();
+        this.updateUI(true);
       } else {
         setTimeout(this.advanceFrame.bind(this), this.playingIntervalMs);
       }
@@ -1009,6 +1011,10 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousedown = function(e) {
   if (this.playing ||
       (this.trackingInProgress && (!this.trackingPaused || this.trackingWaitingForBboxes)) ||
       this.bboxes[this.currentFrameNumber] == undefined) {
+    return;
+  }
+
+  if (this.bboxes[this.currentFrameNumber].length >= 10) {
     return;
   }
 
@@ -1123,7 +1129,7 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseup = function(e) {
     if (!this.definingBbox.isEmpty()) {
       this.bboxes[this.currentFrameNumber].push(this.definingBbox);
     }
-    this.updateUI();
+    this.updateUI(true);
     // Stop defining.
     this.definingBbox = null;
     this.redrawBboxes();
@@ -1152,16 +1158,14 @@ fmltc.LabelVideo.prototype.trackingScaleInput_onchange = function() {
 
 
 fmltc.LabelVideo.prototype.trackingStartButton_onclick = function() {
-  this.trackingFinishedDiv.style.visibility = 'hidden';
-  this.trackingFailedDiv.style.visibility = 'hidden';
-  this.trackingStoppedDiv.style.visibility = 'hidden';
+  this.trackingMessageDiv.textContent = 'Preparing to start tracking. Please be patient.';
   this.trackingInProgress = true;
   this.trackingPaused = false;
   this.trackingWaitingForBboxes = true;
   this.trackingInitFrameNumber = this.currentFrameNumber;
   this.trackingFinalFrameNumber = this.videoEntity.frame_count - 1;
   this.util.setWaitCursor();
-  this.updateUI();
+  this.updateUI(false);
 
   const bboxesText = this.saveBboxes();
   const trackingScale = Math.max(this.trackingScaleInput.min, Math.min(this.trackingScaleInput.value, this.trackingScaleInput.max));
@@ -1188,11 +1192,20 @@ fmltc.LabelVideo.prototype.xhr_prepareToStartTracking_onreadystatechange = funct
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      this.trackerUuid = response.tracker_uuid;
+      if (response.tracker_uuid) {
+        this.trackerUuid = response.tracker_uuid;
+        setTimeout(this.retrieveTrackedBboxes.bind(this, initFrameNumber + 1, 0), 1000);
+        setTimeout(this.trackingClientStillAlive.bind(this), 30 * 1000);
 
-      setTimeout(this.retrieveTrackedBboxes.bind(this, initFrameNumber + 1, 0), 1000);
-
-      setTimeout(this.trackingClientStillAlive.bind(this), 30 * 1000);
+      } else {
+        // Show response.message to the user.
+        this.trackingMessageDiv.textContent = response.message;
+        this.util.clearWaitCursor();
+        this.trackingInProgress = false;
+        this.trackingPaused = false;
+        this.trackingWaitingForBboxes = false;
+        this.updateUI(false);
+      }
 
     } else {
       // TODO(lizlooney): handle error properly.
@@ -1202,8 +1215,8 @@ fmltc.LabelVideo.prototype.xhr_prepareToStartTracking_onreadystatechange = funct
       this.trackingInProgress = false;
       this.trackingPaused = false;
       this.trackingWaitingForBboxes = false;
-      this.trackingFailedDiv.style.visibility = 'visible';
-      this.updateUI();
+      this.trackingMessageDiv.textContent = 'Unable to start tracking.';
+      this.updateUI(false);
     }
   }
 };
@@ -1289,7 +1302,11 @@ fmltc.LabelVideo.prototype.xhr_retrieveTrackedBboxes_onreadystatechange = functi
         }
         this.goToFrame(frameNumber);
 
-        if (!this.trackingPaused) {
+        if (this.trackingPaused) {
+          this.trackingMessageDiv.textContent = 'Paused.';
+        } else {
+          this.trackingMessageDiv.textContent =
+              'Frame ' + (frameNumber + 1) + ' boxes updated by tracker.';
           this.sendContinueTracking(0);
         }
 
@@ -1308,26 +1325,28 @@ fmltc.LabelVideo.prototype.xhr_retrieveTrackedBboxes_onreadystatechange = functi
         this.trackingInProgress = false;
         this.trackingPaused = false;
         this.trackingWaitingForBboxes = false;
-        this.trackingFailedDiv.style.visibility = 'visible';
+        this.trackingMessageDiv.textContent = 'Tracking has stopped unexpectedly.';
       }
     }
-    this.updateUI();
+    this.updateUI(false);
   }
 };
 
 fmltc.LabelVideo.prototype.trackingPauseButton_onclick = function() {
+  this.trackingMessageDiv.textContent = 'Pausing...';
   this.trackingPaused = true;
-  this.updateUI();
+  this.updateUI(false);
 };
 
 fmltc.LabelVideo.prototype.trackingContinueButton_onclick = function() {
+  this.trackingMessageDiv.textContent = 'Continuing...';
   this.trackingPaused = false;
   this.sendContinueTracking(0);
 };
 
 fmltc.LabelVideo.prototype.sendContinueTracking = function(failureCount) {
   this.trackingWaitingForBboxes = true;
-  this.updateUI();
+  this.updateUI(false);
 
   this.videoFrameEntity[this.currentFrameNumber].bboxes_text =
       this.convertBboxesToText(this.bboxes[this.currentFrameNumber]);
@@ -1362,8 +1381,8 @@ fmltc.LabelVideo.prototype.xhr_continueTracking_onreadystatechange = function(xh
       this.trackingInProgress = false;
       this.trackingPaused = false;
       this.trackingWaitingForBboxes = false;
-      this.trackingFinishedDiv.style.visibility = 'visible';
-      this.updateUI();
+      this.trackingMessageDiv.textContent = 'Tracking has finished.';
+      this.updateUI(false);
 
     } else {
       failureCount++;
@@ -1376,6 +1395,8 @@ fmltc.LabelVideo.prototype.xhr_continueTracking_onreadystatechange = function(xh
 };
 
 fmltc.LabelVideo.prototype.trackingStopButton_onclick = function() {
+  this.trackingMessageDiv.textContent = 'Stopping...';
+
   const xhr = new XMLHttpRequest();
   const params =
       'video_uuid=' + encodeURIComponent(this.videoUuid) +
@@ -1394,8 +1415,8 @@ fmltc.LabelVideo.prototype.xhr_stopTracking_onreadystatechange = function(xhr, p
       this.trackingInProgress = false;
       this.trackingPaused = false;
       this.trackingWaitingForBboxes = false;
-      this.trackingStoppedDiv.style.visibility = 'visible';
-      this.updateUI();
+      this.trackingMessageDiv.textContent = 'Stopped.';
+      this.updateUI(false);
 
     } else {
       // TODO(lizlooney): handle error properly

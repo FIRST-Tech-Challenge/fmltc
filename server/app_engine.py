@@ -776,6 +776,24 @@ def prepare_to_start_tracking():
     tracker_name = tracking.validate_tracker_name(data.get('tracker_name'))
     # The following min/max number (1 and 3) should match the min/max values in labelVideo.html.
     scale = validate_float(data.get('scale'), min=1, max=3)
+    # Check whether this video is already doing tracking right now.
+    team_entity = storage.retrieve_team_entity(team_uuid)
+    if 'video_uuids_tracking_now' in team_entity:
+        if video_uuid in team_entity['video_uuids_tracking_now']:
+            # Send a message to the client.
+            response = {
+                'tracker_uuid': '',
+                'message': 'Unable to start tracking because this video is already doing tracking, maybe in a different browser tab or window.',
+            }
+            return flask.jsonify(response)
+        if len(team_entity['video_uuids_tracking_now']) >= 3:
+            # Send a message to the client.
+            response = {
+                'tracker_uuid': '',
+                'message': ('Unable to start tracking because your team is currently doing tracking for %s videos.' %
+                        len(team_entity['video_uuids_tracking_now'])),
+            }
+            return flask.jsonify(response)
     # tracking.prepare_to_start_tracking will raise HttpErrorNotFound
     # if the team_uuid/video_uuid is not found.
     tracker_uuid = tracking.prepare_to_start_tracking(team_uuid, video_uuid,
