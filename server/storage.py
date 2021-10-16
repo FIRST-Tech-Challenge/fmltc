@@ -95,6 +95,7 @@ def retrieve_team_uuid(program, team_number):
                 'videos_uploaded_today': 0,
                 'datasets_created_today': 0,
                 'datasets_downloaded_today': 0,
+                'video_uuids_tracking_now': [],
             })
         else:
             team_entity = team_entities[0]
@@ -145,6 +146,22 @@ def __set_last_video_uuid(team_uuid, video_uuid):
         team_entity['last_video_uuid'] = video_uuid
         team_entity['last_video_time'] = datetime.now(timezone.utc)
         transaction.put(team_entity)
+
+def __add_video_uuid_to_tracking_list(transaction, team_uuid, video_uuid):
+    team_entity = retrieve_team_entity(team_uuid)
+    if 'video_uuids_tracking_now' not in team_entity:
+        team_entity['video_uuids_tracking_now'] = [video_uuid]
+    elif video_uuid not in team_entity['video_uuids_tracking_now']:
+        team_entity['video_uuids_tracking_now'].append(video_uuid)
+    transaction.put(team_entity)
+
+def __remove_video_uuid_from_tracking_list(transaction, team_uuid, video_uuid):
+    team_entity = retrieve_team_entity(team_uuid)
+    if 'video_uuids_tracking_now' not in team_entity:
+        team_entity['video_uuids_tracking_now'] = []
+    elif video_uuid in team_entity['video_uuids_tracking_now']:
+        team_entity['video_uuids_tracking_now'].remove(video_uuid)
+    transaction.put(team_entity)
 
 # video - public methods
 
@@ -342,6 +359,9 @@ def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
                 video_entity['tracking_in_progress'] = False
                 video_entity['tracker_uuid'] = ''
                 transaction.put(video_entity)
+                # Also update the team entity in the same transaction.
+                __remove_video_uuid_from_tracking_list(transaction, team_uuid, video_uuid)
+                # Delete the tracker and tracker client entities.
                 if tracker_entity is not None:
                     transaction.delete(tracker_entity.key)
                 if tracker_client_entity is not None:
@@ -418,6 +438,8 @@ def delete_video(team_uuid, video_uuid):
                 transaction.delete(tracker_client_entity.key)
             video_entity['tracking_in_progress'] = False
             video_entity['tracker_uuid'] = ''
+            # Also update the team entity in the same transaction.
+            __remove_video_uuid_from_tracking_list(transaction, team_uuid, video_uuid)
         transaction.put(video_entity)
         action_parameters = action.create_action_parameters(
             team_uuid, action.ACTION_NAME_DELETE_VIDEO)
@@ -643,6 +665,8 @@ def tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_numb
         video_entity['tracking_in_progress'] = True
         video_entity['tracker_uuid'] = tracker_uuid
         transaction.put(video_entity)
+        # Also update the team entity in the same transaction.
+        __add_video_uuid_to_tracking_list(transaction, team_uuid, video_uuid)
         return tracker_uuid
 
 # Retrieves the tracker entity associated with the given tracker_uuid and video_uuid. If no such
@@ -740,6 +764,9 @@ def tracker_stopping(team_uuid, video_uuid, tracker_uuid):
         video_entity['tracking_in_progress'] = False
         video_entity['tracker_uuid'] = ''
         transaction.put(video_entity)
+        # Also update the team entity in the same transaction.
+        __remove_video_uuid_from_tracking_list(transaction, team_uuid, video_uuid)
+        # Delete the tracker and tracker client entities.
         tracker_entity = maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
         if tracker_entity is not None:
             transaction.delete(tracker_entity.key)
