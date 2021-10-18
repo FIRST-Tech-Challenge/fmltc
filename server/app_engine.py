@@ -588,6 +588,17 @@ def prepare_to_upload_video():
                     'message': 'The previous video has not been processed yet. Please wait a few minutes and try again.'
                 }
                 return flask.jsonify(response)
+    # Don't allow a team to have more than 50 videos.
+    video_entities = storage.retrieve_video_list(team_uuid)
+    if len(video_entities) >= 50:
+        # Send a message to the client.
+        response = {
+            'video_uuid': '',
+            'upload_url': '',
+            'message': ('Unable to upload a video because your team already has %s videos.' %
+                    len(video_entities))
+        }
+        return flask.jsonify(response)
     # Proceed with the upload.
     video_uuid, upload_url = storage.prepare_to_upload_video(team_uuid, content_type)
     frame_extractor.start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms)
