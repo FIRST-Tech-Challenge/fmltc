@@ -5,5 +5,5 @@ fi
 
 
 pushd server
-gcloud -q app deploy
+gcloud -q app deploy --version v1
 popd
