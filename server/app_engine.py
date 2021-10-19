@@ -1314,6 +1314,10 @@ def get_tflite_download_url():
     }
     return flask.jsonify(response)
 
+@app.route('/resources', methods=['GET'])
+def resources():
+    return flask.render_template('resources.html')
+
 # performActionGAE is for debugging purposes only.
 @app.route('/performActionGAE', methods=['POST'])
 @handle_exceptions
