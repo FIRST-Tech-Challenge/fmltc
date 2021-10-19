@@ -61,7 +61,7 @@ def __validate_team_oidc(session):
     #
     user_roles = session.get('user_roles')
     if user_roles:
-        roles.can_login(session['user_roles'])
+        roles.can_login(session['user_roles'], session['team_number'])
         return True
     else:
         return False
@@ -77,7 +77,7 @@ def __validate_team_local(session):
 
 def __validate_team_info(program, team_number, team_code):
     bucket = util.storage_client().get_bucket(BUCKET_BLOBS)
-    teams = bucket.blob('team_info/teams').download_as_string().decode('utf-8')
+    teams = bucket.blob('team_info/teams').download_as_bytes().decode('utf-8')
     for line in teams.split('\n'):
         line = line.strip()
         if line == "":
