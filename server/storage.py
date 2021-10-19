@@ -1255,8 +1255,14 @@ def model_trainer_started(team_uuid, model_uuid, description, model_folder,
         # If the training job has already ended, adjust the team's remaining training time.
         if 'train_job_end_time' in model_entity:
             team_entity = retrieve_team_entity(team_uuid)
-            train_job_elapsed_minutes = model_entity['train_job_elapsed_seconds'] / 60
-            delta = model_entity['max_running_minutes'] - train_job_elapsed_minutes
+            if model_entity['train_job_state'] == 'FAILED':
+                # If the job failed, give the max_running_minutes back to the team.
+                delta = model_entity['max_running_minutes']
+            else:
+                # Otherwise, give the different between the max_running_minutes and the actual
+                # training time back to the team.
+                train_job_elapsed_minutes = model_entity['train_job_elapsed_seconds'] / 60
+                delta = model_entity['max_running_minutes'] - train_job_elapsed_minutes
             # Don't add the delta if it's negative. The job ran longer than the maximum running
             # time that the user specified.
             if delta > 0:
