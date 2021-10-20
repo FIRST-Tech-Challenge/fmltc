@@ -15,11 +15,12 @@ limitations under the License.
 -->
 
 {% extends 'layout.html' %}
-
 {% block content %}
+      <main class="flex-shrink-0">
+        <div class="container">
 
 <table style="width: 100%"><tr>
-  <td>Model:&nbsp;<span id="descriptionSpan"></span></td>
+  <td class="text-24">Model:&nbsp;<span id="descriptionSpan"></span></td>
   <td align="right">
     <div id="activeTrainingDiv" style="display: none;">
       <button id="stopTrainingButton" class="text-24">
@@ -34,25 +35,34 @@ limitations under the License.
   </td>
 </tr></table>
 
-<div class="tabButtonsDiv">
-  <button id="modelTabButton" class="tabButton">
-    <span class="material-icons iconVerticalAlign">info</span>
-    <span>Details</span>
-    <span id="modelLoader" class="loader"></span>
-  </button>
-  <button id="scalarsTabButton" class="tabButton">
-    <span title="insights" class="material-icons iconVerticalAlign">insights</span>
-    <span>Graphs</span>
-    <span id="scalarsLoader" class="loader"></span>
-  </button>
-  <button id="imagesTabButton" class="tabButton">
-    <span title="image" class="material-icons iconVerticalAlign">image</span>
-    <span>Images</span>
-    <span id="imagesLoader" class="loader"></span>
-  </button>
-</div>
+<ul class="nav nav-tabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active tabButton" id="modelTab" data-bs-toggle="tab" data-bs-target="#modelTabContent" role="tab" aria-controls="modelTabContent" aria-selected="true">
+      <span class="material-icons iconVerticalAlign">info</span>
+      <span>Details</span>
+      <span id="modelLoader" class="loader"></span>
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link tabButton" id="scalarsTab" data-bs-toggle="tab" data-bs-target="#scalarsTabContent" role="tab" aria-controls="scalarsTabContent" aria-selected="false">
+      <span title="insights" class="material-icons iconVerticalAlign">insights</span>
+      <span>Graphs</span>
+      <span id="scalarsLoader" class="loader"></span>
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link tabButton" id="imagesTab" data-bs-toggle="tab" data-bs-target="#imagesTabContent" role="tab" aria-controls="imagesTabContent" aria-selected="false">
+      <span title="image" class="material-icons iconVerticalAlign">image</span>
+      <span>Images</span>
+      <span id="imagesLoader" class="loader"></span>
+    </button>
+  </li>
+</ul>
 
-<div id="modelTabDiv" class="tabDiv">
+<div class="tab-content">
+
+<div class="tab-pane fade show active" role="tabpanel" aria-labelledby="modelTab" id="modelTabContent">
+  <div id="modelDiv">
   <table class="collapsedBorder">
     <tr>
       <td valign="top" class="cellWithBorder borderTopNone">
@@ -149,33 +159,42 @@ limitations under the License.
       </td>
     </tr>
   </table>
-</div>
-
-<div id="scalarsTabDiv" class="tabDiv">
-  <div class="scalarHeading" id="trainingScalarsHeading" style="display: none;">Training Metrics</div>
-  <div id="trainingScalarsDiv"></div>
-  <hr>
-  <div class="scalarHeading" id="evalScalarsHeading" style="display: none;">Evaluation Metrics</div>
-  <div id="evalScalarsDiv"></div>
-</div>
-
-<div id="imagesTabDiv" class="tabDiv" style="overflow: hidden;">
-  <div class="pageButtonsDiv">
-    <table style="width: 100%"><tr>
-      <td align="right">
-        <span id="currentPageSpan"></span>
-        <button id="firstPageButton" title="Go to the first page of images" disabled="true"
-             class="material-icons iconVerticalAlign text-24">first_page</button>
-        <button id="previousPageButton" title="Go to the previous page of images" disabled="true"
-             class="material-icons iconVerticalAlign text-24">navigate_before</button>
-        <button id="nextPageButton" title="Go to the next page of images" disabled="true"
-             class="material-icons iconVerticalAlign text-24">navigate_next</button>
-        <button id="lastPageButton" title="Go to the last page of images" disabled="true"
-             class="material-icons iconVerticalAlign text-24">last_page</button>
-      </td>
-    </tr></table>
   </div>
-  <div id="evalImagesDiv" class="evalImagesDiv"></div>
+</div>
+
+<div class="tab-pane fade" role="tabpanel" aria-labelledby="scalarsTab" id="scalarsTabContent">
+  <div id="scalarsDiv">
+    <br>
+    <div class="text-20" id="trainingScalarsHeading" style="display: none;">Training Metrics</div>
+    <div id="trainingScalarsDiv"></div>
+    <hr>
+    <div class="text-20" id="evalScalarsHeading" style="display: none;">Evaluation Metrics</div>
+    <div id="evalScalarsDiv"></div>
+  </div>
+</div>
+
+<div class="tab-pane fade" role="tabpanel" aria-labelledby="imagesTab" id="imagesTabContent">
+  <div id="imagesDiv">
+    <div class="pageButtonsDiv">
+      <table style="width: 100%"><tr>
+        <td align="right">
+          <span class="text-16" id="currentPageSpan"></span>
+          <button id="firstPageButton" title="Go to the first page of images" disabled="true"
+               class="material-icons btn btn-primary">first_page</button>
+          <button id="previousPageButton" title="Go to the previous page of images" disabled="true"
+               class="material-icons btn btn-primary">navigate_before</button>
+          <button id="nextPageButton" title="Go to the next page of images" disabled="true"
+               class="material-icons btn btn-primary">navigate_next</button>
+          <button id="lastPageButton" title="Go to the last page of images" disabled="true"
+               class="material-icons btn btn-primary">last_page</button>
+        </td>
+      </tr></table>
+    </div>
+    <div id="evalImagesDiv"></div>
+  </div>
+</div>
+
+</div>
 </div>
 
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
@@ -187,5 +206,6 @@ limitations under the License.
         {{ dataset_entities_by_uuid|tojson }});
   });
 </script>
+</main>
 
 {% endblock %}

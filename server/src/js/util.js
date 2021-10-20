@@ -31,9 +31,8 @@ fmltc.Util = function(pageBasename, preferences, startingModels) {
   this.preferences = preferences;
   this.startingModels = startingModels;
 
-  this.currentTabDivId = '';
+  this.currentTabContentId = '';
   this.tabClickListeners = [];
-  this.tabResizeListeners = [];
 
   this.initializeTabs();
 };
@@ -152,50 +151,18 @@ fmltc.Util.prototype.getDateTimeString = function(millis) {
 }
 
 fmltc.Util.prototype.initializeTabs = function() {
-  let foundOldTabs = false;
   const tabButtons = document.getElementsByClassName('tabButton');
   for (let i = 0; i < tabButtons.length; i++) {
     const tabButton = tabButtons[i];
-    const id = tabButton.id;
     if (tabButton.getAttribute('role') == 'tab' && tabButton.getAttribute('aria-controls')) {
       // This is a new tab button. It uses aria-controls.
-      const tabName = id;
-      tabButton.onclick = this.newTabButton_onclick.bind(this, tabName);
-    } else if (id.endsWith('Button')) {
-      foundOldTabs = true;
-      const tabName = id.substring(0, id.length - 'Button'.length);
-      tabButton.onclick = this.oldTabButton_onclick.bind(this, tabName);
+      const tabName = tabButton.id;
+      tabButton.onclick = this.tabButton_onclick.bind(this, tabName);
     }
   }
 
-  this.showLastViewedTab();
-
-  if (foundOldTabs) {
-    this.window_onresize();
-    window.addEventListener('resize', this.window_onresize.bind(this));
-  }
-};
-
-fmltc.Util.prototype.window_onresize = function() {
-  const tabDivs = document.getElementsByClassName('tabDiv');
-  let maxOffset = 0;
-  for (let i = 0; i < tabDivs.length; i++) {
-    const style = window.getComputedStyle(tabDivs[i]);
-    const offset = tabDivs[i].getBoundingClientRect().top +
-        parseFloat(style.getPropertyValue('padding-top')) +
-        parseFloat(style.getPropertyValue('padding-bottom')) +
-        parseFloat(style.getPropertyValue('border-top')) +
-        parseFloat(style.getPropertyValue('border-bottom'));
-    if (offset > maxOffset) {
-      maxOffset = offset;
-    }
-  }
-  const height = (window.innerHeight - maxOffset) + 'px';
-  for (let i = 0; i < tabDivs.length; i++) {
-    tabDivs[i].style.height = height;
-    for (let j = 0; j < this.tabResizeListeners.length; j++) {
-      this.tabResizeListeners[j](tabDivs[i]);
-    }
+  if (this.pageBasename == 'root') {
+    this.showLastViewedTab();
   }
 };
 
@@ -205,7 +172,7 @@ fmltc.Util.prototype.showLastViewedTab = function() {
       this.showTab(this.getPreference('root.currentTab', 'videosTab'));
       break;
     case 'monitorTraining':
-      this.showTab(this.getPreference('monitorTraining.currentTab', 'scalarsTab'));
+      this.showTab(this.getPreference('monitorTraining.currentTab', 'modelTab'));
       break;
   }
 };
@@ -214,12 +181,8 @@ fmltc.Util.prototype.addTabClickListener = function(tabClickListener) {
   this.tabClickListeners.push(tabClickListener);
 };
 
-fmltc.Util.prototype.addTabResizeListener = function(tabResizeListener) {
-  this.tabResizeListeners.push(tabResizeListener);
-};
-
-fmltc.Util.prototype.getCurrentTabDivId = function() {
-  return this.currentTabDivId;
+fmltc.Util.prototype.getCurrentTabContentId = function() {
+  return this.currentTabContentId;
 };
 
 fmltc.Util.prototype.showVideosTab = function() {
@@ -234,44 +197,19 @@ fmltc.Util.prototype.showModelsTab = function() {
   this.showTab('modelsTab');
 };
 
-fmltc.Util.prototype.oldTabButton_onclick = function(tabName) {
-  // Hide all the tabDivs.
-  const tabDivs = document.getElementsByClassName('tabDiv');
-  for (let i = 0; i < tabDivs.length; i++) {
-    tabDivs[i].style.display = 'none';
-  }
-
-  // Remove the class "active" from all tabButtons.
-  const tabButtons = document.getElementsByClassName('tabButton');
-  for (let i = 0; i < tabButtons.length; i++) {
-    tabButtons[i].className = tabButtons[i].className.replace(' active', '');
-  }
-
-  // Show the current tabDiv, and add an 'active' class to the current tabButton.
-  document.getElementById(tabName + 'Div').style.display = 'block';
-  document.getElementById(tabName + 'Button').className += ' active';
+fmltc.Util.prototype.tabButton_onclick = function(tabName) {
   this.setPreference(this.pageBasename + '.currentTab', tabName);
 
-  this.currentTabDivId = tabName + 'Div';
+  this.currentTabContentId = tabName + 'Content';
   for (let i = 0; i < this.tabClickListeners.length; i++) {
-    this.tabClickListeners[i](this.currentTabDivId);
+    this.tabClickListeners[i](this.currentTabContentId);
   }
-
-};
-
-fmltc.Util.prototype.newTabButton_onclick = function(tabName) {
-  this.setPreference(this.pageBasename + '.currentTab', tabName);
 };
 
 fmltc.Util.prototype.showTab = function(tabName) {
-  const newTabButton = document.getElementById(tabName);
-  if (newTabButton) {
-    newTabButton.click();
-  } else {
-    const oldTabButton = document.getElementById(tabName + 'Button');
-    if (oldTabButton) {
-      oldTabButton.click();
-    }
+  const tabButton = document.getElementById(tabName);
+  if (tabButton) {
+    tabButton.click();
   }
 };
 
@@ -384,7 +322,6 @@ fmltc.Util.prototype.formatJobState = function(jobType, modelEntity) {
       modelEntity.train_error_message.indexOf('Please try a different region'))) {
     return 'TRY_AGAIN_LATER';
   }
-
 
   return jobState;
 };

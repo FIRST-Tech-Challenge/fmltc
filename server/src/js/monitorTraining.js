@@ -38,15 +38,18 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.modelEntitiesByUuid = modelEntitiesByUuid;
   this.datasetEntitiesByUuid = datasetEntitiesByUuid;
 
+  this.modelDiv = document.getElementById('modelDiv');
   this.activeTrainingDiv = document.getElementById('activeTrainingDiv');
   this.stopTrainingButton = document.getElementById('stopTrainingButton');
   this.refreshIntervalRangeInput = document.getElementById('refreshIntervalRangeInput');
   this.refreshButton = document.getElementById('refreshButton');
   this.trainTimeTd = document.getElementById('trainTimeTd');
+  this.scalarsDiv = document.getElementById('scalarsDiv');
   this.trainingScalarsDiv = document.getElementById('trainingScalarsDiv');
   this.trainingScalarsHeading = document.getElementById('trainingScalarsHeading');
   this.evalScalarsDiv = document.getElementById('evalScalarsDiv');
   this.evalScalarsHeading = document.getElementById('evalScalarsHeading');
+  this.imagesDiv = document.getElementById('imagesDiv');
   this.firstPageButton = document.getElementById('firstPageButton');
   this.previousPageButton = document.getElementById('previousPageButton');
   this.nextPageButton = document.getElementById('nextPageButton');
@@ -116,6 +119,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.evalImages.pageDivs = [];
   this.evalImages.mapTagToDiv = {}; // map<tag, div>
   this.evalImages.mapTagToStepLabelDiv = {}; // map<tag, div>
+  this.evalImages.mapTagToCell = {}; // map<tag, td>
   this.evalImages.mapTagToImgs = {}; // map<tag, map<step, img>>
   this.evalImages.mapTagToStepsNotRequestedYet = {}; // map<tag, array<step>>
   // items has properties whose names are <step>_<tag> and values are objects with properties
@@ -131,18 +135,23 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.setRefreshIntervalRangeInputTitle();
 
   this.modelEntityUpdated(this.modelEntity);
+
+  // Make the scalars and images tabs be the same height as the model tab.
+  this.scalarsDiv.style.height = this.modelDiv.clientHeight + 'px';
+  this.imagesDiv.style.height = this.modelDiv.clientHeight + 'px';
+
+  this.util.addTabClickListener(this.tab_onclick.bind(this));
+
   if (!this.util.isTrainingDone(this.modelEntity)) {
     this.util.showTab('modelTab');
+  } else {
+    this.util.showLastViewedTab();
   }
 
   this.retrieveData();
 
   google.charts.load('current', {'packages':['corechart']});
   google.charts.setOnLoadCallback(this.charts_onload.bind(this));
-
-  this.tab_onresize(document.getElementById('imagesTabDiv'));
-  this.util.addTabResizeListener(this.tab_onresize.bind(this));
-  this.util.addTabClickListener(this.tab_onclick.bind(this));
 
   this.stopTrainingButton.onclick = this.stopTrainingButton_onclick.bind(this);
   this.refreshIntervalRangeInput.onchange = this.refreshIntervalRangeInput_onchange.bind(this);
@@ -151,6 +160,27 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.previousPageButton.onclick = this.previousPageButton_onclick.bind(this);
   this.nextPageButton.onclick = this.nextPageButton_onclick.bind(this);
   this.lastPageButton.onclick = this.lastPageButton_onclick.bind(this);
+};
+
+fmltc.MonitorTraining.prototype.setHeightOfEvalImagesDiv = function() {
+  let height = this.imagesDiv.clientHeight;
+  if (height == 0) {
+    setTimeout(this.setHeightOfEvalImagesDiv.bind(this), 100);
+    return;
+  }
+  let element = this.evalImagesDiv;
+  while (element != this.imagesDiv) {
+    const parent = element.parentElement;
+    for (let i = 0; i < parent.children.length; i++) {
+      const child = parent.children[i];
+      const style = window.getComputedStyle(child);
+      if (child != element && style.display == 'block') {
+        height -= child.clientHeight;
+      }
+    }
+    element = parent;
+  }
+  this.evalImagesDiv.style.height = height + 'px';
 };
 
 fmltc.MonitorTraining.prototype.updateButtons = function() {
@@ -816,11 +846,12 @@ fmltc.MonitorTraining.prototype.addScalarValue = function(o, tag, step, value) {
 };
 
 fmltc.MonitorTraining.prototype.drawChart = function(o, tag) {
-  if (this.util.getCurrentTabDivId() != 'scalarsTabDiv') {
+  if (this.util.getCurrentTabContentId() != 'scalarsTabContent') {
     // To prevent a bug where the y-axis numbers are not displayed on the chart, we don't create
     // the LineChart if the scalars tab is not visible.
     return;
   }
+
   if (! (tag in o.mapTagToLineChart)) {
     // Create the LineChart if we haven't already.
     o.mapTagToLineChart[tag] = new google.visualization.LineChart(o.mapTagToDiv[tag]);
@@ -875,15 +906,17 @@ fmltc.MonitorTraining.prototype.addImages = function(o, newMapTagToSteps) {
   for (let iTag = 0; iTag < o.sortedTags.length; iTag++) {
     const tag = o.sortedTags[iTag];
 
-    let divForTag;
     let stepRangeInput;
+    let cellForImgs;
     if (tag in o.mapTagToDiv) {
       // We've already added the div for this tag.
-      divForTag = o.mapTagToDiv[tag];
+      const divForTag = o.mapTagToDiv[tag];
       // Find the stepRangeInput.
       stepRangeInput = divForTag.getElementsByTagName('INPUT')[0];
+      cellForImgs = o.mapTagToCell[tag];
 
     } else {
+      // We need to add the div for this tag.
       const pageIndex = Math.floor(iTag / 10);
       const pageDiv = o.pageDivs[pageIndex];
 
@@ -891,16 +924,16 @@ fmltc.MonitorTraining.prototype.addImages = function(o, newMapTagToSteps) {
         // Add a horizontal rule to separate from the previous image.
         pageDiv.appendChild(document.createElement('br'));
         pageDiv.appendChild(document.createElement('hr'));
-        pageDiv.appendChild(document.createElement('br'));
       }
 
-      divForTag = document.createElement('div');
+      const divForTag = document.createElement('div');
       divForTag.style.height = '420px';
       pageDiv.appendChild(divForTag);
       o.mapTagToDiv[tag] = divForTag;
 
       // Add a div to show the tag.
       const label = document.createElement('div');
+      this.util.addClass(label, 'text-16');
       label.textContent = tag;
       divForTag.appendChild(label);
 
@@ -912,8 +945,30 @@ fmltc.MonitorTraining.prototype.addImages = function(o, newMapTagToSteps) {
 
       // Add a div to show which step is selected.
       const stepLabelDiv = document.createElement('div');
+      this.util.addClass(stepLabelDiv, 'text-16');
+      stepLabelDiv.textContent = 'Step: 0'; // This will be updated later.
       divForTag.appendChild(stepLabelDiv);
       o.mapTagToStepLabelDiv[tag] = stepLabelDiv;
+
+      // Create a table with captions in the top row and the image in the bottom row.
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      // Top row.
+      let tr = table.insertRow(-1);
+      let td = tr.insertCell(-1);
+      td.style.textAlign = 'center';
+      this.util.addClass(td, 'text-14');
+      td.textContent = 'Labeled by TensorFlow';
+      td = tr.insertCell(-1);
+      td.style.textAlign = 'center';
+      this.util.addClass(td, 'text-14');
+      td.textContent = 'Labeled by user';
+      // Bottom row
+      tr = table.insertRow(-1);
+      cellForImgs = tr.insertCell(-1);
+      cellForImgs.colSpan = '2';
+      o.mapTagToCell[tag] = cellForImgs;
+      divForTag.appendChild(table);
 
       stepRangeInput.onchange = this.stepRangeInput_onchange.bind(this, o, tag);
     }
@@ -939,7 +994,7 @@ fmltc.MonitorTraining.prototype.addImages = function(o, newMapTagToSteps) {
         const img = document.createElement('img');
         img.src = '//:0';
         img.style.display = 'none';
-        divForTag.appendChild(img);
+        cellForImgs.appendChild(img);
         mapStepToImg[step] = img;
       }
     }
@@ -1031,12 +1086,16 @@ fmltc.MonitorTraining.prototype.xhr_retrieveImage_onreadystatechange = function(
       const mapStepToImg = o.mapTagToImgs[tag];
       const img = mapStepToImg[step];
       img.src = window.URL.createObjectURL(xhr.response);
-      img.setAttribute('width', value.width / 3);
-      img.setAttribute('height', value.height / 3);
+      const parentClientWidth = img.parentElement.clientWidth;
+      let divisor = 3;
+      if (value.width > value.height) {
+        divisor = Math.max(1, value.width / (parentClientWidth - 2));
+      }
+      img.setAttribute('width', value.width / divisor);
+      img.setAttribute('height', value.height / divisor);
 
       const sortedSteps = o.mapTagToSteps[tag];
       if (step == sortedSteps[sortedSteps.length-1]) {
-
         const divForTag = o.mapTagToDiv[tag];
         const stepRangeInput = divForTag.getElementsByTagName('INPUT')[0];
         stepRangeInput.value = stepRangeInput.max;
@@ -1129,22 +1188,8 @@ fmltc.MonitorTraining.prototype.currentPageIndexChanged = function() {
   this.retrieveSummaryItemsInParallel(o, requestStepAndTagPairs, 2);
 };
 
-fmltc.MonitorTraining.prototype.tab_onresize = function(tabDiv) {
-  if (tabDiv.id == 'imagesTabDiv') {
-    const style = window.getComputedStyle(tabDiv, null);
-    let remainingHeight = parseInt(style.getPropertyValue('height'));
-    for (let i = 0; i < tabDiv.children.length; i++) {
-      const child = tabDiv.children[i];
-      if (child != this.evalImagesDiv) {
-        remainingHeight -= child.offsetHeight;
-      }
-    }
-    this.evalImagesDiv.style.height = remainingHeight + 'px';
-  }
-};
-
-fmltc.MonitorTraining.prototype.tab_onclick = function(tabDivId) {
-  if (tabDivId == 'scalarsTabDiv') {
+fmltc.MonitorTraining.prototype.tab_onclick = function(tabContentId) {
+  if (tabContentId == 'scalarsTabContent') {
     // For all scalar tags, if the LineChart hasn't already been created, call drawChart.
     const scalars = [this.trainingScalars, this.evalScalars];
     for (let i = 0; i < scalars.length; i++) {
@@ -1157,5 +1202,7 @@ fmltc.MonitorTraining.prototype.tab_onclick = function(tabDivId) {
         this.drawChart(o, tag);
       }
     }
+  } else if (tabContentId == 'imagesTabContent') {
+    this.setHeightOfEvalImagesDiv();
   }
 };

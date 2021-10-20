@@ -147,7 +147,11 @@ body {
   border: none;
 }
 
-.evalImagesDiv {
+#scalarsDiv {
+  overflow: auto;
+}
+
+#evalImagesDiv {
   overflow: auto;
   border-top: 1px solid #ccc;
 }
@@ -156,45 +160,6 @@ body {
   border: none;
 }
 
-
-/* Tabs */
-
-.tabButtonsDiv {
-  overflow: hidden;
-  border: 1px solid #ccc;
-  border-bottom: none;
-  background-color: #ffffff;
-}
-
-.tabButtonsDiv button {
-  font-size: 24px;
-  background-color: #f1f1f1;
-  float: left;
-  border: none;
-  border-right: 1px solid #ccc;
-  outline: none;
-  cursor: pointer;
-  padding: 14px 16px;
-  transition: 0.3s;
-}
-
-.tabButtonsDiv button:hover {
-  background-color: #ddd;
-}
-
-.tabButtonsDiv button.active {
-  background-color: #ccc;
-}
-
-.tabDiv {
-  overflow: auto;
-  display: none;
-  border: 1px solid #ccc;
-}
-
-.scalarHeading {
-  font-size: 20px;
-}
 
 /* Loader */
 
