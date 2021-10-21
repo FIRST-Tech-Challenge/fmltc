@@ -613,9 +613,9 @@ def prepare_to_upload_video():
     video_uuid, upload_url = storage.prepare_to_upload_video(team_uuid, content_type)
     frame_extractor.start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms)
     response = {
-        'message': '',
         'video_uuid': video_uuid,
         'upload_url': upload_url,
+        'message': '',
     }
     blob_storage.set_cors_policy_for_put()
     return flask.jsonify(response)
@@ -821,6 +821,7 @@ def prepare_to_start_tracking():
         tracker_name, scale, init_frame_number, init_bboxes_text)
     response = {
         'tracker_uuid': tracker_uuid,
+        'message': '',
     }
     return flask.jsonify(response)
 
@@ -908,10 +909,27 @@ def prepare_to_start_dataset_production():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['description', 'video_uuids', 'eval_percent', 'create_time_ms'])
-    description = validate_description(data.get('description'))
+    # First validate the parameters.
+    try:
+        description = validate_description(data.get('description'))
+    except exceptions.HttpErrorBadRequest:
+        # Send a message to the client.
+        response = {
+            'dataset_uuid': '',
+            'message': 'The Description is not valid.'
+        }
+        return flask.jsonify(response)
     video_uuids_json = storage.validate_uuids_json(data.get('video_uuids'))
-    # The following min/max number (0 and 90) should match the min/max values in root.html.
-    eval_percent = validate_float(data.get('eval_percent'), min=0, max=90)
+    try:
+        # The following min/max number (0 and 90) should match the min/max values in root.html.
+        eval_percent = validate_float(data.get('eval_percent'), min=0, max=90)
+    except exceptions.HttpErrorBadRequest:
+        # Send a message to the client.
+        response = {
+            'dataset_uuid': '',
+            'message': 'The percentage of frames for evaluation is not valid.'
+        }
+        return flask.jsonify(response)
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
     # dataset_producer.prepare_to_start_dataset_production will raise HttpErrorNotFound
     # if any of the team_uuid/video_uuids is not found or if none of the videos have labeled frames.
@@ -922,6 +940,7 @@ def prepare_to_start_dataset_production():
     action.trigger_action_via_blob(action_parameters)
     response = {
         'dataset_uuid': dataset_uuid,
+        'message': '',
     }
     return flask.jsonify(response)
 
