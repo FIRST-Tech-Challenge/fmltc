@@ -952,14 +952,16 @@ fmltc.MonitorTraining.prototype.addImages = function(o, newMapTagToSteps) {
 
       // Create a table with captions in the top row and the image in the bottom row.
       const table = document.createElement('table');
-      table.style.width = '100%';
+      table.style.width = this.evalImagesDiv.scrollWidth + 'px';
       // Top row.
       let tr = table.insertRow(-1);
       let td = tr.insertCell(-1);
+      td.style.width = '50%';
       td.style.textAlign = 'center';
       this.util.addClass(td, 'text-14');
       td.textContent = 'Labeled by TensorFlow';
       td = tr.insertCell(-1);
+      td.style.width = '50%';
       td.style.textAlign = 'center';
       this.util.addClass(td, 'text-14');
       td.textContent = 'Labeled by user';
@@ -1089,7 +1091,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveImage_onreadystatechange = function(
       const parentClientWidth = img.parentElement.clientWidth;
       let divisor = 3;
       if (value.width > value.height) {
-        divisor = Math.max(1, value.width / (parentClientWidth - 2));
+        divisor = value.width / (parentClientWidth - 2);
       }
       img.setAttribute('width', value.width / divisor);
       img.setAttribute('height', value.height / divisor);

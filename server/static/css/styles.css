@@ -148,11 +148,11 @@ body {
 }
 
 #scalarsDiv {
-  overflow: auto;
+  overflow: scroll;
 }
 
 #evalImagesDiv {
-  overflow: auto;
+  overflow: scroll;
   border-top: 1px solid #ccc;
 }
 
