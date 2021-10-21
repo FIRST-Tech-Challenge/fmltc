@@ -42,11 +42,11 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, totalFrameCount, onDatas
   this.trainPercentInput = document.getElementById('pdTrainPercentInput');
   this.evalPercentInput = document.getElementById('pdEvalPercentInput');
   this.startButton = document.getElementById('pdStartButton');
+  this.stateDiv = document.getElementById('pdStateDiv');
   this.progressDiv = document.getElementById('pdProgressDiv');
   this.progress = document.getElementById('pdProgress');
   this.progressSpan = document.getElementById('pdProgressSpan');
   this.finishedDiv = document.getElementById('pdFinishedDiv');
-  this.failedDiv = document.getElementById('pdFailedDiv');
   // Bootstrap modal backdrop
   this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
 
@@ -72,9 +72,9 @@ fmltc.ProduceDatasetDialog = function(util, videoUuids, totalFrameCount, onDatas
   this.progressMaxValue = this.totalFrameCount + this.progressStartValue;
 
   this.updateStartButton();
+  this.stateDiv.innerHTML = '&nbsp;';
   this.progressDiv.style.visibility = 'hidden';
   this.finishedDiv.style.display = 'none';
-  this.failedDiv.style.display = 'none';
 
   this.xButton.onclick = this.closeButton.onclick = this.closeButton_onclick.bind(this);
   this.trainPercentInput.onchange = this.trainPercentInput_onchange.bind(this);
@@ -99,6 +99,7 @@ fmltc.ProduceDatasetDialog.prototype.closeButton_onclick = function() {
 
 fmltc.ProduceDatasetDialog.prototype.descriptionInput_oninput = function() {
   this.updateStartButton();
+  this.stateDiv.innerHTML = '&nbsp;';
 };
 
 fmltc.ProduceDatasetDialog.prototype.updateStartButton = function() {
@@ -116,12 +117,14 @@ fmltc.ProduceDatasetDialog.prototype.trainPercentInput_onchange = function() {
   this.trainPercentInput.value = Math.max(this.trainPercentInput.min, Math.min(this.trainPercentInput.value, this.trainPercentInput.max));
   this.evalPercentInput.value = 100 - this.trainPercentInput.value;
   this.updateStartButton();
+  this.stateDiv.innerHTML = '&nbsp;';
 };
 
 fmltc.ProduceDatasetDialog.prototype.evalPercentInput_onchange = function() {
   this.evalPercentInput.value = Math.max(this.evalPercentInput.min, Math.min(this.evalPercentInput.value, this.evalPercentInput.max));
   this.trainPercentInput.value = 100 - this.evalPercentInput.value;
   this.updateStartButton();
+  this.stateDiv.innerHTML = '&nbsp;';
 };
 
 fmltc.ProduceDatasetDialog.prototype.startButton_onclick = function() {
@@ -130,13 +133,9 @@ fmltc.ProduceDatasetDialog.prototype.startButton_onclick = function() {
   this.trainPercentInput.disabled = true;
   this.evalPercentInput.disabled = true;
 
-  this.progress.value = this.progressStartValue;
-  this.progress.max = this.progressMaxValue;
-  this.progressSpan.textContent = this.makeProgressLabel(0);
-  this.progressDiv.style.visibility = 'visible';
-
   this.startDatasetInProgress = true;
   this.updateStartButton();
+  this.stateDiv.innerHTML = '&nbsp;';
 
   const videoUuidsJson = JSON.stringify(this.videoUuids);
 
@@ -162,16 +161,36 @@ fmltc.ProduceDatasetDialog.prototype.xhr_prepareToStartDatasetProduction_onready
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      setTimeout(this.retrieveDatasetEntity.bind(this, response.dataset_uuid, 0), 1000);
+      if (response.dataset_uuid) {
+        this.progress.value = this.progressStartValue;
+        this.progress.max = this.progressMaxValue;
+        this.progressSpan.textContent = this.makeProgressLabel(0);
+        this.progressDiv.style.visibility = 'visible';
+        setTimeout(this.retrieveDatasetEntity.bind(this, response.dataset_uuid, 0), 1000);
+      } else {
+        // Show the message to the user.
+        this.stateDiv.textContent = response.message;
+
+        this.xButton.disabled = this.closeButton.disabled = false;
+        this.descriptionInput.disabled = false;
+        this.trainPercentInput.disabled = false;
+        this.evalPercentInput.disabled = false;
+
+        this.startDatasetInProgress = false;
+        this.updateStartButton();
+      }
 
     } else {
-      // TODO(lizlooney): handle error properly
-      console.log('Failure! /prepareToStartDatasetProduction?' + params +
-          ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
+      this.stateDiv.textContent =
+          'Unable to produce the dataset at this time. Please wait a few minutes and try again.';
+
+      this.xButton.disabled = this.closeButton.disabled = false;
+      this.descriptionInput.disabled = false;
+      this.trainPercentInput.disabled = false;
+      this.evalPercentInput.disabled = false;
+
       this.startDatasetInProgress = false;
       this.updateStartButton();
-      this.progressDiv.style.visibility = 'hidden';
-      this.failedDiv.style.display = 'block';
     }
   }
 };
