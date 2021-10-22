@@ -935,6 +935,16 @@ def prepare_to_start_dataset_production():
         }
         return flask.jsonify(response)
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
+    # Don't allow a team to have more than 20 datasets.
+    dataset_entities = storage.retrieve_dataset_list(team_uuid)
+    if len(dataset_entities) >= 20:
+        # Send a message to the client.
+        response = {
+            'dataset_uuid': '',
+            'message': ('Unable to produce the dataset because your team already has %s datasets.' %
+                    len(dataset_entities))
+        }
+        return flask.jsonify(response)
     # dataset_producer.prepare_to_start_dataset_production will raise HttpErrorNotFound
     # if any of the team_uuid/video_uuids is not found or if none of the videos have labeled frames.
     dataset_uuid = dataset_producer.prepare_to_start_dataset_production(
