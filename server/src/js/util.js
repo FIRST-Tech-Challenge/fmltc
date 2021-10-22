@@ -318,8 +318,8 @@ fmltc.Util.prototype.formatJobState = function(jobType, modelEntity) {
   }
 
   if (jobType == 'train' && jobState == 'FAILED' && (
-      modelEntity.train_error_message.indexOf('TPU resources are insufficient') ||
-      modelEntity.train_error_message.indexOf('Please try a different region'))) {
+      modelEntity.train_error_message.indexOf('TPU resources are insufficient') != -1 ||
+      modelEntity.train_error_message.indexOf('Please try a different region') != -1)) {
     return 'TRY_AGAIN_LATER';
   }
 
