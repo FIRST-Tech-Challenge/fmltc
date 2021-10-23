@@ -30,6 +30,9 @@ import storage
 import util
 
 def prepare_to_zip_dataset(team_uuid, dataset_uuid):
+    team_entity = storage.retrieve_team_entity(team_entity)
+    if 'datasets_downloaded_today' in team_entity:
+        team_entity['datasets_downloaded_today'] += 1 
     dataset_zip_uuid = str(uuid.uuid4().hex)
     max_files_per_partition = 10
     # storage.retrieve_dataset_entity will raise HttpErrorNotFound

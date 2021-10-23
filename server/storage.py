@@ -99,7 +99,7 @@ def retrieve_team_uuid(program, team_number):
             })
         else:
             team_entity = team_entities[0]
-        team_entity['last_time'] = datetime.now(timezone.utc)
+        __set_last_time(team_entity)
         if 'preferences' not in team_entity:
             team_entity['preferences'] = {}
         transaction.put(team_entity)
@@ -119,7 +119,7 @@ def retrieve_team_entity(team_uuid):
                 logging.critical(message)
                 raise exceptions.HttpErrorNotFound(message)
             team_entity = team_entities[0]
-            team_entity['last_time'] = datetime.now(timezone.utc)
+            __set_last_time(team_entity)
             transaction.put(team_entity)
             return team_entity
     except exceptions.HttpErrorNotFound:
@@ -132,12 +132,20 @@ def store_user_preference(team_uuid, key, value):
     with datastore_client.transaction() as transaction:
         team_entity = retrieve_team_entity(team_uuid)
         team_entity['preferences'][key] = value
-        team_entity['last_time'] = datetime.now(timezone.utc)
+        __set_last_time(team_entity)
         transaction.put(team_entity)
 
 def retrieve_user_preferences(team_uuid):
     team_entity = retrieve_team_entity(team_uuid)
     return team_entity['preferences']
+
+# teams - private methods
+
+def __set_last_time(team_entity):
+    current_time = datetime.now(timezone.utc)
+    if current_time.date != team_entity['last_time'].date:
+        team_entity['videos_uploaded_today']  = team_entity['datasets_created_today'] = team_entity['datasets_downloaded_today'] = 0
+    team_entity['last_time'] = current_time
 
 def __set_last_video_uuid(team_uuid, video_uuid):
     datastore_client = datastore.Client()
@@ -172,6 +180,9 @@ def prepare_to_upload_video(team_uuid, content_type):
     return video_uuid, upload_url
 
 def create_video_entity(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms):
+    team_entity = retrieve_team_entity(team_uuid)
+    if 'videos_uploaded_today' in team_entity:
+        team_entity['videos_uploaded_today'] += 1
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_VIDEO)
@@ -838,6 +849,9 @@ def prepare_to_start_dataset_production(team_uuid, description, video_uuids, eva
 def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
         train_frame_count, train_record_count, train_input_path,
         eval_frame_count, eval_record_count, eval_input_path):
+    team_entity = retrieve_team_entity(team_uuid)
+    if 'datasets_created_today' in team_entity:
+        team_entity['datasets_created_today'] += 1
     dataset_folder_path = blob_storage.get_dataset_folder_path(team_uuid, dataset_uuid)
     label_map_blob_name, label_map_path = blob_storage.store_dataset_label_map(team_uuid, dataset_uuid, sorted_label_list)
     datastore_client = datastore.Client()
