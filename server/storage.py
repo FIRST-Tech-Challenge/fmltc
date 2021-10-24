@@ -180,9 +180,6 @@ def prepare_to_upload_video(team_uuid, content_type):
     return video_uuid, upload_url
 
 def create_video_entity(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms):
-    team_entity = retrieve_team_entity(team_uuid)
-    if 'videos_uploaded_today' in team_entity:
-        team_entity['videos_uploaded_today'] += 1
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_VIDEO)
@@ -208,6 +205,10 @@ def create_video_entity(team_uuid, video_uuid, description, video_filename, file
             'tracker_uuid': '',
             'delete_in_progress': False,
         })
+        team_entity = retrieve_team_entity(team_uuid)
+        if 'videos_uploaded_today' in team_entity:
+            team_entity['videos_uploaded_today'] += 1
+        transaction.put(team_entity)
         transaction.put(video_entity)
         return video_entity
 
@@ -798,6 +799,14 @@ def __query_dataset(team_uuid, dataset_uuid):
 
 # dataset - public methods
 
+def increment_datasets_downloaded_today(team_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        team_entity = retrieve_team_entity(team_uuid)
+        if 'datasets_downloaded_today' in team_entity:
+            team_entity['datasets_downloaded_today'] += 1
+        transaction.put(team_entity)
+
 # prepare_to_start_dataset_production will raise HttpErrorNotFound
 # if any of the team_uuid/video_uuids is not found
 # or if none of the videos have labeled frames.
@@ -849,9 +858,6 @@ def prepare_to_start_dataset_production(team_uuid, description, video_uuids, eva
 def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
         train_frame_count, train_record_count, train_input_path,
         eval_frame_count, eval_record_count, eval_input_path):
-    team_entity = retrieve_team_entity(team_uuid)
-    if 'datasets_created_today' in team_entity:
-        team_entity['datasets_created_today'] += 1
     dataset_folder_path = blob_storage.get_dataset_folder_path(team_uuid, dataset_uuid)
     label_map_blob_name, label_map_path = blob_storage.store_dataset_label_map(team_uuid, dataset_uuid, sorted_label_list)
     datastore_client = datastore.Client()
@@ -890,7 +896,10 @@ def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
                 'update_time': datetime.now(timezone.utc),
             })
             transaction.put(dataset_record_entity)
-
+            team_entity = retrieve_team_entity(team_uuid)
+            if 'datasets_created_today' in team_entity:
+                team_entity['datasets_created_today'] += 1
+            transaction.put(team_entity)
 
 def dataset_producer_maybe_done(team_uuid, dataset_uuid):
     datastore_client = datastore.Client()

@@ -914,7 +914,6 @@ def prepare_to_start_dataset_production():
     try:    
         description = validate_description(data.get('description'), 
                 other_descriptions=[d['description'] for d in storage.retrieve_dataset_list(team_uuid)])
-        logging.info('description: %s' % str([d['description'] for d in storage.retrieve_dataset_list(team_uuid)]))
     except exceptions.HttpErrorBadRequest:
         # Send a message to the client.
         response = {
