@@ -238,7 +238,7 @@ fmltc.ProduceDatasetDialog.prototype.xhr_retrieveDatasetEntity_onreadystatechang
       }
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveDatasetEntity?' + params + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveDatasetEntity.bind(this, datasetUuid, failureCount), delay * 1000);

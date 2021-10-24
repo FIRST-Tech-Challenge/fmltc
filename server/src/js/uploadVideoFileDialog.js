@@ -240,7 +240,7 @@ fmltc.UploadVideoFileDialog.prototype.xhr_prepareToUploadVideo_onreadystatechang
 
     } else {
       failureCount++;
-      if (failureCount < 5 && xhr.status != 400) {
+      if (failureCount < 2 && xhr.status != 400) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /prepareToUploadVideo?' + params + ' in ' + delay + ' seconds.');
         setTimeout(this.prepareToUploadVideo.bind(this, description, videoFile, createTimeMs, failureCount), delay * 1000);
@@ -310,7 +310,7 @@ fmltc.UploadVideoFileDialog.prototype.xhr_doesVideoEntityExist_onreadystatechang
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /doesVideoEntityExist?' + params + ' in ' + delay + ' seconds.');
         setTimeout(this.doesVideoEntityExist.bind(this, videoUuid, failureCount), delay * 1000);

@@ -41,22 +41,28 @@ import util
 
 BUCKET = ('%s' % constants.PROJECT_ID)
 
+USE_TPU = True  # False doesn't work yet. The models don't recognize objects.
+
 STARTING_MODELS = {
     'SSD MobileNet v2 320x320': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8/checkpoint/ckpt-0',
+        'tpu_batch_size': 512,
     },
     'SSD MobileNet V2 FPNLite 320x320': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8/checkpoint/ckpt-0',
+        'tpu_batch_size': 128,
     },
     'SSD MobileNet V1 FPN 640x640': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8/checkpoint/ckpt-0',
+        'tpu_batch_size': 64,
     },
     'SSD MobileNet V2 FPNLite 640x640': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8/checkpoint/ckpt-0',
+        'tpu_batch_size': 128,
     },
 }
 
@@ -74,6 +80,43 @@ def validate_starting_model(s):
 def get_starting_model_names():
     names = list(STARTING_MODELS.keys())
     return names
+
+def get_min_training_steps():
+    if USE_TPU:
+      return 100
+    return 1000
+
+def get_max_training_steps():
+    if USE_TPU:
+      return 4000
+    return 400000
+
+def get_default_training_steps():
+    if USE_TPU:
+      return 2000
+    return 200000
+
+def __get_batch_size(original_starting_model):
+    if USE_TPU:
+      starting_model_data = STARTING_MODELS[original_starting_model]
+      return starting_model_data['tpu_batch_size']
+    return 8
+
+def __get_scale_tier():
+    if USE_TPU:
+      return 'BASIC_TPU'
+    return 'BASIC_GPU'
+
+def __get_checkpoint_every_n(num_training_steps):
+    # Pick a nice round (divisible by 100, 1000, etc) so we get no more than 20 checkpoints.
+    exp = math.floor(math.log10(num_training_steps)) - 1
+    checkpoint_every_n = n = math.pow(10, exp)
+    while int(num_training_steps / checkpoint_every_n) > 20:
+        checkpoint_every_n += n
+    # Make checkpoint_every_n at least 100 so we don't miss checkpoints.
+    if checkpoint_every_n < 100:
+        checkpoint_every_n = min(100, num_training_steps)
+    return int(checkpoint_every_n)
 
 def start_training_model(team_uuid, description, dataset_uuids_json,
         starting_model, max_running_minutes, num_training_steps, create_time_ms):
@@ -178,6 +221,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         .replace('TO_BE_CONFIGURED/num_examples', str(eval_frame_count))
         .replace('TO_BE_CONFIGURED/num_training_steps', str(num_training_steps))
         .replace('TO_BE_CONFIGURED/num_visualizations', str(min(100, eval_frame_count)))
+        .replace('TO_BE_CONFIGURED/train_batch_size', str(__get_batch_size(original_starting_model)))
         .replace('TO_BE_CONFIGURED/train_input_path',  json.dumps(train_input_path))
         .replace('TO_BE_CONFIGURED/warmup_steps_1000',  str(min(1000, num_training_steps)))
         .replace('TO_BE_CONFIGURED/warmup_steps_2000',  str(min(2000, num_training_steps)))
@@ -208,16 +252,19 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         scheduling = {
             'maxRunningTime': '%ds' % int(max_running_minutes * 60),
         }
+        args = [
+            '--model_dir', model_dir,
+            '--pipeline_config_path', pipeline_config_path,
+            '--checkpoint_every_n', str(__get_checkpoint_every_n(num_training_steps)),
+        ]
+        if USE_TPU:
+            args.append('--use_tpu')
+            args.append('true')
         train_training_input = {
-            'scaleTier': 'BASIC_TPU',
+            'scaleTier': __get_scale_tier(),
             'packageUris': packageUris,
             'pythonModule': 'object_detection.model_main_tf2',
-            'args': [
-                '--model_dir', model_dir,
-                '--pipeline_config_path', pipeline_config_path,
-                '--checkpoint_every_n', str(100),
-                '--use_tpu', 'true',
-            ],
+            'args': args,
             'region': region,
             'jobDir': job_dir,
             'runtimeVersion': runtimeVersion,
@@ -487,8 +534,14 @@ def monitor_training(action_parameters):
                     continue
                 largest_step, scalar_summary_items, image_summary_items = __monitor_training_for_event_file(
                     model_folder, job_type, event_file_path, action_parameters)
-                model_entity = storage.update_model_entity_summary_items(team_uuid, model_uuid, job_type,
-                    event_file_path, updated, largest_step, scalar_summary_items, image_summary_items)
+                scalar_modified_count = storage.store_model_summary_items(team_uuid, model_uuid, job_type,
+                    'scalar', scalar_summary_items)
+                image_modified_count = storage.store_model_summary_items(team_uuid, model_uuid, job_type,
+                    'image', image_summary_items)
+                model_entity, modified_model_entity = storage.update_model_entity_for_event_file(team_uuid, model_uuid, job_type,
+                    event_file_path, updated, largest_step)
+                if scalar_modified_count > 0 or image_modified_count > 0 or modified_model_entity:
+                    action.retrigger_now(action_parameters)
 
         if is_done(model_entity):
             # If we didn't update the model during the for loop, we are done.
@@ -553,7 +606,7 @@ def __monitor_training_for_event_file(model_folder, job_type, event_file_path, a
     return largest_step, scalar_summary_items, image_summary_items
 
 def __make_key(step, tag):
-    return str(step) + '_' + tag
+    return storage.make_summary_item_key(step, tag)
 
 
 def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
@@ -561,16 +614,15 @@ def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
     # if the team_uuid/model_uuid is not found.
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
     model_folder = model_entity['model_folder']
-    summary_items_field_name = storage.get_model_entity_summary_items_field_name(job_type, value_type)
-    if summary_items_field_name not in model_entity:
-        return __retrieve_tags_and_steps_from_event_file(model_folder, job_type, value_type)
+    list_of_summary_items = storage.get_model_summary_items_all_steps(model_entity, job_type, value_type)
     step_and_tag_pairs = []
-    for key, item in model_entity[summary_items_field_name].items():
-        pair = {
-            'step': item['step'],
-            'tag': item['tag'],
-        }
-        step_and_tag_pairs.append(pair)
+    for summary_items in list_of_summary_items:
+        for key, item in summary_items.items():
+            pair = {
+                'step': item['step'],
+                'tag': item['tag'],
+            }
+            step_and_tag_pairs.append(pair)
     return step_and_tag_pairs
 
 
@@ -579,13 +631,15 @@ def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_ste
     # if the team_uuid/model_uuid is not found.
     model_entity = retrieve_model_entity(team_uuid, model_uuid)
     model_folder = model_entity['model_folder']
-    summary_items_field_name = storage.get_model_entity_summary_items_field_name(job_type, value_type)
-    if summary_items_field_name not in model_entity:
-        return __retrieve_summary_items_from_event_file(model_folder, job_type, value_type, dict_step_to_tags)
-    summary_items = []
-    for step, tags in dict_step_to_tags.items():
+    summary_items_list = []
+    for step_string, tags in dict_step_to_tags.items():
+        step = int(step_string)
+        summary_items = storage.get_model_summary_items(model_entity, job_type, value_type, step)
         for tag in tags:
-            item = model_entity[summary_items_field_name][__make_key(step, tag)]
+            key = __make_key(step, tag)
+            if key not in summary_items:
+                continue
+            item = summary_items[__make_key(step, tag)]
             summary_item = {
                 'step': item['step'],
                 'tag': item['tag'],
@@ -602,91 +656,5 @@ def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_ste
                     'height': item['height'],
                     'image_url': image_url,
                 }
-            summary_items.append(summary_item)
-    return summary_items
-
-
-def __retrieve_tags_and_steps_from_event_file(model_folder, job_type, value_type):
-    step_and_tag_pairs = []
-    dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, job_type)
-    for event_file_path, updated in dict_path_to_updated.items():
-        for record in tf.data.TFRecordDataset(event_file_path):
-            event = event_pb2.Event.FromString(record.numpy())
-            if (not hasattr(event, 'step') or
-                    not hasattr(event, 'summary')):
-                continue
-            for value in event.summary.value:
-                if (not hasattr(value, 'metadata') or
-                        not hasattr(value.metadata, 'plugin_data') or
-                        not hasattr(value.metadata.plugin_data, 'plugin_name')):
-                    continue
-                if value_type == 'scalar':
-                    if value.metadata.plugin_data.plugin_name != 'scalars':
-                        continue
-                elif value_type == 'image':
-                    if value.metadata.plugin_data.plugin_name != 'images':
-                        continue
-                else:
-                    continue
-                pair = {
-                    'step': event.step,
-                    'tag': value.tag,
-                }
-                step_and_tag_pairs.append(pair)
-    return step_and_tag_pairs
-
-
-def __retrieve_summary_items_from_event_file(model_folder, job_type, value_type, dict_step_to_tags):
-    summary_items = []
-    dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, job_type)
-    for event_file_path, updated in dict_path_to_updated.items():
-        for record in tf.data.TFRecordDataset(event_file_path):
-            event = event_pb2.Event.FromString(record.numpy())
-            if (not hasattr(event, 'step') or
-                    not hasattr(event, 'summary')):
-                continue
-            step_key = str(event.step)
-            if step_key not in dict_step_to_tags:
-                continue
-            for value in event.summary.value:
-                if (not hasattr(value, 'metadata') or
-                        not hasattr(value.metadata, 'plugin_data') or
-                        not hasattr(value.metadata.plugin_data, 'plugin_name')):
-                    continue
-                if value.tag not in dict_step_to_tags[step_key]:
-                    continue
-                if value_type == 'scalar':
-                    if value.metadata.plugin_data.plugin_name != 'scalars':
-                        continue
-                elif value_type == 'image':
-                    if value.metadata.plugin_data.plugin_name != 'images':
-                        continue
-                else:
-                    continue
-                summary_item = {
-                    'step': event.step,
-                    'tag': value.tag,
-                }
-                if value_type == 'scalar':
-                    item_value = float(tf.make_ndarray(value.tensor))
-                    if math.isnan(item_value):
-                        continue
-                    summary_item['value'] = item_value
-                elif value_type == 'image':
-                    image_value = tf.make_ndarray(value.tensor)
-                    if len(image_value) < 3: # width, height, image bytes
-                        continue
-                    width = int(float(image_value[0].decode('utf-8')))
-                    height = int(float(image_value[1].decode('utf-8')))
-                    image_bytes = image_value[2]
-                    exists, image_url = blob_storage.get_event_summary_image_download_url(
-                        model_folder, job_type, event.step, value.tag, image_bytes)
-                    if not exists:
-                        continue
-                    summary_item['value'] = {
-                        'width': width,
-                        'height': height,
-                        'image_url': image_url,
-                    }
-                summary_items.append(summary_item)
-    return summary_items
+            summary_items_list.append(summary_item)
+    return summary_items_list

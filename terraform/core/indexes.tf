@@ -299,6 +299,65 @@ resource "google_datastore_index" "model3" {
   depends_on = [google_datastore_index.model2]
 }
 
+resource "google_datastore_index" "modelSummaryItems1" {
+  kind = "ModelSummaryItems"
+  properties {
+    name = "team_uuid"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "model_uuid"
+    direction = "ASCENDING"
+  }
+  depends_on = [google_app_engine_application.fmltc-app]
+}
+
+resource "google_datastore_index" "modelSummaryItems2" {
+  kind = "ModelSummaryItems"
+  properties {
+    name = "team_uuid"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "model_uuid"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "job_type"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "value_type"
+    direction = "ASCENDING"
+  }
+  depends_on = [google_datastore_index.modelSummaryItems1]
+}
+
+resource "google_datastore_index" "modelSummaryItems3" {
+  kind = "ModelSummaryItems"
+  properties {
+    name = "team_uuid"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "model_uuid"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "job_type"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "value_type"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "step"
+    direction = "ASCENDING"
+  }
+  depends_on = [google_datastore_index.modelSummaryItems2
+}
+
 resource "google_datastore_index" "action1" {
   kind = "Action"
   properties {

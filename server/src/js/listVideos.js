@@ -299,7 +299,7 @@ fmltc.ListVideos.prototype.xhr_retrieveVideoEntity_onreadystatechange = function
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveVideoEntity?' + params + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveVideoEntity.bind(this, videoUuid, checkDeleted, failureCount), delay * 1000);

@@ -99,8 +99,21 @@ def trigger_action_via_blob(action_parameters_arg):
                     parameters_equal = False
                     break
             if parameters_equal:
-                found_existing_action = True
-                break
+                time = action_entity['create_time']
+                len_start_times = len(action_entity['start_times'])
+                if len_start_times > 0:
+                    len_stop_times = len(action_entity['stop_times'])
+                    if len_start_times > len_stop_times:
+                        time = action_entity['start_times'][len_start_times-1]
+                    else:
+                        time = action_entity['stop_times'][len_stop_times-1]
+                time_delta = datetime.now(timezone.utc) - time
+                if time_delta > timedelta(minutes=15):
+                    util.log('action.trigger_action_via_blob - %s - found duplicate action that is %s old' % (action_name, str(time_delta)))
+                    storage.action_on_remove_old_action(action_entity)
+                else:
+                    found_existing_action = True
+                    break
         if found_existing_action:
             util.log('action.trigger_action_via_blob - %s - ignoring duplicate action' % action_name)
             return
@@ -172,15 +185,16 @@ def __retrigger_action(action_parameters):
         action_parameters[ACTION_RETRIGGERED] = True
 
 
+def retrigger_now(action_parameters):
+    __retrigger_action(action_parameters)
+    raise Stop()
+
+
 def retrigger_if_necessary(action_parameters):
     if remaining_timedelta(action_parameters) <= timedelta(seconds=70):
-        __retrigger_action(action_parameters)
-        if remaining_timedelta(action_parameters) <= timedelta(seconds=30):
-            raise Stop()
-        # If there's more than 30 seconds remaining, let this function keep running.
+        retrigger_now(action_parameters)
     if psutil.virtual_memory().active >= ACTIVE_MEMORY_LIMIT:
-        __retrigger_action(action_parameters)
-        raise Stop()
+        retrigger_now(action_parameters)
 
 
 def remaining_timedelta(action_parameters):

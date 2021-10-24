@@ -62,10 +62,9 @@ fmltc.TrainMoreDialog = function(
   this.maxRunningMinutesInput.max = remainingTrainingMinutes;
   this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
 
-  // The following min/max numbers (100 and 4000) should match the min/max values in root.html.
-  this.numTrainingStepsInput.min = 100;
-  this.numTrainingStepsInput.max = 4000;
-  this.numTrainingStepsInput.value = 2000;
+  this.numTrainingStepsInput.min = this.util.minTrainingSteps;
+  this.numTrainingStepsInput.max = this.util.maxTrainingSteps;
+  this.numTrainingStepsInput.value = this.util.defaultTrainingSteps;
 
   // Create checkboxes for the datasets. Omit the datasets that are already part of this model.
   this.datasetsHeaderDiv.style.display = 'none';
@@ -212,6 +211,7 @@ fmltc.TrainMoreDialog.prototype.xhr_startTrainingModel_onreadystatechange = func
       this.updateStartButton();
       this.inProgressDiv.style.display = 'none';
       this.failedDiv.style.display = 'block';
+      this.util.clearWaitCursor();
     }
   }
 };

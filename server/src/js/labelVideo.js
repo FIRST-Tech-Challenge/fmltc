@@ -443,7 +443,7 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameEntitiesWithImageUrls_onreadyst
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveVideoFrameEntitiesWithImageUrls?' + params + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveVideoFrameEntitiesWithImageUrls.bind(this, minFrameNumber, maxFrameNumber, failureCount), delay * 1000);
@@ -571,7 +571,7 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameImage_onreadystatechange = func
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry ' + imageUrl + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveVideoFrameImage.bind(this, frameNumber, imageUrl, failureCount), delay * 1000);
@@ -1317,7 +1317,7 @@ fmltc.LabelVideo.prototype.xhr_retrieveTrackedBboxes_onreadystatechange = functi
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         setTimeout(this.retrieveTrackedBboxes.bind(this, frameNumber, failureCount), delay * 1000);
       } else {
@@ -1386,7 +1386,7 @@ fmltc.LabelVideo.prototype.xhr_continueTracking_onreadystatechange = function(xh
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         setTimeout(this.sendContinueTracking.bind(this, failureCount), delay * 1000);
       }
