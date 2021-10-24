@@ -83,28 +83,28 @@ def get_starting_model_names():
 
 def get_min_training_steps():
     if USE_TPU:
-      return 100
+        return 100
     return 1000
 
 def get_max_training_steps():
     if USE_TPU:
-      return 4000
+        return 4000
     return 400000
 
 def get_default_training_steps():
     if USE_TPU:
-      return 2000
+        return 2000
     return 200000
 
 def __get_batch_size(original_starting_model):
     if USE_TPU:
-      starting_model_data = STARTING_MODELS[original_starting_model]
-      return starting_model_data['tpu_batch_size']
+        starting_model_data = STARTING_MODELS[original_starting_model]
+        return starting_model_data['tpu_batch_size']
     return 8
 
 def __get_scale_tier():
     if USE_TPU:
-      return 'BASIC_TPU'
+        return 'BASIC_TPU'
     return 'BASIC_GPU'
 
 def __get_checkpoint_every_n(num_training_steps):
