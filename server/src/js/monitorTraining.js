@@ -130,7 +130,6 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   document.getElementById('descriptionSpan').textContent = this.modelEntity.description;
 
   this.refreshTimeoutId = 0;
-  this.refreshStartTimeMs = 0;
 
   this.setRefreshIntervalRangeInputTitle();
 
@@ -242,8 +241,7 @@ fmltc.MonitorTraining.prototype.refreshIntervalRangeInput_onchange = function() 
 };
 
 fmltc.MonitorTraining.prototype.startRefreshTimer = function() {
-  let msSinceRefresh = Date.now() - this.refreshStartTimeMs;
-  let timeoutMs = Math.max(1, this.refreshIntervalRangeInput.value * 60 * 1000 - msSinceRefresh);
+  let timeoutMs = this.refreshIntervalRangeInput.value * 60 * 1000;
   this.refreshTimeoutId = setTimeout(this.refreshTimeout.bind(this), timeoutMs);
 };
 
@@ -267,7 +265,6 @@ fmltc.MonitorTraining.prototype.charts_onload = function() {
 };
 
 fmltc.MonitorTraining.prototype.retrieveData = function() {
-  this.refreshStartTimeMs = Date.now();
   this.refreshButton.disabled = true;
   this.retrieveSummariesUpdated(0);
 };
@@ -343,7 +340,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummariesUpdated_onreadystatechange 
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveSummariesUpdated?' + params + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveSummariesUpdated.bind(this, failureCount), delay * 1000);
@@ -435,7 +432,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveTagsAndSteps_onreadystatechange = fu
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveTagsAndSteps?' + params + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveTagsAndSteps.bind(this, o, failureCount), delay * 1000);
@@ -545,7 +542,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaryItems_onreadystatechange = fu
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveSummaryItems?' + params + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveSummaryItems.bind(this, o, requestStepAndTagPairsNow, requestStepAndTagPairsLater, failureCount), delay * 1000);
@@ -1106,7 +1103,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveImage_onreadystatechange = function(
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry ' + value.image_url + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveImage.bind(this, o, tag, step, value, failureCount), delay * 1000);

@@ -113,6 +113,26 @@ indexes:
   - name: delete_in_progress
   - name: create_time
 
+- kind: ModelSummaryItems
+  properties:
+  - name: team_uuid
+  - name: model_uuid
+
+- kind: ModelSummaryItems
+  properties:
+  - name: team_uuid
+  - name: model_uuid
+  - name: job_type
+  - name: value_type
+
+- kind: ModelSummaryItems
+  properties:
+  - name: team_uuid
+  - name: model_uuid
+  - name: job_type
+  - name: value_type
+  - name: step
+
 - kind: Action
   properties:
   - name: action_uuid
