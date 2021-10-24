@@ -355,7 +355,7 @@ resource "google_datastore_index" "modelSummaryItems3" {
     name = "step"
     direction = "ASCENDING"
   }
-  depends_on = [google_datastore_index.modelSummaryItems2
+  depends_on = [google_datastore_index.modelSummaryItems2]
 }
 
 resource "google_datastore_index" "action1" {
