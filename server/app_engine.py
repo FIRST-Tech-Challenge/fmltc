@@ -149,8 +149,8 @@ def validate_string(s, *args):
     raise exceptions.HttpErrorBadRequest(message)
 
 
-def validate_description(s):
-    if len(s) >= 1 and len(s) <= 30:
+def validate_description(s, other_descriptions=[]):
+    if len(s) >= 1 and len(s) <= 30 and s not in other_descriptions:
         return s
     message = "Error: '%s is not a valid description." % s
     logging.critical(message)
@@ -511,13 +511,14 @@ def prepare_to_upload_video():
         ['description', 'video_filename', 'file_size', 'content_type', 'create_time_ms'])
     # First validate the parameters.
     try:
-        description = validate_description(data.get('description'))
+        description = validate_description(data.get('description'),
+                other_descriptions=[v['description'] for v in storage.retrieve_video_list(team_uuid)])
     except exceptions.HttpErrorBadRequest:
         # Send a message to the client.
         response = {
             'video_uuid': '',
             'upload_url': '',
-            'message': 'The Description is not valid.'
+            'message': 'The Description is not valid or is a duplicate.'
         }
         return flask.jsonify(response)
     video_filename = data.get('video_filename')
@@ -914,13 +915,14 @@ def prepare_to_start_dataset_production():
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['description', 'video_uuids', 'eval_percent', 'create_time_ms'])
     # First validate the parameters.
-    try:
-        description = validate_description(data.get('description'))
+    try:    
+        description = validate_description(data.get('description'), 
+                other_descriptions=[d['description'] for d in storage.retrieve_dataset_list(team_uuid)])
     except exceptions.HttpErrorBadRequest:
         # Send a message to the client.
         response = {
             'dataset_uuid': '',
-            'message': 'The Description is not valid.'
+            'message': 'The Description is not valid or is a duplicate.'
         }
         return flask.jsonify(response)
     video_uuids_json = storage.validate_uuids_json(data.get('video_uuids'))
@@ -1093,6 +1095,9 @@ def start_training_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['description', 'dataset_uuids', 'starting_model', 'max_running_minutes', 'num_training_steps', 'create_time_ms'])
+    # TODO: Add a try catch and send the error message to the client, modify the client to show the error message, then change this to:
+    # description = validate_description(data.get('description'),
+    #        other_descriptions=[m['description'] for m in storage.retrieve_model_list(team_uuid)])
     description = validate_description(data.get('description'))
     dataset_uuids_json = storage.validate_uuids_json(data.get('dataset_uuids'))
     starting_model = model_trainer.validate_starting_model(data.get('starting_model'))
