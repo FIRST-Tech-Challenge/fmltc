@@ -45,7 +45,7 @@ import model_trainer
 import oidc
 import roles
 from roles import Role
-from server.config import Config
+from config import Config
 import storage
 import team_info
 import test_routes
