@@ -27,7 +27,6 @@ import zipfile
 import action
 import blob_storage
 import storage
-import util
 
 def prepare_to_zip_dataset(team_uuid, dataset_uuid):
     dataset_zip_uuid = str(uuid.uuid4().hex)
@@ -38,6 +37,7 @@ def prepare_to_zip_dataset(team_uuid, dataset_uuid):
     total_file_count = dataset_entity['total_record_count'] + 1
     partition_count = math.ceil(total_file_count / max_files_per_partition)
     storage.create_dataset_zippers(team_uuid, dataset_zip_uuid, partition_count)
+    storage.increment_datasets_downloaded_today(team_uuid)
     return dataset_zip_uuid, partition_count
 
 def make_action_parameters(team_uuid, dataset_uuid, dataset_zip_uuid, partition_count):
