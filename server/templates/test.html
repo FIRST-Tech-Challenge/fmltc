@@ -28,6 +28,11 @@ Use OIDC: {{use_oidc}}
 <br><br>
 Redis IP: {{redis_ip}}
 <br><br>
+{% for ann in announcements %}
+<br><br>
+{{ ann['description'] }}
+{% endfor %}
+<br><br>
 <script type="text/javascript">
   window.addEventListener('load', function() {
     const sendPerformActionGCF = document.getElementById('sendPerformActionGCF');

@@ -17,6 +17,7 @@ import time
 import flask
 from flask import Blueprint
 
+import announcements
 import constants
 import exceptions
 import oidc
@@ -44,4 +45,13 @@ def testExcept():
     if util.is_production_env():
         raise exceptions.HttpErrorNotFound("Not found")
     raise ArithmeticError("Exception Test")
+
+
+@test_routes.route('/testAnnouncements')
+@handle_exceptions
+@redirect_to_login_if_needed
+def testAnnouncements():
+    ann = announcements.get_unexpired_announcements()
+    return flask.render_template('test.html', time_time=time.time(), project_id=constants.PROJECT_ID,
+                                 use_oidc=oidc.is_using_oidc(), redis_ip=constants.REDIS_IP_ADDR, announcements=ann)
 

@@ -45,6 +45,7 @@ fmltc.ListModels = function(util) {
 
   // Arrays with one element per model. Note that these need to be spliced when a model is deleted.
   this.modelEntityArray = [];
+  this.maybeRestartMonitorTrainingTime = []
   this.trs = [];
   this.checkboxes = [];
   this.trainStateTds = [];
@@ -106,6 +107,8 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
   } else {
     i = this.modelEntityArray.length;
     this.modelEntityArray.push(modelEntity);
+
+    this.maybeRestartMonitorTrainingTime[i] = 0;
 
     const tr = this.modelsTable.insertRow(-1);
     this.trs[i] = tr;
@@ -175,18 +178,16 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
 
     if ('monitor_training_finished' in modelEntity &&
         !modelEntity.monitor_training_finished) {
-      setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid, 0), 10 * 1000);
+      // Retrieve the model entity in 5 minutes.
+      setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid, 0), 5 * 60 * 1000);
     }
 
   } else {
     this.trs[i].className = 'trainingNotDone';
     this.trainingDone[i] = false;
 
-    const timeout = (
-        this.util.isStateChangingSoon(modelEntity.cancel_requested, modelEntity.train_job_state) ||
-        this.util.isStateChangingSoon(modelEntity.cancel_requested, modelEntity.eval_job_state))
-        ? 10 * 1000 : 60 * 1000;
-    setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid, 0), timeout);
+    // Retrieve the model entity in 5 minutes.
+    setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid, 0), 5 * 60 * 1000);
     if (!this.trainTimeIntervalId) {
       this.trainTimeIntervalId = setInterval(this.updateTrainTime.bind(this), 500);
     }
@@ -229,6 +230,16 @@ fmltc.ListModels.prototype.needToRestartMonitorTraining = function(modelEntity) 
 fmltc.ListModels.prototype.maybeRestartMonitorTraining = function(modelUuid) {
   const i = this.indexOfModel(modelUuid);
   if (i != -1) {
+    // Check this.maybeRestartMonitorTrainingTime[i] so we don't send more than one /maybeRestartMonitorTraining
+    // request before we get the response with the updated monitor_training_triggered_time_ms.
+    if (this.maybeRestartMonitorTrainingTime[i] > 0) {
+      const minutesSince = (Date.now() - this.maybeRestartMonitorTrainingTime[i]) / 60000;
+      if (minutesSince < 3) {
+        return;
+      }
+    }
+    this.maybeRestartMonitorTrainingTime[i] = Date.now();
+
     const xhr = new XMLHttpRequest();
     const params = 'model_uuid=' + encodeURIComponent(modelUuid);
     xhr.open('POST', '/maybeRestartMonitorTraining', true);
@@ -247,7 +258,8 @@ fmltc.ListModels.prototype.xhr_maybeRestartMonitorTraining_onreadystatechange = 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
       if (response.restarted) {
-        setTimeout(this.retrieveModelEntity.bind(this, modelUuid, 0), 3000);
+        // Retrieve the model entity in 5 minutes.
+        setTimeout(this.retrieveModelEntity.bind(this, modelUuid, 0), 5 * 60 * 1000);
       }
 
     } else {
@@ -322,7 +334,7 @@ fmltc.ListModels.prototype.xhr_retrieveModelEntity_onreadystatechange = function
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /retrieveModelEntity?' + params + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveModelEntity.bind(this, modelUuid, failureCount), delay * 1000);
@@ -483,6 +495,7 @@ fmltc.ListModels.prototype.xhr_deleteModel_onreadystatechange = function(xhr, pa
       if (i != -1) {
         this.modelsTable.deleteRow(i + this.headerRowCount);
         this.modelEntityArray.splice(i, 1);
+        this.maybeRestartMonitorTrainingTime.splice(i, 1);
         this.trs.splice(i, 1);
         this.checkboxes[i].onclick = null;
         this.checkboxes.splice(i, 1);
@@ -652,7 +665,7 @@ fmltc.ListModels.prototype.xhr_downloadTFLite_onreadystatechange = function(xhr,
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry ' + downloadUrl + ' in ' + delay + ' seconds.');
         setTimeout(this.downloadTFLite.bind(this,

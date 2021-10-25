@@ -44,6 +44,7 @@ DS_KIND_DATASET_RECORD_WRITER = 'DatasetRecordWriter'
 DS_KIND_DATASET_RECORD = 'DatasetRecord'
 DS_KIND_DATASET_ZIPPER = 'DatasetZipper'
 DS_KIND_MODEL = 'Model'
+DS_KIND_MODEL_SUMMARY_ITEMS = 'ModelSummaryItems'
 DS_KIND_ACTION = 'Action'
 
 
@@ -82,7 +83,7 @@ def retrieve_team_uuid(program, team_number):
         if len(team_entities) == 0:
             team_uuid = str(uuid.uuid4().hex)
             incomplete_key = datastore_client.key(DS_KIND_TEAM)
-            team_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+            team_entity = datastore.Entity(key=incomplete_key)
             team_entity.update({
                 'team_uuid': team_uuid,
                 'program': program,
@@ -99,7 +100,7 @@ def retrieve_team_uuid(program, team_number):
             })
         else:
             team_entity = team_entities[0]
-        team_entity['last_time'] = datetime.now(timezone.utc)
+        __set_last_time(team_entity)
         if 'preferences' not in team_entity:
             team_entity['preferences'] = {}
         transaction.put(team_entity)
@@ -119,7 +120,7 @@ def retrieve_team_entity(team_uuid):
                 logging.critical(message)
                 raise exceptions.HttpErrorNotFound(message)
             team_entity = team_entities[0]
-            team_entity['last_time'] = datetime.now(timezone.utc)
+            __set_last_time(team_entity)
             transaction.put(team_entity)
             return team_entity
     except exceptions.HttpErrorNotFound:
@@ -132,12 +133,20 @@ def store_user_preference(team_uuid, key, value):
     with datastore_client.transaction() as transaction:
         team_entity = retrieve_team_entity(team_uuid)
         team_entity['preferences'][key] = value
-        team_entity['last_time'] = datetime.now(timezone.utc)
+        __set_last_time(team_entity)
         transaction.put(team_entity)
 
 def retrieve_user_preferences(team_uuid):
     team_entity = retrieve_team_entity(team_uuid)
     return team_entity['preferences']
+
+# teams - private methods
+
+def __set_last_time(team_entity):
+    current_time = datetime.now(timezone.utc)
+    if current_time.date != team_entity['last_time'].date:
+        team_entity['videos_uploaded_today']  = team_entity['datasets_created_today'] = team_entity['datasets_downloaded_today'] = 0
+    team_entity['last_time'] = current_time
 
 def __set_last_video_uuid(team_uuid, video_uuid):
     datastore_client = datastore.Client()
@@ -175,7 +184,7 @@ def create_video_entity(team_uuid, video_uuid, description, video_filename, file
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_VIDEO)
-        video_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+        video_entity = datastore.Entity(key=incomplete_key)
         video_entity.update({
             'team_uuid': team_uuid,
             'video_uuid': video_uuid,
@@ -197,6 +206,12 @@ def create_video_entity(team_uuid, video_uuid, description, video_filename, file
             'tracker_uuid': '',
             'delete_in_progress': False,
         })
+        team_entity = retrieve_team_entity(team_uuid)
+        if 'videos_uploaded_today' in team_entity:
+            team_entity['videos_uploaded_today'] += 1
+        else:
+            team_entity['videos_uploaded_today'] = 1
+        transaction.put(team_entity)
         transaction.put(video_entity)
         return video_entity
 
@@ -526,7 +541,7 @@ def __store_video_frames_batch(team_uuid, video_uuid, frame_numbers):
     batch.begin()
     for frame_number in frame_numbers:
         incomplete_key = datastore_client.key(DS_KIND_VIDEO_FRAME)
-        video_frame_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+        video_frame_entity = datastore.Entity(key=incomplete_key)
         video_frame_entity.update({
             'team_uuid': team_uuid,
             'video_uuid': video_uuid,
@@ -634,7 +649,7 @@ def tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_numb
             logging.critical(message)
             raise exceptions.HttpErrorConflict(message)
         incomplete_key = datastore_client.key(DS_KIND_TRACKER)
-        tracker_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+        tracker_entity = datastore.Entity(key=incomplete_key)
         tracker_entity.update({
             'team_uuid': team_uuid,
             'video_uuid': video_uuid,
@@ -650,7 +665,7 @@ def tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_numb
         })
         transaction.put(tracker_entity)
         incomplete_key = datastore_client.key(DS_KIND_TRACKER_CLIENT)
-        tracker_client_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+        tracker_client_entity = datastore.Entity(key=incomplete_key)
         tracker_client_entity.update({
             'team_uuid': team_uuid,
             'video_uuid': video_uuid,
@@ -787,6 +802,16 @@ def __query_dataset(team_uuid, dataset_uuid):
 
 # dataset - public methods
 
+def increment_datasets_downloaded_today(team_uuid):
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        team_entity = retrieve_team_entity(team_uuid)
+        if 'datasets_downloaded_today' in team_entity:
+            team_entity['datasets_downloaded_today'] += 1
+        else:
+            team_entity['datasets_downloaded_today'] = 1
+        transaction.put(team_entity)
+
 # prepare_to_start_dataset_production will raise HttpErrorNotFound
 # if any of the team_uuid/video_uuids is not found
 # or if none of the videos have labeled frames.
@@ -816,7 +841,7 @@ def prepare_to_start_dataset_production(team_uuid, description, video_uuids, eva
             logging.critical(message)
             raise exceptions.HttpErrorNotFound(message)
         incomplete_key = datastore_client.key(DS_KIND_DATASET)
-        dataset_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+        dataset_entity = datastore.Entity(key=incomplete_key)
         dataset_entity.update({
             'team_uuid': team_uuid,
             'dataset_uuid': dataset_uuid,
@@ -857,7 +882,7 @@ def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
         # Create dataset_record_writer and dataset_record entities.
         for record_number in range(train_record_count + eval_record_count):
             incomplete_key = datastore_client.key(DS_KIND_DATASET_RECORD_WRITER)
-            dataset_record_writer_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+            dataset_record_writer_entity = datastore.Entity(key=incomplete_key)
             dataset_record_writer_entity.update({
                 'team_uuid': team_uuid,
                 'dataset_uuid': dataset_uuid,
@@ -867,7 +892,7 @@ def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
             })
             transaction.put(dataset_record_writer_entity)
             incomplete_key = datastore_client.key(DS_KIND_DATASET_RECORD)
-            dataset_record_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+            dataset_record_entity = datastore.Entity(key=incomplete_key)
             dataset_record_entity.update({
                 'team_uuid': team_uuid,
                 'dataset_uuid': dataset_uuid,
@@ -876,7 +901,12 @@ def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
                 'update_time': datetime.now(timezone.utc),
             })
             transaction.put(dataset_record_entity)
-
+            team_entity = retrieve_team_entity(team_uuid)
+            if 'datasets_created_today' in team_entity:
+                team_entity['datasets_created_today'] += 1
+            else:
+                team_entity['datasets_created_today'] = 1
+            transaction.put(team_entity)
 
 def dataset_producer_maybe_done(team_uuid, dataset_uuid):
     datastore_client = datastore.Client()
@@ -896,7 +926,6 @@ def dataset_producer_maybe_done(team_uuid, dataset_uuid):
                     finished = False
                     break
             if finished and len(dataset_record_entities) == total_record_count:
-                util.log('Dataset producer is all done!')
                 # All the dataset records have been stored. The dataset producer is done.
                 # Update dataset_completed, train_negative_frame_count, train_dict_label_to_count,
                 # eval_negative_frame_count, and eval_dict_label_to_count in the dataset entity.
@@ -1115,7 +1144,7 @@ def create_dataset_zippers(team_uuid, dataset_zip_uuid, partition_count):
     with datastore_client.transaction() as transaction:
         for partition_index in range(partition_count):
             incomplete_key = datastore_client.key(DS_KIND_DATASET_ZIPPER)
-            dataset_zipper_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+            dataset_zipper_entity = datastore.Entity(key=incomplete_key)
             dataset_zipper_entity.update({
                 'team_uuid': team_uuid,
                 'dataset_zip_uuid': dataset_zip_uuid,
@@ -1209,7 +1238,7 @@ def model_trainer_started(team_uuid, model_uuid, description, model_folder,
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_MODEL)
-        model_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+        model_entity = datastore.Entity(key=incomplete_key)
         model_entity.update({
             'team_uuid': team_uuid,
             'model_uuid': model_uuid,
@@ -1385,8 +1414,8 @@ def __update_model_entity_job_state(model_entity, job, prefix):
             dateutil.parser.parse(model_entity[prefix + 'job_start_time']))
         model_entity[prefix + 'job_elapsed_seconds'] = elapsed.total_seconds()
     error_message = job.get('errorMessage', '')
-    if len(error_message) > 0:
-      util.log('%s_error_message is %s' % (prefix, error_message))
+    if len(error_message) > 0 and prefix == 'train_':
+      util.log('%serror_message is %s' % (prefix, error_message))
     model_entity[prefix + 'error_message'] = (error_message[:200] + '..') if len(error_message) > 200 else error_message
 
 def update_model_entity_job_state(team_uuid, model_uuid, train_job, eval_job):
@@ -1414,11 +1443,67 @@ def update_model_entity_job_state(team_uuid, model_uuid, train_job, eval_job):
         transaction.put(model_entity)
         return model_entity
 
-def get_model_entity_summary_items_field_name(job_type, value_type):
+
+def __get_model_entity_summary_items_field_name(job_type, value_type):
     return '%s_%s_summary_items' % (job_type, value_type)
 
-def update_model_entity_summary_items(team_uuid, model_uuid, job_type,
-        event_file_path, updated, largest_step, scalar_summary_items, image_summary_items):
+
+def get_model_summary_items_all_steps(model_entity, job_type, value_type):
+    list_of_summary_items = []
+    # Look for the old field name.
+    old_field_name = __get_model_entity_summary_items_field_name(job_type, value_type)
+    if old_field_name in model_entity:
+        list_of_summary_items.append(model_entity[old_field_name])
+        return list_of_summary_items
+    # Look for the model summary items entities.
+    datastore_client = datastore.Client()
+    query = datastore_client.query(kind=DS_KIND_MODEL_SUMMARY_ITEMS)
+    query.add_filter('team_uuid', '=', model_entity['team_uuid'])
+    query.add_filter('model_uuid', '=', model_entity['model_uuid'])
+    query.add_filter('job_type', '=', job_type)
+    query.add_filter('value_type', '=', value_type)
+    summary_items_entities = list(query.fetch())
+    for summary_items_entity in summary_items_entities:
+        list_of_summary_items.append(summary_items_entity['summary_items'])
+    return list_of_summary_items
+
+def get_model_summary_items(model_entity, job_type, value_type, step):
+    # Look for the old field name.
+    old_field_name = __get_model_entity_summary_items_field_name(job_type, value_type)
+    if old_field_name in model_entity:
+        summary_items = {}
+        for key, item in model_entity[old_field_name].items():
+            key_step, _ = separate_summary_item_key(key)
+            if key_step == step:
+                summary_items[key] = item
+        return summary_items
+    # Look for the model summary items entity.
+    datastore_client = datastore.Client()
+    query = datastore_client.query(kind=DS_KIND_MODEL_SUMMARY_ITEMS)
+    query.add_filter('team_uuid', '=', model_entity['team_uuid'])
+    query.add_filter('model_uuid', '=', model_entity['model_uuid'])
+    query.add_filter('job_type', '=', job_type)
+    query.add_filter('value_type', '=', value_type)
+    query.add_filter('step', '=', step)
+    summary_items_entities = list(query.fetch(1))
+    if len(summary_items_entities) == 0:
+        return {}
+    return summary_items_entities[0]['summary_items']
+
+
+def make_summary_item_key(step, tag):
+    return str(step) + '_' + tag
+
+
+def separate_summary_item_key(key):
+    i = key.index('_')
+    step = key[:i]
+    tag = key[i+1:]
+    return int(step), tag
+
+
+def update_model_entity_for_event_file(team_uuid, model_uuid, job_type,
+        event_file_path, updated, largest_step):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         model_entity = retrieve_model_entity(team_uuid, model_uuid)
@@ -1436,27 +1521,59 @@ def update_model_entity_summary_items(team_uuid, model_uuid, job_type,
                 model_entity['dict_event_file_path_to_updated'][event_file_path] < updated):
             model_entity['dict_event_file_path_to_updated'][event_file_path] = updated
             modified = True
-        summary_items_field_name = get_model_entity_summary_items_field_name(job_type, 'scalar')
-        if summary_items_field_name not in model_entity:
-            model_entity[summary_items_field_name] = {}
-            modified = True
-        for key, item in scalar_summary_items.items():
-            if key not in model_entity[summary_items_field_name]:
-                model_entity[summary_items_field_name][key] = item
-                modified = True
-        summary_items_field_name = get_model_entity_summary_items_field_name(job_type, 'image')
-        if summary_items_field_name not in model_entity:
-            model_entity[summary_items_field_name] = {}
-            modified = True
-        for key, item in image_summary_items.items():
-            if key not in model_entity[summary_items_field_name]:
-                model_entity[summary_items_field_name][key] = item
-                modified = True
         if modified:
             model_entity['monitor_training_active_time'] = datetime.now(timezone.utc)
             model_entity['monitor_training_active_time_ms'] = util.ms_from_datetime(model_entity['monitor_training_active_time'])
             transaction.put(model_entity)
-        return model_entity
+        return model_entity, modified
+
+
+def store_model_summary_items(team_uuid, model_uuid, job_type, value_type, summary_items):
+    datastore_client = datastore.Client()
+    modified_summary_items = False
+    with datastore_client.transaction() as transaction:
+        dict_of_summary_items_entities = {}
+        dict_of_modified = {}
+        for key, item in summary_items.items():
+            step, tag = separate_summary_item_key(key)
+            dict_key = '%s_%s_%s' % (job_type, value_type, str(step))
+            modified = False
+            if dict_key in dict_of_summary_items_entities:
+                summary_items_entity = dict_of_summary_items_entities[dict_key]
+            else:
+                query = datastore_client.query(kind=DS_KIND_MODEL_SUMMARY_ITEMS)
+                query.add_filter('team_uuid', '=', team_uuid)
+                query.add_filter('model_uuid', '=', model_uuid)
+                query.add_filter('job_type', '=', job_type)
+                query.add_filter('value_type', '=', value_type)
+                query.add_filter('step', '=', step)
+                summary_items_entities = list(query.fetch(1))
+                if len(summary_items_entities) == 1:
+                    summary_items_entity = summary_items_entities[0]
+                else:
+                    incomplete_key = datastore_client.key(DS_KIND_MODEL_SUMMARY_ITEMS)
+                    summary_items_entity = datastore.Entity(key=incomplete_key)
+                    summary_items_entity.update({
+                        'team_uuid': team_uuid,
+                        'model_uuid': model_uuid,
+                        'job_type': job_type,
+                        'value_type': value_type,
+                        'step': step,
+                        'summary_items': {},
+                    })
+                    modified = True
+                dict_of_summary_items_entities[dict_key] = summary_items_entity
+            if key not in summary_items_entity['summary_items']:
+                summary_items_entity['summary_items'][key] = item
+                modified = True
+            dict_of_modified[dict_key] = modified
+        modified_count = 0
+        for dict_key, summary_items_entity in dict_of_summary_items_entities.items():
+            if dict_of_modified[dict_key]:
+                transaction.put(summary_items_entity)
+                modified_count += 1
+        return modified_count
+
 
 def prepare_to_start_monitor_training(team_uuid, model_uuid):
     datastore_client = datastore.Client()
@@ -1620,6 +1737,23 @@ def finish_delete_model(action_parameters):
     team_uuid = action_parameters['team_uuid']
     model_uuid = action_parameters['model_uuid']
     datastore_client = datastore.Client()
+    # Delete the summary items, 500 at a time.
+    while True:
+        action.retrigger_if_necessary(action_parameters)
+        query = datastore_client.query(kind=DS_KIND_MODEL_SUMMARY_ITEMS)
+        query.add_filter('team_uuid', '=', team_uuid)
+        query.add_filter('model_uuid', '=', model_uuid)
+        summary_items_entities = list(query.fetch(500))
+        if len(summary_items_entities) == 0:
+            break
+        action.retrigger_if_necessary(action_parameters)
+        keys = []
+        while len(summary_items_entities) > 0:
+            summary_items_entity = summary_items_entities.pop()
+            keys.append(summary_items_entity.key)
+        datastore_client.delete_multi(keys)
+    # Finally, delete the dataset.
+    action.retrigger_if_necessary(action_parameters)
     model_entities = __query_model_entity(team_uuid, model_uuid)
     if len(model_entities) != 0:
         model_entity = model_entities[0]
@@ -1644,7 +1778,7 @@ def action_on_create(team_uuid, action_name, action_parameters):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_ACTION)
-        action_entity = datastore.Entity(key=incomplete_key) # TODO(lizlooney): exclude_from_indexes?
+        action_entity = datastore.Entity(key=incomplete_key)
         action_entity.update({
             'team_uuid': team_uuid,
             'action_name': action_name,
@@ -1701,3 +1835,8 @@ def action_on_destroy(action_uuid):
     action_entity = __retrieve_action_entity(action_uuid)
     datastore_client.delete(action_entity.key)
     return action_entity
+
+
+def action_on_remove_old_action(action_entity):
+    datastore_client = datastore.Client()
+    datastore_client.delete(action_entity.key)

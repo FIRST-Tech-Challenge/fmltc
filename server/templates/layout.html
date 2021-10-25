@@ -47,6 +47,22 @@ limitations under the License.
                 </div>
             </div>
         </nav>
+        <div id="announcementContainer">
+        {% if announcements|length > 0 %}
+          {% for ann in announcements %}
+            <div class="card border-info mb-3" style="margin: 0.5rem;">
+                <div class="card-body" style="padding: 0.75rem;">
+                    <h5 class="card-title">
+                        <span>{{ann['title']}}</span>
+                    </h5>
+                    <div>
+                        <p>{{ann['description']}}<br></p>
+                    </div>
+               </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+        </div>
         <hr class="onlyOnFull">
 
         {% block content %}{% endblock %}

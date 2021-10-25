@@ -31,6 +31,7 @@ from werkzeug.exceptions import Forbidden
 
 # My Modules
 import action
+import announcements
 import bbox_writer
 import blob_storage
 import cloud_secrets
@@ -126,7 +127,8 @@ application_properties = json.load(open('app.properties', 'r'))
 def inject_time():
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return dict(time_time=time.time(), project_id=constants.PROJECT_ID, name=flask.session.get('given_name'),
-                program=program, team_number=team_number, version=application_properties.get('version'))
+                program=program, team_number=team_number, version=application_properties.get('version'),
+                announcements=announcements.get_unexpired_announcements())
 
 
 def validate_keys(dict, expected_keys, check_all_keys=True, optional_keys=[]):
@@ -153,8 +155,8 @@ def validate_string(s, *args):
     raise exceptions.HttpErrorBadRequest(message)
 
 
-def validate_description(s):
-    if len(s) >= 1 and len(s) <= 30:
+def validate_description(s, other_descriptions=[]):
+    if len(s) >= 1 and len(s) <= 30 and s not in other_descriptions:
         return s
     message = "Error: '%s is not a valid description." % s
     logging.critical(message)
@@ -290,6 +292,7 @@ def sanitize(o):
 
 def strip_model_entity(model_entity):
     props_to_remove = [
+        'dict_event_file_path_to_updated',
         'train_image_summary_items',
         'train_scalar_summary_items',
         'train_input_path',
@@ -409,6 +412,9 @@ def index():
         can_upload_video=roles.can_upload_video(flask.session['user_roles']),
         training_enabled=config.get_training_enabled_as_str(),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
+        min_training_steps=model_trainer.get_min_training_steps(),
+        max_training_steps=model_trainer.get_max_training_steps(),
+        default_training_steps=model_trainer.get_default_training_steps(),
         starting_models=model_trainer.get_starting_model_names())
 
 @app.route('/labelVideo')
@@ -512,13 +518,14 @@ def prepare_to_upload_video():
         ['description', 'video_filename', 'file_size', 'content_type', 'create_time_ms'])
     # First validate the parameters.
     try:
-        description = validate_description(data.get('description'))
+        description = validate_description(data.get('description'),
+                other_descriptions=[v['description'] for v in storage.retrieve_video_list(team_uuid)])
     except exceptions.HttpErrorBadRequest:
         # Send a message to the client.
         response = {
             'video_uuid': '',
             'upload_url': '',
-            'message': 'The Description is not valid.'
+            'message': 'The Description is not valid or is a duplicate.'
         }
         return flask.jsonify(response)
     video_filename = data.get('video_filename')
@@ -915,13 +922,14 @@ def prepare_to_start_dataset_production():
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['description', 'video_uuids', 'eval_percent', 'create_time_ms'])
     # First validate the parameters.
-    try:
-        description = validate_description(data.get('description'))
+    try:    
+        description = validate_description(data.get('description'), 
+                other_descriptions=[d['description'] for d in storage.retrieve_dataset_list(team_uuid)])
     except exceptions.HttpErrorBadRequest:
         # Send a message to the client.
         response = {
             'dataset_uuid': '',
-            'message': 'The Description is not valid.'
+            'message': 'The Description is not valid or is a duplicate.'
         }
         return flask.jsonify(response)
     video_uuids_json = storage.validate_uuids_json(data.get('video_uuids'))
@@ -936,6 +944,16 @@ def prepare_to_start_dataset_production():
         }
         return flask.jsonify(response)
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
+    # Don't allow a team to have more than 20 datasets.
+    dataset_entities = storage.retrieve_dataset_list(team_uuid)
+    if len(dataset_entities) >= 20:
+        # Send a message to the client.
+        response = {
+            'dataset_uuid': '',
+            'message': ('Unable to produce the dataset because your team already has %s datasets.' %
+                    len(dataset_entities))
+        }
+        return flask.jsonify(response)
     # dataset_producer.prepare_to_start_dataset_production will raise HttpErrorNotFound
     # if any of the team_uuid/video_uuids is not found or if none of the videos have labeled frames.
     dataset_uuid = dataset_producer.prepare_to_start_dataset_production(
@@ -1086,12 +1104,15 @@ def start_training_model():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['description', 'dataset_uuids', 'starting_model', 'max_running_minutes', 'num_training_steps', 'create_time_ms'])
+    # TODO: Add a try catch and send the error message to the client, modify the client to show the error message, then change this to:
+    # description = validate_description(data.get('description'),
+    #        other_descriptions=[m['description'] for m in storage.retrieve_model_list(team_uuid)])
     description = validate_description(data.get('description'))
     dataset_uuids_json = storage.validate_uuids_json(data.get('dataset_uuids'))
     starting_model = model_trainer.validate_starting_model(data.get('starting_model'))
     max_running_minutes = validate_positive_float(data.get('max_running_minutes'))
-    # The following min/max numbers (100 and 4000) should match the min/max values in root.html.
-    num_training_steps = validate_int(data.get('num_training_steps'), min=100)
+    num_training_steps = validate_int(data.get('num_training_steps'),
+        min=model_trainer.get_min_training_steps(), max=model_trainer.get_max_training_steps())
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
     # model_trainer.start_training_model will raise HttpErrorNotFound
     # if starting_model is not a valid starting model and it's not a valid model_uuid, or
@@ -1185,7 +1206,7 @@ def retrieve_summary_items():
     model_uuid = storage.validate_uuid(data.get('model_uuid'))
     job_type = validate_job_type(data.get('job_type'))
     value_type = validate_value_type(data.get('value_type'))
-    # Create a dict from step to array of tags.
+    # Create a dict from step (as a string) to array of tags.
     dict_step_to_tags = {}
     i = 0
     while True:
@@ -1193,11 +1214,11 @@ def retrieve_summary_items():
         tag_key = 'tag' + str(i)
         if step_key not in data or tag_key not in data:
             break
-        step = data[step_key]
-        if step not in dict_step_to_tags:
-            dict_step_to_tags[step] = []
+        step_string = data[step_key]
+        if step_string not in dict_step_to_tags:
+            dict_step_to_tags[step_string] = []
         tag = data[tag_key]
-        dict_step_to_tags[step].append(tag)
+        dict_step_to_tags[step_string].append(tag)
         i += 1
     # model_trainer.retrieve_summary_items will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.

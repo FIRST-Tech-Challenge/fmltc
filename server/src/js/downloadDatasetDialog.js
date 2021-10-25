@@ -286,7 +286,7 @@ fmltc.DownloadDatasetDialog.prototype.xhr_downloadDatasetZip_onreadystatechange 
       }
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry ' + downloadUrl + ' in ' + delay + ' seconds.');
         setTimeout(this.downloadDatasetZip.bind(this,
@@ -334,7 +334,7 @@ fmltc.DownloadDatasetDialog.prototype.xhr_deleteDatasetZip_onreadystatechange = 
 
     } else {
       failureCount++;
-      if (failureCount < 5) {
+      if (failureCount < 2) {
         const delay = Math.pow(2, failureCount);
         console.log('Will retry /deleteDatasetZip in ' + delay + ' seconds.');
         setTimeout(this.deleteDatasetZip.bind(this,
