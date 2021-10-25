@@ -842,6 +842,27 @@ fmltc.MonitorTraining.prototype.addScalarValue = function(o, tag, step, value) {
   this.drawChart(o, tag);
 };
 
+fmltc.MonitorTraining.prototype.drawCharts = function() {
+  // For all scalar tags, if the LineChart hasn't already been created, call drawChart.
+  const scalarsTabContent = document.getElementById('scalarsTabContent');
+  if (scalarsTabContent.classList && !scalarsTabContent.classList.contains('active')) {
+    setTimeout(this.drawCharts.bind(this), 100);
+    return;
+  }
+
+  const scalars = [this.trainingScalars, this.evalScalars];
+  for (let i = 0; i < scalars.length; i++) {
+    const o = scalars[i];
+    for (const tag in o.mapTagToDiv) {
+      if (tag in o.mapTagToLineChart) {
+        // We've already created the LineChart. We don't need to call drawChart.
+        continue;
+      }
+      this.drawChart(o, tag);
+    }
+  }
+};
+
 fmltc.MonitorTraining.prototype.drawChart = function(o, tag) {
   if (this.util.getCurrentTabContentId() != 'scalarsTabContent') {
     // To prevent a bug where the y-axis numbers are not displayed on the chart, we don't create
@@ -1189,18 +1210,8 @@ fmltc.MonitorTraining.prototype.currentPageIndexChanged = function() {
 
 fmltc.MonitorTraining.prototype.tab_onclick = function(tabContentId) {
   if (tabContentId == 'scalarsTabContent') {
-    // For all scalar tags, if the LineChart hasn't already been created, call drawChart.
-    const scalars = [this.trainingScalars, this.evalScalars];
-    for (let i = 0; i < scalars.length; i++) {
-      const o = scalars[i];
-      for (const tag in o.mapTagToDiv) {
-        if (tag in o.mapTagToLineChart) {
-          // We've already created the LineChart. We don't need to call drawChart.
-          continue;
-        }
-        this.drawChart(o, tag);
-      }
-    }
+    this.drawCharts();
+
   } else if (tabContentId == 'imagesTabContent') {
     this.setHeightOfEvalImagesDiv();
   }
