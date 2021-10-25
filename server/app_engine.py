@@ -45,7 +45,7 @@ import model_trainer
 import oidc
 import roles
 from roles import Role
-from server.config import Config
+from config import Config
 import storage
 import team_info
 import test_routes
@@ -86,12 +86,12 @@ app.config.update(
         # For SESSION_COOKIE_SECURE, True means that cookies will only be sent to the server with an
         # encrypted request over the HTTPS protocol.
         # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#restrict_access_to_cookies
-        "SESSION_COOKIE_SECURE": True,
+        "SESSION_COOKIE_SECURE": config.get_secure_session_cookies(),
 
         # For SESSION_COOKIE_SAMESITE, Strict means that cookies will only be sent in a first-party
         # context and not be sent along with requests initiated by third party websites.
         # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#values
-        "SESSION_COOKIE_SAMESITE": "Strict",
+        "SESSION_COOKIE_SAMESITE": "Strict" if config.get_samesite_session_cookies() else "Lax",
 
         # OIDC properties
 
