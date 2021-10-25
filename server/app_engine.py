@@ -518,7 +518,7 @@ def prepare_to_upload_video():
         response = {
             'video_uuid': '',
             'upload_url': '',
-            'message': 'The Description is not valid.'
+            'message': 'The Description is not valid or is a duplicate.'
         }
         return flask.jsonify(response)
     video_filename = data.get('video_filename')
@@ -922,7 +922,7 @@ def prepare_to_start_dataset_production():
         # Send a message to the client.
         response = {
             'dataset_uuid': '',
-            'message': 'The Description is not valid.'
+            'message': 'The Description is not valid or is a duplicate.'
         }
         return flask.jsonify(response)
     video_uuids_json = storage.validate_uuids_json(data.get('video_uuids'))
