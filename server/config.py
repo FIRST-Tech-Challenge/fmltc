@@ -24,6 +24,7 @@ DS_SERVER_CONFIG = "Configuration"
 KEY_TRAINING_ENABLED = 'training_enabled'
 KEY_USE_TPU = 'use_tpu'
 KEY_SECURE_SESSION_COOKIES = 'secure_session_cookies'
+KEY_SAMESITE_SESSION_COOKIES = 'samesite_session_cookies'
 
 
 #
@@ -35,10 +36,13 @@ class Config:
     training_enabled = True
     use_tpu = True
     secure_session_cookies = True
+    samesite_session_cookies = True
 
     def reset(self):
         self.training_enabled = True
         self.use_tpu = True
+        self.secure_session_cookies = True
+        self.samesite_session_cookies = True
 
     def refresh(self):
         client = datastore.Client()
@@ -67,6 +71,11 @@ class Config:
         else:
             self.secure_session_cookies = True
 
+        if KEY_SAMESITE_SESSION_COOKIES in entity:
+            self.samesite_session_cookies = entity[KEY_SAMESITE_SESSION_COOKIES]
+        else:
+            self.samesite_session_cookies = True
+
     def get_training_enabled(self):
         return self.training_enabled
 
@@ -83,4 +92,7 @@ class Config:
 
     def get_secure_session_cookies(self):
         return self.secure_session_cookies
+
+    def get_samesite_session_cookies(self):
+        return self.samesite_session_cookies
 

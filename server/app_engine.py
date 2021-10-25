@@ -91,7 +91,7 @@ app.config.update(
         # For SESSION_COOKIE_SAMESITE, Strict means that cookies will only be sent in a first-party
         # context and not be sent along with requests initiated by third party websites.
         # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#values
-        "SESSION_COOKIE_SAMESITE": "Strict" if config.get_secure_session_cookies() else "Lax",
+        "SESSION_COOKIE_SAMESITE": "Strict" if config.get_samesite_session_cookies() else "Lax",
 
         # OIDC properties
 
