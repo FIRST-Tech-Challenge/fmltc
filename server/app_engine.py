@@ -44,6 +44,7 @@ import model_trainer
 import oidc
 import roles
 from roles import Role
+from server.config import Config
 import storage
 import team_info
 import test_routes
@@ -56,6 +57,9 @@ from wrappers import login_required
 from wrappers import oidc_require_login
 from wrappers import roles_required
 
+
+config = Config()
+config.refresh()
 
 sentry_dsn = cloud_secrets.get_or_none('sentry_dsn')
 if sentry_dsn is not None:
@@ -403,6 +407,7 @@ def index():
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('root.html',
         can_upload_video=roles.can_upload_video(flask.session['user_roles']),
+        training_enabled=config.get_training_enabled(),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         starting_models=model_trainer.get_starting_model_names())
 
@@ -1076,6 +1081,8 @@ def delete_dataset_zip():
 @handle_exceptions
 @login_required
 def start_training_model():
+    if not config.get_training_enabled():
+        raise Forbidden
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['description', 'dataset_uuids', 'starting_model', 'max_running_minutes', 'num_training_steps', 'create_time_ms'])
