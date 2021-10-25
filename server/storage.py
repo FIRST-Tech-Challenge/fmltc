@@ -208,6 +208,8 @@ def create_video_entity(team_uuid, video_uuid, description, video_filename, file
         team_entity = retrieve_team_entity(team_uuid)
         if 'videos_uploaded_today' in team_entity:
             team_entity['videos_uploaded_today'] += 1
+        else:
+            team_entity['videos_uploaded_today'] = 1
         transaction.put(team_entity)
         transaction.put(video_entity)
         return video_entity
@@ -805,6 +807,8 @@ def increment_datasets_downloaded_today(team_uuid):
         team_entity = retrieve_team_entity(team_uuid)
         if 'datasets_downloaded_today' in team_entity:
             team_entity['datasets_downloaded_today'] += 1
+        else:
+            team_entity['datasets_downloaded_today'] = 1
         transaction.put(team_entity)
 
 # prepare_to_start_dataset_production will raise HttpErrorNotFound
@@ -899,6 +903,8 @@ def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
             team_entity = retrieve_team_entity(team_uuid)
             if 'datasets_created_today' in team_entity:
                 team_entity['datasets_created_today'] += 1
+            else:
+                team_entity['datasets_created_today'] = 1
             transaction.put(team_entity)
 
 def dataset_producer_maybe_done(team_uuid, dataset_uuid):
