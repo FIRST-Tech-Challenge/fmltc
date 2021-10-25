@@ -23,6 +23,7 @@ from google.cloud import datastore
 DS_SERVER_CONFIG = "Configuration"
 KEY_TRAINING_ENABLED = 'training_enabled'
 KEY_USE_TPU = 'use_tpu'
+KEY_SECURE_SESSION_COOKIES = 'secure_session_cookies'
 
 
 #
@@ -33,6 +34,7 @@ class Config:
 
     training_enabled = True
     use_tpu = True
+    secure_session_cookies = True
 
     def reset(self):
         self.training_enabled = True
@@ -60,6 +62,11 @@ class Config:
         else:
             self.use_tpu = True
 
+        if KEY_SECURE_SESSION_COOKIES in entity:
+            self.secure_session_cookies = entity[KEY_SECURE_SESSION_COOKIES]
+        else:
+            self.secure_session_cookies = True
+
     def get_training_enabled(self):
         return self.training_enabled
 
@@ -74,5 +81,6 @@ class Config:
     def get_use_tpu(self):
         return self.use_tpu
 
-
+    def get_secure_session_cookies(self):
+        return self.secure_session_cookies
 
