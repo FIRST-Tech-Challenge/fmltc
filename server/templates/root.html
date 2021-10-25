@@ -515,9 +515,13 @@ limitations under the License.
   </div>
 <script type="text/javascript">
   window.addEventListener('load', function() {
-    const util = new fmltc.Util('root', {{ team_preferences|tojson }},
-      {{min_training_steps}}, {{max_training_steps}}, {{default_training_steps}},
-      {{ starting_models|tojson }});
+    const util = new fmltc.Util('root',
+      {{ team_preferences|tojson }},
+      {{min_training_steps}},
+      {{max_training_steps}},
+      {{default_training_steps}},
+      {{ starting_models|tojson }},
+      {{ training_enabled }});
     util.setListModels(new fmltc.ListModels(util));
     util.setListDatasets(new fmltc.ListDatasets(util));
     util.setListVideos(new fmltc.ListVideos(util));
