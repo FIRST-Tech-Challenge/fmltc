@@ -31,6 +31,7 @@ from werkzeug.exceptions import Forbidden
 
 # My Modules
 import action
+import announcements
 import bbox_writer
 import blob_storage
 import cloud_secrets
@@ -122,7 +123,8 @@ application_properties = json.load(open('app.properties', 'r'))
 def inject_time():
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return dict(time_time=time.time(), project_id=constants.PROJECT_ID, name=flask.session.get('given_name'),
-                program=program, team_number=team_number, version=application_properties.get('version'))
+                program=program, team_number=team_number, version=application_properties.get('version'),
+                announcements=announcements.get_unexpired_announcements())
 
 
 def validate_keys(dict, expected_keys, check_all_keys=True, optional_keys=[]):
