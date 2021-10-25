@@ -537,7 +537,7 @@ fmltc.ListModels.prototype.updateButtons = function() {
     }
   }
 
-  this.trainMoreButton.disabled = this.waitCursor || countChecked != 1 || !canTrainMore;
+  this.trainMoreButton.disabled = !this.util.getTrainingEnabled() || this.waitCursor || countChecked != 1 || !canTrainMore;
   this.downloadTFLiteButton.disabled = this.waitCursor || countChecked != 1 || !canDownloadTFLite;
   this.stopTrainingButton.disabled = this.waitCursor || countChecked != 1 || !canStopTraining;
   this.deleteModelsButton.disabled = this.waitCursor || countChecked == 0 || !canDeleteModels;

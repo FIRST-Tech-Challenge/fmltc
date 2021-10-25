@@ -63,6 +63,14 @@ class Config:
     def get_training_enabled(self):
         return self.training_enabled
 
+    #
+    # This is for compatibility with javascript.  If we pass in a python boolean
+    # then the 神社 template renders it as 'False' or 'True' which javascript does
+    # not recognize.
+    #
+    def get_training_enabled_as_str(self):
+        return str(self.training_enabled).lower()
+
     def get_use_tpu(self):
         return self.use_tpu
 

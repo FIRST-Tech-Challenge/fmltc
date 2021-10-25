@@ -407,7 +407,7 @@ def index():
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('root.html',
         can_upload_video=roles.can_upload_video(flask.session['user_roles']),
-        training_enabled=config.get_training_enabled(),
+        training_enabled=config.get_training_enabled_as_str(),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         starting_models=model_trainer.get_starting_model_names())
 

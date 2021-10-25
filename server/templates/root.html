@@ -515,7 +515,8 @@ limitations under the License.
   window.addEventListener('load', function() {
     const util = new fmltc.Util('root',
       {{ team_preferences|tojson }},
-      {{ starting_models|tojson }});
+      {{ starting_models|tojson }},
+      {{ training_enabled }});
     util.setListModels(new fmltc.ListModels(util));
     util.setListDatasets(new fmltc.ListDatasets(util));
     util.setListVideos(new fmltc.ListVideos(util));

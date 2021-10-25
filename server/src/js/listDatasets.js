@@ -274,7 +274,7 @@ fmltc.ListDatasets.prototype.updateButtons = function() {
   }
 
   this.downloadDatasetButton.disabled = this.waitCursor || countChecked != 1;
-  this.startTrainingButton.disabled = this.waitCursor || countChecked == 0 || !labelsMatch;
+  this.startTrainingButton.disabled = !this.util.getTrainingEnabled() || this.waitCursor || countChecked == 0 || !labelsMatch;
   this.deleteDatasetsButton.disabled = this.waitCursor || countChecked == 0;
 };
 
