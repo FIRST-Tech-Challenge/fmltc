@@ -571,9 +571,11 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameImage_onreadystatechange = func
 
     } else {
       failureCount++;
-      if (failureCount < 2) {
+      if (failureCount < 5) {
         const delay = Math.pow(2, failureCount);
-        console.log('Will retry ' + imageUrl + ' in ' + delay + ' seconds.');
+        console.log('Error occurred when retrieving the image for frame ' + frameNumber + '.\n' +
+            'xhr.status is ' + xhr.status + '.\n' +
+            'Will retry ' + imageUrl + ' in ' + delay + ' seconds.');
         setTimeout(this.retrieveVideoFrameImage.bind(this, frameNumber, imageUrl, failureCount), delay * 1000);
       } else {
         this.loadFailure();

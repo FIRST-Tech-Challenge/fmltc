@@ -430,6 +430,7 @@ def label_video():
     video_entity = storage.retrieve_video_entity_for_labeling(team_uuid, video_uuid)
     video_frame_entity_0 = storage.retrieve_video_frame_entities_with_image_urls(
         team_uuid, video_uuid, 0, 0)[0]
+    blob_storage.set_cors_policy_for_get()
     sanitize(video_entity)
     sanitize(video_frame_entity_0)
     return flask.render_template('labelVideo.html',
