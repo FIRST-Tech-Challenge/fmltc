@@ -167,6 +167,12 @@ def extract_frames(action_parameters):
                                 "This video has more than 1000 frames, which is the maximum allowed.",
                                 width=width, height=height, fps=fps, frame_count=frame_count)
                         return
+                    # Don't allow videos that have zero frames.
+                    if frame_count <= 0:
+                        storage.frame_extraction_failed(team_uuid, video_uuid,
+                                "This video has zero frames.",
+                                width=width, height=height, fps=fps, frame_count=frame_count)
+                        return
                     # Don't allow videos with resolution larger than 3840 x 2160.
                     if max(width, height) > 3840 or min(width, height) > 2160:
                         storage.frame_extraction_failed(team_uuid, video_uuid,
