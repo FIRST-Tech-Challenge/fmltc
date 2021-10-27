@@ -1,0 +1,59 @@
+<!--
+Copyright 2020 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+{% extends 'layout.html' %}
+{% block content %}
+
+<main class="flex-shrink-0">
+  <div class="container">
+    <h2 id="time"></h2>
+    <table width="100%"><tr>
+      <td width="50%" valign="top"><table>
+        <tr><td>Team entities&nbsp;&nbsp;</td><td align="right">{{ team_count }}</td></tr>
+        <tr><td>Video entities&nbsp;&nbsp;</td><td align="right">{{ video_count }}</td></tr>
+        <tr><td>Video Frame entities&nbsp;&nbsp;</td><td align="right">{{ video_frame_count }}</td></tr>
+        <tr><td>Dataset entities&nbsp;&nbsp;</td><td align="right">{{ dataset_count }}</td></tr>
+        <tr><td>Dataset Record entities&nbsp;&nbsp;</td><td align="right">{{ dataset_record_count }}</td></tr>
+        <tr><td>Model entities&nbsp;&nbsp;</td><td align="right">{{ model_count }}</td></tr>
+        <tr><td>Model Summary Items entities&nbsp;&nbsp;</td><td align="right">{{ model_summary_items_count }}</td></tr>
+      </table></td>
+      <td width="50%" valign="top"><table>
+        <tr><td>Tracker entities&nbsp;&nbsp;</td><td align="right">{{ tracker_count }}</td></tr>
+        <tr><td>Tracker Client entities&nbsp;&nbsp;</td><td align="right">{{ tracker_client_count }}</td></tr>
+        <tr><td>Dataset Record Writer entities&nbsp;&nbsp;</td><td align="right">{{ dataset_record_writer_count }}</td></tr>
+        <tr><td>Dataset Zipper entities&nbsp;&nbsp;</td><td align="right">{{ dataset_zipper_count }}</td></tr>
+        <tr><td>Action entities&nbsp;&nbsp;</td><td align="right">{{ action_count }}</td></tr>
+      </table></td>
+    </tr></table>
+  </div>
+
+  <div id="chartForTeamEntities"></div>
+  <div id="chartForVideoEntities"></div>
+  <div id="chartForVideoFrameEntities"></div>
+  <div id="chartForDatasetEntities"></div>
+  <div id="chartForDatasetRecordEntities"></div>
+  <div id="chartForModelEntities"></div>
+  <div id="chartForModelSummaryItemsEntities"></div>
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+  window.addEventListener('load', function() {
+    new fmltc.Metrics({{ entity_counts_entities|tojson }}, {{ time_ms }});
+  });
+</script>
+</main>
+
+{% endblock %}

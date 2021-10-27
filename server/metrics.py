@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 # Other Modules
 from google.cloud import logging as cloud_logging
 
+# Logs based metrics
 
 def save_action_metrics(action_entity):
     now = datetime.now(timezone.utc)
@@ -102,3 +103,4 @@ def save_tracking_metrics(tracker_name, scale, bboxes_count):
     }
     cloud_logger = cloud_logging.Client().logger('metrics')
     cloud_logger.log_struct(message)
+

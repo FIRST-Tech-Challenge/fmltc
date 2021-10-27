@@ -28,14 +28,14 @@ goog.provide('fmltc.Util');
  */
 fmltc.Util = function(pageBasename, preferences,
     minTrainingSteps, maxTrainingSteps, defaultTrainingSteps,
-    startingModels, training_enabled) {
+    startingModels, trainingEnabled) {
   this.pageBasename = pageBasename;
   this.preferences = preferences;
   this.minTrainingSteps = minTrainingSteps;
   this.maxTrainingSteps = maxTrainingSteps;
   this.defaultTrainingSteps = defaultTrainingSteps;
   this.startingModels = startingModels;
-  this.trainingEnabled = training_enabled
+  this.trainingEnabled = trainingEnabled;
 
   this.currentTabContentId = '';
   this.tabClickListeners = [];

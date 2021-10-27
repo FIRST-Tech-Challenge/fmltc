@@ -838,7 +838,7 @@ fmltc.MonitorTraining.prototype.addScalarValue = function(o, tag, step, value) {
   }
 
   o.mapTagToDataTable[tag].addRow([step, value]);
-  o.mapTagToDataTable[tag].sort([{column: 0}])
+  o.mapTagToDataTable[tag].sort([{column: 0}]);
   this.drawChart(o, tag);
 };
 

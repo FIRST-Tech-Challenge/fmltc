@@ -461,6 +461,28 @@ def monitor_training():
         dataset_entities_by_uuid=dataset_entities_by_uuid,
         video_entities_by_uuid=video_entities_by_uuid)
 
+@app.route('/metrics', methods=['GET'])
+@handle_exceptions
+@login_required
+@roles_required(roles.Role.ML_DEVELOPER)
+def metrics():
+    entity_counts = storage.save_entity_counts()
+    entity_counts_entities = storage.get_entity_counts()
+    return flask.render_template('metrics.html',
+        time_ms=entity_counts['time_ms'],
+        team_count=entity_counts['team_count'],
+        video_count=entity_counts['video_count'],
+        video_frame_count=entity_counts['video_frame_count'],
+        tracker_count=entity_counts['tracker_count'],
+        tracker_client_count=entity_counts['tracker_client_count'],
+        dataset_count=entity_counts['dataset_count'],
+        dataset_record_writer_count=entity_counts['dataset_record_writer_count'],
+        dataset_record_count=entity_counts['dataset_record_count'],
+        dataset_zipper_count=entity_counts['dataset_zipper_count'],
+        model_count=entity_counts['model_count'],
+        model_summary_items_count=entity_counts['model_summary_items_count'],
+        action_count=entity_counts['action_count'],
+        entity_counts_entities=entity_counts_entities)
 
 # requests
 
@@ -468,7 +490,6 @@ def monitor_training():
 @handle_exceptions
 def ok():
     return 'OK'
-
 
 @app.route('/logout', methods=['POST'])
 @handle_exceptions
