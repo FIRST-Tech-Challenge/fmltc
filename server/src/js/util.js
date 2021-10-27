@@ -26,16 +26,11 @@ goog.provide('fmltc.Util');
  * Class for utilities.
  * @constructor
  */
-fmltc.Util = function(pageBasename, preferences,
-    minTrainingSteps, maxTrainingSteps, defaultTrainingSteps,
-    startingModels, training_enabled) {
+fmltc.Util = function(pageBasename, preferences, modelTrainerData, trainingEnabled) {
   this.pageBasename = pageBasename;
   this.preferences = preferences;
-  this.minTrainingSteps = minTrainingSteps;
-  this.maxTrainingSteps = maxTrainingSteps;
-  this.defaultTrainingSteps = defaultTrainingSteps;
-  this.startingModels = startingModels;
-  this.trainingEnabled = training_enabled
+  this.modelTrainerData = modelTrainerData;
+  this.trainingEnabled = trainingEnabled;
 
   this.currentTabContentId = '';
   this.tabClickListeners = [];

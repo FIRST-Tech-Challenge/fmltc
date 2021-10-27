@@ -398,8 +398,7 @@ limitations under the License.
                       <label for="stNumTrainingStepsInput">Number&nbsp;of&nbsp;Training&nbsp;Steps:&nbsp;</label>
                     </td>
                     <td>
-                      <input id="stNumTrainingStepsInput" type="number" class="rightText text-18"
-                            min="{{min_training_steps}}" max="{{max_training_steps}}" style="width: 20ch">
+                      <input id="stNumTrainingStepsInput" type="number" class="rightText text-18" style="width: 20ch">
                     </td>
                   </tr>
                   <tr>
@@ -449,8 +448,7 @@ limitations under the License.
                       <label for="tmNumTrainingStepsInput">Number&nbsp;of&nbsp;Training&nbsp;Steps:&nbsp;</label>
                     </td>
                     <td>
-                      <input id="tmNumTrainingStepsInput" type="number" class="rightText text-18"
-                            min="{{min_training_steps}}" max="{{max_training_steps}}" style="width: 20ch">
+                      <input id="tmNumTrainingStepsInput" type="number" class="rightText text-18" style="width: 20ch">
                     </td>
                   </tr>
                   <tr>
@@ -517,10 +515,7 @@ limitations under the License.
   window.addEventListener('load', function() {
     const util = new fmltc.Util('root',
       {{ team_preferences|tojson }},
-      {{min_training_steps}},
-      {{max_training_steps}},
-      {{default_training_steps}},
-      {{ starting_models|tojson }},
+      {{ model_trainer_data|tojson }},
       {{ training_enabled }});
     util.setListModels(new fmltc.ListModels(util));
     util.setListDatasets(new fmltc.ListDatasets(util));

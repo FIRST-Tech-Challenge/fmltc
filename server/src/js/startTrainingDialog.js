@@ -58,7 +58,7 @@ fmltc.StartTrainingDialog = function(
   this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
 
   if (this.startingModelSelect.options.length == 0) {
-    const startingModels = this.util.startingModels;
+    const startingModels = this.util.modelTrainerData['starting_models'];
     for (let i = 0; i < startingModels.length; i++) {
       const option = document.createElement('option');
       option.text = startingModels[i];
@@ -66,9 +66,9 @@ fmltc.StartTrainingDialog = function(
     }
   }
 
-  this.numTrainingStepsInput.min = this.util.minTrainingSteps;
-  this.numTrainingStepsInput.max = this.util.maxTrainingSteps;
-  this.numTrainingStepsInput.value = this.util.defaultTrainingSteps;
+  this.numTrainingStepsInput.min = this.util.modelTrainerData['min_training_steps'];
+  this.numTrainingStepsInput.max = this.util.modelTrainerData['max_training_steps'];
+  this.numTrainingStepsInput.value = this.util.modelTrainerData['default_training_steps'];
 
   this.descriptionInput.value = '';
 

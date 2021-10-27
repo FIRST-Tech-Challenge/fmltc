@@ -62,9 +62,9 @@ fmltc.TrainMoreDialog = function(
   this.maxRunningMinutesInput.max = remainingTrainingMinutes;
   this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
 
-  this.numTrainingStepsInput.min = this.util.minTrainingSteps;
-  this.numTrainingStepsInput.max = this.util.maxTrainingSteps;
-  this.numTrainingStepsInput.value = this.util.defaultTrainingSteps;
+  this.numTrainingStepsInput.min = this.util.modelTrainerData['min_training_steps'];
+  this.numTrainingStepsInput.max = this.util.modelTrainerData['max_training_steps'];
+  this.numTrainingStepsInput.value = this.util.modelTrainerData['default_training_steps'];
 
   // Create checkboxes for the datasets. Omit the datasets that are already part of this model.
   this.datasetsHeaderDiv.style.display = 'none';

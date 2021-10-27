@@ -412,10 +412,7 @@ def index():
         can_upload_video=roles.can_upload_video(flask.session['user_roles']),
         training_enabled=config.get_training_enabled_as_str(),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
-        min_training_steps=model_trainer.get_min_training_steps(),
-        max_training_steps=model_trainer.get_max_training_steps(),
-        default_training_steps=model_trainer.get_default_training_steps(),
-        starting_models=model_trainer.get_starting_model_names())
+        model_trainer_data=model_trainer.get_data_for_root_template(config.get_use_tpu()))
 
 @app.route('/labelVideo')
 @handle_exceptions
@@ -1113,7 +1110,8 @@ def start_training_model():
     starting_model = model_trainer.validate_starting_model(data.get('starting_model'))
     max_running_minutes = validate_positive_float(data.get('max_running_minutes'))
     num_training_steps = validate_int(data.get('num_training_steps'),
-        min=model_trainer.get_min_training_steps(), max=model_trainer.get_max_training_steps())
+        min=model_trainer.get_min_training_steps(config.get_use_tpu()),
+        max=model_trainer.get_max_training_steps(config.get_use_tpu()))
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
     # model_trainer.start_training_model will raise HttpErrorNotFound
     # if starting_model is not a valid starting model and it's not a valid model_uuid, or
@@ -1123,7 +1121,7 @@ def start_training_model():
     # model_trainer.start_training_model will raise HttpErrorUnprocessableEntity
     # if the max_running_minutes exceeds the team's remaining_training_minutes.
     model_entity = model_trainer.start_training_model(team_uuid, description, dataset_uuids_json,
-        starting_model, max_running_minutes, num_training_steps, create_time_ms)
+        starting_model, max_running_minutes, num_training_steps, create_time_ms, config.get_use_tpu())
     # Retrieve the team entity so the client gets the updated remaining_training_minutes.
     team_entity = storage.retrieve_team_entity(team_uuid)
     strip_model_entity(model_entity)

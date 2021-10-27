@@ -1229,8 +1229,8 @@ def model_trainer_failed_to_start(team_uuid, model_folder, max_running_minutes):
     blob_storage.delete_model_blobs(model_folder)
 
 def model_trainer_started(team_uuid, model_uuid, description, model_folder,
-        tensorflow_version, dataset_uuids, create_time_ms, max_running_minutes, num_training_steps,
-        previous_training_steps, starting_model, user_visible_starting_model,
+        tensorflow_version, use_tpu, dataset_uuids, create_time_ms, max_running_minutes,
+        num_training_steps, batch_size, previous_training_steps, starting_model, user_visible_starting_model,
         original_starting_model, fine_tune_checkpoint,
         sorted_label_list, label_map_path, train_input_path, eval_input_path,
         train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
@@ -1245,6 +1245,7 @@ def model_trainer_started(team_uuid, model_uuid, description, model_folder,
             'description': description,
             'model_folder': model_folder,
             'tensorflow_version': tensorflow_version,
+            'use_tpu': use_tpu,
             'dataset_uuids': dataset_uuids,
             'create_time_ms': create_time_ms,
             'create_time': util.datetime_from_ms(create_time_ms),
@@ -1264,6 +1265,7 @@ def model_trainer_started(team_uuid, model_uuid, description, model_folder,
             'fine_tune_checkpoint': fine_tune_checkpoint,
             'max_running_minutes': max_running_minutes,
             'num_training_steps': num_training_steps,
+            'batch_size': batch_size,
             'previous_training_steps': previous_training_steps,
             'total_training_steps': (num_training_steps + previous_training_steps),
             'cancel_requested': False,
@@ -1416,7 +1418,10 @@ def __update_model_entity_job_state(model_entity, job, prefix):
     error_message = job.get('errorMessage', '')
     if len(error_message) > 0 and prefix == 'train_':
       util.log('%serror_message is %s' % (prefix, error_message))
-    model_entity[prefix + 'error_message'] = (error_message[:200] + '..') if len(error_message) > 200 else error_message
+      if error_message.find('OOM when allocating tensor') != -1:
+          util.log('OOM in job train_%s. original_starting_model=%s batch_size=%s train_frame_count=%s' % (
+                  model_entity['model_uuid'], model_entity['original_starting_model'], str(model_entity['batch_size']), str(model_entity['train_frame_count'])))
+    model_entity[prefix + 'error_message'] = (error_message[:1498] + '..') if len(error_message) > 1500 else error_message
 
 def update_model_entity_job_state(team_uuid, model_uuid, train_job, eval_job):
     datastore_client = datastore.Client()
@@ -1752,7 +1757,7 @@ def finish_delete_model(action_parameters):
             summary_items_entity = summary_items_entities.pop()
             keys.append(summary_items_entity.key)
         datastore_client.delete_multi(keys)
-    # Finally, delete the dataset.
+    # Finally, delete the model.
     action.retrigger_if_necessary(action_parameters)
     model_entities = __query_model_entity(team_uuid, model_uuid)
     if len(model_entities) != 0:
