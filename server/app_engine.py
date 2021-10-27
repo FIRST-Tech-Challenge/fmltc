@@ -56,6 +56,7 @@ from wrappers import handle_exceptions
 from wrappers import redirect_to_login_if_needed
 from wrappers import login_required
 from wrappers import oidc_require_login
+from wrappers import roles_accepted
 from wrappers import roles_required
 
 
@@ -464,7 +465,7 @@ def monitor_training():
 @app.route('/metrics', methods=['GET'])
 @handle_exceptions
 @login_required
-@roles_required(roles.Role.ML_DEVELOPER)
+@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
 def metrics():
     entity_counts = storage.save_entity_counts()
     entity_counts_entities = storage.get_entity_counts()
@@ -472,16 +473,8 @@ def metrics():
         time_ms=entity_counts['time_ms'],
         team_count=entity_counts['team_count'],
         video_count=entity_counts['video_count'],
-        video_frame_count=entity_counts['video_frame_count'],
-        tracker_count=entity_counts['tracker_count'],
-        tracker_client_count=entity_counts['tracker_client_count'],
         dataset_count=entity_counts['dataset_count'],
-        dataset_record_writer_count=entity_counts['dataset_record_writer_count'],
-        dataset_record_count=entity_counts['dataset_record_count'],
-        dataset_zipper_count=entity_counts['dataset_zipper_count'],
         model_count=entity_counts['model_count'],
-        model_summary_items_count=entity_counts['model_summary_items_count'],
-        action_count=entity_counts['action_count'],
         entity_counts_entities=entity_counts_entities)
 
 # requests

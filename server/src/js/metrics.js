@@ -40,11 +40,8 @@ fmltc.Metrics = function(entityCountsEntities, timeMs) {
 fmltc.Metrics.prototype.charts_onload = function() {
   this.addChart('team_count', 'chartForTeamEntities', 'Team Entities');
   this.addChart('video_count', 'chartForVideoEntities', 'Video Entities');
-  this.addChart('video_frame_count', 'chartForVideoFrameEntities', 'VideoFrame Entities');
   this.addChart('dataset_count', 'chartForDatasetEntities', 'Dataset Entities');
-  this.addChart('dataset_record_count', 'chartForDatasetRecordEntities', 'DatasetRecord Entities');
   this.addChart('model_count', 'chartForModelEntities', 'Model Entities');
-  this.addChart('model_summary_items_count', 'chartForModelSummaryItemsEntities', 'ModelSummaryItems Entities');
 };
 
 fmltc.Metrics.prototype.addChart = function(entityField, divId, title) {
@@ -62,7 +59,7 @@ fmltc.Metrics.prototype.addChart = function(entityField, divId, title) {
   const div = document.getElementById(divId);
   const lineChart = new google.visualization.LineChart(div);
   const options = {
-    width: 1200,
+    width: 600,
     height: 500,
     hAxis: {
       title: 'Date/Time'

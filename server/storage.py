@@ -1852,52 +1852,20 @@ def save_entity_counts():
     video_count = 0
     for video_entity in datastore_client.query(kind=DS_KIND_VIDEO).fetch():
         video_count += 1
-    video_frame_count = 0
-    for video_frame_entity in datastore_client.query(kind=DS_KIND_VIDEO_FRAME).fetch():
-        video_frame_count += 1
-    tracker_count = 0
-    for tracker_entity in datastore_client.query(kind=DS_KIND_TRACKER).fetch():
-        tracker_count += 1
-    tracker_client_count = 0
-    for tracker_client_entity in datastore_client.query(kind=DS_KIND_TRACKER_CLIENT).fetch():
-        tracker_client_count += 1
     dataset_count = 0
     for dataset_entity in datastore_client.query(kind=DS_KIND_DATASET).fetch():
         dataset_count += 1
-    dataset_record_writer_count = 0
-    for dataset_record_writer_entity in datastore_client.query(kind=DS_KIND_DATASET_RECORD_WRITER).fetch():
-        dataset_record_writer_count += 1
-    dataset_record_count = 0
-    for dataset_record_entity in datastore_client.query(kind=DS_KIND_DATASET_RECORD).fetch():
-        dataset_record_count += 1
-    dataset_zipper_count = 0
-    for dataset_zipper_entity in datastore_client.query(kind=DS_KIND_DATASET_ZIPPER).fetch():
-        dataset_zipper_count += 1
     model_count = 0
     for model_entity in datastore_client.query(kind=DS_KIND_MODEL).fetch():
         model_count += 1
-    model_summary_items_count = 0
-    for model_summary_items_entity in datastore_client.query(kind=DS_KIND_MODEL_SUMMARY_ITEMS).fetch():
-        model_summary_items_count += 1
-    action_count = 0
-    for action_entity in datastore_client.query(kind=DS_KIND_ACTION).fetch():
-        action_count += 1
     time = datetime.now(timezone.utc)
     entity_counts = {
         'time':  time,
         'time_ms': util.ms_from_datetime(time),
         'team_count': team_count,
         'video_count': video_count,
-        'video_frame_count': video_frame_count,
-        'tracker_count': tracker_count,
-        'tracker_client_count': tracker_client_count,
         'dataset_count': dataset_count,
-        'dataset_record_writer_count': dataset_record_writer_count,
-        'dataset_record_count': dataset_record_count,
-        'dataset_zipper_count': dataset_zipper_count,
         'model_count': model_count,
-        'model_summary_items_count': model_summary_items_count,
-        'action_count': action_count,
     }
     with datastore_client.transaction() as transaction:
         incomplete_key = datastore_client.key(DS_KIND_ENTITY_COUNTS)
