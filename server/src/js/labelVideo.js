@@ -1016,10 +1016,6 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousedown = function(e) {
     return;
   }
 
-  if (this.bboxes[this.currentFrameNumber].length >= 10) {
-    return;
-  }
-
   this.point1.fromMouseEvent(e, this.bboxCanvas, this.canvasScale);
 
   let hotspot = 0;
@@ -1041,6 +1037,9 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousedown = function(e) {
     // Since the box already exists, we don't need to draw it here.
   } else {
     // Start defining a new box.
+    if (this.bboxes[this.currentFrameNumber].length >= 10) {
+      return;
+    }
     this.definingBbox = new fmltc.Box(this.point1.x, this.point1.y, this.point1.x, this.point1.y, '');
     // Draw the box.
     this.definingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
@@ -1095,7 +1094,11 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousemove = function(e) {
     }
     // If not on a resize hotspot, show a crosshair cursor.
     if (!hotspot) {
-      this.bboxCanvas.style.cursor = 'crosshair';
+      if (this.bboxes[this.currentFrameNumber].length >= 10) {
+        this.bboxCanvas.style.cursor = 'default';
+      } else {
+        this.bboxCanvas.style.cursor = 'crosshair';
+      }
     }
   }
 };
