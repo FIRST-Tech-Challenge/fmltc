@@ -30,7 +30,7 @@ goog.require('fmltc.Util');
  * @constructor
  */
 fmltc.TrainMoreDialog = function(
-    util, totalTrainingMinutes, remainingTrainingMinutes,
+    util, remainingTrainingMinutes,
     modelEntity, datasetEntities, onTrainingStarted) {
   /** @type {!fmltc.Util} */
   this.util = util;
@@ -43,7 +43,6 @@ fmltc.TrainMoreDialog = function(
   this.xButton = document.getElementById('tmXButton');
   this.closeButton = document.getElementById('tmCloseButton');
   this.maxRunningMinutesInput = document.getElementById('tmMaxRunningMinutesInput');
-  this.totalTrainingMinutesSpan = document.getElementById('tmTotalTrainingMinutesSpan');
   this.remainingTrainingMinutesSpan = document.getElementById('tmRemainingTrainingMinutesSpan');
   this.numTrainingStepsInput = document.getElementById('tmNumTrainingStepsInput');
   this.datasetsHeaderDiv = document.getElementById('tmDatasetsHeaderDiv');
@@ -65,6 +64,7 @@ fmltc.TrainMoreDialog = function(
   this.numTrainingStepsInput.min = this.util.modelTrainerData['min_training_steps'];
   this.numTrainingStepsInput.max = this.util.modelTrainerData['max_training_steps'];
   this.numTrainingStepsInput.value = this.util.modelTrainerData['default_training_steps'];
+  this.updateHelpfulText()
 
   // Create checkboxes for the datasets. Omit the datasets that are already part of this model.
   this.datasetsHeaderDiv.style.display = 'none';
@@ -78,6 +78,7 @@ fmltc.TrainMoreDialog = function(
     this.checkboxes[i] = checkbox;
     checkbox.setAttribute('type', 'checkbox');
     checkbox.id = this.datasetEntities[i].dataset_uuid;
+    checkbox.onclick = this.checkbox_onclick.bind(this);
     this.datasetsContainerDiv.appendChild(checkbox);
     const label = document.createElement('label');
     label.textContent = this.datasetEntities[i].description;
@@ -91,7 +92,6 @@ fmltc.TrainMoreDialog = function(
   this.descriptionInput.value = '';
 
   this.updateStartButton();
-  this.totalTrainingMinutesSpan.textContent = String(totalTrainingMinutes);
   this.remainingTrainingMinutesSpan.textContent = String(remainingTrainingMinutes);
   this.inProgressDiv.style.display = 'none';
   this.successDiv.style.display = 'none';
@@ -125,8 +125,55 @@ fmltc.TrainMoreDialog.prototype.closeButton_onclick = function() {
   this.backdrop.style.display = 'none';
 };
 
+fmltc.TrainMoreDialog.prototype.checkbox_onclick = function() {
+  this.updateHelpfulText()
+};
+
+fmltc.TrainMoreDialog.prototype.updateHelpfulText = function() {
+  const info = this.getTrainingInfo();
+
+  let datasetSizeInfo = 'Your selected ';
+  datasetSizeInfo += info.oneDataset ? 'dataset contains ' : 'datasets contain ';
+  datasetSizeInfo += info.trainFrameCount + ' training images.';
+  document.getElementById('tmDatasetSizeInfo').textContent = datasetSizeInfo;
+
+  document.getElementById('tmBatchSizeInfo').textContent =
+      'With the originally selected model, ' + info.batchSize + ' images will be processed during each step. This is called the batch size.';
+
+  document.getElementById('tmEpochInfo').textContent =
+      'It will take ' + info.stepsPerEpoch + ' steps to perform one full cycle through your training data. This is called an epoch.';
+
+  document.getElementById('tmNumEpochs').textContent =
+      'Training for ' + info.numSteps + ' steps will perform ' + info.numEpochs + ' epochs.'
+};
+
+fmltc.TrainMoreDialog.prototype.getTrainingInfo = function() {
+  let oneDataset = this.modelEntity.dataset_uuids.length == 1;
+  let trainFrameCount = this.modelEntity.train_frame_count;
+  for (let i = 0; i < this.datasetEntities.length; i++) {
+    if (this.checkboxes[i] != null && !this.checkboxes[i].disabled && this.checkboxes[i].checked) {
+      trainFrameCount += this.datasetEntities[i].train_frame_count;
+      oneDataset = false;
+    }
+  }
+  const startingModel = this.modelEntity.original_starting_model;
+  const batchSize = this.util.getBatchSize(startingModel, trainFrameCount);
+  const stepsPerEpoch = Math.ceil(trainFrameCount / batchSize);
+  const numSteps = this.numTrainingStepsInput.value;
+  const numEpochs = Math.floor(numSteps * batchSize / trainFrameCount);
+  return {
+    'oneDataset': oneDataset,
+    'trainFrameCount': trainFrameCount,
+    'batchSize': batchSize,
+    'stepsPerEpoch': stepsPerEpoch,
+    'numEpochs': numEpochs,
+    'numSteps': numSteps,
+  };
+};
+
 fmltc.TrainMoreDialog.prototype.numTrainingStepsInput_onchange = function() {
   this.numTrainingStepsInput.value = Math.max(this.numTrainingStepsInput.min, Math.min(this.numTrainingStepsInput.value, this.numTrainingStepsInput.max));
+  this.updateHelpfulText();
   this.updateStartButton();
 };
 

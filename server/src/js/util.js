@@ -269,6 +269,15 @@ fmltc.Util.prototype.insertCellWithClass = function(tr, clazz) {
   return td;
 };
 
+fmltc.Util.prototype.getBatchSize = function(startingModel, trainFrameCount) {
+  // The following code matches the code in function __get_batch_size in model_trainer.py.
+  let batchSize = this.modelTrainerData.batch_sizes[startingModel];
+  while (batchSize > trainFrameCount && batchSize >= 2) {
+    batchSize /= 2;
+  }
+  return batchSize;
+};
+
 fmltc.Util.prototype.isTrainingDone = function(modelEntity) {
   return this.isJobDone(modelEntity.train_job_state) && (
       this.isJobDone(modelEntity.eval_job_state ||

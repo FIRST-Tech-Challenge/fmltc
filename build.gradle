@@ -39,6 +39,7 @@ task compileJavascript(type: JavaExec) {
        '--js=server/src/js/**.js',
        '--js=build/closure/goog/base.js',
        '--dependency_mode=PRUNE',
+       '--entry_point=fmltc.Admin',
        '--entry_point=fmltc.Box',
        '--entry_point=fmltc.DeleteConfirmationDialog',
        '--entry_point=fmltc.DeleteForbiddenDialog',

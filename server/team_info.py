@@ -25,7 +25,7 @@ import roles
 
 BUCKET_BLOBS = ('%s-blobs' % constants.PROJECT_ID)
 
-TOTAL_TRAINING_MINUTES_PER_TEAM = 120
+TOTAL_TRAINING_MINUTES_PER_TEAM = 240
 
 def login(request_form, session):
     program = request_form.get('program')

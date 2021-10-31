@@ -46,6 +46,7 @@ DS_KIND_DATASET_ZIPPER = 'DatasetZipper'
 DS_KIND_MODEL = 'Model'
 DS_KIND_MODEL_SUMMARY_ITEMS = 'ModelSummaryItems'
 DS_KIND_ACTION = 'Action'
+DS_KIND_ADMIN_ACTION = 'AdminAction'
 
 
 def validate_uuid(s):
@@ -1778,15 +1779,17 @@ def retrieve_action_list(team_uuid, action_name):
     action_entities = list(query.fetch())
     return action_entities
 
-def action_on_create(team_uuid, action_name, action_parameters):
+def action_on_create(team_uuid, action_name, is_admin_action, action_parameters):
     action_uuid = str(uuid.uuid4().hex)
+    ds_kind = DS_KIND_ADMIN_ACTION if is_admin_action else DS_KIND_ACTION
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
-        incomplete_key = datastore_client.key(DS_KIND_ACTION)
+        incomplete_key = datastore_client.key(ds_kind)
         action_entity = datastore.Entity(key=incomplete_key)
         action_entity.update({
             'team_uuid': team_uuid,
             'action_name': action_name,
+            'is_admin_action': is_admin_action,
             'action_uuid': action_uuid,
             'action_parameters': action_parameters,
             'create_time': datetime.now(timezone.utc),
@@ -1798,9 +1801,10 @@ def action_on_create(team_uuid, action_name, action_parameters):
         return action_uuid
 
 
-def __retrieve_action_entity(action_uuid):
+def __retrieve_action_entity(action_uuid, is_admin_action):
     datastore_client = datastore.Client()
-    query = datastore_client.query(kind=DS_KIND_ACTION)
+    ds_kind = DS_KIND_ADMIN_ACTION if is_admin_action else DS_KIND_ACTION
+    query = datastore_client.query(kind=ds_kind)
     query.add_filter('action_uuid', '=', action_uuid)
     query.order = ['create_time']
     action_entities = list(query.fetch(1))
@@ -1811,13 +1815,13 @@ def __retrieve_action_entity(action_uuid):
     return action_entities[0]
 
 
-def action_on_start(action_uuid):
+def action_on_start(action_uuid, is_admin_action):
     # If necessary, we will wait until the state is 'created' or 'stopped'. Then we will change the
     # state to 'started'.
     datastore_client = datastore.Client()
     while True:
         with datastore_client.transaction() as transaction:
-            action_entity = __retrieve_action_entity(action_uuid)
+            action_entity = __retrieve_action_entity(action_uuid, is_admin_action)
             if action_entity['state'] == 'created' or action_entity['state'] == 'stopped':
                 action_entity['state'] = 'started'
                 action_entity['start_times'].append(datetime.now(timezone.utc))
@@ -1826,22 +1830,68 @@ def action_on_start(action_uuid):
             time.sleep(1)
 
 
-def action_on_stop(action_uuid):
+def action_on_stop(action_uuid, is_admin_action, action_parameters):
     datastore_client = datastore.Client()
     with datastore_client.transaction() as transaction:
-        action_entity = __retrieve_action_entity(action_uuid)
+        action_entity = __retrieve_action_entity(action_uuid, is_admin_action)
         action_entity['state'] = 'stopped'
         action_entity['stop_times'].append(datetime.now(timezone.utc))
+        action_entity['action_parameters'] = action_parameters
         transaction.put(action_entity)
 
 
-def action_on_destroy(action_uuid):
+def action_on_finish(action_uuid, is_admin_action):
     datastore_client = datastore.Client()
-    action_entity = __retrieve_action_entity(action_uuid)
-    datastore_client.delete(action_entity.key)
-    return action_entity
+    with datastore_client.transaction() as transaction:
+        action_entity = __retrieve_action_entity(action_uuid, is_admin_action)
+        if is_admin_action:
+            action_entity['state'] = 'finished    '
+            transaction.put(action_entity)
+        else:
+            transaction.delete(action_entity.key)
+        return action_entity
 
 
 def action_on_remove_old_action(action_entity):
     datastore_client = datastore.Client()
     datastore_client.delete(action_entity.key)
+
+
+# admin functions
+
+def reset_remaining_training_minutes(action_parameters):
+    reset_minutes = action_parameters['reset_minutes']
+    # Update the team entities, 500 at a time.
+    datastore_client = datastore.Client()
+    action.retrigger_if_necessary(action_parameters)
+    count_puts = 0
+    with datastore_client.transaction() as transaction:
+        for team_entity in datastore_client.query(kind=DS_KIND_TEAM).fetch():
+            team_key = '%s %s' % (team_entity['program'], str(team_entity['team_number']))
+            if team_key not in action_parameters['teams']:
+                team_entity['remaining_training_minutes'] = reset_minutes
+                transaction.put(team_entity)
+                count_puts += 1
+                action_parameters['teams'][team_key] = team_entity['remaining_training_minutes']
+                action_parameters['num_teams_updated'] += 1
+                if count_puts == 500:
+                    action.retrigger_now(action_parameters)
+
+
+def increment_remaining_training_minutes(action_parameters):
+    increment_minutes = action_parameters['increment_minutes']
+    # Update the team entities, 500 at a time.
+    datastore_client = datastore.Client()
+    action.retrigger_if_necessary(action_parameters)
+    count_puts = 0
+    with datastore_client.transaction() as transaction:
+        for team_entity in datastore_client.query(kind=DS_KIND_TEAM).fetch():
+            team_key = '%s %s' % (team_entity['program'], str(team_entity['team_number']))
+            if team_key not in action_parameters['teams']:
+                team_entity['remaining_training_minutes'] += increment_minutes
+                transaction.put(team_entity)
+                count_puts += 1
+                action_parameters['teams'][team_key] = team_entity['remaining_training_minutes']
+                action_parameters['num_teams_updated'] += 1
+                if count_puts == 500:
+                    action.retrigger_now(action_parameters)

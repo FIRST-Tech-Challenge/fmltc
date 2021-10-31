@@ -1,0 +1,60 @@
+<!--
+Copyright 2021 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+{% extends 'layout.html' %}
+{% block content %}
+
+<main class="flex-shrink-0">
+  <div class="container">
+    <h2>Reset all teams' remaining_training_minutes</h2>
+    <label for="resetInput" class="text-18">Reset to:</label>&nbsp;
+    <input id="resetInput" type="number" class="text-18 rightText" value="240"
+          min="1" max="240" style="width: 7ch">
+    <br>
+    <button id="resetButton" class="btn btn-secondary">Reset</button>
+    <div id="resetResponse"></div>
+    <div id="resetMonitorInfo" style="display: none">
+         You should monitor the AdminAction entity (in the datastore) with the action_uuid<br>
+         <span id="resetActionUuid" class="fw-bold"></span>.<br>
+         When the state field becomes "finished", teams fields will contain all the teams that have been updated.
+    </div>
+
+    <br><hr><br>
+
+    <h2>Increment all teams' remaining_training_minutes</h2>
+    <label for="incrementInput" class="text-18">Increment by:</label>&nbsp;
+    <input id="incrementInput" type="number" class="text-18 rightText" value="60"
+          min="1" max="240" style="width: 7ch">
+    <br>
+    <button id="incrementButton" class="btn btn-secondary">Increment</button>
+    <div id="incrementResponse"></div>
+    <div id="incrementMonitorInfo" style="display: none">
+         You should monitor the AdminAction entity (in the datastore) with the action_uuid<br>
+         <span id="incrementActionUuid" class="fw-bold"></span>.<br>
+         When the state field becomes "finished", teams fields will contain all the teams that have been updated.
+    </div>
+
+    <br><hr><br>
+  </div>
+
+<script type="text/javascript">
+  window.addEventListener('load', function() {
+    new fmltc.Admin();
+  });
+</script>
+</main>
+
+{% endblock %}

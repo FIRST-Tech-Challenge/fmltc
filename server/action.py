@@ -46,6 +46,7 @@ ACTIVE_MEMORY_LIMIT = 2000000000
 ACTION_TEAM_UUID = 'action_team_uuid'
 ACTION_NAME = 'action_name'
 ACTION_UUID = 'action_uuid'
+ACTION_IS_ADMIN_ACTION = 'is_admin_action'
 ACTION_TIME_LIMIT = 'action_time_limit'
 ACTION_RETRIGGERED = 'action_retriggered'
 
@@ -64,11 +65,19 @@ ACTION_NAME_CREATE_TFLITE = 'create_tflite'
 ACTION_NAME_DELETE_MODEL = 'delete_model'
 ACTION_NAME_DELETE_DATASET = 'delete_dataset'
 ACTION_NAME_DELETE_VIDEO = 'delete_video'
+ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES = 'reset_remaining_training_minutes'
+ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES = 'increment_remaining_training_minutes'
 
 def create_action_parameters(team_uuid, action_name):
+    if (action_name == ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES or
+            action_name == ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES):
+        is_admin_action = True
+    else:
+        is_admin_action = False
     return {
         ACTION_TEAM_UUID: team_uuid,
         ACTION_NAME: action_name,
+        ACTION_IS_ADMIN_ACTION: is_admin_action,
     }
 
 
@@ -83,6 +92,7 @@ def trigger_action_via_blob(action_parameters_arg):
     if ACTION_UUID not in action_parameters:
         team_uuid = action_parameters[ACTION_TEAM_UUID]
         action_name = action_parameters[ACTION_NAME]
+        is_admin_action = action_parameters[ACTION_IS_ADMIN_ACTION]
         # Check whether there is already an action with these parameters.
         action_entities = storage.retrieve_action_list(team_uuid, action_name)
         found_existing_action = False
@@ -118,7 +128,7 @@ def trigger_action_via_blob(action_parameters_arg):
             util.log('action.trigger_action_via_blob - %s - ignoring duplicate action' % action_name)
             return
         action_parameters[ACTION_UUID] = storage.action_on_create(
-            team_uuid, action_name, action_parameters)
+            team_uuid, action_name, is_admin_action, action_parameters)
 
     # Write the copied action_parameters to trigger the cloud function.
     action_parameters_blob_name= '%s/%s' % (action_parameters[ACTION_NAME], str(uuid.uuid4().hex))
@@ -126,7 +136,7 @@ def trigger_action_via_blob(action_parameters_arg):
     blob = util.storage_client().bucket(BUCKET_ACTION_PARAMETERS).blob(action_parameters_blob_name)
     util.log('action.trigger_action_via_blob - %s' % action_parameters[ACTION_NAME])
     blob.upload_from_string(action_parameters_json, content_type="text/json")
-
+    return action_parameters[ACTION_UUID]
 
 def perform_action_from_blob(action_parameters_blob_name, time_limit):
     blob = util.storage_client().get_bucket(BUCKET_ACTION_PARAMETERS).blob(action_parameters_blob_name)
@@ -141,7 +151,7 @@ def perform_action_from_blob(action_parameters_blob_name, time_limit):
 def __perform_action(action_parameters, time_limit):
     action_parameters[ACTION_TIME_LIMIT] = time_limit
     util.log('action.perform_action - %s - start' % action_parameters[ACTION_NAME])
-    storage.action_on_start(action_parameters[ACTION_UUID])
+    storage.action_on_start(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION])
 
     action_fns = {
         ACTION_NAME_TEST: test, # For debugging purposes only
@@ -158,6 +168,8 @@ def __perform_action(action_parameters, time_limit):
         ACTION_NAME_DELETE_MODEL: storage.finish_delete_model,
         ACTION_NAME_DELETE_DATASET: storage.finish_delete_dataset,
         ACTION_NAME_DELETE_VIDEO: storage.finish_delete_video,
+        ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES: storage.reset_remaining_training_minutes,
+        ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES: storage.increment_remaining_training_minutes,
     }
     action_fn = action_fns.get(action_parameters[ACTION_NAME], None)
     if action_fn is not None:
@@ -172,10 +184,10 @@ def __perform_action(action_parameters, time_limit):
         util.log('action.perform_action - %s - action_fn is None' % action_parameters[ACTION_NAME])
 
     util.log('action.perform_action - %s - stop' % action_parameters[ACTION_NAME])
-    storage.action_on_stop(action_parameters[ACTION_UUID])
+    storage.action_on_stop(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION], action_parameters)
     if ACTION_RETRIGGERED not in action_parameters:
-        util.log('action.perform_action - %s - destroy' % action_parameters[ACTION_NAME])
-        action_entity = storage.action_on_destroy(action_parameters[ACTION_UUID])
+        util.log('action.perform_action - %s - finish' % action_parameters[ACTION_NAME])
+        action_entity = storage.action_on_finish(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION])
         metrics.save_action_metrics(action_entity)
 
 

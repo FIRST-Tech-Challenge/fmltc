@@ -86,6 +86,7 @@ def get_data_for_root_template(use_tpu):
         'min_training_steps': get_min_training_steps(use_tpu),
         'max_training_steps': get_max_training_steps(use_tpu),
         'default_training_steps': __get_default_training_steps(use_tpu),
+        'batch_sizes': __get_batch_sizes(use_tpu),
     }
 
 def get_min_training_steps(use_tpu):
@@ -103,27 +104,24 @@ def __get_default_training_steps(use_tpu):
         return 2000
     return 3000
 
-def __get_batch_size(use_tpu, original_starting_model):
+def __get_batch_sizes(use_tpu):
+    batch_sizes = {}
+    for name, starting_model_data in STARTING_MODELS.items():
+        batch_sizes[name] = starting_model_data['tpu_batch_size'] if use_tpu else starting_model_data['gpu_batch_size']
+    return batch_sizes
+
+def __get_batch_size(use_tpu, original_starting_model, train_frame_count):
+    # The following code matches the code in function getBatchSize in util.js.
     starting_model_data = STARTING_MODELS[original_starting_model]
-    if use_tpu:
-        return starting_model_data['tpu_batch_size']
-    return starting_model_data['gpu_batch_size']
+    batch_size = starting_model_data['tpu_batch_size'] if use_tpu else starting_model_data['gpu_batch_size']
+    while batch_size > train_frame_count and batch_size >= 2:
+        batch_size /= 2
+    return batch_size
 
 def __get_scale_tier(use_tpu):
     if use_tpu:
         return 'BASIC_TPU'
     return 'BASIC_GPU'
-
-def __get_checkpoint_every_n(num_training_steps):
-    # Pick a nice round (divisible by 100, 1000, etc) so we get no more than 20 checkpoints.
-    exp = math.floor(math.log10(num_training_steps)) - 1
-    checkpoint_every_n = n = math.pow(10, exp)
-    while int(num_training_steps / checkpoint_every_n) > 20:
-        checkpoint_every_n += n
-    # Make checkpoint_every_n at least 100 so we don't miss checkpoints.
-    if checkpoint_every_n < 100:
-        checkpoint_every_n = min(100, num_training_steps)
-    return int(checkpoint_every_n)
 
 def start_training_model(team_uuid, description, dataset_uuids_json,
         starting_model, max_running_minutes, num_training_steps, create_time_ms, use_tpu):
@@ -218,9 +216,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             logging.critical(message)
             raise exceptions.HttpErrorBadRequest(message)
 
-    batch_size = __get_batch_size(use_tpu, original_starting_model)
-    while batch_size > train_frame_count and batch_size > 2:
-      batch_size /= 2
+    batch_size = __get_batch_size(use_tpu, original_starting_model, train_frame_count)
 
     # Create the pipeline.config file and store it in cloud storage.
     bucket = util.storage_client().get_bucket(BUCKET)
@@ -266,7 +262,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         args = [
             '--model_dir', model_dir,
             '--pipeline_config_path', pipeline_config_path,
-            '--checkpoint_every_n', str(__get_checkpoint_every_n(num_training_steps)),
+            '--checkpoint_every_n', str(100),
         ]
         if use_tpu:
             args.append('--use_tpu')

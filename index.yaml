@@ -143,3 +143,8 @@ indexes:
   - name: team_uuid
   - name: action_name
   - name: create_time
+
+- kind: AdminAction
+  properties:
+  - name: action_uuid
+  - name: create_time

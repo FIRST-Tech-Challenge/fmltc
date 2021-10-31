@@ -58,7 +58,6 @@ fmltc.ListModels = function(util) {
   this.waitCursor = false;
   this.deleteModelCounter = 0;
 
-  this.totalTrainingMinutes = 0;     // Updated when we get a response from /retrieveModelEntities
   this.remainingTrainingMinutes = 0; // Updated when we get a response from /retrieveModelEntities
   this.retrieveModelEntities();
   this.updateButtons();
@@ -84,7 +83,6 @@ fmltc.ListModels.prototype.xhr_retrieveModelEntities_onreadystatechange = functi
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      this.totalTrainingMinutes = Math.floor(response.total_training_minutes);
       this.remainingTrainingMinutes = Math.floor(response.remaining_training_minutes);
       const modelEntityArray = response.model_entities;
       for (let i = 0; i < modelEntityArray.length; i++) {
@@ -582,7 +580,7 @@ fmltc.ListModels.prototype.trainMoreButton_onclick = function() {
   const datasetEntities = this.util.getListDatasets().getDatasetsWithLabels(modelEntity.sorted_label_list);
 
   new fmltc.TrainMoreDialog(
-      this.util, this.totalTrainingMinutes, this.remainingTrainingMinutes,
+      this.util, this.remainingTrainingMinutes,
       modelEntity, datasetEntities, this.onTrainingStarted.bind(this));
 };
 

@@ -56,6 +56,7 @@ from wrappers import handle_exceptions
 from wrappers import redirect_to_login_if_needed
 from wrappers import login_required
 from wrappers import oidc_require_login
+from wrappers import roles_accepted
 from wrappers import roles_required
 
 
@@ -458,6 +459,13 @@ def monitor_training():
         dataset_entities_by_uuid=dataset_entities_by_uuid,
         video_entities_by_uuid=video_entities_by_uuid)
 
+@app.route('/admin', methods=['GET'])
+@handle_exceptions
+@login_required
+@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
+def admin():
+    return flask.render_template('admin.html')
+
 
 # requests
 
@@ -777,7 +785,7 @@ def store_video_frame_bboxes_text():
     # storage.store_video_frame_bboxes_text will raise HttpErrorNotFound
     # if the team_uuid/video_uuid/frame_number is not found.
     storage.store_video_frame_bboxes_text(team_uuid, video_uuid, frame_number, bboxes_text)
-    return 'ok'
+    return 'OK'
 
 @app.route('/storeVideoFrameIncludeInDataset', methods=['POST'])
 @handle_exceptions
@@ -792,7 +800,7 @@ def store_video_frame_include_in_dataset():
     # storage.store_video_frame_include_in_dataset will raise HttpErrorNotFound
     # if the team_uuid/video_uuid/frame_number is not found.
     storage.store_video_frame_include_in_dataset(team_uuid, video_uuid, frame_number, include_frame_in_dataset)
-    return 'ok'
+    return 'OK'
 
 @app.route('/prepareToStartTracking', methods=['POST'])
 @handle_exceptions
@@ -1259,7 +1267,6 @@ def retrieve_model_entities():
     for model_entity in model_entities:
         strip_model_entity(model_entity)
     response = {
-        'total_training_minutes': team_info.TOTAL_TRAINING_MINUTES_PER_TEAM,
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entities': model_entities,
     }
@@ -1363,6 +1370,50 @@ def get_tflite_download_url():
 @app.route('/resources', methods=['GET'])
 def resources():
     return flask.render_template('resources.html')
+
+# admin requests
+
+@app.route('/resetRemainingTrainingMinutes', methods=['POST'])
+@handle_exceptions
+@login_required
+@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
+def reset_remaining_training_minutes():
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['reset_minutes'])
+    reset_minutes = validate_int(data.get('reset_minutes'), min=1, max=240)
+    action_parameters = action.create_action_parameters(
+        '', action.ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES)
+    action_parameters['datetime_string'] = str(datetime.now(timezone.utc))
+    action_parameters['reset_minutes'] = reset_minutes
+    action_parameters['num_teams_updated'] = 0
+    action_parameters['teams'] = {}
+    action_uuid = action.trigger_action_via_blob(action_parameters)
+    response = {
+        'action_uuid': action_uuid,
+    }
+    return flask.jsonify(response)
+
+
+@app.route('/incrementRemainingTrainingMinutes', methods=['POST'])
+@handle_exceptions
+@login_required
+@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
+def increment_remaining_training_minutes():
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['increment_minutes'])
+    increment_minutes = validate_int(data.get('increment_minutes'), min=1, max=240)
+    action_parameters = action.create_action_parameters(
+        '', action.ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES)
+    action_parameters['datetime_string'] = str(datetime.now(timezone.utc))
+    action_parameters['increment_minutes'] = increment_minutes
+    action_parameters['num_teams_updated'] = 0
+    action_parameters['teams'] = {}
+    action_uuid = action.trigger_action_via_blob(action_parameters)
+    response = {
+        'action_uuid': action_uuid,
+    }
+    return flask.jsonify(response)
+
 
 # performActionGAE is for debugging purposes only.
 @app.route('/performActionGAE', methods=['POST'])
