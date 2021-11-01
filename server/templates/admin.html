@@ -27,9 +27,14 @@ limitations under the License.
     <button id="resetButton" class="btn btn-secondary">Reset</button>
     <div id="resetResponse"></div>
     <div id="resetMonitorInfo" style="display: none">
-         You should monitor the AdminAction entity (in the datastore) with the action_uuid<br>
-         <span id="resetActionUuid" class="fw-bold"></span>.<br>
-         When the state field becomes "finished", teams fields will contain all the teams that have been updated.
+        The action to increment the <i>remaining_training_minutes</i> field in all team entities
+        has been triggered.<br>
+        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i><br>
+        &quot;<span id="resetActionUuid" class="fw-bold"></span>&quot;.<br>
+        When the <i>state</i> field becomes &quot;finished&quot;, the <i>teams_updated</i> fields will contain all the<br>
+        teams that have been updated, along with the new <i>remaining_training_minutes</i> values.<br>
+        The <i>failure_counts</i> field will contain the teams that were not updated, along with the<br>
+        number of times that updating failed.
     </div>
 
     <br><hr><br>
@@ -42,9 +47,14 @@ limitations under the License.
     <button id="incrementButton" class="btn btn-secondary">Increment</button>
     <div id="incrementResponse"></div>
     <div id="incrementMonitorInfo" style="display: none">
-         You should monitor the AdminAction entity (in the datastore) with the action_uuid<br>
-         <span id="incrementActionUuid" class="fw-bold"></span>.<br>
-         When the state field becomes "finished", teams fields will contain all the teams that have been updated.
+        The action to increment the <i>remaining_training_minutes</i> field in all team entities
+        has been triggered.<br>
+        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i><br>
+        &quot;<span id="incrementActionUuid" class="fw-bold"></span>&quot;.<br>
+        When the <i>state</i> field becomes &quot;finished&quot;, the <i>teams_updated</i> fields will contain all the<br>
+        teams that have been updated, along with the new <i>remaining_training_minutes</i> values.<br>
+        The <i>failure_counts</i> field will contain the teams that were not updated, along with the<br>
+        number of times that updating failed.
     </div>
 
     <br><hr><br>

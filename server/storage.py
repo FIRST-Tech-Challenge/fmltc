@@ -81,6 +81,7 @@ def retrieve_team_uuid(program, team_number):
         query.add_filter('program', '=', program)
         query.add_filter('team_number', '=', team_number)
         team_entities = list(query.fetch(1))
+        need_put = False
         if len(team_entities) == 0:
             team_uuid = str(uuid.uuid4().hex)
             incomplete_key = datastore_client.key(DS_KIND_TEAM)
@@ -99,12 +100,16 @@ def retrieve_team_uuid(program, team_number):
                 'datasets_downloaded_today': 0,
                 'video_uuids_tracking_now': [],
             })
+            need_put = True
         else:
             team_entity = team_entities[0]
-        __set_last_time(team_entity)
-        if 'preferences' not in team_entity:
-            team_entity['preferences'] = {}
-        transaction.put(team_entity)
+            if __set_last_time(team_entity):
+                need_put = True
+            if 'preferences' not in team_entity:
+                team_entity['preferences'] = {}
+                need_put = True
+        if need_put:
+            transaction.put(team_entity)
         return team_entity['team_uuid']
 
 def retrieve_team_entity(team_uuid):
@@ -121,8 +126,8 @@ def retrieve_team_entity(team_uuid):
                 logging.critical(message)
                 raise exceptions.HttpErrorNotFound(message)
             team_entity = team_entities[0]
-            __set_last_time(team_entity)
-            transaction.put(team_entity)
+            if __set_last_time(team_entity):
+                transaction.put(team_entity)
             return team_entity
     except exceptions.HttpErrorNotFound:
         raise
@@ -144,10 +149,14 @@ def retrieve_user_preferences(team_uuid):
 # teams - private methods
 
 def __set_last_time(team_entity):
+    # To reduce the incidence of contention in writing the team entity, we only set the last_time
+    # field once per day.
     current_time = datetime.now(timezone.utc)
-    if current_time.date != team_entity['last_time'].date:
+    if current_time.date() != team_entity['last_time'].date():
+        team_entity['last_time'] = current_time
         team_entity['videos_uploaded_today']  = team_entity['datasets_created_today'] = team_entity['datasets_downloaded_today'] = 0
-    team_entity['last_time'] = current_time
+        return True
+    return False
 
 def __set_last_video_uuid(team_uuid, video_uuid):
     datastore_client = datastore.Client()
@@ -1863,17 +1872,31 @@ def reset_remaining_training_minutes(action_parameters):
     reset_minutes = action_parameters['reset_minutes']
     # Update the team entities, 500 at a time.
     datastore_client = datastore.Client()
-    action.retrigger_if_necessary(action_parameters)
     count_puts = 0
-    with datastore_client.transaction() as transaction:
+    loop = True
+    while loop:
+        loop = False
+        action.retrigger_if_necessary(action_parameters)
         for team_entity in datastore_client.query(kind=DS_KIND_TEAM).fetch():
+            action.retrigger_if_necessary(action_parameters)
             team_key = '%s %s' % (team_entity['program'], str(team_entity['team_number']))
-            if team_key not in action_parameters['teams']:
+            if team_key not in action_parameters['teams_updated']:
                 team_entity['remaining_training_minutes'] = reset_minutes
-                transaction.put(team_entity)
+                try:
+                    datastore_client.put(team_entity)
+                except:
+                    if team_key not in action_parameters['failure_counts']:
+                        action_parameters['failure_counts'][team_key] = 1
+                        loop = True # repeat the outer while loop
+                    else:
+                        action_parameters['failure_counts'][team_key] += 1
+                        # We've failed to update this team twice, don't repeat the outer while loop
+                        # just for this team.
+                    continue
                 count_puts += 1
-                action_parameters['teams'][team_key] = team_entity['remaining_training_minutes']
+                action_parameters['teams_updated'][team_key] = team_entity['remaining_training_minutes']
                 action_parameters['num_teams_updated'] += 1
+                action_parameters['failure_counts'].pop(team_key, None)
                 if count_puts == 500:
                     action.retrigger_now(action_parameters)
 
@@ -1882,16 +1905,30 @@ def increment_remaining_training_minutes(action_parameters):
     increment_minutes = action_parameters['increment_minutes']
     # Update the team entities, 500 at a time.
     datastore_client = datastore.Client()
-    action.retrigger_if_necessary(action_parameters)
     count_puts = 0
-    with datastore_client.transaction() as transaction:
+    loop = True
+    while loop:
+        loop = False
+        action.retrigger_if_necessary(action_parameters)
         for team_entity in datastore_client.query(kind=DS_KIND_TEAM).fetch():
+            action.retrigger_if_necessary(action_parameters)
             team_key = '%s %s' % (team_entity['program'], str(team_entity['team_number']))
-            if team_key not in action_parameters['teams']:
+            if team_key not in action_parameters['teams_updated']:
                 team_entity['remaining_training_minutes'] += increment_minutes
-                transaction.put(team_entity)
+                try:
+                    datastore_client.put(team_entity)
+                except:
+                    if team_key not in action_parameters['failure_counts']:
+                        action_parameters['failure_counts'][team_key] = 1
+                        loop = True # repeat the outer while loop
+                    else:
+                        action_parameters['failure_counts'][team_key] += 1
+                        # We've failed to update this team twice, don't repeat the outer while loop
+                        # just for this team.
+                    continue
                 count_puts += 1
-                action_parameters['teams'][team_key] = team_entity['remaining_training_minutes']
+                action_parameters['teams_updated'][team_key] = team_entity['remaining_training_minutes']
                 action_parameters['num_teams_updated'] += 1
+                action_parameters['failure_counts'].pop(team_key, None)
                 if count_puts == 500:
                     action.retrigger_now(action_parameters)

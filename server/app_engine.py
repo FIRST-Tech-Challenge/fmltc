@@ -1379,14 +1379,15 @@ def resources():
 @roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
 def reset_remaining_training_minutes():
     data = validate_keys(flask.request.form.to_dict(flat=True),
-        ['reset_minutes'])
+        ['reset_minutes', 'date_time_string'])
     reset_minutes = validate_int(data.get('reset_minutes'), min=1, max=240)
     action_parameters = action.create_action_parameters(
         '', action.ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES)
-    action_parameters['datetime_string'] = str(datetime.now(timezone.utc))
     action_parameters['reset_minutes'] = reset_minutes
+    action_parameters['date_time_string'] = data.get('date_time_string')
     action_parameters['num_teams_updated'] = 0
-    action_parameters['teams'] = {}
+    action_parameters['teams_updated'] = {}
+    action_parameters['failure_counts'] = {}
     action_uuid = action.trigger_action_via_blob(action_parameters)
     response = {
         'action_uuid': action_uuid,
@@ -1400,14 +1401,15 @@ def reset_remaining_training_minutes():
 @roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
 def increment_remaining_training_minutes():
     data = validate_keys(flask.request.form.to_dict(flat=True),
-        ['increment_minutes'])
+        ['increment_minutes', 'date_time_string'])
     increment_minutes = validate_int(data.get('increment_minutes'), min=1, max=240)
     action_parameters = action.create_action_parameters(
         '', action.ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES)
-    action_parameters['datetime_string'] = str(datetime.now(timezone.utc))
     action_parameters['increment_minutes'] = increment_minutes
+    action_parameters['date_time_string'] = data.get('date_time_string')
     action_parameters['num_teams_updated'] = 0
-    action_parameters['teams'] = {}
+    action_parameters['teams_updated'] = {}
+    action_parameters['failure_counts'] = {}
     action_uuid = action.trigger_action_via_blob(action_parameters)
     response = {
         'action_uuid': action_uuid,

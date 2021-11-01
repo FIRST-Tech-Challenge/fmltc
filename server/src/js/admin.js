@@ -62,7 +62,8 @@ fmltc.Admin.prototype.resetButton_onclick = function() {
   this.enableInputsAndButtons(false);
 
   const xhr = new XMLHttpRequest();
-  const params = 'reset_minutes=' + this.resetInput.value;
+  const params = 'reset_minutes=' + this.resetInput.value +
+      '&date_time_string=' + encodeURIComponent(new Date().toLocaleString());
   xhr.open('POST', '/resetRemainingTrainingMinutes', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_resetRemainingTrainingMinutes_onreadystatechange.bind(this, xhr, params);
@@ -75,8 +76,6 @@ fmltc.Admin.prototype.xhr_resetRemainingTrainingMinutes_onreadystatechange = fun
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      this.resetResponse.textContent = 'The action to reset the remaining_training_minutes field ' +
-          'in all team entities has been triggered.';
       this.resetActionUuid.textContent = response.action_uuid;
       this.resetMonitorInfo.style.display = 'block';
 
@@ -94,7 +93,8 @@ fmltc.Admin.prototype.incrementButton_onclick = function() {
   this.enableInputsAndButtons(false);
 
   const xhr = new XMLHttpRequest();
-  const params = 'increment_minutes=' + this.incrementInput.value;
+  const params = 'increment_minutes=' + this.incrementInput.value +
+      '&date_time_string=' + encodeURIComponent(new Date().toLocaleString());
   xhr.open('POST', '/incrementRemainingTrainingMinutes', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_incrementRemainingTrainingMinutes_onreadystatechange.bind(this, xhr, params);
@@ -107,8 +107,6 @@ fmltc.Admin.prototype.xhr_incrementRemainingTrainingMinutes_onreadystatechange =
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      this.incrementResponse.textContent = 'The action to increment the remaining_training_minutes field ' +
-          'in all team entities has been triggered.';
       this.incrementActionUuid.textContent = response.action_uuid;
       this.incrementMonitorInfo.style.display = 'block';
 
