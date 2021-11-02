@@ -230,8 +230,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         .replace('TO_BE_CONFIGURED/num_visualizations', str(min(100, eval_frame_count)))
         .replace('TO_BE_CONFIGURED/train_batch_size', str(batch_size))
         .replace('TO_BE_CONFIGURED/train_input_path',  json.dumps(train_input_path))
-        .replace('TO_BE_CONFIGURED/warmup_steps_1000',  str(min(1000, num_training_steps)))
-        .replace('TO_BE_CONFIGURED/warmup_steps_2000',  str(min(2000, num_training_steps)))
+        .replace('TO_BE_CONFIGURED/warmup_steps_1000',  str(int(num_training_steps / 2)))
+        .replace('TO_BE_CONFIGURED/warmup_steps_2000',  str(int(num_training_steps / 2)))
         )
 
     packageUris = [
