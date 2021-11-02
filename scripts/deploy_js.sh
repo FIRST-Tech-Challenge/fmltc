@@ -12,6 +12,7 @@ java -jar $FMLTC_CLOSURE_COMPILER_JAR \
   --js $FMLTC_CLOSURE_LIBRARY_FOLDER/closure/goog/base.js \
   --js $FMLTC_CLOSURE_LIBRARY_FOLDER/closure/goog/deps.js \
   --only_closure_dependencies \
+  --entry_point fmltc.Admin \
   --entry_point fmltc.Box \
   --entry_point fmltc.DeleteConfirmationDialog \
   --entry_point fmltc.DeleteForbiddenDialog \

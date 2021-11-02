@@ -16,6 +16,7 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
 from datetime import datetime, timedelta, timezone
+import dateutil.parser
 import json
 import logging
 import math
@@ -41,28 +42,30 @@ import util
 
 BUCKET = ('%s' % constants.PROJECT_ID)
 
-USE_TPU = True  # False doesn't work yet. The models don't recognize objects.
-
 STARTING_MODELS = {
     'SSD MobileNet v2 320x320': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8/checkpoint/ckpt-0',
         'tpu_batch_size': 512,
+        'gpu_batch_size': 32,
     },
     'SSD MobileNet V2 FPNLite 320x320': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8/checkpoint/ckpt-0',
         'tpu_batch_size': 128,
+        'gpu_batch_size': 32,
     },
     'SSD MobileNet V1 FPN 640x640': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8/checkpoint/ckpt-0',
         'tpu_batch_size': 64,
+        'gpu_batch_size': 16,
     },
     'SSD MobileNet V2 FPNLite 640x640': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8/checkpoint/ckpt-0',
         'tpu_batch_size': 128,
+        'gpu_batch_size': 16,
     },
 }
 
@@ -77,49 +80,51 @@ def validate_starting_model(s):
     return s
 
 
-def get_starting_model_names():
-    names = list(STARTING_MODELS.keys())
-    return names
+def get_data_for_root_template(use_tpu):
+    return {
+        'starting_models': list(STARTING_MODELS.keys()),
+        'min_training_steps': get_min_training_steps(use_tpu),
+        'max_training_steps': get_max_training_steps(use_tpu),
+        'default_training_steps': __get_default_training_steps(use_tpu),
+        'batch_sizes': __get_batch_sizes(use_tpu),
+    }
 
-def get_min_training_steps():
-    if USE_TPU:
+def get_min_training_steps(use_tpu):
+    if use_tpu:
         return 100
-    return 1000
+    return 200
 
-def get_max_training_steps():
-    if USE_TPU:
+def get_max_training_steps(use_tpu):
+    if use_tpu:
         return 4000
-    return 400000
+    return 8000
 
-def get_default_training_steps():
-    if USE_TPU:
+def __get_default_training_steps(use_tpu):
+    if use_tpu:
         return 2000
-    return 200000
+    return 3000
 
-def __get_batch_size(original_starting_model):
-    if USE_TPU:
-        starting_model_data = STARTING_MODELS[original_starting_model]
-        return starting_model_data['tpu_batch_size']
-    return 8
+def __get_batch_sizes(use_tpu):
+    batch_sizes = {}
+    for name, starting_model_data in STARTING_MODELS.items():
+        batch_sizes[name] = starting_model_data['tpu_batch_size'] if use_tpu else starting_model_data['gpu_batch_size']
+    return batch_sizes
 
-def __get_scale_tier():
-    if USE_TPU:
+def __get_batch_size(use_tpu, original_starting_model, train_frame_count):
+    # The following code matches the code in function getBatchSize in util.js.
+    starting_model_data = STARTING_MODELS[original_starting_model]
+    batch_size = starting_model_data['tpu_batch_size'] if use_tpu else starting_model_data['gpu_batch_size']
+    while batch_size > train_frame_count and batch_size >= 2:
+        batch_size /= 2
+    return batch_size
+
+def __get_scale_tier(use_tpu):
+    if use_tpu:
         return 'BASIC_TPU'
     return 'BASIC_GPU'
 
-def __get_checkpoint_every_n(num_training_steps):
-    # Pick a nice round (divisible by 100, 1000, etc) so we get no more than 20 checkpoints.
-    exp = math.floor(math.log10(num_training_steps)) - 1
-    checkpoint_every_n = n = math.pow(10, exp)
-    while int(num_training_steps / checkpoint_every_n) > 20:
-        checkpoint_every_n += n
-    # Make checkpoint_every_n at least 100 so we don't miss checkpoints.
-    if checkpoint_every_n < 100:
-        checkpoint_every_n = min(100, num_training_steps)
-    return int(checkpoint_every_n)
-
 def start_training_model(team_uuid, description, dataset_uuids_json,
-        starting_model, max_running_minutes, num_training_steps, create_time_ms):
+        starting_model, max_running_minutes, num_training_steps, create_time_ms, use_tpu):
     # Call retrieve_model_list to update all models (which may have finished training) and update
     # the team_entity.
     model_entities = retrieve_model_list(team_uuid)
@@ -211,6 +216,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             logging.critical(message)
             raise exceptions.HttpErrorBadRequest(message)
 
+    batch_size = __get_batch_size(use_tpu, original_starting_model, train_frame_count)
+
     # Create the pipeline.config file and store it in cloud storage.
     bucket = util.storage_client().get_bucket(BUCKET)
     pipeline_config = (bucket.blob(config_template_blob_name).download_as_string().decode('utf-8')
@@ -221,7 +228,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         .replace('TO_BE_CONFIGURED/num_examples', str(eval_frame_count))
         .replace('TO_BE_CONFIGURED/num_training_steps', str(num_training_steps))
         .replace('TO_BE_CONFIGURED/num_visualizations', str(min(100, eval_frame_count)))
-        .replace('TO_BE_CONFIGURED/train_batch_size', str(__get_batch_size(original_starting_model)))
+        .replace('TO_BE_CONFIGURED/train_batch_size', str(batch_size))
         .replace('TO_BE_CONFIGURED/train_input_path',  json.dumps(train_input_path))
         .replace('TO_BE_CONFIGURED/warmup_steps_1000',  str(min(1000, num_training_steps)))
         .replace('TO_BE_CONFIGURED/warmup_steps_2000',  str(min(2000, num_training_steps)))
@@ -255,13 +262,13 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         args = [
             '--model_dir', model_dir,
             '--pipeline_config_path', pipeline_config_path,
-            '--checkpoint_every_n', str(__get_checkpoint_every_n(num_training_steps)),
+            '--checkpoint_every_n', str(100),
         ]
-        if USE_TPU:
+        if use_tpu:
             args.append('--use_tpu')
             args.append('true')
         train_training_input = {
-            'scaleTier': __get_scale_tier(),
+            'scaleTier': __get_scale_tier(use_tpu),
             'packageUris': packageUris,
             'pythonModule': 'object_detection.model_main_tf2',
             'args': args,
@@ -329,8 +336,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
 
     tensorflow_version = '2'
     model_entity = storage.model_trainer_started(team_uuid, model_uuid, description, model_folder,
-        tensorflow_version, dataset_uuids, create_time_ms, max_running_minutes, num_training_steps,
-        previous_training_steps, starting_model, user_visible_starting_model,
+        tensorflow_version, use_tpu, dataset_uuids, create_time_ms, max_running_minutes,
+        num_training_steps, batch_size, previous_training_steps, starting_model, user_visible_starting_model,
         original_starting_model, fine_tune_checkpoint,
         sorted_label_list, label_map_path, train_input_path, eval_input_path,
         train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
@@ -362,16 +369,22 @@ def __update_model_entity_job_state(model_entity, ml=None):
         if model_entity['eval_job']:
             eval_job_name = __get_eval_job_name(model_entity['model_uuid'])
             eval_job_response = ml.projects().jobs().get(name=eval_job_name).execute()
+            need_to_cancel_eval = False
             if __is_alive(eval_job_response['state']):
                 # If the training job has failed or been cancelled, cancel the eval job.
                 if __is_dead_or_dying(train_job_response['state']):
-                    ml.projects().jobs().cancel(name=eval_job_name).execute()
-                    eval_job_response = ml.projects().jobs().get(name=eval_job_name).execute()
+                    need_to_cancel_eval = True
                 # If the training job succeeded and we have the final eval, cancel the eval job.
-                elif (__is_done(train_job_response['state']) and
-                        model_entity['evaled_steps'] >= model_entity['trained_steps']):
-                    ml.projects().jobs().cancel(name=eval_job_name).execute()
-                    eval_job_response = ml.projects().jobs().get(name=eval_job_name).execute()
+                elif __is_done(train_job_response['state']):
+                    if model_entity['evaled_steps'] >= model_entity['trained_steps']:
+                        need_to_cancel_eval = True
+                    elif 'endTime' in train_job_response:
+                        time_since_train_ended = datetime.now(timezone.utc) - dateutil.parser.parse(train_job_response['endTime'])
+                        if time_since_train_ended> timedelta(minutes=10):
+                            need_to_cancel_eval = True
+            if need_to_cancel_eval:
+                ml.projects().jobs().cancel(name=eval_job_name).execute()
+                eval_job_response = ml.projects().jobs().get(name=eval_job_name).execute()
         else:
             eval_job_response = None
         try:

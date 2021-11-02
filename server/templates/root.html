@@ -387,7 +387,7 @@ limitations under the License.
                       <label for="stStartingModelSelect">Starting&nbsp;Model:&nbsp;</label>
                     </td>
                     <td colspan="3">
-                      <select id="stStartingModelSelect" class="text-18"></select>
+                      <select id="stStartingModelSelect"></select>
                     </td>
                   </tr>
                 </table>
@@ -398,34 +398,43 @@ limitations under the License.
                       <label for="stNumTrainingStepsInput">Number&nbsp;of&nbsp;Training&nbsp;Steps:&nbsp;</label>
                     </td>
                     <td>
-                      <input id="stNumTrainingStepsInput" type="number" class="rightText text-18"
-                            min="{{min_training_steps}}" max="{{max_training_steps}}" style="width: 20ch">
+                      <input id="stNumTrainingStepsInput" type="number" class="rightText" style="width: 20ch">
                     </td>
                   </tr>
+                </table>
+                <br>
+                <table>
                   <tr>
                     <td>
                       <label for="stMaxRunningMinutesInput">Maximum&nbsp;Training&nbsp;Time:&nbsp;</label>
                     </td>
                     <td>
-                      <input id="stMaxRunningMinutesInput" type="number" class="rightText text-18" style="width: 10ch">&nbsp;Minutes
+                      <input id="stMaxRunningMinutesInput" type="number" class="rightText" style="width: 10ch">&nbsp;Minutes
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2">
+                      <div class="text-14" style="padding-left: 20px">
+                        Your team has <span id="stRemainingTrainingMinutesSpan"></span> minutes of training time remaining.
+                      </div>
                     </td>
                   </tr>
                 </table>
                 <br>
-                <div class="text-16">
-                  Each team is allowed <span id="stTotalTrainingMinutesSpan"></span> minutes of training time.<br>
-                  Your team has <span id="stRemainingTrainingMinutesSpan"></span> minutes of training time remaining.
-                </div>
+                <label for="stDescriptionInput">Description:</label><br>
+                <input type="text" maxlength="30" id="stDescriptionInput" class="form-control" style="width: 100%">
+                <br>
+                <div class="text-14" id="stDatasetSizeInfo"></div>
+                <div class="text-14" id="stBatchSizeInfo"></div>
+                <div class="text-14" id="stEpochInfo"></div>
+                <div class="text-14" id="stNumEpochs"></div>
+                <br>
+                <button id="stStartButton" class="btn btn-secondary">Start Training</button>
+                <br>
+                <div id="stInProgressDiv" class="text-16" style="display: none;">Submitting job request...</div>
+                <div id="stSuccessDiv" class="text-16" style="display: none;">Training job is queued.</div>
+                <div id="stFailedDiv" class="text-16" style="display: none;">Failed!</div>
               </div>
-              <br>
-              <label for="stDescriptionInput" class="text-18">Description:</label><br>
-              <input type="text" maxlength="30" id="stDescriptionInput" class="form-control" style="width: 100%">
-              <br><br>
-              <button id="stStartButton" class="btn btn-secondary">Start Training</button>
-              <br>
-              <div id="stInProgressDiv" style="display: none;">Submitting job request...</div>
-              <div id="stSuccessDiv" style="display: none;">Training job is queued.</div>
-              <div id="stFailedDiv" style="display: none;">Failed!</div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="stCloseButton">Close</button>
@@ -443,46 +452,54 @@ limitations under the License.
             </div>
             <div class="modal-body">
               <div class="text-18">
+                <div id="tmDatasetsHeaderDiv" style="display: none;">
+                  You can add any of these datasets to the training data:
+                </div>
+                <div id="tmDatasetsContainerDiv" class="text-16" style="padding-left: 20px"></div>
+                <br>
                 <table>
                   <tr>
                     <td>
                       <label for="tmNumTrainingStepsInput">Number&nbsp;of&nbsp;Training&nbsp;Steps:&nbsp;</label>
                     </td>
                     <td>
-                      <input id="tmNumTrainingStepsInput" type="number" class="rightText text-18"
-                            min="{{min_training_steps}}" max="{{max_training_steps}}" style="width: 20ch">
+                      <input id="tmNumTrainingStepsInput" type="number" class="rightText" style="width: 20ch">
                     </td>
                   </tr>
+                </table>
+                <br>
+                <table>
                   <tr>
                     <td>
                       <label for="tmMaxRunningMinutesInput">Maximum&nbsp;Training&nbsp;Time:&nbsp;</label>
                     </td>
                     <td>
-                      <input id="tmMaxRunningMinutesInput" type="number" class="rightText text-18" style="width: 10ch">&nbsp;Minutes
+                      <input id="tmMaxRunningMinutesInput" type="number" class="rightText" style="width: 10ch">&nbsp;Minutes
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2">
+                      <div class="text-14" style="padding-left: 20px">
+                        Your team has <span id="tmRemainingTrainingMinutesSpan"></span> minutes of training time remaining.
+                      </div>
                     </td>
                   </tr>
                 </table>
                 <br>
-                <div class="text-16">
-                  Each team is allowed <span id="tmTotalTrainingMinutesSpan"></span> minutes of training time.<br>
-                  Your team has <span id="tmRemainingTrainingMinutesSpan"></span> minutes of training time remaining.
-                </div>
+                <label for="tmDescriptionInput">Description:</label><br>
+                <input type="text" maxlength="30" id="tmDescriptionInput" class="form-control" style="width: 100%">
+                <br>
+                <div class="text-14" id="tmDatasetSizeInfo"></div>
+                <div class="text-14" id="tmBatchSizeInfo"></div>
+                <div class="text-14" id="tmEpochInfo"></div>
+                <div class="text-14" id="tmNumEpochs"></div>
+                <br>
+                <button id="tmStartButton" class="btn btn-secondary">Start Training</button>
+                <br>
+                <div id="tmInProgressDiv" class="text-16" style="display: none;">Submitting job request...</div>
+                <div id="tmSuccessDiv" class="text-16" style="display: none;">Training job is queued.</div>
+                <div id="tmFailedDiv" class="text-16" style="display: none;">Failed!</div>
               </div>
-              <br>
-              <div class="text-18" id="tmDatasetsHeaderDiv" style="display: none;">
-                You can add any of these datasets to the model:
-              </div>
-              <div id="tmDatasetsContainerDiv">
-              </div>
-              <br>
-              <label for="tmDescriptionInput" class="text-18">Description:</label><br>
-              <input type="text" maxlength="30" id="tmDescriptionInput" class="form-control" style="width: 100%">
-              <br><br>
-              <button id="tmStartButton" class="btn btn-secondary">Start Training</button>
-              <br>
-              <div id="tmInProgressDiv" style="display: none;">Submitting job request...</div>
-              <div id="tmSuccessDiv" style="display: none;">Training job is queued.</div>
-              <div id="tmFailedDiv" style="display: none;">Failed!</div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="tmCloseButton">Close</button>
@@ -517,10 +534,7 @@ limitations under the License.
   window.addEventListener('load', function() {
     const util = new fmltc.Util('root',
       {{ team_preferences|tojson }},
-      {{min_training_steps}},
-      {{max_training_steps}},
-      {{default_training_steps}},
-      {{ starting_models|tojson }},
+      {{ model_trainer_data|tojson }},
       {{ training_enabled }});
     util.setListModels(new fmltc.ListModels(util));
     util.setListDatasets(new fmltc.ListDatasets(util));

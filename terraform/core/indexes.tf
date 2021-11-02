@@ -387,3 +387,16 @@ resource "google_datastore_index" "action2" {
   }
   depends_on = [google_datastore_index.action1]
 }
+
+resource "google_datastore_index" "adminAction1" {
+  kind = "AdminAction"
+  properties {
+    name = "action_uuid"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "create_time"
+    direction = "ASCENDING"
+  }
+  depends_on = [google_app_engine_application.fmltc-app]
+}

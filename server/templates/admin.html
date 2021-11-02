@@ -1,0 +1,70 @@
+<!--
+Copyright 2021 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+{% extends 'layout.html' %}
+{% block content %}
+
+<main class="flex-shrink-0">
+  <div class="container">
+    <h2>Reset all teams' remaining_training_minutes</h2>
+    <label for="resetInput" class="text-18">Reset to:</label>&nbsp;
+    <input id="resetInput" type="number" class="text-18 rightText" value="240"
+          min="1" max="240" style="width: 7ch">
+    <br>
+    <button id="resetButton" class="btn btn-secondary">Reset</button>
+    <div id="resetResponse"></div>
+    <div id="resetMonitorInfo" style="display: none">
+        The action to increment the <i>remaining_training_minutes</i> field in all team entities
+        has been triggered.<br>
+        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i><br>
+        &quot;<span id="resetActionUuid" class="fw-bold"></span>&quot;.<br>
+        When the <i>state</i> field becomes &quot;finished&quot;, the <i>teams_updated</i> fields will contain all the<br>
+        teams that have been updated, along with the new <i>remaining_training_minutes</i> values.<br>
+        The <i>failure_counts</i> field will contain the teams that were not updated, along with the<br>
+        number of times that updating failed.
+    </div>
+
+    <br><hr><br>
+
+    <h2>Increment all teams' remaining_training_minutes</h2>
+    <label for="incrementInput" class="text-18">Increment by:</label>&nbsp;
+    <input id="incrementInput" type="number" class="text-18 rightText" value="60"
+          min="1" max="240" style="width: 7ch">
+    <br>
+    <button id="incrementButton" class="btn btn-secondary">Increment</button>
+    <div id="incrementResponse"></div>
+    <div id="incrementMonitorInfo" style="display: none">
+        The action to increment the <i>remaining_training_minutes</i> field in all team entities
+        has been triggered.<br>
+        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i><br>
+        &quot;<span id="incrementActionUuid" class="fw-bold"></span>&quot;.<br>
+        When the <i>state</i> field becomes &quot;finished&quot;, the <i>teams_updated</i> fields will contain all the<br>
+        teams that have been updated, along with the new <i>remaining_training_minutes</i> values.<br>
+        The <i>failure_counts</i> field will contain the teams that were not updated, along with the<br>
+        number of times that updating failed.
+    </div>
+
+    <br><hr><br>
+  </div>
+
+<script type="text/javascript">
+  window.addEventListener('load', function() {
+    new fmltc.Admin();
+  });
+</script>
+</main>
+
+{% endblock %}

@@ -30,10 +30,11 @@ goog.require('fmltc.Util');
  * @constructor
  */
 fmltc.StartTrainingDialog = function(
-    util, totalTrainingMinutes, remainingTrainingMinutes, datasetUuids, onTrainingStarted) {
+    util, remainingTrainingMinutes, datasetUuids, trainFrameCount, onTrainingStarted) {
   /** @type {!fmltc.Util} */
   this.util = util;
   this.datasetUuids = datasetUuids;
+  this.trainFrameCount = trainFrameCount;
 
   this.onTrainingStarted = onTrainingStarted;
   this.dialog = document.getElementById('startTrainingDialog');
@@ -41,7 +42,6 @@ fmltc.StartTrainingDialog = function(
   this.xButton = document.getElementById('stXButton');
   this.closeButton = document.getElementById('stCloseButton');
   this.maxRunningMinutesInput = document.getElementById('stMaxRunningMinutesInput');
-  this.totalTrainingMinutesSpan = document.getElementById('stTotalTrainingMinutesSpan');
   this.remainingTrainingMinutesSpan = document.getElementById('stRemainingTrainingMinutesSpan');
   this.startingModelSelect = document.getElementById('stStartingModelSelect');
   this.numTrainingStepsInput = document.getElementById('stNumTrainingStepsInput');
@@ -58,7 +58,7 @@ fmltc.StartTrainingDialog = function(
   this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
 
   if (this.startingModelSelect.options.length == 0) {
-    const startingModels = this.util.startingModels;
+    const startingModels = this.util.modelTrainerData['starting_models'];
     for (let i = 0; i < startingModels.length; i++) {
       const option = document.createElement('option');
       option.text = startingModels[i];
@@ -66,20 +66,21 @@ fmltc.StartTrainingDialog = function(
     }
   }
 
-  this.numTrainingStepsInput.min = this.util.minTrainingSteps;
-  this.numTrainingStepsInput.max = this.util.maxTrainingSteps;
-  this.numTrainingStepsInput.value = this.util.defaultTrainingSteps;
+  this.numTrainingStepsInput.min = this.util.modelTrainerData['min_training_steps'];
+  this.numTrainingStepsInput.max = this.util.modelTrainerData['max_training_steps'];
+  this.numTrainingStepsInput.value = this.util.modelTrainerData['default_training_steps'];
+  this.updateHelpfulText();
 
   this.descriptionInput.value = '';
 
   this.updateStartButton();
-  this.totalTrainingMinutesSpan.textContent = String(totalTrainingMinutes);
   this.remainingTrainingMinutesSpan.textContent = String(remainingTrainingMinutes);
   this.inProgressDiv.style.display = 'none';
   this.successDiv.style.display = 'none';
   this.failedDiv.style.display = 'none';
 
   this.xButton.onclick = this.closeButton.onclick = this.closeButton_onclick.bind(this);
+  this.startingModelSelect.onchange = this.startingModelSelect_onchange.bind(this);
   this.numTrainingStepsInput.onchange = this.numTrainingStepsInput_onchange.bind(this);
   this.maxRunningMinutesInput.onchange = this.maxRunningMinutesInput_onchange.bind(this);
   this.descriptionInput.oninput = this.descriptionInput_oninput.bind(this);
@@ -98,8 +99,49 @@ fmltc.StartTrainingDialog.prototype.closeButton_onclick = function() {
   this.backdrop.style.display = 'none';
 };
 
+fmltc.StartTrainingDialog.prototype.startingModelSelect_onchange = function() {
+  this.updateHelpfulText();
+};
+
+fmltc.StartTrainingDialog.prototype.updateHelpfulText = function() {
+  const info = this.getTrainingInfo();
+
+  let datasetSizeInfo = 'Your selected ';
+  datasetSizeInfo += info.oneDataset ? 'dataset contains ' : 'datasets contain ';
+  datasetSizeInfo += info.trainFrameCount + ' training images.';
+  document.getElementById('stDatasetSizeInfo').textContent = datasetSizeInfo;
+
+  document.getElementById('stBatchSizeInfo').textContent =
+      'With the selected model, ' + info.batchSize + ' images will be processed during each step. This is called the batch size.';
+
+  document.getElementById('stEpochInfo').textContent =
+      'It will take ' + info.stepsPerEpoch + ' steps to perform one full cycle through your training data. This is called an epoch.';
+
+  document.getElementById('stNumEpochs').textContent =
+      'Training for ' + info.numSteps + ' steps will perform ' + info.numEpochs + ' epochs.'
+};
+
+fmltc.StartTrainingDialog.prototype.getTrainingInfo = function() {
+  const oneDataset = this.datasetUuids.length == 1;
+  const trainFrameCount = this.trainFrameCount;
+  const startingModel = this.startingModelSelect.options[this.startingModelSelect.selectedIndex].value;
+  const batchSize = this.util.getBatchSize(startingModel, trainFrameCount);
+  const stepsPerEpoch = Math.ceil(trainFrameCount / batchSize);
+  const numSteps = this.numTrainingStepsInput.value;
+  const numEpochs = Math.floor(numSteps * batchSize / trainFrameCount);
+  return {
+    'oneDataset': oneDataset,
+    'trainFrameCount': trainFrameCount,
+    'batchSize': batchSize,
+    'stepsPerEpoch': stepsPerEpoch,
+    'numEpochs': numEpochs,
+    'numSteps': numSteps,
+  };
+};
+
 fmltc.StartTrainingDialog.prototype.numTrainingStepsInput_onchange = function() {
   this.numTrainingStepsInput.value = Math.max(this.numTrainingStepsInput.min, Math.min(this.numTrainingStepsInput.value, this.numTrainingStepsInput.max));
+  this.updateHelpfulText();
   this.updateStartButton();
 };
 

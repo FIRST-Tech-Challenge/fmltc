@@ -301,11 +301,18 @@ fmltc.ListDatasets.prototype.downloadDatasetButton_onclick = function() {
 };
 
 fmltc.ListDatasets.prototype.startTrainingButton_onclick = function() {
-  const datasetUuids = this.getCheckedDatasetUuids();
+  const datasetUuids = [];
+  let trainFrameCount = 0;
+  for (let i = 0; i < this.checkboxes.length; i++) {
+    if (this.checkboxes[i].checked) {
+      datasetUuids.push(this.datasetEntityArray[i].dataset_uuid);
+      trainFrameCount += this.datasetEntityArray[i].train_frame_count;
+    }
+  }
   const listModels = this.util.getListModels();
   new fmltc.StartTrainingDialog(
-      this.util, listModels.totalTrainingMinutes, listModels.remainingTrainingMinutes,
-      datasetUuids, this.onTrainingStarted.bind(this));
+      this.util, listModels.remainingTrainingMinutes,
+      datasetUuids, trainFrameCount, this.onTrainingStarted.bind(this));
 };
 
 fmltc.ListDatasets.prototype.onTrainingStarted = function(remainingTrainingMinutes, modelEntity) {

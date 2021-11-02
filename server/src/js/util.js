@@ -26,16 +26,11 @@ goog.provide('fmltc.Util');
  * Class for utilities.
  * @constructor
  */
-fmltc.Util = function(pageBasename, preferences,
-    minTrainingSteps, maxTrainingSteps, defaultTrainingSteps,
-    startingModels, training_enabled) {
+fmltc.Util = function(pageBasename, preferences, modelTrainerData, trainingEnabled) {
   this.pageBasename = pageBasename;
   this.preferences = preferences;
-  this.minTrainingSteps = minTrainingSteps;
-  this.maxTrainingSteps = maxTrainingSteps;
-  this.defaultTrainingSteps = defaultTrainingSteps;
-  this.startingModels = startingModels;
-  this.trainingEnabled = training_enabled
+  this.modelTrainerData = modelTrainerData;
+  this.trainingEnabled = trainingEnabled;
 
   this.currentTabContentId = '';
   this.tabClickListeners = [];
@@ -272,6 +267,15 @@ fmltc.Util.prototype.insertCellWithClass = function(tr, clazz) {
   const td = tr.insertCell(-1);
   this.addClass(td, clazz);
   return td;
+};
+
+fmltc.Util.prototype.getBatchSize = function(startingModel, trainFrameCount) {
+  // The following code matches the code in function __get_batch_size in model_trainer.py.
+  let batchSize = this.modelTrainerData.batch_sizes[startingModel];
+  while (batchSize > trainFrameCount && batchSize >= 2) {
+    batchSize /= 2;
+  }
+  return batchSize;
 };
 
 fmltc.Util.prototype.isTrainingDone = function(modelEntity) {

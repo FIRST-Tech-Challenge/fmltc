@@ -56,6 +56,7 @@ from wrappers import handle_exceptions
 from wrappers import redirect_to_login_if_needed
 from wrappers import login_required
 from wrappers import oidc_require_login
+from wrappers import roles_accepted
 from wrappers import roles_required
 
 
@@ -412,10 +413,7 @@ def index():
         can_upload_video=roles.can_upload_video(flask.session['user_roles']),
         training_enabled=config.get_training_enabled_as_str(),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
-        min_training_steps=model_trainer.get_min_training_steps(),
-        max_training_steps=model_trainer.get_max_training_steps(),
-        default_training_steps=model_trainer.get_default_training_steps(),
-        starting_models=model_trainer.get_starting_model_names())
+        model_trainer_data=model_trainer.get_data_for_root_template(config.get_use_tpu()))
 
 @app.route('/labelVideo')
 @handle_exceptions
@@ -460,6 +458,13 @@ def monitor_training():
         model_entities_by_uuid=model_entities_by_uuid,
         dataset_entities_by_uuid=dataset_entities_by_uuid,
         video_entities_by_uuid=video_entities_by_uuid)
+
+@app.route('/admin', methods=['GET'])
+@handle_exceptions
+@login_required
+@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
+def admin():
+    return flask.render_template('admin.html')
 
 
 # requests
@@ -780,7 +785,7 @@ def store_video_frame_bboxes_text():
     # storage.store_video_frame_bboxes_text will raise HttpErrorNotFound
     # if the team_uuid/video_uuid/frame_number is not found.
     storage.store_video_frame_bboxes_text(team_uuid, video_uuid, frame_number, bboxes_text)
-    return 'ok'
+    return 'OK'
 
 @app.route('/storeVideoFrameIncludeInDataset', methods=['POST'])
 @handle_exceptions
@@ -795,7 +800,7 @@ def store_video_frame_include_in_dataset():
     # storage.store_video_frame_include_in_dataset will raise HttpErrorNotFound
     # if the team_uuid/video_uuid/frame_number is not found.
     storage.store_video_frame_include_in_dataset(team_uuid, video_uuid, frame_number, include_frame_in_dataset)
-    return 'ok'
+    return 'OK'
 
 @app.route('/prepareToStartTracking', methods=['POST'])
 @handle_exceptions
@@ -1113,7 +1118,8 @@ def start_training_model():
     starting_model = model_trainer.validate_starting_model(data.get('starting_model'))
     max_running_minutes = validate_positive_float(data.get('max_running_minutes'))
     num_training_steps = validate_int(data.get('num_training_steps'),
-        min=model_trainer.get_min_training_steps(), max=model_trainer.get_max_training_steps())
+        min=model_trainer.get_min_training_steps(config.get_use_tpu()),
+        max=model_trainer.get_max_training_steps(config.get_use_tpu()))
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
     # model_trainer.start_training_model will raise HttpErrorNotFound
     # if starting_model is not a valid starting model and it's not a valid model_uuid, or
@@ -1123,7 +1129,7 @@ def start_training_model():
     # model_trainer.start_training_model will raise HttpErrorUnprocessableEntity
     # if the max_running_minutes exceeds the team's remaining_training_minutes.
     model_entity = model_trainer.start_training_model(team_uuid, description, dataset_uuids_json,
-        starting_model, max_running_minutes, num_training_steps, create_time_ms)
+        starting_model, max_running_minutes, num_training_steps, create_time_ms, config.get_use_tpu())
     # Retrieve the team entity so the client gets the updated remaining_training_minutes.
     team_entity = storage.retrieve_team_entity(team_uuid)
     strip_model_entity(model_entity)
@@ -1261,7 +1267,6 @@ def retrieve_model_entities():
     for model_entity in model_entities:
         strip_model_entity(model_entity)
     response = {
-        'total_training_minutes': team_info.TOTAL_TRAINING_MINUTES_PER_TEAM,
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entities': model_entities,
     }
@@ -1365,6 +1370,52 @@ def get_tflite_download_url():
 @app.route('/resources', methods=['GET'])
 def resources():
     return flask.render_template('resources.html')
+
+# admin requests
+
+@app.route('/resetRemainingTrainingMinutes', methods=['POST'])
+@handle_exceptions
+@login_required
+@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
+def reset_remaining_training_minutes():
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['reset_minutes', 'date_time_string'])
+    reset_minutes = validate_int(data.get('reset_minutes'), min=1, max=240)
+    action_parameters = action.create_action_parameters(
+        '', action.ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES)
+    action_parameters['reset_minutes'] = reset_minutes
+    action_parameters['date_time_string'] = data.get('date_time_string')
+    action_parameters['num_teams_updated'] = 0
+    action_parameters['teams_updated'] = {}
+    action_parameters['failure_counts'] = {}
+    action_uuid = action.trigger_action_via_blob(action_parameters)
+    response = {
+        'action_uuid': action_uuid,
+    }
+    return flask.jsonify(response)
+
+
+@app.route('/incrementRemainingTrainingMinutes', methods=['POST'])
+@handle_exceptions
+@login_required
+@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
+def increment_remaining_training_minutes():
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['increment_minutes', 'date_time_string'])
+    increment_minutes = validate_int(data.get('increment_minutes'), min=1, max=240)
+    action_parameters = action.create_action_parameters(
+        '', action.ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES)
+    action_parameters['increment_minutes'] = increment_minutes
+    action_parameters['date_time_string'] = data.get('date_time_string')
+    action_parameters['num_teams_updated'] = 0
+    action_parameters['teams_updated'] = {}
+    action_parameters['failure_counts'] = {}
+    action_uuid = action.trigger_action_via_blob(action_parameters)
+    response = {
+        'action_uuid': action_uuid,
+    }
+    return flask.jsonify(response)
+
 
 # performActionGAE is for debugging purposes only.
 @app.route('/performActionGAE', methods=['POST'])
