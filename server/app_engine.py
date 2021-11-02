@@ -128,7 +128,8 @@ application_properties = json.load(open('app.properties', 'r'))
 def inject_time():
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return dict(time_time=time.time(), project_id=constants.PROJECT_ID, name=flask.session.get('given_name'),
-                program=program, team_number=team_number, version=application_properties.get('version'),
+                program=program, team_number=team_number, is_admin=roles.is_global_admin(flask.session.get('user_roles')),
+                version=application_properties.get('version'),
                 announcements=announcements.get_unexpired_announcements())
 
 
