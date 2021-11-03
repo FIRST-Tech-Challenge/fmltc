@@ -127,13 +127,8 @@ application_properties = json.load(open('app.properties', 'r'))
 @app.context_processor
 def inject_time():
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
-    if 'user_roles' in flask.session:
-        is_admin = roles.is_global_admin(flask.session.get('user_roles'))
-    else:
-        is_admin = False
     return dict(time_time=time.time(), project_id=constants.PROJECT_ID, name=flask.session.get('given_name'),
-                program=program, team_number=team_number, is_admin=is_admin,
-                version=application_properties.get('version'),
+                program=program, team_number=team_number, version=application_properties.get('version'),
                 announcements=announcements.get_unexpired_announcements())
 
 
