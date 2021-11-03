@@ -127,8 +127,13 @@ application_properties = json.load(open('app.properties', 'r'))
 @app.context_processor
 def inject_time():
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
+    if 'user_roles' in flask.session:
+        is_admin = roles.is_global_admin(flask.session.get('user_roles'))
+    else:
+        is_admin = False
     return dict(time_time=time.time(), project_id=constants.PROJECT_ID, name=flask.session.get('given_name'),
-                program=program, team_number=team_number, version=application_properties.get('version'),
+                program=program, team_number=team_number, is_admin=is_admin,
+                version=application_properties.get('version'),
                 announcements=announcements.get_unexpired_announcements())
 
 
@@ -350,8 +355,11 @@ def setXFrameOptions(response):
 @app.route('/selectTeam')
 @handle_exceptions
 def select_team():
-    teams = flask.request.args.getlist('teams')
-    return flask.render_template('selectTeam.html', teams=teams)
+    if oidc.is_user_loggedin():
+        teams = flask.request.args.getlist('teams')
+        return flask.render_template('selectTeam.html', teams=teams)
+    else:
+        return flask.redirect(flask.url_for('login'))
 
 @app.route('/submitTeam', methods=['GET', 'POST'])
 def submit_team():
@@ -379,7 +387,13 @@ def submit_team():
 
         return flask.redirect(flask.url_for('index'))
     else:
-        raise Forbidden()
+        #
+        # One can get here by handcrafting a url, or by clicking on the name/team number, which
+        # redirects to the ftc-scoring account page.  If a user, then navigates using the back button,
+        # they are no longer logged in per oidc's notion of logged, but still logged in per ftc-scoring's
+        # notion of logged in, so just redirect to login to get another oidc session going.
+        #
+        return flask.redirect(flask.url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
