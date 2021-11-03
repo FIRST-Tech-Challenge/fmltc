@@ -101,5 +101,5 @@ class Config(dict):
     # not recognize.
     #
     def get_training_enabled_as_str(self):
-        return str(self.training_enabled).lower()
+        return str(self[KEY_TRAINING_ENABLED]).lower()
 
