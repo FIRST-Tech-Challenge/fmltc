@@ -13,6 +13,8 @@
 # limitations under the License.
 
 from google.cloud import datastore
+import constants
+import redis
 
 #
 # The following corresponds to a datastore document and properties
@@ -26,23 +28,40 @@ KEY_USE_TPU = 'use_tpu'
 KEY_SECURE_SESSION_COOKIES = 'secure_session_cookies'
 KEY_SAMESITE_SESSION_COOKIES = 'samesite_session_cookies'
 
+from distutils.util import strtobool
 
 #
 # Container for properties that should be read on startup, and maybe be
 # refreshed dynamically.
 #
-class Config:
+# If using redis all the keys are cached in the redis server, otherwise
+# the keys are just the attributes of this class.  Note that redis does
+# not support boolean values.  Hence care must be taken with the string
+# conversion.
+#
+class Config(dict):
 
-    training_enabled = True
-    use_tpu = True
-    secure_session_cookies = True
-    samesite_session_cookies = True
+    def __init__(self):
+        if constants.REDIS_IP_ADDR is not None:
+            self.red = redis.Redis(constants.REDIS_IP_ADDR, port=6379)
+
+    def __getitem__(self, key):
+        if constants.REDIS_IP_ADDR is not None:
+            # TODO: Rethink how this is done as it will break if we store anything in the config other than a boolean.
+            return True if strtobool(str(self.red.get(key), 'utf-8')) else False
+        else:
+            return super(Config, self).__getitem__(key)
+
+    def __setitem__(self, key, value):
+       if constants.REDIS_IP_ADDR is not None:
+           self.red.set(key, str(value))
+       super(Config, self).__setitem__(key, value)
 
     def reset(self):
-        self.training_enabled = True
-        self.use_tpu = True
-        self.secure_session_cookies = True
-        self.samesite_session_cookies = True
+        self[KEY_TRAINING_ENABLED] = True
+        self[KEY_USE_TPU] = True
+        self[KEY_SECURE_SESSION_COOKIES] = True
+        self[KEY_SAMESITE_SESSION_COOKIES] = True
 
     def refresh(self):
         client = datastore.Client()
@@ -57,27 +76,24 @@ class Config:
 
         entity = config[0]
         if KEY_TRAINING_ENABLED in entity:
-            self.training_enabled = entity[KEY_TRAINING_ENABLED]
+            self[KEY_TRAINING_ENABLED] = entity[KEY_TRAINING_ENABLED]
         else:
-            self.training_enabled = True
+            self[KEY_TRAINING_ENABLED] = True
 
         if KEY_USE_TPU in entity:
-            self.use_tpu = entity[KEY_USE_TPU]
+            self[KEY_USE_TPU] = entity[KEY_USE_TPU]
         else:
-            self.use_tpu = True
+            self[KEY_USE_TPU] = True
 
         if KEY_SECURE_SESSION_COOKIES in entity:
-            self.secure_session_cookies = entity[KEY_SECURE_SESSION_COOKIES]
+            self[KEY_SECURE_SESSION_COOKIES] = entity[KEY_SECURE_SESSION_COOKIES]
         else:
-            self.secure_session_cookies = True
+            self[KEY_SECURE_SESSION_COOKIES] = True
 
         if KEY_SAMESITE_SESSION_COOKIES in entity:
-            self.samesite_session_cookies = entity[KEY_SAMESITE_SESSION_COOKIES]
+            self[KEY_SAMESITE_SESSION_COOKIES] = entity[KEY_SAMESITE_SESSION_COOKIES]
         else:
-            self.samesite_session_cookies = True
-
-    def get_training_enabled(self):
-        return self.training_enabled
+            self[KEY_SAMESITE_SESSION_COOKIES] = True
 
     #
     # This is for compatibility with javascript.  If we pass in a python boolean
@@ -86,13 +102,4 @@ class Config:
     #
     def get_training_enabled_as_str(self):
         return str(self.training_enabled).lower()
-
-    def get_use_tpu(self):
-        return self.use_tpu
-
-    def get_secure_session_cookies(self):
-        return self.secure_session_cookies
-
-    def get_samesite_session_cookies(self):
-        return self.samesite_session_cookies
 

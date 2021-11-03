@@ -44,6 +44,13 @@ fmltc.Admin = function() {
   this.incrementInput.onchange = this.incrementInput_onchange.bind(this);
   this.incrementButton.onclick = this.incrementButton_onclick.bind(this);
 
+  this.trainingEnabled = document.getElementById('trainingEnabled');
+  this.useTpu = document.getElementById('useTpu');
+  this.secureSessionCookies = document.getElementById('secureSessionCookies');
+  this.samesiteSessionCookies = document.getElementById('samesiteSessionCookies');
+  this.refreshConfigButton = document.getElementById('refreshConfigButton');
+  this.refreshConfigButton.onclick = this.refreshConfigButton_onclick.bind(this);
+
   this.enableInputsAndButtons(true);
 };
 
@@ -52,6 +59,7 @@ fmltc.Admin.prototype.enableInputsAndButtons = function(enable) {
   this.resetButton.disabled = !enable;
   this.incrementInput.disabled = !enable;
   this.incrementButton.disabled = !enable;
+  this.refreshConfigButton.disables = !enable;
 };
 
 fmltc.Admin.prototype.resetInput_onchange = function() {
@@ -115,3 +123,30 @@ fmltc.Admin.prototype.xhr_incrementRemainingTrainingMinutes_onreadystatechange =
     }
   }
 };
+
+fmltc.Admin.prototype.refreshConfigButton_onclick = function() {
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/refreshConfig', true);
+  xhr.onreadystatechange = this.xhr_refreshConfigButton_onreadystatechange.bind(this, xhr);
+  xhr.send();
+};
+
+fmltc.Admin.prototype.capitalize = function(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
+fmltc.Admin.prototype.xhr_refreshConfigButton_onreadystatechange = function(xhr, params) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+      this.trainingEnabled.textContent = this.capitalize(response.training_enabled.toString());
+      this.useTpu.textContent = this.capitalize(response.use_tpu.toString());
+      this.secureSessionCookies.textContent = this.capitalize(response.secure_session_cookies.toString());
+      this.samesiteSessionCookies.textContent = this.capitalize(response.samesite_session_cookies.toString());
+
+    }
+  }
+};
+
