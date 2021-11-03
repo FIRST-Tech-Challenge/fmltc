@@ -46,7 +46,7 @@ ACTIVE_MEMORY_LIMIT = 2000000000
 ACTION_TEAM_UUID = 'action_team_uuid'
 ACTION_NAME = 'action_name'
 ACTION_UUID = 'action_uuid'
-ACTION_IS_ADMIN_ACTION = 'is_admin_action'
+ACTION_IS_ADMIN_ACTION = 'action_is_admin_action'
 ACTION_TIME_LIMIT = 'action_time_limit'
 ACTION_RETRIGGERED = 'action_retriggered'
 
@@ -183,22 +183,18 @@ def __perform_action(action_parameters, time_limit):
     else:
         util.log('action.perform_action - %s - action_fn is None' % action_parameters[ACTION_NAME])
 
-    util.log('action.perform_action - %s - stop' % action_parameters[ACTION_NAME])
-    storage.action_on_stop(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION], action_parameters)
     if ACTION_RETRIGGERED not in action_parameters:
         util.log('action.perform_action - %s - finish' % action_parameters[ACTION_NAME])
-        action_entity = storage.action_on_finish(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION])
+        action_entity = storage.action_on_finish(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION], action_parameters)
         metrics.save_action_metrics(action_entity)
 
 
-def __retrigger_action(action_parameters):
+def retrigger_now(action_parameters):
     if ACTION_RETRIGGERED not in action_parameters:
+        util.log('action.retrigger_now - %s - stop' % action_parameters[ACTION_NAME])
+        storage.action_on_stop(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION])
         trigger_action_via_blob(action_parameters)
         action_parameters[ACTION_RETRIGGERED] = True
-
-
-def retrigger_now(action_parameters):
-    __retrigger_action(action_parameters)
     raise Stop()
 
 
