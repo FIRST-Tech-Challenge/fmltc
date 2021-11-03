@@ -127,7 +127,7 @@ fmltc.Admin.prototype.xhr_incrementRemainingTrainingMinutes_onreadystatechange =
 fmltc.Admin.prototype.refreshConfigButton_onclick = function() {
   const xhr = new XMLHttpRequest();
   xhr.open('POST', '/refreshConfig', true);
-  xhr.onreadystatechange = this.xhr_refreshConfigButton_onreadystatechange.bind(this, xhr);
+  xhr.onreadystatechange = this.xhr_refreshConfig_onreadystatechange.bind(this, xhr);
   xhr.send();
 };
 
@@ -135,7 +135,7 @@ fmltc.Admin.prototype.capitalize = function(str) {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
-fmltc.Admin.prototype.xhr_refreshConfigButton_onreadystatechange = function(xhr, params) {
+fmltc.Admin.prototype.xhr_refreshConfig_onreadystatechange = function(xhr, params) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 

@@ -37,7 +37,15 @@ from distutils.util import strtobool
 # If using redis all the keys are cached in the redis server, otherwise
 # the keys are just the attributes of this class.  Note that redis does
 # not support boolean values.  Hence care must be taken with the string
-# conversion.
+# conversion.  Also note that, while not strictly necessary, an attempt is
+# made to keep the redis values synced with the dictionary instance values.
+# Hence the write on read of __getitem__ in the redis case.
+#
+# At application startup refresh() is called to do the initial population
+# of an instance of this dictionary, and the redis server.  Note that if
+# a second instance of the server is started and a configuration item was
+# changed in the datastore, then that second instance will refresh the items
+# in the redis server.
 #
 class Config(dict):
 
@@ -48,9 +56,8 @@ class Config(dict):
     def __getitem__(self, key):
         if constants.REDIS_IP_ADDR is not None:
             # TODO: Rethink how this is done as it will break if we store anything in the config other than a boolean.
-            return True if strtobool(str(self.red.get(key), 'utf-8')) else False
-        else:
-            return super(Config, self).__getitem__(key)
+            super(Config, self).__setitem__(key, True if strtobool(str(self.red.get(key), 'utf-8')) else False)
+        return super(Config, self).__getitem__(key)
 
     def __setitem__(self, key, value):
        if constants.REDIS_IP_ADDR is not None:
@@ -75,29 +82,16 @@ class Config(dict):
             return
 
         entity = config[0]
-        if KEY_TRAINING_ENABLED in entity:
-            self[KEY_TRAINING_ENABLED] = entity[KEY_TRAINING_ENABLED]
-        else:
-            self[KEY_TRAINING_ENABLED] = True
+        self.__setvalue(entity, KEY_TRAINING_ENABLED, True)
+        self.__setvalue(entity, KEY_USE_TPU, True)
+        self.__setvalue(entity, KEY_SECURE_SESSION_COOKIES, True)
+        self.__setvalue(entity, KEY_SAMESITE_SESSION_COOKIES, True)
 
-        if KEY_USE_TPU in entity:
-            self[KEY_USE_TPU] = entity[KEY_USE_TPU]
-        else:
-            self[KEY_USE_TPU] = True
-
-        if KEY_SECURE_SESSION_COOKIES in entity:
-            self[KEY_SECURE_SESSION_COOKIES] = entity[KEY_SECURE_SESSION_COOKIES]
-        else:
-            self[KEY_SECURE_SESSION_COOKIES] = True
-
-        if KEY_SAMESITE_SESSION_COOKIES in entity:
-            self[KEY_SAMESITE_SESSION_COOKIES] = entity[KEY_SAMESITE_SESSION_COOKIES]
-        else:
-            self[KEY_SAMESITE_SESSION_COOKIES] = True
-
+    def __setvalue(self, entity, key, default):
+        self[key] = entity[key] if key in entity else default
     #
     # This is for compatibility with javascript.  If we pass in a python boolean
-    # then the 神社 template renders it as 'False' or 'True' which javascript does
+    # then the 神社 (Jinja) template renders it as 'False' or 'True' which javascript does
     # not recognize.
     #
     def get_training_enabled_as_str(self):
