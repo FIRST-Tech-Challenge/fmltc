@@ -17,8 +17,10 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timedelta
 import json
+import logging
 import re
 import time
+import traceback
 import uuid
 
 # My Modules
@@ -255,14 +257,20 @@ def store_event_summary_image(model_folder, job_type, step, tag, encoded_image_s
     blob_name = __get_event_summary_image_blob_name(model_folder, job_type, step, tag)
     bucket = util.storage_client().bucket(BUCKET_BLOBS)
     blob = bucket.blob(blob_name)
-    for i in range(5):
+    max_failures = 5
+    for i in range(max_failures):
       try:
         if not blob.exists():
             __write_string_to_blob(blob_name, encoded_image_string, 'image/png')
         return
       except:
-        util.log('blob_storage.store_event_summary_image - will try again in 3 seconds')
-        time.sleep(3)
+        if i == max_failures - 1:
+            logging.critical('Unable to store event summary image (failed %d times), traceback: %s' %
+                    (i + 1, traceback.format_exc().replace('\n', ' ... ')))
+        else:
+            logging.warning('Unable to store event summary image (failed %d times) will try again in 3 seconds' %
+                    i + 1)
+            time.sleep(3)
 
 def get_event_summary_image_download_url(model_folder, job_type, step, tag, encoded_image_string):
     blob_name = __get_event_summary_image_blob_name(model_folder, job_type, step, tag)
