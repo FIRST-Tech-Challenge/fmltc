@@ -61,7 +61,11 @@ def logout():
 
 
 def is_user_loggedin():
-    return oidc_handle.user_loggedin
+    if is_using_oidc():
+        return oidc_handle.user_loggedin
+    else:
+        # Go ahead and be permissive if we aren't using oidc.
+        return True
 
 
 def user_getfield(token):

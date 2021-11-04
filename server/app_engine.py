@@ -350,8 +350,11 @@ def setXFrameOptions(response):
 @app.route('/selectTeam')
 @handle_exceptions
 def select_team():
-    teams = flask.request.args.getlist('teams')
-    return flask.render_template('selectTeam.html', teams=teams)
+    if oidc.is_user_loggedin():
+        teams = flask.request.args.getlist('teams')
+        return flask.render_template('selectTeam.html', teams=teams)
+    else:
+        return flask.redirect(flask.url_for('login'))
 
 @app.route('/submitTeam', methods=['GET', 'POST'])
 def submit_team():
@@ -379,7 +382,13 @@ def submit_team():
 
         return flask.redirect(flask.url_for('index'))
     else:
-        raise Forbidden()
+        #
+        # One can get here by handcrafting a url, or by clicking on the name/team number, which
+        # redirects to the ftc-scoring account page.  If a user, then navigates using the back button,
+        # they are no longer logged in per oidc's notion of logged, but still logged in per ftc-scoring's
+        # notion of logged in, so just redirect to login to get another oidc session going.
+        #
+        return flask.redirect(flask.url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
