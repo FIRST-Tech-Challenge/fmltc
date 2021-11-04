@@ -27,13 +27,13 @@ limitations under the License.
     <button id="resetButton" class="btn btn-secondary">Reset</button>
     <div id="resetResponse"></div>
     <div id="resetMonitorInfo" style="display: none">
-        The action to increment the <i>remaining_training_minutes</i> field in all team entities
+        The action to reset the <i>remaining_training_minutes</i> field in all team entities
         has been triggered.<br>
         You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i><br>
         &quot;<span id="resetActionUuid" class="fw-bold"></span>&quot;.<br>
-        When the <i>state</i> field becomes &quot;finished&quot;, the <i>teams_updated</i> fields will contain all the<br>
-        teams that have been updated, along with the new <i>remaining_training_minutes</i> values.<br>
-        The <i>failure_counts</i> field will contain the teams that were not updated, along with the<br>
+        When the <i>state</i> field becomes &quot;finished&quot;, the <i>action_parameters.teams_updated</i> field will contain all the<br>
+        teams that have been updated.<br>
+        The <i>action_parameters.failure_counts</i> field will contain the teams that were not updated, along with the<br>
         number of times that updating failed.
     </div>
 
@@ -51,9 +51,9 @@ limitations under the License.
         has been triggered.<br>
         You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i><br>
         &quot;<span id="incrementActionUuid" class="fw-bold"></span>&quot;.<br>
-        When the <i>state</i> field becomes &quot;finished&quot;, the <i>teams_updated</i> fields will contain all the<br>
-        teams that have been updated, along with the new <i>remaining_training_minutes</i> values.<br>
-        The <i>failure_counts</i> field will contain the teams that were not updated, along with the<br>
+        When the <i>state</i> field becomes &quot;finished&quot;, the <i>action_parameters.teams_updated</i> field will contain all the<br>
+        teams that have been updated.<br>
+        The <i>action_parameters.failure_counts</i> field will contain the teams that were not updated, along with the<br>
         number of times that updating failed.
     </div>
 

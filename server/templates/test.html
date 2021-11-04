@@ -18,9 +18,9 @@ limitations under the License.
 {% extends 'layout.html' %}
 
 {% block content %}
-<button id="sendPerformActionGCF" class="text-36">Send /performActionGCF request</button>
+<button id="sendPerformActionGCF" class="btn btn-secondary">Send /performActionGCF request</button>
 <br><br>
-<button id="sendPerformActionGAE" class="text-36">Send /performActionGAE request</button>
+<button id="sendPerformActionGAE" class="btn btn-secondary">Send /performActionGAE request</button>
 <br><br>
 Project ID: {{project_id}}
 <br><br>
@@ -37,54 +37,53 @@ Redis IP: {{redis_ip}}
   window.addEventListener('load', function() {
     const sendPerformActionGCF = document.getElementById('sendPerformActionGCF');
     sendPerformActionGCF.onclick = function() {
+      sendPerformActionGCF.disabled = true;
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/performActionGCF', true);
-      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
       xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {
           xhr.onreadystatechange = null;
           if (xhr.status === 200) {
             // Success.
-            console.log('/performActionGCF "' + actionParameters.action_name + '" was successful.');
+            console.log('/performActionGCF was successful.');
 
           } else {
             console.log('Failure! /performActionGCF? xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
           }
+          setTimeout(function() {
+            sendPerformActionGCF.disabled = false;
+          }, 1000);
         }
       };
-      const actionParameters = createActionParameters();
-      console.log('Sending /performActionGCF "' + actionParameters.action_name + '".')
-      xhr.send(JSON.stringify(actionParameters));
+      console.log('Sending /performActionGCF.')
+      xhr.send();
     };
 
     const sendPerformActionGAE = document.getElementById('sendPerformActionGAE');
     sendPerformActionGAE.onclick = function() {
+      sendPerformActionGAE.disabled = true;
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/performActionGAE', true);
-      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
       xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {
           xhr.onreadystatechange = null;
           if (xhr.status === 200) {
             // Success.
-            console.log('/performActionGAE "' + actionParameters.action_name + '" was successful.');
+            console.log('/performActionGAE was successful.');
 
           } else {
             console.log('Failure! /performActionGAE? xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
           }
+          setTimeout(function() {
+            sendPerformActionGAE.disabled = false;
+          }, 1000);
         }
       };
-      const actionParameters = createActionParameters();
-      console.log('Sending /performActionGAE "' + actionParameters.action_name + '".')
-      xhr.send(JSON.stringify(actionParameters));
+      console.log('Sending /performActionGAE.')
+      xhr.send();
     };
   });
-
-  function createActionParameters() {
-    actionParameters = Object.create(null);
-    actionParameters['action_name'] = 'test';
-    actionParameters['action_team_uuid'] = '';
-    return actionParameters;
-  }
 </script>
 {% endblock %}

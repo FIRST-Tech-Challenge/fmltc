@@ -1395,7 +1395,7 @@ def reset_remaining_training_minutes():
     action_parameters['reset_minutes'] = reset_minutes
     action_parameters['date_time_string'] = data.get('date_time_string')
     action_parameters['num_teams_updated'] = 0
-    action_parameters['teams_updated'] = {}
+    action_parameters['teams_updated'] = []
     action_parameters['failure_counts'] = {}
     action_uuid = action.trigger_action_via_blob(action_parameters)
     response = {
@@ -1417,7 +1417,7 @@ def increment_remaining_training_minutes():
     action_parameters['increment_minutes'] = increment_minutes
     action_parameters['date_time_string'] = data.get('date_time_string')
     action_parameters['num_teams_updated'] = 0
-    action_parameters['teams_updated'] = {}
+    action_parameters['teams_updated'] = []
     action_parameters['failure_counts'] = {}
     action_uuid = action.trigger_action_via_blob(action_parameters)
     response = {
@@ -1433,8 +1433,7 @@ def increment_remaining_training_minutes():
 def perform_action_gae():
     if util.is_production_env():
         raise exceptions.HttpErrorNotFound("Not found")
-    start_time = datetime.now()
-    action_parameters = flask.request.get_json()
+    action_parameters = action.create_action_parameters('', action.ACTION_NAME_TEST)
     action.test(action_parameters)
     return 'OK'
 
@@ -1445,7 +1444,7 @@ def perform_action_gae():
 def perform_action_gcf():
     if util.is_production_env():
         raise exceptions.HttpErrorNotFound("Not found")
-    action_parameters = flask.request.get_json()
+    action_parameters = action.create_action_parameters('', action.ACTION_NAME_TEST)
     action.trigger_action_via_blob(action_parameters)
     return 'OK'
 
