@@ -25,7 +25,7 @@ import numpy as np
 
 # My Modules
 import exceptions
-import util
+import constants
 
 
 def __convert_bbox_to_text(bbox, scale):
@@ -80,6 +80,10 @@ def validate_bboxes_text(s):
                 message = "Error: '%s is not a valid argument." % s
                 logging.critical(message)
                 raise exceptions.HttpErrorBadRequest(message)
+    if count_boxes(s) > constants.MAX_BOUNDING_BOX_PER_FRAME:
+        message = "Error: '%s' contains too many bounding boxes." % s
+        logging.critical(message)
+        raise exceptions.HttpErrorBadRequest(message)
     return s
 
 def convert_text_to_rects_and_labels(bboxes_text):

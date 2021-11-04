@@ -26,9 +26,10 @@ goog.provide('fmltc.Util');
  * Class for utilities.
  * @constructor
  */
-fmltc.Util = function(pageBasename, preferences, modelTrainerData, trainingEnabled) {
+fmltc.Util = function(pageBasename, preferences, limitData, modelTrainerData, trainingEnabled) {
   this.pageBasename = pageBasename;
   this.preferences = preferences;
+  this.limitData = limitData;
   this.modelTrainerData = modelTrainerData;
   this.trainingEnabled = trainingEnabled;
 

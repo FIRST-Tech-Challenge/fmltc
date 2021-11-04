@@ -278,6 +278,14 @@ def validate_create_time_ms(s):
         raise exceptions.HttpErrorBadRequest(message)
     return i
 
+def get_limits_data_for_render_template(): # Dictionary for passing limtis to JS
+    return {
+        'MAX_VIDEO_SIZE_BYTES': constants.MAX_VIDEO_SIZE_BYTES,
+        'MAX_VIDEO_LENGTH_SECONDS': constants.MAX_VIDEO_LENGTH_SECONDS,
+        'MAX_FRAMES_PER_VIDEO': constants.MAX_FRAMES_PER_VIDEO,
+        'MAX_BOUNDING_BOX_PER_FRAME': constants.MAX_BOUNDING_BOX_PER_FRAME,
+        'MAX_DESCRIPTION_LENGTH': constants.MAX_DESCRIPTION_LENGTH,
+    }
 
 def sanitize(o):
     if isinstance(o, list):
@@ -422,6 +430,7 @@ def index():
         can_upload_video=roles.can_upload_video(flask.session['user_roles']),
         training_enabled=config.get_training_enabled_as_str(),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
+        limit_data=get_limits_data_for_render_template(),
         model_trainer_data=model_trainer.get_data_for_root_template(config.get_use_tpu()))
 
 @app.route('/labelVideo')
@@ -442,7 +451,10 @@ def label_video():
     sanitize(video_frame_entity_0)
     return flask.render_template('labelVideo.html',
         team_preferences=storage.retrieve_user_preferences(team_uuid),
-        video_uuid=video_uuid, video_entity=video_entity, video_frame_entity_0=video_frame_entity_0)
+        video_uuid=video_uuid,
+        video_entity=video_entity,
+        video_frame_entity_0=video_frame_entity_0,
+        limit_data=get_limits_data_for_render_template())
 
 @app.route('/monitorTraining')
 @handle_exceptions
@@ -548,7 +560,7 @@ def prepare_to_upload_video():
         file_size = validate_positive_int(data.get('file_size'))
         # Don't allow videos that are larger than 100 MB.
         # The value 100 * 1000 * 1000 should match the value used in uploadVideoFileDialog.js.
-        if file_size > 100 * 1000 * 1000:
+        if file_size > constants.MAX_VIDEO_SIZE_BYTES:
             # Send a message to the client.
             response = {
                 'video_uuid': '',
@@ -627,7 +639,7 @@ def prepare_to_upload_video():
                 return flask.jsonify(response)
     # Don't allow a team to have more than 50 videos.
     video_entities = storage.retrieve_video_list(team_uuid)
-    if len(video_entities) >= 50:
+    if len(video_entities) >= constants.MAX_VIDEOS_PER_TEAM:
         # Send a message to the client.
         response = {
             'video_uuid': '',
@@ -834,7 +846,7 @@ def prepare_to_start_tracking():
                 'message': 'Unable to start tracking because this video is already doing tracking, maybe in a different browser tab or window.',
             }
             return flask.jsonify(response)
-        if len(team_entity['video_uuids_tracking_now']) >= 3:
+        if len(team_entity['video_uuids_tracking_now']) >= constants.MAX_VIDEOS_TRACKING_PER_TEAM:
             # Send a message to the client.
             response = {
                 'tracker_uuid': '',
@@ -961,7 +973,7 @@ def prepare_to_start_dataset_production():
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
     # Don't allow a team to have more than 20 datasets.
     dataset_entities = storage.retrieve_dataset_list(team_uuid)
-    if len(dataset_entities) >= 20:
+    if len(dataset_entities) >= constants.MAX_DATASETS_PER_TEAM:
         # Send a message to the client.
         response = {
             'dataset_uuid': '',
