@@ -32,7 +32,6 @@ from tflite_support.metadata_writers import writer_utils
 import action
 import blob_storage
 import exceptions
-import model_trainer
 import storage
 import util
 
@@ -48,7 +47,7 @@ def create_tflite(action_parameters):
     team_uuid = action_parameters['team_uuid']
     model_uuid = action_parameters['model_uuid']
 
-    model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
+    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
     model_folder = model_entity['model_folder']
 
     # The following code is inspired by

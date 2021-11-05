@@ -125,10 +125,6 @@ def __get_scale_tier(use_tpu):
 
 def start_training_model(team_uuid, description, dataset_uuids_json,
         starting_model, max_running_minutes, num_training_steps, create_time_ms, use_tpu):
-    # Call retrieve_model_list to update all models (which may have finished training) and update
-    # the team_entity.
-    model_entities = retrieve_model_list(team_uuid)
-
     found_starting_model = starting_model in STARTING_MODELS
     if found_starting_model:
         starting_model_uuid = None
@@ -143,9 +139,9 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
     else:
         # starting_model is the model_uuid of one of the user's own models.
         starting_model_uuid = starting_model
-        # retrieve_model_entity will raise HttpErrorNotFound
+        # storage.retrieve_model_entity will raise HttpErrorNotFound
         # if the team_uuid/starting_model_uuid is not found
-        starting_model_entity = retrieve_model_entity(team_uuid, starting_model_uuid)
+        starting_model_entity = storage.retrieve_model_entity(team_uuid, starting_model_uuid)
         if starting_model_entity['trained_checkpoint_path'] == '':
             message = 'Error: Trained checkpoint not found for model_uuid=%s.' % starting_model_uuid
             logging.critical(message)
@@ -345,25 +341,10 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
     __start_monitor_training(team_uuid, model_entity['model_uuid'])
     return model_entity
 
-def retrieve_model_list(team_uuid):
-    model_entities = storage.retrieve_model_list(team_uuid)
-    ml = None
-    for model_entity in model_entities:
-        model_entity, ml = __update_model_entity_job_state(model_entity, ml)
-    return model_entities
-
-def retrieve_model_entity(team_uuid, model_uuid):
-    # storage.retrieve_model_entity will raise HttpErrorNotFound
-    # if the team_uuid/model_uuid is not found.
-    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
-    model_entity, _ = __update_model_entity_job_state(model_entity)
-    return model_entity
-
-def __update_model_entity_job_state(model_entity, ml=None):
+def __update_model_entity_job_state(model_entity):
     # If the training and eval jobs weren't done last time we checked, check now.
     if is_not_done(model_entity):
-        if ml is None:
-            ml = __get_ml_service()
+        ml = __get_ml_service()
         train_job_name = __get_train_job_name(model_entity['model_uuid'])
         train_job_response = ml.projects().jobs().get(name=train_job_name).execute()
         if model_entity['eval_job']:
@@ -394,7 +375,7 @@ def __update_model_entity_job_state(model_entity, ml=None):
             # This happens from time to time. It's not fatal if we can't update the job state in
             # the model entity.
             pass
-    return model_entity, ml
+    return model_entity
 
 def is_not_done(model_entity):
     return (
@@ -407,9 +388,9 @@ def is_done(model_entity):
         __is_done(model_entity['eval_job_state']))
 
 def stop_training_model(team_uuid, model_uuid):
-    # retrieve_model_entity will raise HttpErrorNotFound
+    # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
-    model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
     ml = __get_ml_service()
     if __is_alive(model_entity['train_job_state']):
         try:
@@ -472,9 +453,9 @@ def __is_done(state):
     return not __is_not_done(state)
 
 def maybe_restart_monitor_training(team_uuid, model_uuid):
-    # retrieve_model_entity will raise HttpErrorNotFound
+    # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
-    model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
 
     if ('monitor_training_finished' not in model_entity or
             'monitor_training_triggered_time_ms' not in model_entity or
@@ -522,12 +503,14 @@ def monitor_training(action_parameters):
     team_uuid = action_parameters['team_uuid']
     model_uuid = action_parameters['model_uuid']
 
-    model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
     model_folder = model_entity['model_folder']
     prev_training_done = __is_done(model_entity['train_job_state'])
 
     while True:
         model_entity = storage.monitor_training_active(team_uuid, model_uuid)
+        model_entity = __update_model_entity_job_state(model_entity)
+        previous_time_ms = model_entity['monitor_training_active_time_ms']
 
         if not prev_training_done:
             training_done = __is_done(model_entity['train_job_state'])
@@ -535,8 +518,6 @@ def monitor_training(action_parameters):
                 # Training just finished. Trigger the action to create the tflite model.
                 tflite_creator.trigger_create_tflite(team_uuid, model_uuid)
             prev_training_done = training_done
-
-        previous_time_ms = model_entity['monitor_training_active_time_ms']
 
         for job_type in ['train', 'eval']:
             dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, job_type)
@@ -557,13 +538,13 @@ def monitor_training(action_parameters):
                     action.retrigger_now(action_parameters)
 
         if is_done(model_entity):
-            # If we didn't update the model during the for loop, we are done.
+            # The job(s) are done. If we didn't update the model entity during the for loop, we are done.
             if model_entity['monitor_training_active_time_ms'] == previous_time_ms:
                 model_entity = storage.monitor_training_finished(team_uuid, model_uuid)
                 return
 
         if action.remaining_timedelta(action_parameters) > timedelta(minutes=2):
-            time.sleep(60)
+            time.sleep(30)
         action.retrigger_if_necessary(action_parameters)
 
 
@@ -623,9 +604,9 @@ def __make_key(step, tag):
 
 
 def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
-    # retrieve_model_entity will raise HttpErrorNotFound
+    # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
-    model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
     model_folder = model_entity['model_folder']
     list_of_summary_items = storage.get_model_summary_items_all_steps(model_entity, job_type, value_type)
     step_and_tag_pairs = []
@@ -640,9 +621,9 @@ def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
 
 
 def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_step_to_tags):
-    # retrieve_model_entity will raise HttpErrorNotFound
+    # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
-    model_entity = retrieve_model_entity(team_uuid, model_uuid)
+    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
     model_folder = model_entity['model_folder']
     summary_items_list = []
     for step_string, tags in dict_step_to_tags.items():

@@ -176,16 +176,16 @@ fmltc.ListModels.prototype.onModelEntityUpdated = function(modelEntity) {
 
     if ('monitor_training_finished' in modelEntity &&
         !modelEntity.monitor_training_finished) {
-      // Retrieve the model entity in 5 minutes.
-      setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid, 0), 5 * 60 * 1000);
+      // Retrieve the model entity in 1 minute.
+      setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid, 0), 60 * 1000);
     }
 
   } else {
     this.trs[i].className = 'trainingNotDone';
     this.trainingDone[i] = false;
 
-    // Retrieve the model entity in 5 minutes.
-    setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid, 0), 5 * 60 * 1000);
+    // Retrieve the model entity in 1 minute.
+    setTimeout(this.retrieveModelEntity.bind(this, modelEntity.model_uuid, 0), 60 * 1000);
     if (!this.trainTimeIntervalId) {
       this.trainTimeIntervalId = setInterval(this.updateTrainTime.bind(this), 500);
     }

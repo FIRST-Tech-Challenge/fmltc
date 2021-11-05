@@ -455,7 +455,7 @@ def monitor_training():
     # storage.retrieve_entities_for_monitor_training will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     model_entities_by_uuid, dataset_entities_by_uuid, video_entities_by_uuid = storage.retrieve_entities_for_monitor_training(
-        team_uuid, model_uuid, model_trainer.retrieve_model_list(team_uuid))
+        team_uuid, model_uuid, storage.retrieve_model_list(team_uuid))
     for _, model_entity in model_entities_by_uuid.items():
         strip_model_entity(model_entity)
     sanitize(model_entities_by_uuid)
@@ -1174,9 +1174,9 @@ def retrieve_summaries_updated():
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['model_uuid'])
     model_uuid = storage.validate_uuid(data.get('model_uuid'))
-    # model_trainer.retrieve_model_entity will raise HttpErrorNotFound
+    # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
-    model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
+    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
     model_folder = model_entity['model_folder']
     training_dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, 'train')
     eval_dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, 'eval')
@@ -1272,7 +1272,7 @@ def retrieve_model_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     validate_keys(flask.request.form.to_dict(flat=True), [])
     team_entity = storage.retrieve_team_entity(team_uuid)
-    model_entities = model_trainer.retrieve_model_list(team_uuid)
+    model_entities = storage.retrieve_model_list(team_uuid)
     for model_entity in model_entities:
         strip_model_entity(model_entity)
     response = {
@@ -1291,9 +1291,9 @@ def retrieve_model_entity():
         ['model_uuid'])
     model_uuid = storage.validate_uuid(data.get('model_uuid'))
     team_entity = storage.retrieve_team_entity(team_uuid)
-    # model_trainer.retrieve_model_entity will raise HttpErrorNotFound
+    # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
-    model_entity = model_trainer.retrieve_model_entity(team_uuid, model_uuid)
+    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
     strip_model_entity(model_entity)
     response = {
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
