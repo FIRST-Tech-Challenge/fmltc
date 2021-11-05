@@ -278,7 +278,7 @@ def validate_create_time_ms(s):
         raise exceptions.HttpErrorBadRequest(message)
     return i
 
-def get_limits_data_for_render_template(): # Dictionary for passing limtis to JS
+def get_limit_data_for_render_template(): # Dictionary for passing limtis to JS
     return {
         'MAX_VIDEO_SIZE_BYTES': constants.MAX_VIDEO_SIZE_BYTES,
         'MAX_VIDEO_LENGTH_SECONDS': constants.MAX_VIDEO_LENGTH_SECONDS,
@@ -430,7 +430,7 @@ def index():
         can_upload_video=roles.can_upload_video(flask.session['user_roles']),
         training_enabled=config.get_training_enabled_as_str(),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
-        limit_data=get_limits_data_for_render_template(),
+        limit_data=get_limit_data_for_render_template(),
         model_trainer_data=model_trainer.get_data_for_root_template(config.get_use_tpu()))
 
 @app.route('/labelVideo')
@@ -454,7 +454,7 @@ def label_video():
         video_uuid=video_uuid,
         video_entity=video_entity,
         video_frame_entity_0=video_frame_entity_0,
-        limit_data=get_limits_data_for_render_template())
+        limit_data=get_limit_data_for_render_template())
 
 @app.route('/monitorTraining')
 @handle_exceptions
