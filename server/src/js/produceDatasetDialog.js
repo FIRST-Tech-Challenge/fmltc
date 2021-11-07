@@ -110,7 +110,7 @@ fmltc.ProduceDatasetDialog.prototype.updateStartButton = function() {
       Number(this.evalPercentInput.value) < Number(this.evalPercentInput.min) ||
       Number(this.evalPercentInput.value) > Number(this.evalPercentInput.max) ||
       this.descriptionInput.value.length == 0 ||
-      this.descriptionInput.value.length > this.util.limitData['MAX_DESCRIPTION_LENGTH']);
+      this.descriptionInput.value.length > this.util.limitData.MAX_DESCRIPTION_LENGTH);
 };
 
 fmltc.ProduceDatasetDialog.prototype.trainPercentInput_onchange = function() {

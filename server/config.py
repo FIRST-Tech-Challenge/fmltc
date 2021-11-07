@@ -95,3 +95,4 @@ class Config:
 
     def get_samesite_session_cookies(self):
         return self.samesite_session_cookies
+

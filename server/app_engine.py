@@ -283,14 +283,17 @@ def validate_create_time_ms(s):
         raise exceptions.HttpErrorBadRequest(message)
     return i
 
-def get_limit_data_for_render_template(): # Dictionary for passing limtis to JS
+
+def get_limit_data_for_render_template(): # Dictionary for passing limits to JS
     return {
         'MAX_VIDEO_SIZE_BYTES': constants.MAX_VIDEO_SIZE_BYTES,
+        'MAX_VIDEO_SIZE_MB': constants.MAX_VIDEO_SIZE_MB,
         'MAX_VIDEO_LENGTH_SECONDS': constants.MAX_VIDEO_LENGTH_SECONDS,
         'MAX_FRAMES_PER_VIDEO': constants.MAX_FRAMES_PER_VIDEO,
         'MAX_BOUNDING_BOX_PER_FRAME': constants.MAX_BOUNDING_BOX_PER_FRAME,
         'MAX_DESCRIPTION_LENGTH': constants.MAX_DESCRIPTION_LENGTH,
     }
+
 
 def sanitize(o):
     if isinstance(o, list):
@@ -456,10 +459,10 @@ def label_video():
     sanitize(video_frame_entity_0)
     return flask.render_template('labelVideo.html',
         team_preferences=storage.retrieve_user_preferences(team_uuid),
+        limit_data=get_limit_data_for_render_template(),
         video_uuid=video_uuid,
         video_entity=video_entity,
-        video_frame_entity_0=video_frame_entity_0,
-        limit_data=get_limit_data_for_render_template())
+        video_frame_entity_0=video_frame_entity_0)
 
 @app.route('/monitorTraining')
 @handle_exceptions
@@ -549,9 +552,10 @@ def prepare_to_upload_video():
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['description', 'video_filename', 'file_size', 'content_type', 'create_time_ms'])
     # First validate the parameters.
+    video_entities = storage.retrieve_video_list(team_uuid)
     try:
         description = validate_description(data.get('description'),
-                other_descriptions=[v['description'] for v in storage.retrieve_video_list(team_uuid)])
+                other_descriptions=[v['description'] for v in video_entities])
     except exceptions.HttpErrorBadRequest:
         # Send a message to the client.
         response = {
@@ -563,14 +567,14 @@ def prepare_to_upload_video():
     video_filename = data.get('video_filename')
     try:
         file_size = validate_positive_int(data.get('file_size'))
-        # Don't allow videos that are larger than 100 MB.
-        # The value 100 * 1000 * 1000 should match the value used in uploadVideoFileDialog.js.
+        # Limit by file size.
         if file_size > constants.MAX_VIDEO_SIZE_BYTES:
             # Send a message to the client.
+            message = 'The file is larger than %d MB, which is the maximum size allowed.' % constants.MAX_VIDEO_SIZE_MB
             response = {
                 'video_uuid': '',
                 'upload_url': '',
-                'message': 'The file is larger than 100 MB, which is the maximum size allowed.'
+                'message': message,
             }
             return flask.jsonify(response)
     except exceptions.HttpErrorBadRequest:
@@ -642,8 +646,7 @@ def prepare_to_upload_video():
                     'message': 'The previous video has not been processed yet. Please wait a few minutes and try again.'
                 }
                 return flask.jsonify(response)
-    # Don't allow a team to have more than 50 videos.
-    video_entities = storage.retrieve_video_list(team_uuid)
+    # Don't allow a team to have more than the maximum allowed number of videos.
     if len(video_entities) >= constants.MAX_VIDEOS_PER_TEAM:
         # Send a message to the client.
         response = {
@@ -976,7 +979,7 @@ def prepare_to_start_dataset_production():
         }
         return flask.jsonify(response)
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
-    # Don't allow a team to have more than 20 datasets.
+    # Don't allow a team to have more than the maximum allowed number of datasets.
     dataset_entities = storage.retrieve_dataset_list(team_uuid)
     if len(dataset_entities) >= constants.MAX_DATASETS_PER_TEAM:
         # Send a message to the client.

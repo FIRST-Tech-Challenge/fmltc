@@ -153,7 +153,7 @@ fmltc.UploadVideoFileDialog.prototype.updateUploadButton = function() {
     this.uploadButton.disabled = (
         this.videoFileInput.files.length == 0 ||
         this.descriptionInput.value.length == 0 ||
-        this.descriptionInput.value.length > this.util.limitData['MAX_DESCRIPTION_LENGTH']);
+        this.descriptionInput.value.length > this.util.limitData.MAX_DESCRIPTION_LENGTH);
   } else {
     this.uploadButton.disabled = true;
   }
@@ -165,11 +165,10 @@ fmltc.UploadVideoFileDialog.prototype.uploadButton_onclick = function() {
   const createTimeMs = Date.now();
   this.setState(fmltc.UploadVideoFileDialog.STATE_PREPARING_TO_UPLOAD);
 
-  // Don't allow videos that are larger than 100 MB.
-  // The value 100 * 1000 * 1000 should match the value used in app_engine.py.
-  if (videoFile.size > this.util.limitData['MAX_VIDEO_SIZE_BYTES']) {
+  // Limit by file size.
+  if (videoFile.size > this.util.limitData.MAX_VIDEO_SIZE_BYTES) {
     this.setState(fmltc.UploadVideoFileDialog.STATE_PREPARE_TO_UPLOAD_FAILED,
-        "The file is larger than 100 MB, which is the maximum size allowed.");
+        'The file is larger than ' + this.util.limitData.MAX_VIDEO_SIZE_MB + ' MB, which is the maximum size allowed.');
     return;
   }
 
@@ -179,17 +178,17 @@ fmltc.UploadVideoFileDialog.prototype.uploadButton_onclick = function() {
   video.crossOrigin = 'anonymous';
   video.onerror = function(event) {
     thisUploadVideoFileDialog.setState(fmltc.UploadVideoFileDialog.STATE_PREPARE_TO_UPLOAD_FAILED,
-        "The file is not a valid video file.");
+        'The file is not a valid video file.');
     thisUploadVideoFileDialog.clearVideoElement(video);
   };
   video.onloadedmetadata = function(event) {
     const duration = video.duration;
 
-    // Don't allow videos that are longer than 2 minutes.
-    // The value 120 should match the value used in frame_extractor.py.
-    if (duration > thisUploadVideoFileDialog.util.limitData['MAX_VIDEO_LENGTH_SECONDS']) {
+    // Limit by duration.
+    if (duration > thisUploadVideoFileDialog.util.limitData.MAX_VIDEO_LENGTH_SECONDS) {
       thisUploadVideoFileDialog.setState(fmltc.UploadVideoFileDialog.STATE_PREPARE_TO_UPLOAD_FAILED,
-          "The video is longer than 2 minutes, which is the maximum duration allowed.");
+          'The video is longer than ' + thisUploadVideoFileDialog.util.limitData.MAX_VIDEO_LENGTH_SECONDS +
+          ' seconds, which is the maximum duration allowed.');
       thisUploadVideoFileDialog.clearVideoElement(video);
       return;
     }
