@@ -314,14 +314,14 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             else:
                 eval_job_response = None
         except:
-            util.log('model_trainer.start_training_model - creating eval job - except %s' %
+            logging.critical('model_trainer.start_training_model - creating eval job - except %s' %
                 traceback.format_exc().replace('\n', ' ... '))
             raise
 
         try:
             train_job_response = ml.projects().jobs().create(parent=parent, body=train_job).execute()
         except:
-            util.log('model_trainer.start_training_model - creating training job - except %s' %
+            logging.critical('model_trainer.start_training_model - creating training job - except %s' %
                 traceback.format_exc().replace('\n', ' ... '))
             if eval_job_response is not None:
                 # Cancel the eval job.
@@ -416,7 +416,7 @@ def stop_training_model(team_uuid, model_uuid):
             train_job_name = __get_train_job_name(model_uuid)
             ml.projects().jobs().cancel(name=train_job_name).execute()
         except:
-            util.log('model_trainer.stop_training_model - canceling training job - except %s' %
+            logging.critical('model_trainer.stop_training_model - canceling training job - except %s' %
                 traceback.format_exc().replace('\n', ' ... '))
     if model_entity['eval_job']:
         if __is_alive(model_entity['eval_job_state']):
@@ -424,7 +424,7 @@ def stop_training_model(team_uuid, model_uuid):
                 eval_job_name = __get_eval_job_name(model_uuid)
                 ml.projects().jobs().cancel(name=eval_job_name).execute()
             except:
-                util.log('model_trainer.stop_training_model - canceling eval job - except %s' %
+                logging.critical('model_trainer.stop_training_model - canceling eval job - except %s' %
                     traceback.format_exc().replace('\n', ' ... '))
     return storage.stop_training_requested(team_uuid, model_uuid)
 

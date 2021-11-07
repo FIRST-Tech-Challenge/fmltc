@@ -30,7 +30,6 @@ import blob_storage
 import exceptions
 import metrics
 import storage
-import util
 import constants
 
 def start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms):

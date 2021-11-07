@@ -70,17 +70,19 @@ def __convert_rects_to_bboxes(rects):
 
 def validate_bboxes_text(s):
     lines = s.split("\n")
+    count = 0
     for line in lines:
         if len(line) > 0:
             try:
                 *rect, label = line.strip().split(",")
                 assert(len(rect) == 4)
                 rect = np.array(rect, dtype=float).astype(int)
+                count += 1
             except:
                 message = "Error: '%s is not a valid argument." % s
                 logging.critical(message)
                 raise exceptions.HttpErrorBadRequest(message)
-    if count_boxes(s) > constants.MAX_BOUNDING_BOX_PER_FRAME:
+    if count > constants.MAX_BOUNDING_BOX_PER_FRAME:
         message = "Error: '%s' contains too many bounding boxes." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)

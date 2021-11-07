@@ -39,7 +39,6 @@ import bbox_writer
 import blob_storage
 import exceptions
 import storage
-import util
 
 # NamedTuple for split
 Split = collections.namedtuple('Split', [

@@ -34,7 +34,6 @@ import blob_storage
 import exceptions
 import model_trainer
 import storage
-import util
 
 
 def trigger_create_tflite(team_uuid, model_uuid):
