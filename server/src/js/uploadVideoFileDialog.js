@@ -153,7 +153,7 @@ fmltc.UploadVideoFileDialog.prototype.updateUploadButton = function() {
     this.uploadButton.disabled = (
         this.videoFileInput.files.length == 0 ||
         this.descriptionInput.value.length == 0 ||
-        this.descriptionInput.value.length > 30);
+        this.descriptionInput.value.length > this.util.limitData['MAX_DESCRIPTION_LENGTH']);
   } else {
     this.uploadButton.disabled = true;
   }
@@ -167,7 +167,7 @@ fmltc.UploadVideoFileDialog.prototype.uploadButton_onclick = function() {
 
   // Don't allow videos that are larger than 100 MB.
   // The value 100 * 1000 * 1000 should match the value used in app_engine.py.
-  if (videoFile.size > 100 * 1000 * 1000) {
+  if (videoFile.size > this.util.limitData['MAX_VIDEO_SIZE_BYTES']) {
     this.setState(fmltc.UploadVideoFileDialog.STATE_PREPARE_TO_UPLOAD_FAILED,
         "The file is larger than 100 MB, which is the maximum size allowed.");
     return;
@@ -187,7 +187,7 @@ fmltc.UploadVideoFileDialog.prototype.uploadButton_onclick = function() {
 
     // Don't allow videos that are longer than 2 minutes.
     // The value 120 should match the value used in frame_extractor.py.
-    if (duration > 120) {
+    if (duration > thisUploadVideoFileDialog.util.limitData['MAX_VIDEO_LENGTH_SECONDS']) {
       thisUploadVideoFileDialog.setState(fmltc.UploadVideoFileDialog.STATE_PREPARE_TO_UPLOAD_FAILED,
           "The video is longer than 2 minutes, which is the maximum duration allowed.");
       thisUploadVideoFileDialog.clearVideoElement(video);

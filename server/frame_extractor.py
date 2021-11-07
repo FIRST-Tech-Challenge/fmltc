@@ -31,6 +31,7 @@ import exceptions
 import metrics
 import storage
 import util
+import constants
 
 def start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms):
     action_parameters = action.create_action_parameters(
@@ -156,13 +157,13 @@ def extract_frames(action_parameters):
                     # Don't allow videos that are longer than 2 minutes.
                     # The value 120 should match the value used in uploadVideoFileDialog.js.
                     duration = frame_count / fps
-                    if duration > 120:
+                    if duration > constants.MAX_VIDEO_LENGTH_SECONDS:
                         storage.frame_extraction_failed(team_uuid, video_uuid,
                                 "This video is longer than 2 minutes, which is the maximum duration allowed.",
                                 width=width, height=height, fps=fps, frame_count=frame_count)
                         return
                     # Don't allow videos that have more than 1000 frames.
-                    if frame_count > 1000:
+                    if frame_count > constants.MAX_FRAMES_PER_VIDEO:
                         storage.frame_extraction_failed(team_uuid, video_uuid,
                                 "This video has more than 1000 frames, which is the maximum allowed.",
                                 width=width, height=height, fps=fps, frame_count=frame_count)
@@ -174,7 +175,7 @@ def extract_frames(action_parameters):
                                 width=width, height=height, fps=fps, frame_count=frame_count)
                         return
                     # Don't allow videos with resolution larger than 3840 x 2160.
-                    if max(width, height) > 3840 or min(width, height) > 2160:
+                    if max(width, height) > max(constants.MAX_VIDEO_RESOLUTION_WIDTH, constants.MAX_VIDEO_RESOLUTION_HEIGHT) or min(width, height) > min(constants.MAX_VIDEO_RESOLUTION_WIDTH, constants.MAX_VIDEO_RESOLUTION_HEIGHT):
                         storage.frame_extraction_failed(team_uuid, video_uuid,
                                 "This video's resolution is larger than 3840 x 2160, which is the maximum resolution allowed.",
                                 width=width, height=height, fps=fps, frame_count=frame_count)

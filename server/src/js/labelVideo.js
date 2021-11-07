@@ -1037,7 +1037,7 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousedown = function(e) {
     // Since the box already exists, we don't need to draw it here.
   } else {
     // Start defining a new box.
-    if (this.bboxes[this.currentFrameNumber].length >= 10) {
+    if (this.bboxes[this.currentFrameNumber].length >= this.util.limitData['MAX_BOUNDING_BOX_PER_FRAME']) {
       return;
     }
     this.definingBbox = new fmltc.Box(this.point1.x, this.point1.y, this.point1.x, this.point1.y, '');
