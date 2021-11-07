@@ -36,7 +36,6 @@ import blob_storage
 import exceptions
 import metrics
 import storage
-import util
 
 
 tracker_fns = {
@@ -76,13 +75,13 @@ def start_tracking(action_parameters):
 
     tracker_entity = storage.maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
     if tracker_entity is None:
-        util.log('Unexpected: storage.maybe_retrieve_tracker_entity returned None')
+        logging.critical('Unexpected: storage.maybe_retrieve_tracker_entity returned None')
         return
     team_uuid = tracker_entity['team_uuid']
 
     tracker_client_entity = storage.maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
     if tracker_client_entity is None:
-        util.log('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
+        logging.critical('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
         return
     if (tracker_client_entity['tracking_stop_requested'] or
             datetime.now(timezone.utc) - tracker_client_entity['update_time'] > timedelta(minutes=2)):
@@ -136,7 +135,7 @@ def start_tracking(action_parameters):
                 time.sleep(0.1)
                 tracker_client_entity = storage.maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
                 if tracker_client_entity is None:
-                    util.log('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
+                    logging.critical('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
                     return
 
             # Separate bboxes_text into bboxes and classes.
@@ -179,7 +178,7 @@ def start_tracking(action_parameters):
                 # Wait for the bboxes to be approved/adjusted.
                 tracker_client_entity = storage.maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
                 if tracker_client_entity is None:
-                    util.log('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
+                    logging.critical('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
                     return
                 while tracker_client_entity['frame_number'] != frame_number:
                     if __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity,
@@ -188,7 +187,7 @@ def start_tracking(action_parameters):
                     time.sleep(0.1)
                     tracker_client_entity = storage.maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
                     if tracker_client_entity is None:
-                        util.log('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
+                        logging.critical('Unexpected: storage.maybe_retrieve_tracker_client_entity returned None')
                         return
 
                 if tracker_client_entity['bboxes_text'] != tracked_bboxes_text:

@@ -157,10 +157,15 @@ def validate_string(s, *args):
 
 
 def validate_description(s, other_descriptions=[]):
-    if len(s) >= 1 and len(s) <= 30 and s not in other_descriptions:
+    duplicate = s in other_descriptions
+    if not duplicate and len(s) >= 1 and len(s) <= 30 :
         return s
-    message = "Error: '%s is not a valid description." % s
-    logging.critical(message)
+    if duplicate:
+        message = "Error: '%s is not a valid description, it is a duplicate." % s
+        logging.info(message)
+    else:
+        message = "Error: '%s is not a valid description." % s
+        logging.critical(message)
     raise exceptions.HttpErrorBadRequest(message)
 
 
@@ -1470,14 +1475,14 @@ def capture_exception(e):
     if sentry_dsn is not None:
         sentry_sdk.capture_exception(e)
     else:
-        util.log('capture_exception traceback: %s' % traceback.format_exc().replace('\n', ' ... '))
+        logging.critical('capture_exception traceback: %s' % traceback.format_exc().replace('\n', ' ... '))
 
 
 def capture_message(e):
     if sentry_dsn is not None:
         sentry_sdk.capture_message(message=e)
     else:
-        util.log('capture_message message: %s' % str(e))
+        logging.critical('capture_message message: %s' % str(e))
 
 
 @app.errorhandler(500)

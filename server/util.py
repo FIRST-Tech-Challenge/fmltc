@@ -17,7 +17,6 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timezone
 import json
-import logging
 
 # Other Modules
 import google.cloud.storage
@@ -29,13 +28,8 @@ from werkzeug.wrappers import Response
 import cloud_secrets
 import constants
 
-LOG_MESSAGE_PREFIX = 'FMLTC_LOG - '
 ENV_DEVELOPMENT = "development"
 ENV_PRODUCTION = "production"
-
-def log(message):
-    logging.critical('%s%s' % (LOG_MESSAGE_PREFIX, message))
-
 
 def ms_from_datetime(dt):
     return round(dt.timestamp() * 1000)

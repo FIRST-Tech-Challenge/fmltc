@@ -16,10 +16,10 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
 from datetime import datetime, timedelta, timezone
+import logging
 
 # My Modules
 import action
-import util
 
 # cloud functions
 
@@ -29,5 +29,5 @@ def perform_action(data, context):
         time_limit = start_time + timedelta(seconds=500)
         action.perform_action_from_blob(data['name'], time_limit)
     else:
-        util.log('perform_action called on invalid bucket ' + action.BUCKET_ACTION_PARAMETERS)
+        logging.critical('perform_action called on invalid bucket ' + action.BUCKET_ACTION_PARAMETERS)
     return 'OK'

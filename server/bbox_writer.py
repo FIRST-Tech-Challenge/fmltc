@@ -25,7 +25,6 @@ import numpy as np
 
 # My Modules
 import exceptions
-import util
 
 
 def __convert_bbox_to_text(bbox, scale):

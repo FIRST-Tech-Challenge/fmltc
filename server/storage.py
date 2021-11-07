@@ -361,23 +361,23 @@ def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
             tracker_entity = maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
             if tracker_entity is None:
                 tracking_in_progress = False
-                util.log('Tracker is not in progress. Tracker entity is missing.')
+                logging.critical('Tracker is not in progress. Tracker entity is missing.')
             else:
                 # If it's been more than two minutes, assume the tracker has died.
                 timedelta_since_last_update = datetime.now(timezone.utc) - tracker_entity['update_time']
                 if timedelta_since_last_update > timedelta(minutes=2):
-                    util.log('Tracker is not in progress. Elapsed time since last tracker update: %f seconds' %
+                    logging.critical('Tracker is not in progress. Elapsed time since last tracker update: %f seconds' %
                         timedelta_since_last_update.total_seconds())
                     tracking_in_progress = False
             tracker_client_entity = maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
             if tracker_client_entity is None:
                 tracking_in_progress = False
-                util.log('Tracker is not in progress. Tracker client entity is missing.')
+                logging.critical('Tracker is not in progress. Tracker client entity is missing.')
             else:
                 # If it's been more than two minutes, assume the tracker client is not connected.
                 timedelta_since_last_update = datetime.now(timezone.utc) - tracker_client_entity['update_time']
                 if timedelta_since_last_update > timedelta(minutes=2):
-                    util.log('Tracker is not in progress. Elapsed time since last tracker client update: %f seconds' %
+                    logging.critical('Tracker is not in progress. Elapsed time since last tracker client update: %f seconds' %
                         timedelta_since_last_update.total_seconds())
                     tracking_in_progress = False
             if not tracking_in_progress:
@@ -734,7 +734,7 @@ def retrieve_tracked_bboxes(video_uuid, tracker_uuid, retrieve_frame_number, tim
     tracker_entity = maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
     while True:
         if tracker_entity is None:
-            util.log('Tracker appears to have failed. Tracker entity is missing.')
+            logging.critical('Tracker appears to have failed. Tracker entity is missing.')
             return True, 0, ''
         if tracker_entity['frame_number'] == retrieve_frame_number:
             break
@@ -743,7 +743,7 @@ def retrieve_tracked_bboxes(video_uuid, tracker_uuid, retrieve_frame_number, tim
         # If it's been more than two minutes, assume the tracker has died.
         timedelta_since_last_update = datetime.now(timezone.utc) - tracker_entity['update_time']
         if timedelta_since_last_update > timedelta(minutes=2):
-            util.log('Tracker appears to have failed. Elapsed time since last tracker update: %f seconds' %
+            logging.critical('Tracker appears to have failed. Elapsed time since last tracker update: %f seconds' %
                 timedelta_since_last_update.total_seconds())
             tracker_stopping(tracker_entity['team_uuid'], tracker_entity['video_uuid'], tracker_uuid)
             tracker_failed = True
@@ -1427,10 +1427,15 @@ def __update_model_entity_job_state(model_entity, job, prefix):
         model_entity[prefix + 'job_elapsed_seconds'] = elapsed.total_seconds()
     error_message = job.get('errorMessage', '')
     if len(error_message) > 0 and prefix == 'train_':
-      util.log('%serror_message is %s' % (prefix, error_message))
       if error_message.find('OOM when allocating tensor') != -1:
-          util.log('OOM in job train_%s. original_starting_model=%s batch_size=%s train_frame_count=%s' % (
-                  model_entity['model_uuid'], model_entity['original_starting_model'], str(model_entity['batch_size']), str(model_entity['train_frame_count'])))
+          logging.critical('OOM error in job train_%s (original_starting_model=%s batch_size=%s train_frame_count=%s): %s' % (
+                  model_entity['model_uuid'],
+                  model_entity['original_starting_model'],
+                  str(model_entity['batch_size']),
+                  str(model_entity['train_frame_count']),
+                  error_message))
+      else:
+          logging.critical('error in job train_%s: %s' % (model_entity['model_uuid'], error_message))
     model_entity[prefix + 'error_message'] = (error_message[:1498] + '..') if len(error_message) > 1500 else error_message
 
 def update_model_entity_job_state(team_uuid, model_uuid, train_job, eval_job):

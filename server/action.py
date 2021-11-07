@@ -17,6 +17,7 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timedelta, timezone
 import json
+import logging
 import time
 import traceback
 import uuid
@@ -119,13 +120,15 @@ def trigger_action_via_blob(action_parameters_arg):
                         time = action_entity['stop_times'][len_stop_times-1]
                 time_delta = datetime.now(timezone.utc) - time
                 if time_delta > timedelta(minutes=15):
-                    util.log('action.trigger_action_via_blob - %s - found duplicate action that is %s old' % (action_name, str(time_delta)))
+                    logging.warning('action.trigger_action_via_blob - %s - found duplicate action that is %s old' %
+                            (action_name, str(time_delta)))
                     storage.action_on_remove_old_action(action_entity)
                 else:
                     found_existing_action = True
                     break
         if found_existing_action:
-            util.log('action.trigger_action_via_blob - %s - ignoring duplicate action' % action_name)
+            logging.warning('action.trigger_action_via_blob - %s - ignoring duplicate action' %
+                    action_name)
             return
         action_parameters[ACTION_UUID] = storage.action_on_create(
             team_uuid, action_name, is_admin_action, action_parameters)
@@ -134,7 +137,7 @@ def trigger_action_via_blob(action_parameters_arg):
     action_parameters_blob_name= '%s/%s' % (action_parameters[ACTION_NAME], str(uuid.uuid4().hex))
     action_parameters_json = json.dumps(action_parameters)
     blob = util.storage_client().bucket(BUCKET_ACTION_PARAMETERS).blob(action_parameters_blob_name)
-    util.log('action.trigger_action_via_blob - %s' % action_parameters[ACTION_NAME])
+    logging.info('action.trigger_action_via_blob - %s' % action_parameters[ACTION_NAME])
     blob.upload_from_string(action_parameters_json, content_type="text/json")
     return action_parameters[ACTION_UUID]
 
@@ -150,7 +153,7 @@ def perform_action_from_blob(action_parameters_blob_name, time_limit):
 
 def __perform_action(action_parameters, time_limit):
     action_parameters[ACTION_TIME_LIMIT] = time_limit
-    util.log('action.perform_action - %s - start' % action_parameters[ACTION_NAME])
+    logging.info('action.__perform_action - %s - start' % action_parameters[ACTION_NAME])
     storage.action_on_start(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION])
 
     action_fns = {
@@ -178,20 +181,20 @@ def __perform_action(action_parameters, time_limit):
         except Stop as e:
             pass
         except:
-            util.log('action.perform_action - %s exception!!! action_parameters: %s traceback: %s' %
+            logging.critical('action.__perform_action - %s exception!!! action_parameters: %s traceback: %s' %
                 (action_parameters[ACTION_NAME], str(action_parameters), traceback.format_exc().replace('\n', ' ... ')))
     else:
-        util.log('action.perform_action - %s - action_fn is None' % action_parameters[ACTION_NAME])
+        logging.warning('action.__perform_action - %s - action_fn is None' % action_parameters[ACTION_NAME])
 
     if ACTION_RETRIGGERED not in action_parameters:
-        util.log('action.perform_action - %s - finish' % action_parameters[ACTION_NAME])
+        logging.info('action.__perform_action - %s - finish' % action_parameters[ACTION_NAME])
         action_entity = storage.action_on_finish(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION], action_parameters)
         metrics.save_action_metrics(action_entity)
 
 
 def retrigger_now(action_parameters):
     if ACTION_RETRIGGERED not in action_parameters:
-        util.log('action.retrigger_now - %s - stop' % action_parameters[ACTION_NAME])
+        logging.info('action.retrigger_now - %s - stop' % action_parameters[ACTION_NAME])
         storage.action_on_stop(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION])
         trigger_action_via_blob(action_parameters)
         action_parameters[ACTION_RETRIGGERED] = True
@@ -216,4 +219,4 @@ class Stop(Exception):
 
 # test is for debugging purposes only.
 def test(action_parameters):
-    util.log('action test')
+    logging.info('action.test')
