@@ -30,7 +30,6 @@ import constants
 import dataset_producer
 import dataset_zipper
 import frame_extractor
-import metrics
 import model_trainer
 import storage
 import tflite_creator
@@ -188,8 +187,7 @@ def __perform_action(action_parameters, time_limit):
 
     if ACTION_RETRIGGERED not in action_parameters:
         logging.info('action.__perform_action - %s - finish' % action_parameters[ACTION_NAME])
-        action_entity = storage.action_on_finish(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION], action_parameters)
-        metrics.save_action_metrics(action_entity)
+        storage.action_on_finish(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION], action_parameters)
 
 
 def retrigger_now(action_parameters):

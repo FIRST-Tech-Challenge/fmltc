@@ -30,7 +30,6 @@ import action
 import bbox_writer
 import blob_storage
 import exceptions
-import metrics
 import util
 import team_info
 
@@ -616,7 +615,6 @@ def __store_video_frame_bboxes_text(transaction, team_uuid, video_uuid, frame_nu
         else:
             video_entity['labeled_frame_count'] -= 1
         transaction.put(video_entity)
-    metrics.save_labeling_metrics(bbox_writer.count_boxes(bboxes_text))
     return video_frame_entity
 
 def store_video_frame_include_in_dataset(team_uuid, video_uuid, frame_number, include_frame_in_dataset):

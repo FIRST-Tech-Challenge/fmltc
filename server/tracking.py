@@ -34,7 +34,6 @@ import action
 import bbox_writer
 import blob_storage
 import exceptions
-import metrics
 import storage
 
 
@@ -61,7 +60,6 @@ def prepare_to_start_tracking(team_uuid, video_uuid, tracker_name, scale, init_f
     # storage.tracker_starting will raise HttpErrorConflict if tracking is already in progress on
     # this video.
     tracker_uuid = storage.tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text)
-    metrics.save_tracking_metrics(tracker_name, scale, bbox_writer.count_boxes(init_bboxes_text))
     action_parameters = action.create_action_parameters(
         team_uuid, action.ACTION_NAME_TRACKING)
     action_parameters['video_uuid'] = video_uuid

@@ -28,7 +28,6 @@ import cv2
 import action
 import blob_storage
 import exceptions
-import metrics
 import storage
 
 def start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms):
@@ -110,121 +109,114 @@ def extract_frames(action_parameters):
     # active.
     video_entity = storage.frame_extraction_active(team_uuid, video_uuid)
     previously_extracted_frame_count = video_entity['extracted_frame_count']
-    need_to_save_metrics = (previously_extracted_frame_count == 0)
+    if video_entity['delete_in_progress']:
+        return
+
+    # Write the video out to a temporary file.
+    video_blob_name = video_entity['video_blob_name']
+    video_filename = '/tmp/%s' % str(uuid.uuid4().hex)
+    os.makedirs(os.path.dirname(video_filename), exist_ok=True)
+
+    if not blob_storage.write_video_to_file(video_blob_name, video_filename):
+        storage.frame_extraction_failed(team_uuid, video_uuid,
+                "Unable to extract frames from the video.")
+        return
+
+    storage.frame_extraction_active(team_uuid, video_uuid)
+
     try:
-        if video_entity['delete_in_progress']:
-            return
-
-        # Write the video out to a temporary file.
-        video_blob_name = video_entity['video_blob_name']
-        video_filename = '/tmp/%s' % str(uuid.uuid4().hex)
-        os.makedirs(os.path.dirname(video_filename), exist_ok=True)
-
-        if not blob_storage.write_video_to_file(video_blob_name, video_filename):
+        # Open the video file with cv2.
+        vid = cv2.VideoCapture(video_filename)
+        if not vid.isOpened():
             storage.frame_extraction_failed(team_uuid, video_uuid,
-                    "Unable to extract frames from the video.")
+                    "Unable to the open the video file.")
             return
-
-        storage.frame_extraction_active(team_uuid, video_uuid)
-
         try:
-            # Open the video file with cv2.
-            vid = cv2.VideoCapture(video_filename)
-            if not vid.isOpened():
-                storage.frame_extraction_failed(team_uuid, video_uuid,
-                        "Unable to the open the video file.")
-                return
-            try:
-                # If we haven't extracted any frames yet, we need to create the video frame entities
-                # and update the video entity with the width, height, fps, and frame_count.
-                if previously_extracted_frame_count == 0:
-                    width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    fps = vid.get(cv2.CAP_PROP_FPS)
-                    # Count the frames. Getting the CAP_PROP_FRAME_COUNT property is not reliable.
-                    # Instead, we iterate through the video using vid.grab(), which is faster than
-                    # vid.read().
-                    frame_count = 0
-                    while True:
-                        action.retrigger_if_necessary(action_parameters)
-                        success = vid.grab()
-                        if not success:
-                            # We've reached the end of the video. All finished counting!
-                            break
-                        frame_count += 1
-                    # Don't allow videos that are longer than 2 minutes.
-                    # The value 120 should match the value used in uploadVideoFileDialog.js.
-                    duration = frame_count / fps
-                    if duration > 120:
-                        storage.frame_extraction_failed(team_uuid, video_uuid,
-                                "This video is longer than 2 minutes, which is the maximum duration allowed.",
-                                width=width, height=height, fps=fps, frame_count=frame_count)
-                        return
-                    # Don't allow videos that have more than 1000 frames.
-                    if frame_count > 1000:
-                        storage.frame_extraction_failed(team_uuid, video_uuid,
-                                "This video has more than 1000 frames, which is the maximum allowed.",
-                                width=width, height=height, fps=fps, frame_count=frame_count)
-                        return
-                    # Don't allow videos that have zero frames.
-                    if frame_count <= 0:
-                        storage.frame_extraction_failed(team_uuid, video_uuid,
-                                "This video has zero frames.",
-                                width=width, height=height, fps=fps, frame_count=frame_count)
-                        return
-                    # Don't allow videos with resolution larger than 3840 x 2160.
-                    if max(width, height) > 3840 or min(width, height) > 2160:
-                        storage.frame_extraction_failed(team_uuid, video_uuid,
-                                "This video's resolution is larger than 3840 x 2160, which is the maximum resolution allowed.",
-                                width=width, height=height, fps=fps, frame_count=frame_count)
-                        return
+            # If we haven't extracted any frames yet, we need to create the video frame entities
+            # and update the video entity with the width, height, fps, and frame_count.
+            if previously_extracted_frame_count == 0:
+                width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                fps = vid.get(cv2.CAP_PROP_FPS)
+                # Count the frames. Getting the CAP_PROP_FRAME_COUNT property is not reliable.
+                # Instead, we iterate through the video using vid.grab(), which is faster than
+                # vid.read().
+                frame_count = 0
+                while True:
+                    action.retrigger_if_necessary(action_parameters)
+                    success = vid.grab()
+                    if not success:
+                        # We've reached the end of the video. All finished counting!
+                        break
+                    frame_count += 1
+                # Don't allow videos that are longer than 2 minutes.
+                # The value 120 should match the value used in uploadVideoFileDialog.js.
+                duration = frame_count / fps
+                if duration > 120:
+                    storage.frame_extraction_failed(team_uuid, video_uuid,
+                            "This video is longer than 2 minutes, which is the maximum duration allowed.",
+                            width=width, height=height, fps=fps, frame_count=frame_count)
+                    return
+                # Don't allow videos that have more than 1000 frames.
+                if frame_count > 1000:
+                    storage.frame_extraction_failed(team_uuid, video_uuid,
+                            "This video has more than 1000 frames, which is the maximum allowed.",
+                            width=width, height=height, fps=fps, frame_count=frame_count)
+                    return
+                # Don't allow videos that have zero frames.
+                if frame_count <= 0:
+                    storage.frame_extraction_failed(team_uuid, video_uuid,
+                            "This video has zero frames.",
+                            width=width, height=height, fps=fps, frame_count=frame_count)
+                    return
+                # Don't allow videos with resolution larger than 3840 x 2160.
+                if max(width, height) > 3840 or min(width, height) > 2160:
+                    storage.frame_extraction_failed(team_uuid, video_uuid,
+                            "This video's resolution is larger than 3840 x 2160, which is the maximum resolution allowed.",
+                            width=width, height=height, fps=fps, frame_count=frame_count)
+                    return
 
-                    video_entity = storage.frame_extraction_starting(team_uuid, video_uuid,
-                        width, height, fps, frame_count)
-                    metrics.save_video_metrics(video_entity)
-                    need_to_save_metrics = False
+                video_entity = storage.frame_extraction_starting(team_uuid, video_uuid,
+                    width, height, fps, frame_count)
+                if video_entity['delete_in_progress']:
+                    return
+
+                # Back up to the beginning of the video. Setting the CAP_PROP_POS_FRAMES property
+                # is not reliable. Instead, we release vid and open it again.
+                vid.release()
+                vid = cv2.VideoCapture(video_filename)
+            else:
+                # We are continuing the extraction. Skip to the next frame we need to extract.
+                # Setting the CAP_PROP_POS_FRAMES property is not reliable. Instead, we skip
+                # through frames using vid.grab().
+                for i in range(previously_extracted_frame_count):
+                    ret = vid.grab()
+
+            frame_number = previously_extracted_frame_count
+
+            action.retrigger_if_necessary(action_parameters)
+
+            while True:
+                success, frame = vid.read()
+                if not success:
+                    # We've reached the end of the video. All finished extracting frames!
+                    video_entity = storage.frame_extraction_done(team_uuid, video_uuid, frame_number)
+                    return
+                # Store the frame as a jpg image, which are smaller/faster than png.
+                success, buffer = cv2.imencode('.jpg', frame)
+                if success:
+                    video_entity = storage.store_frame_image(team_uuid, video_uuid, frame_number,
+                        'image/jpg', buffer.tostring())
                     if video_entity['delete_in_progress']:
                         return
-
-                    # Back up to the beginning of the video. Setting the CAP_PROP_POS_FRAMES property
-                    # is not reliable. Instead, we release vid and open it again.
-                    vid.release()
-                    vid = cv2.VideoCapture(video_filename)
+                    frame_number += 1
                 else:
-                    # We are continuing the extraction. Skip to the next frame we need to extract.
-                    # Setting the CAP_PROP_POS_FRAMES property is not reliable. Instead, we skip
-                    # through frames using vid.grab().
-                    for i in range(previously_extracted_frame_count):
-                        ret = vid.grab()
-
-                frame_number = previously_extracted_frame_count
-
+                    logging.error('cv2.imencode() returned %s' % success)
                 action.retrigger_if_necessary(action_parameters)
 
-                while True:
-                    success, frame = vid.read()
-                    if not success:
-                        # We've reached the end of the video. All finished extracting frames!
-                        video_entity = storage.frame_extraction_done(team_uuid, video_uuid, frame_number)
-                        return
-                    # Store the frame as a jpg image, which are smaller/faster than png.
-                    success, buffer = cv2.imencode('.jpg', frame)
-                    if success:
-                        video_entity = storage.store_frame_image(team_uuid, video_uuid, frame_number,
-                            'image/jpg', buffer.tostring())
-                        if video_entity['delete_in_progress']:
-                            return
-                        frame_number += 1
-                    else:
-                        logging.error('cv2.imencode() returned %s' % success)
-                    action.retrigger_if_necessary(action_parameters)
-
-            finally:
-                # Release the cv2 video.
-                vid.release()
         finally:
-            # Delete the temporary file.
-            os.remove(video_filename)
+            # Release the cv2 video.
+            vid.release()
     finally:
-        if need_to_save_metrics:
-            metrics.save_video_metrics(video_entity)
+        # Delete the temporary file.
+        os.remove(video_filename)

@@ -72,11 +72,11 @@ def validate_bboxes_text(s):
     for line in lines:
         if len(line) > 0:
             try:
-                *rect, label = line.strip().split(",")
+                *rect, label = line.strip().split(",", 4)
                 assert(len(rect) == 4)
                 rect = np.array(rect, dtype=float).astype(int)
             except:
-                message = "Error: '%s is not a valid argument." % s
+                message = "Error: '%s' is not a valid argument." % s
                 logging.critical(message)
                 raise exceptions.HttpErrorBadRequest(message)
     return s
@@ -87,7 +87,7 @@ def convert_text_to_rects_and_labels(bboxes_text):
     lines = bboxes_text.split("\n")
     for line in lines:
         try:
-            *rect, label = line.strip().split(",")
+            *rect, label = line.strip().split(",", 4)
             assert(len(rect) == 4)
             # Ignore boxes with empty labels.
             if label != '':
@@ -104,7 +104,7 @@ def count_boxes(bboxes_text):
     lines = bboxes_text.split("\n")
     for line in lines:
         try:
-            *rect, label = line.strip().split(",")
+            *rect, label = line.strip().split(",", 4)
             assert(len(rect) == 4)
             # Ignore boxes with empty labels.
             if label != '':
@@ -148,7 +148,7 @@ def extract_labels(bboxes_text):
     lines = bboxes_text.split("\n")
     for line in lines:
         try:
-            *rect, label = line.strip().split(",")
+            *rect, label = line.strip().split(",", 4)
             assert(len(rect) == 4)
             # Ignore boxes with empty labels.
             if label != '':
