@@ -21,6 +21,10 @@ import logging
 # My Modules
 import action
 
+
+logging.getLogger().setLevel(logging.INFO)
+
+
 # cloud functions
 
 def perform_action(data, context):
