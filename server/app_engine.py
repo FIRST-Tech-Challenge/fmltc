@@ -46,6 +46,10 @@ import oidc
 import roles
 from roles import Role
 from config import Config
+from config import KEY_TRAINING_ENABLED
+from config import KEY_USE_TPU
+from config import KEY_SECURE_SESSION_COOKIES
+from config import KEY_SAMESITE_SESSION_COOKIES
 import storage
 import team_info
 import test_routes
@@ -87,12 +91,12 @@ app.config.update(
         # For SESSION_COOKIE_SECURE, True means that cookies will only be sent to the server with an
         # encrypted request over the HTTPS protocol.
         # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#restrict_access_to_cookies
-        "SESSION_COOKIE_SECURE": config.get_secure_session_cookies(),
+        "SESSION_COOKIE_SECURE": config[KEY_SECURE_SESSION_COOKIES],
 
         # For SESSION_COOKIE_SAMESITE, Strict means that cookies will only be sent in a first-party
         # context and not be sent along with requests initiated by third party websites.
         # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#values
-        "SESSION_COOKIE_SAMESITE": "Strict" if config.get_samesite_session_cookies() else "Lax",
+        "SESSION_COOKIE_SAMESITE": "Strict" if config[KEY_SAMESITE_SESSION_COOKIES] else "Lax",
 
         # OIDC properties
 
@@ -127,8 +131,13 @@ application_properties = json.load(open('app.properties', 'r'))
 @app.context_processor
 def inject_time():
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
+    if 'user_roles' in flask.session:
+        is_admin = roles.is_global_admin(flask.session.get('user_roles'))
+    else:
+        is_admin = False
     return dict(time_time=time.time(), project_id=constants.PROJECT_ID, name=flask.session.get('given_name'),
-                program=program, team_number=team_number, version=application_properties.get('version'),
+                program=program, team_number=team_number, is_admin=is_admin,
+                version=application_properties.get('version'),
                 announcements=announcements.get_unexpired_announcements())
 
 
@@ -427,7 +436,7 @@ def index():
         can_upload_video=roles.can_upload_video(flask.session['user_roles']),
         training_enabled=config.get_training_enabled_as_str(),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
-        model_trainer_data=model_trainer.get_data_for_root_template(config.get_use_tpu()))
+        model_trainer_data=model_trainer.get_data_for_root_template(config[KEY_USE_TPU]))
 
 @app.route('/labelVideo')
 @handle_exceptions
@@ -473,12 +482,26 @@ def monitor_training():
         dataset_entities_by_uuid=dataset_entities_by_uuid,
         video_entities_by_uuid=video_entities_by_uuid)
 
+
 @app.route('/admin', methods=['GET'])
 @handle_exceptions
 @login_required
 @roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
 def admin():
-    return flask.render_template('admin.html')
+    return flask.render_template('admin.html', config=config)
+
+
+@app.route('/refreshConfig', methods=['POST'])
+@handle_exceptions
+@login_required
+@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
+def refresh_config():
+    config.refresh()
+    app.config.update({
+        "SESSION_COOKIE_SECURE": config[KEY_SECURE_SESSION_COOKIES],
+        "SESSION_COOKIE_SAMESITE": "Strict" if config[KEY_SAMESITE_SESSION_COOKIES] else "Lax",
+    })
+    return flask.jsonify(config)
 
 
 # requests
@@ -1119,7 +1142,7 @@ def delete_dataset_zip():
 @handle_exceptions
 @login_required
 def start_training_model():
-    if not config.get_training_enabled():
+    if not config[KEY_TRAINING_ENABLED]:
         raise Forbidden
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
@@ -1132,8 +1155,8 @@ def start_training_model():
     starting_model = model_trainer.validate_starting_model(data.get('starting_model'))
     max_running_minutes = validate_positive_float(data.get('max_running_minutes'))
     num_training_steps = validate_int(data.get('num_training_steps'),
-        min=model_trainer.get_min_training_steps(config.get_use_tpu()),
-        max=model_trainer.get_max_training_steps(config.get_use_tpu()))
+        min=model_trainer.get_min_training_steps(config[KEY_USE_TPU]),
+        max=model_trainer.get_max_training_steps(config[KEY_USE_TPU]))
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
     # model_trainer.start_training_model will raise HttpErrorNotFound
     # if starting_model is not a valid starting model and it's not a valid model_uuid, or
@@ -1143,7 +1166,7 @@ def start_training_model():
     # model_trainer.start_training_model will raise HttpErrorUnprocessableEntity
     # if the max_running_minutes exceeds the team's remaining_training_minutes.
     model_entity = model_trainer.start_training_model(team_uuid, description, dataset_uuids_json,
-        starting_model, max_running_minutes, num_training_steps, create_time_ms, config.get_use_tpu())
+        starting_model, max_running_minutes, num_training_steps, create_time_ms, config[KEY_USE_TPU])
     # Retrieve the team entity so the client gets the updated remaining_training_minutes.
     team_entity = storage.retrieve_team_entity(team_uuid)
     strip_model_entity(model_entity)
