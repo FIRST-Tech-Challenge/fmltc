@@ -233,10 +233,15 @@ fmltc.LabelVideo.prototype.repositionCanvas = function() {
   this.bboxCanvas.style.height = this.videoFrameImg.offsetHeight + 'px';
   this.bboxCanvas.style.zIndex = '2';
 
-  this.redrawBboxes();
+  this.redrawBboxes(false);
 };
 
-fmltc.LabelVideo.prototype.redrawBboxes = function() {
+fmltc.LabelVideo.prototype.redrawBboxes = function(updateCanvasPosition) {
+  if (updateCanvasPosition) {
+    this.repositionCanvas();
+    return;
+  }
+
   this.bboxCanvasCtx.clearRect(0, 0, this.videoEntity.width, this.videoEntity.height);
 
   if (this.bboxes[this.currentFrameNumber] && this.videoFrameImage[this.currentFrameNumber]) {
@@ -477,8 +482,8 @@ fmltc.LabelVideo.prototype.videoFrameEntityLoaded = function(videoFrameEntity) {
   setTimeout(this.retrieveVideoFrameImage.bind(this, frameNumber, videoFrameEntity.image_url, 0), 0);
 
   if (frameNumber == this.currentFrameNumber) {
-    this.redrawBboxes();
     this.refillLabelingArea();
+    this.redrawBboxes(true);
   }
 };
 
@@ -566,7 +571,7 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameImage_onreadystatechange = func
 
       if (frameNumber == this.currentFrameNumber) {
         this.updateVideoFrameImg();
-        this.redrawBboxes();
+        this.redrawBboxes(true);
       }
 
     } else {
@@ -766,7 +771,7 @@ fmltc.LabelVideo.prototype.bboxFieldInput_oninput = function(i, input, field) {
   if (i < this.bboxes[this.currentFrameNumber].length) {
     const box = this.bboxes[this.currentFrameNumber][i];
     box[field] = input.value;
-    this.redrawBboxes();
+    this.redrawBboxes(true);
     this.saveBboxes();
   }
   this.updateUI(true);
@@ -776,8 +781,8 @@ fmltc.LabelVideo.prototype.deleteButton_onclick = function(tr) {
   const i = tr.rowIndex - 1;
   if (i < this.bboxes[this.currentFrameNumber].length) {
     this.bboxes[this.currentFrameNumber].splice(i, 1);
-    this.redrawBboxes();
     this.refillLabelingArea();
+    this.redrawBboxes(true);
     this.updateUI(true);
     this.saveBboxes();
   }
@@ -811,8 +816,8 @@ fmltc.LabelVideo.prototype.goToFrame = function(frameNumber) {
   this.currentFrameNumber = frameNumber;
   this.currentFrameSpan.textContent = String(this.currentFrameNumber + 1);
   this.updateVideoFrameImg();
-  this.redrawBboxes();
   this.refillLabelingArea();
+  this.redrawBboxes(true);
   this.updateUI(true);
   return true;
 };
@@ -1111,7 +1116,7 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseleave = function(e) {
     this.bboxCanvasCtx.globalCompositeOperation = 'source-over';
     // Abort the new box.
     this.definingBbox = null;
-    this.redrawBboxes();
+    this.redrawBboxes(true);
 
   } else if (this.resizingBbox) {
     // Erase the previous temporary box.
@@ -1120,7 +1125,7 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseleave = function(e) {
     this.bboxCanvasCtx.globalCompositeOperation = 'source-over';
     // Abort the resize.
     this.resizingBbox = null;
-    this.redrawBboxes();
+    this.redrawBboxes(true);
   }
 };
 
@@ -1137,8 +1142,8 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseup = function(e) {
     this.updateUI(true);
     // Stop defining.
     this.definingBbox = null;
-    this.redrawBboxes();
     this.refillLabelingArea(true);
+    this.redrawBboxes(true);
     this.saveBboxes();
 
   } else if (this.resizingBbox) {
@@ -1150,8 +1155,8 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseup = function(e) {
     this.bboxes[this.currentFrameNumber][this.resizingBboxIndex].setXYFromAnotherBox(this.resizingBbox);
     // Stop resizing
     this.resizingBbox = null;
-    this.redrawBboxes();
     this.refillLabelingArea();
+    this.redrawBboxes(true);
     this.saveBboxes();
   }
 };
