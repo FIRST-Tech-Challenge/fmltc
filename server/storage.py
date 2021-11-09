@@ -50,13 +50,13 @@ DS_KIND_ADMIN_ACTION = 'AdminAction'
 
 def validate_uuid(s):
     if len(s) != 32:
-        message = "Error: '%s is not a valid uuid." % s
+        message = "Error: '%s' is not a valid uuid." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)
     allowed = '0123456789abcdef'
     for c in s:
         if c not in allowed:
-            message = "Error: '%s is not a valid uuid." % s
+            message = "Error: '%s' is not a valid uuid." % s
             logging.critical(message)
             raise exceptions.HttpErrorBadRequest(message)
     return s
@@ -66,7 +66,7 @@ def validate_uuids_json(s):
         for u in json.loads(s):
             validate_uuid(u)
     except:
-        message = "Error: '%s is not a valid argument." % s
+        message = "Error: '%s' is not a valid argument." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)
     return s
@@ -1425,15 +1425,20 @@ def __update_model_entity_job_state(model_entity, job, prefix):
         model_entity[prefix + 'job_elapsed_seconds'] = elapsed.total_seconds()
     error_message = job.get('errorMessage', '')
     if len(error_message) > 0 and prefix == 'train_':
-      if error_message.find('OOM when allocating tensor') != -1:
-          logging.critical('OOM error in job train_%s (original_starting_model=%s batch_size=%s train_frame_count=%s): %s' % (
-                  model_entity['model_uuid'],
-                  model_entity['original_starting_model'],
-                  str(model_entity['batch_size']),
-                  str(model_entity['train_frame_count']),
-                  error_message))
-      else:
-          logging.critical('error in job train_%s: %s' % (model_entity['model_uuid'], error_message))
+        if error_message.find('Job was cancelled for exceeding the maximum allowed duration of') != -1:
+            # Not critical.
+            logging.info('error in job train_%s: %s' % (model_entity['model_uuid'], error_message))
+        elif error_message.find('OOM when allocating tensor') != -1 or error_message.find('out-of-memory') != -1:
+            # Log some extra information if the error is out of memory.
+            logging.critical('OOM error in job train_%s (original_starting_model=%s batch_size=%s train_frame_count=%s): %s' % (
+                    model_entity['model_uuid'],
+                    model_entity['original_starting_model'],
+                    str(model_entity['batch_size']),
+                    str(model_entity['train_frame_count']),
+                    error_message))
+
+        else:
+            logging.critical('error in job train_%s: %s' % (model_entity['model_uuid'], error_message))
     model_entity[prefix + 'error_message'] = (error_message[:1498] + '..') if len(error_message) > 1500 else error_message
 
 def update_model_entity_job_state(team_uuid, model_uuid, train_job, eval_job):

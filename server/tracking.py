@@ -50,7 +50,7 @@ tracker_fns = {
 
 def validate_tracker_name(s):
     if s not in tracker_fns:
-        message = "Error: '%s is not a valid argument." % s
+        message = "Error: '%s' is not a valid argument." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)
     return s
