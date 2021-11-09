@@ -79,7 +79,7 @@ def validate_bboxes_text(s):
                 rect = np.array(rect, dtype=float).astype(int)
                 count += 1
             except:
-                message = "Error: '%s is not a valid argument." % s
+                message = "Error: '%s' is not a valid argument." % s
                 logging.critical(message)
                 raise exceptions.HttpErrorBadRequest(message)
     if count > constants.MAX_BOUNDING_BOX_PER_FRAME:

@@ -160,7 +160,7 @@ def validate_string(s, *args):
     for a in args:
         if s == a:
             return s
-    message = "Error: '%s is not a valid argument." % s
+    message = "Error: '%s' is not a valid argument." % s
     logging.critical(message)
     raise exceptions.HttpErrorBadRequest(message)
 
@@ -170,10 +170,10 @@ def validate_description(s, other_descriptions=[]):
     if not duplicate and len(s) >= 1 and len(s) <= 30 :
         return s
     if duplicate:
-        message = "Error: '%s is not a valid description, it is a duplicate." % s
+        message = "Error: '%s' is not a valid description, it is a duplicate." % s
         logging.info(message)
     else:
-        message = "Error: '%s is not a valid description." % s
+        message = "Error: '%s' is not a valid description." % s
         logging.critical(message)
     raise exceptions.HttpErrorBadRequest(message)
 
@@ -187,7 +187,7 @@ def validate_user_preference_key(s):
 
 def validate_video_content_type(s):
     if not s.startswith("video/"):
-        message = "Error: '%s is not a valid video content type." % s
+        message = "Error: '%s' is not a valid video content type." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)
     return s
@@ -208,24 +208,24 @@ def validate_float(s, min=None, max=None):
             if max is not None:
                 # Check min and max.
                 if f < min or f > max:
-                    message = "Error: '%s is not a valid number between %d and %d." % (s, min, max)
+                    message = "Error: '%s' is not a valid number between %d and %d." % (s, min, max)
                     logging.critical(message)
                     raise exceptions.HttpErrorBadRequest(message)
             else:
                 # Check min only.
                 if f < min:
-                    message = "Error: '%s is not a valid number >= %d." % (s, min)
+                    message = "Error: '%s' is not a valid number >= %d." % (s, min)
                     logging.critical(message)
                     raise exceptions.HttpErrorBadRequest(message)
         elif max is not None:
             # Check max only.
             if f > max:
-                message = "Error: '%s is not a valid number <= %d." % (s, max)
+                message = "Error: '%s' is not a valid number <= %d." % (s, max)
                 logging.critical(message)
                 raise exceptions.HttpErrorBadRequest(message)
         return f
     except:
-        message = "Error: '%s is not a valid number." % s
+        message = "Error: '%s' is not a valid number." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)
 
@@ -233,7 +233,7 @@ def validate_float(s, min=None, max=None):
 def validate_positive_float(s):
     f = validate_float(s)
     if f <= 0:
-        message = "Error: '%s is not a valid positive number." % s
+        message = "Error: '%s' is not a valid positive number." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)
     return f
@@ -246,24 +246,24 @@ def validate_int(s, min=None, max=None):
             if max is not None:
                 # Check min and max.
                 if i < min or i > max:
-                    message = "Error: '%s is not a valid number between %d and %d." % (s, min, max)
+                    message = "Error: '%s' is not a valid number between %d and %d." % (s, min, max)
                     logging.critical(message)
                     raise exceptions.HttpErrorBadRequest(message)
             else:
                 # Check min only.
                 if i < min:
-                    message = "Error: '%s is not a valid number >= %d." % (s, min)
+                    message = "Error: '%s' is not a valid number >= %d." % (s, min)
                     logging.critical(message)
                     raise exceptions.HttpErrorBadRequest(message)
         elif max is not None:
             # Check max only.
             if i > max:
-                message = "Error: '%s is not a valid number <= %d." % (s, max)
+                message = "Error: '%s' is not a valid number <= %d." % (s, max)
                 logging.critical(message)
                 raise exceptions.HttpErrorBadRequest(message)
         return i
     except:
-        message = "Error: '%s is not a valid integer." % s
+        message = "Error: '%s' is not a valid integer." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)
 
@@ -271,7 +271,7 @@ def validate_int(s, min=None, max=None):
 def validate_positive_int(s):
     i = validate_int(s)
     if i <= 0:
-        message = "Error: '%s is not a valid positive integer." % s
+        message = "Error: '%s' is not a valid positive integer." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)
     return i
@@ -287,7 +287,7 @@ def validate_create_time_ms(s):
     delta_seconds = math.fabs((now - create_time).total_seconds())
     # Allow a 3 minute difference between the user's clock and the server's clock.
     if delta_seconds > 3 * 60:
-        message = "Error: '%s is not a valid create time." % s
+        message = "Error: '%s' is not a valid create time." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)
     return i
