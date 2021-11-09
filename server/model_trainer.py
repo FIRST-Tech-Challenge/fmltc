@@ -74,7 +74,7 @@ def validate_starting_model(s):
         try:
             return storage.validate_uuid(s)
         except:
-            message = "Error: '%s is not a valid argument." % s
+            message = "Error: '%s' is not a valid argument." % s
             logging.critical(message)
             raise exceptions.HttpErrorBadRequest(message)
     return s
