@@ -58,6 +58,14 @@ limitations under the License.
     </div>
 
     <br><hr><br>
+
+    <h2>Configuration</h2>
+      <div>Training Enabled: <span id="trainingEnabled">{{config['training_enabled']}}</span></div>
+      <div>Use TPU: <span id="useTpu">{{config['use_tpu']}}</span></div>
+      <div>Secure Session Cookies: <span id="secureSessionCookies">{{config['secure_session_cookies']}}</span></div>
+      <div>Samesite Session Cookies: <span id="samesiteSessionCookies">{{config['samesite_session_cookies']}}</span></div>
+      <button id="refreshConfigButton" class="btn btn-secondary">Refresh Cache</button>
+      <br><hr><br>
   </div>
 
 <script type="text/javascript">
