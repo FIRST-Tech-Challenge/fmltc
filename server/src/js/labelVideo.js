@@ -46,6 +46,7 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.videoFrameImg = document.getElementById('videoFrameImg');
   this.currentFrameSpan = document.getElementById('currentFrameSpan');
   this.labelingAreaTable = document.getElementById('labelingAreaTable');
+  this.labelingAreaSavingMessageDiv = document.getElementById('labelingAreaSavingMessageDiv');
   this.labelHintDiv = document.getElementById('labelHintDiv');
   this.firstFrameButton = document.getElementById('firstFrameButton');
   this.previousTenFrameButton = document.getElementById('previousTenFrameButton');
@@ -54,6 +55,7 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.nextTenFrameButton = document.getElementById('nextTenFrameButton');
   this.lastFrameButton = document.getElementById('lastFrameButton');
   this.ignoreFrameCheckbox = document.getElementById('ignoreFrameCheckbox');
+  this.ignoreFrameSavingMessageSpan = document.getElementById('ignoreFrameSavingMessageSpan');
   this.ignoredFrameCountSpan = document.getElementById('ignoredFrameCountSpan');
   this.previousIgnoredFrameButton = document.getElementById('previousIgnoredFrameButton');
   this.nextIgnoredFrameButton = document.getElementById('nextIgnoredFrameButton');
@@ -251,7 +253,7 @@ fmltc.LabelVideo.prototype.redrawBboxes = function(updateCanvasPosition) {
   }
 };
 
-fmltc.LabelVideo.prototype.updateUI = function(setMessageDivText) {
+fmltc.LabelVideo.prototype.updateUI = function(setTrackingMessageDivText) {
   if (!this.videoEntity ||
       this.bboxes[this.currentFrameNumber] == undefined) {
     this.firstFrameButton.disabled = true;
@@ -278,7 +280,7 @@ fmltc.LabelVideo.prototype.updateUI = function(setMessageDivText) {
     return;
   }
 
-  if (setMessageDivText) {
+  if (setTrackingMessageDivText) {
     if (this.bboxes[this.currentFrameNumber].length == 0) {
       this.trackingMessageDiv.textContent = 'To enable tracking, draw bounding boxes on this frame.';
     } else {
@@ -462,7 +464,7 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameEntitiesWithImageUrls_onreadyst
 };
 
 fmltc.LabelVideo.prototype.videoFrameEntityLoaded = function(videoFrameEntity) {
-  frameNumber = videoFrameEntity.frame_number
+  frameNumber = videoFrameEntity.frame_number;
   const previousIgnoreFrame = this.videoFrameEntity[frameNumber]
       ? !this.videoFrameEntity[frameNumber].include_frame_in_dataset : false;
   const previousUnlabeledFrame = this.videoFrameEntity[frameNumber]
@@ -652,17 +654,12 @@ fmltc.LabelVideo.prototype.saveBboxes = function() {
   const bboxesText = this.convertBboxesToText(this.bboxes[this.currentFrameNumber]);
   if (bboxesText == previousBboxesText) {
     // Don't save them if they haven't changed.
+    this.labelingAreaSavingMessageDiv.textContent = '';
     return bboxesText;
   }
 
-  const ignoreFrame = this.isIgnored(this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset);
-  const previousUnlabeledFrame = this.isUnlabeled(previousBboxesText);
-  const unlabeledFrame = this.isUnlabeled(bboxesText);
-  this.updateFrameCounts(this.currentFrameNumber, ignoreFrame, ignoreFrame,
-      previousUnlabeledFrame, unlabeledFrame);
-  this.videoFrameEntity[this.currentFrameNumber].bboxes_text = bboxesText;
-
-  this.trackingMessageDiv.textContent = 'Saving.';
+  this.labelingAreaSavingMessageDiv.style.color = '#0d6efd';
+  this.labelingAreaSavingMessageDiv.textContent = ''; // 'Saving...';
 
   const xhr = new XMLHttpRequest();
   const params =
@@ -672,21 +669,29 @@ fmltc.LabelVideo.prototype.saveBboxes = function() {
   xhr.open('POST', '/storeVideoFrameBboxesText', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_storeVideoFrameBboxesText_onreadystatechange.bind(this, xhr, params,
-      this.currentFrameNumber);
+      this.currentFrameNumber, previousBboxesText, bboxesText);
   xhr.send(params);
   return bboxesText;
 };
 
 fmltc.LabelVideo.prototype.xhr_storeVideoFrameBboxesText_onreadystatechange = function(xhr, params,
-    frame_number) {
+    frameNumber, previousBboxesText, bboxesText) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
 
     if (xhr.status === 200) {
-      this.trackingMessageDiv.textContent = '';
+      this.labelingAreaSavingMessageDiv.textContent = '';
+      const ignoreFrame = this.isIgnored(this.videoFrameEntity[frameNumber].include_frame_in_dataset);
+      const previousUnlabeledFrame = this.isUnlabeled(previousBboxesText);
+      const unlabeledFrame = this.isUnlabeled(bboxesText);
+      this.updateFrameCounts(frameNumber, ignoreFrame, ignoreFrame,
+          previousUnlabeledFrame, unlabeledFrame);
+      this.videoFrameEntity[frameNumber].bboxes_text = bboxesText;
 
     } else {
-      // TODO(lizlooney): handle error properly
+      this.labelingAreaSavingMessageDiv.style.color = 'red';
+      this.labelingAreaSavingMessageDiv.textContent = 'Saving failed.';
+
       console.log('Failure! /storeVideoFrameBboxesText?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
@@ -844,13 +849,12 @@ fmltc.LabelVideo.prototype.ignoreFrameCheckbox_onclick = function() {
   const ignoreFrame = this.ignoreFrameCheckbox.checked;
   if (ignoreFrame == previousIgnoreFrame) {
     // Don't save them if they haven't changed.
+    this.ignoreFrameSavingMessageSpan.textContent = '';
     return;
   }
 
-  const unlabeledFrame = this.isUnlabeled(this.videoFrameEntity[this.currentFrameNumber].bboxes_text);
-  this.updateFrameCounts(this.currentFrameNumber, previousIgnoreFrame, ignoreFrame,
-      unlabeledFrame, unlabeledFrame);
-  this.videoFrameEntity[this.currentFrameNumber].include_frame_in_dataset = !ignoreFrame;
+  this.ignoreFrameSavingMessageSpan.style.color = '#0d6efd';
+  this.ignoreFrameSavingMessageSpan.textContent = ''; // 'Saving...';
 
   const xhr = new XMLHttpRequest();
   const params =
@@ -860,17 +864,26 @@ fmltc.LabelVideo.prototype.ignoreFrameCheckbox_onclick = function() {
   xhr.open('POST', '/storeVideoFrameIncludeInDataset', true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   xhr.onreadystatechange = this.xhr_storeVideoFrameIncludeInDataset_onreadystatechange.bind(this, xhr, params,
-      this.currentFrameNumber);
+      this.currentFrameNumber, previousIgnoreFrame, ignoreFrame);
   xhr.send(params);
 };
 
 fmltc.LabelVideo.prototype.xhr_storeVideoFrameIncludeInDataset_onreadystatechange = function(xhr, params,
-    frame_number) {
+    frameNumber, previousIgnoreFrame, ignoreFrame) {
   if (xhr.readyState === 4) {
     xhr.onreadystatechange = null;
+
     if (xhr.status === 200) {
+      this.ignoreFrameSavingMessageSpan.textContent = '';
+      const unlabeledFrame = this.isUnlabeled(this.videoFrameEntity[frameNumber].bboxes_text);
+      this.updateFrameCounts(frameNumber, previousIgnoreFrame, ignoreFrame,
+          unlabeledFrame, unlabeledFrame);
+      this.videoFrameEntity[frameNumber].include_frame_in_dataset = !ignoreFrame;
+
     } else {
-      // TODO(lizlooney): handle error properly
+      this.ignoreFrameSavingMessageSpan.style.color = 'red';
+      this.ignoreFrameSavingMessageSpan.textContent = 'Saving failed.';
+
       console.log('Failure! /storeVideoFrameIncludeInDataset?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }

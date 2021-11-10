@@ -78,6 +78,8 @@ if sentry_dsn is not None:
         integrations=sentry_integrations,
         traces_sample_rate=1.0)
 
+logging.getLogger().setLevel(logging.INFO)
+
 app = flask.Flask(__name__)
 app.register_blueprint(test_routes.test_routes)
 
@@ -524,6 +526,7 @@ def refresh_config():
 @app.route('/ok', methods=['GET'])
 @handle_exceptions
 def ok():
+    logging.info('ok')
     return 'OK'
 
 
