@@ -30,6 +30,7 @@ import blob_storage
 import exceptions
 import metrics
 import storage
+import constants
 
 def start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms):
     action_parameters = action.create_action_parameters(
@@ -152,18 +153,17 @@ def extract_frames(action_parameters):
                             # We've reached the end of the video. All finished counting!
                             break
                         frame_count += 1
-                    # Don't allow videos that are longer than 2 minutes.
-                    # The value 120 should match the value used in uploadVideoFileDialog.js.
+                    # Limit by duration.
                     duration = frame_count / fps
-                    if duration > 120:
-                        storage.frame_extraction_failed(team_uuid, video_uuid,
-                                "This video is longer than 2 minutes, which is the maximum duration allowed.",
+                    if duration > constants.MAX_VIDEO_LENGTH_SECONDS:
+                        message = "This video is longer than %d seconds, which is the maximum duration allowed." % constants.MAX_VIDEO_LENGTH_SECONDS
+                        storage.frame_extraction_failed(team_uuid, video_uuid, message,
                                 width=width, height=height, fps=fps, frame_count=frame_count)
                         return
-                    # Don't allow videos that have more than 1000 frames.
-                    if frame_count > 1000:
-                        storage.frame_extraction_failed(team_uuid, video_uuid,
-                                "This video has more than 1000 frames, which is the maximum allowed.",
+                    # Limit by number of frames.
+                    if frame_count > constants.MAX_FRAMES_PER_VIDEO:
+                        message = "This video has more than %d frames, which is the maximum allowed." % constants.MAX_FRAMES_PER_VIDEO
+                        storage.frame_extraction_failed(team_uuid, video_uuid, message,
                                 width=width, height=height, fps=fps, frame_count=frame_count)
                         return
                     # Don't allow videos that have zero frames.
@@ -172,10 +172,12 @@ def extract_frames(action_parameters):
                                 "This video has zero frames.",
                                 width=width, height=height, fps=fps, frame_count=frame_count)
                         return
-                    # Don't allow videos with resolution larger than 3840 x 2160.
-                    if max(width, height) > 3840 or min(width, height) > 2160:
-                        storage.frame_extraction_failed(team_uuid, video_uuid,
-                                "This video's resolution is larger than 3840 x 2160, which is the maximum resolution allowed.",
+                    # Limit by resolution.
+                    if (max(width, height) > max(constants.MAX_VIDEO_RESOLUTION_WIDTH, constants.MAX_VIDEO_RESOLUTION_HEIGHT) or
+                            min(width, height) > min(constants.MAX_VIDEO_RESOLUTION_WIDTH, constants.MAX_VIDEO_RESOLUTION_HEIGHT)):
+                        message = "This video's resolution is larger than %d x %d, which is the maximum resolution allowed." % (
+                                constants.MAX_VIDEO_RESOLUTION_WIDTH, constants.MAX_VIDEO_RESOLUTION_HEIGHT)
+                        storage.frame_extraction_failed(team_uuid, video_uuid, message,
                                 width=width, height=height, fps=fps, frame_count=frame_count)
                         return
 

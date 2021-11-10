@@ -540,6 +540,7 @@ limitations under the License.
   window.addEventListener('load', function() {
     const util = new fmltc.Util('root',
       {{ team_preferences|tojson }},
+      {{ limit_data|tojson }},
       {{ model_trainer_data|tojson }},
       {{ training_enabled }});
     util.setListModels(new fmltc.ListModels(util));
@@ -550,4 +551,3 @@ limitations under the License.
 </main>
 
 {% endblock %}
-
