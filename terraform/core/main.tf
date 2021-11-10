@@ -184,11 +184,25 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
     auth_fail_action = "AUTH_FAIL_ACTION_REDIRECT"
     login            = "LOGIN_OPTIONAL"
     security_level   = "SECURE_OPTIONAL"
-    url_regex = "/favicon.ico"
+    url_regex = "/(.*\\.ico)"
     static_files {
-      path = "static/favicon.ico"
-      upload_path_regex = "static/favicon.ico"
-      expiration = "86400s"
+      path = "static/\\1"
+      mime_type = "image/x-icon"
+      upload_path_regex = "static/(.*\\.ico)"
+      expiration = "0s"
+    }
+  }
+
+  handlers {
+    auth_fail_action = "AUTH_FAIL_ACTION_REDIRECT"
+    login            = "LOGIN_OPTIONAL"
+    security_level   = "SECURE_OPTIONAL"
+    url_regex = "/(.*\\.txt)"
+    static_files {
+      path = "static/\\1"
+      mime_type = "plain/text"
+      upload_path_regex = "static/(.*\\.txt)"
+      expiration = "0s"
     }
   }
 
