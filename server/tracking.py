@@ -166,7 +166,8 @@ def start_tracking(action_parameters):
                         bboxes.append(None)
 
                 # Store the new bboxes.
-                tracked_bboxes_text = bbox_writer.format_bboxes_text(bboxes, classes, scale)
+                tracked_bboxes_text = bbox_writer.format_bboxes_text(bboxes, classes, scale,
+                      tracker_entity['video_width'], tracker_entity['video_height'])
                 storage.store_tracked_bboxes(video_uuid, tracker_uuid, frame_number, tracked_bboxes_text)
 
                 if __should_stop(team_uuid, video_uuid, tracker_uuid, tracker_client_entity,

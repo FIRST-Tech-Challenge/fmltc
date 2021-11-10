@@ -91,21 +91,37 @@ fmltc.Box.prototype.resize = function(hotspot, dx, dy) {
  * Draws this box onto the given 2d context.
  * @param {CanvasRenderingContext2D} ctx The canvas context to draw with.
  */
-fmltc.Box.prototype.draw = function(ctx, scale, drawLabel) {
-  ctx.lineWidth = Math.round(2 / scale);
-  ctx.strokeStyle = '#00FF00';
+fmltc.Box.prototype.draw = function(ctx, scale, drawLabel, colorString) {
+  ctx.lineWidth = Math.round(3 / scale);
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = colorString;
   ctx.strokeRect(this.x1, this.y1, this.x2 - this.x1, this.y2 - this.y1);
+
   // Draw the resize hotspots.
   ctx.fillStyle = '#000000';
   const halfHotspot = Math.round(2 / scale);
   const wholeHotspot = 2 * halfHotspot;
   ctx.fillRect(this.x1 - halfHotspot, this.y1 - halfHotspot, wholeHotspot, wholeHotspot);
   ctx.fillRect(this.x2 - halfHotspot, this.y2 - halfHotspot, wholeHotspot, wholeHotspot);
+
+  // Draw the label
   if (drawLabel && this.label) {
-    ctx.fillStyle = '#00FF00';
-    ctx.font = Math.round(30 / scale) + 'px Georgia';
+    let fontSizePx = Math.round(16 / scale);
+    fontSizePx += fontSizePx % 2; // Make it an even number.
+    ctx.font = fontSizePx + 'px Arial';
     const dim = ctx.measureText(this.label);
-    ctx.fillText(this.label, this.x1 + 2, (this.y1 + this.y2 + dim.actualBoundingBoxAscent) / 2);
+    ctx.fillStyle = colorString;
+    const padding = Math.round(2 / scale);
+    const height = Math.abs(dim.fontBoundingBoxAscent) + Math.abs(dim.fontBoundingBoxDescent) + 2 * padding;
+    ctx.fillRect(
+        this.x1 + halfHotspot + 1,
+        this.y1 - height,
+        Math.abs(dim.actualBoundingBoxLeft) + Math.abs(dim.actualBoundingBoxRight) + 2 * padding,
+        height);
+    ctx.fillStyle = '#000000';
+    ctx.fillText(this.label,
+        this.x1 + halfHotspot + 1 + padding,
+        this.y1 - Math.abs(dim.fontBoundingBoxDescent) - padding);
   }
 };
 
@@ -114,16 +130,24 @@ fmltc.Box.prototype.draw = function(ctx, scale, drawLabel) {
  * @param {fmltc.Point} point The point to consider.
  * @return {number} 1 for the upper-left hotspot, 2 for the lower-right hotspot, 0 for no hotspot.
  */
-fmltc.Box.prototype.getResizeHotspot = function(point, scale) {
+fmltc.Box.prototype.getResizeHotspot = function(point, scale, optGetDelta) {
   const size = Math.round(4  / scale);
   if (Math.abs(point.y - this.y1) < size &&
       Math.abs(point.x - this.x1) < size) {
+    if (optGetDelta) {
+      optGetDelta.x = this.x1 - point.x;
+      optGetDelta.y = this.y1 - point.y;
+    }
     // Upper-left corner.
     return 1;
   }
   if (Math.abs(point.y - this.y2) < size &&
       Math.abs(point.x - this.x2) < size) {
     // Lower-right corner.
+    if (optGetDelta) {
+      optGetDelta.x = this.x2 - point.x;
+      optGetDelta.y = this.y2 - point.y;
+    }
     return 2;
   }
   return 0;
