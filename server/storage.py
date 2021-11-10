@@ -1425,7 +1425,8 @@ def __update_model_entity_job_state(model_entity, job, prefix):
         model_entity[prefix + 'job_elapsed_seconds'] = elapsed.total_seconds()
     error_message = job.get('errorMessage', '')
     if len(error_message) > 0 and prefix == 'train_':
-        if error_message.find('Job was cancelled for exceeding the maximum allowed duration of') != -1:
+        if (error_message.find('Job was cancelled for exceeding the maximum allowed duration of') != -1 or
+                error_message.find('Job is cancelled by the user') != -1):
             # Not critical.
             logging.info('error in job train_%s: %s' % (model_entity['model_uuid'], error_message))
         elif error_message.find('OOM when allocating tensor') != -1 or error_message.find('out-of-memory') != -1:

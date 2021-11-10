@@ -25,6 +25,7 @@ import numpy as np
 
 # My Modules
 import exceptions
+import constants
 
 
 def __convert_bbox_to_text(bbox, scale):
@@ -69,16 +70,22 @@ def __convert_rects_to_bboxes(rects):
 
 def validate_bboxes_text(s):
     lines = s.split("\n")
+    count = 0
     for line in lines:
         if len(line) > 0:
             try:
                 *rect, label = line.strip().split(",", 4)
                 assert(len(rect) == 4)
                 rect = np.array(rect, dtype=float).astype(int)
+                count += 1
             except:
                 message = "Error: '%s' is not a valid argument." % s
                 logging.critical(message)
                 raise exceptions.HttpErrorBadRequest(message)
+    if count > constants.MAX_BOUNDING_BOX_PER_FRAME:
+        message = "Error: '%s' contains too many bounding boxes." % s
+        logging.critical(message)
+        raise exceptions.HttpErrorBadRequest(message)
     return s
 
 def convert_text_to_rects_and_labels(bboxes_text):

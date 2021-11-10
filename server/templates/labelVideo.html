@@ -149,7 +149,9 @@ limitations under the License.
         </div>
         <script type="text/javascript">
           window.addEventListener('load', function() {
-            const util = new fmltc.Util('labelVideo', {{ team_preferences|tojson }});
+            const util = new fmltc.Util('labelVideo',
+                {{ team_preferences|tojson }},
+                {{ limit_data|tojson }});
             new fmltc.LabelVideo(util, {{ video_entity|tojson }}, {{ video_frame_entity_0|tojson }});
           });
         </script>
