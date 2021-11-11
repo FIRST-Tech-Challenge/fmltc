@@ -1098,7 +1098,8 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousedown = function(e) {
     return;
   }
 
-  this.point1.fromMouseEvent(e, this.bboxCanvas, this.canvasScale);
+  this.point1.fromMouseEvent(e, this.bboxCanvas,
+      this.canvasScale, this.videoEntity.width, this.videoEntity.height);
 
   let hotspot = 0;
   let i = 0;
@@ -1126,6 +1127,14 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousedown = function(e) {
 };
 
 fmltc.LabelVideo.prototype.bboxCanvas_onmousemove = function(e) {
+  this.handleMouseMove(e, true);
+};
+
+fmltc.LabelVideo.prototype.bboxCanvas_onmouseleave = function(e) {
+  this.handleMouseMove(e, false);
+};
+
+fmltc.LabelVideo.prototype.handleMouseMove = function(e, mouseOverCanvas) {
   if (this.playing ||
       (this.trackingInProgress && (!this.trackingPaused || this.trackingWaitingForBboxes)) ||
       this.bboxes[this.currentFrameNumber] == undefined) {
@@ -1138,23 +1147,27 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousemove = function(e) {
     return;
   }
 
-  this.mousePoint.fromMouseEvent(e, this.bboxCanvas, this.canvasScale);
-  this.mouseOverCanvas = true;
+  this.mousePoint.fromMouseEvent(e, this.bboxCanvas,
+      this.canvasScale, this.videoEntity.width, this.videoEntity.height);
+  this.mouseOverCanvas = mouseOverCanvas;
 
   if (this.definingBbox) {
     // Adjust the box.
-    this.point2.fromMouseEvent(e, this.bboxCanvas, this.canvasScale);
+    this.point2.fromMouseEvent(e, this.bboxCanvas,
+        this.canvasScale, this.videoEntity.width, this.videoEntity.height);
     this.definingBbox.set(this.point1.x, this.point1.y, this.point2.x, this.point2.y);
 
   } else if (this.resizingBbox) {
     // Adjust the box
-    this.point2.fromMouseEvent(e, this.bboxCanvas, this.canvasScale);
+    this.point2.fromMouseEvent(e, this.bboxCanvas,
+        this.canvasScale, this.videoEntity.width, this.videoEntity.height);
     this.resizingBbox.resize(this.resizingBboxHotspot, this.point2.x - this.point1.x, this.point2.y - this.point1.y);
     this.point1.fromAnotherPoint(this.point2);
 
   } else {
     // If the mouse is on a resize hotspot of an existing box, show a resize cursor.
-    this.point1.fromMouseEvent(e, this.bboxCanvas, this.canvasScale);
+    this.point1.fromMouseEvent(e, this.bboxCanvas,
+        this.canvasScale, this.videoEntity.width, this.videoEntity.height);
     let hotspot = 0;
     for (let i = 0; i < this.bboxes[this.currentFrameNumber].length; i++) {
       hotspot = this.bboxes[this.currentFrameNumber][i].getResizeHotspot(this.point1, this.canvasScale);
@@ -1173,11 +1186,6 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousemove = function(e) {
     }
   }
 
-  this.redrawBboxes(false);
-};
-
-fmltc.LabelVideo.prototype.bboxCanvas_onmouseleave = function(e) {
-  this.mouseOverCanvas = false;
   this.redrawBboxes(false);
 };
 

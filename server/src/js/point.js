@@ -37,7 +37,7 @@ fmltc.Point = function() {
  * @param {Element} element The Element whose upper-left corner is considered the origin.
  * @param {number} scale The scale of the element's context.
  */
-fmltc.Point.prototype.fromMouseEvent = function(e, element, scale) {
+fmltc.Point.prototype.fromMouseEvent = function(e, element, scale, xMax, yMax) {
   this.x = e.pageX;
   this.y = e.pageY;
   while (element) {
@@ -45,10 +45,8 @@ fmltc.Point.prototype.fromMouseEvent = function(e, element, scale) {
     this.y -= element.offsetTop;
     element = element.offsetParent;
   }
-  this.x /= scale;
-  this.y /= scale;
-  this.x = Math.round(this.x);
-  this.y = Math.round(this.y);
+  this.x = Math.max(0, Math.min(xMax, Math.round(this.x / scale)));
+  this.y = Math.max(0, Math.min(yMax, Math.round(this.y / scale)));
 };
 
 /**
