@@ -93,7 +93,7 @@ fmltc.Box.prototype.resize = function(hotspot, dx, dy) {
  */
 fmltc.Box.prototype.draw = function(ctx, scale, drawLabel, colorString) {
   ctx.lineWidth = Math.round(3 / scale);
-  ctx.lineJoin = 'round';
+  ctx.lineJoin = 'bevel';
   ctx.strokeStyle = colorString;
   ctx.strokeRect(this.x1, this.y1, this.x2 - this.x1, this.y2 - this.y1);
 
@@ -113,7 +113,7 @@ fmltc.Box.prototype.draw = function(ctx, scale, drawLabel, colorString) {
     ctx.fillStyle = colorString;
     const padding = Math.round(2 / scale);
     const height = Math.abs(dim.fontBoundingBoxAscent) + Math.abs(dim.fontBoundingBoxDescent) + 2 * padding;
-    ctx.fillRect(
+    this.fillRect(ctx, Math.round(2 / scale),
         this.x1 + halfHotspot + 1,
         this.y1 - height,
         Math.abs(dim.actualBoundingBoxLeft) + Math.abs(dim.actualBoundingBoxRight) + 2 * padding,
@@ -123,6 +123,21 @@ fmltc.Box.prototype.draw = function(ctx, scale, drawLabel, colorString) {
         this.x1 + halfHotspot + 1 + padding,
         this.y1 - Math.abs(dim.fontBoundingBoxDescent) - padding);
   }
+};
+
+fmltc.Box.prototype.fillRect = function(ctx, bevelAmount, x, y, w, h) {
+  ctx.beginPath();
+  ctx.moveTo(x + bevelAmount, y);
+  ctx.lineTo(x + w - bevelAmount, y);
+  ctx.lineTo(x + w, y + bevelAmount);
+  ctx.lineTo(x + w, y + h - bevelAmount);
+  ctx.lineTo(x + w - bevelAmount, y + h);
+  ctx.lineTo(x + bevelAmount, y + h);
+  ctx.lineTo(x, y + h - bevelAmount);
+  ctx.lineTo(x, y + bevelAmount);
+  ctx.lineTo(x + bevelAmount, y);
+  ctx.closePath();
+  ctx.fill();
 };
 
 /**
