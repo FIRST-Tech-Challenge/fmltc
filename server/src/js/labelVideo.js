@@ -43,6 +43,7 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.largerImageButton = document.getElementById('largerImageButton');
   this.loadingProgress = document.getElementById('loadingProgress');
   this.bboxCanvas = document.getElementById('bboxCanvas');
+  this.bboxCanvasCtx = this.bboxCanvas.getContext('2d');
   this.videoFrameImg = document.getElementById('videoFrameImg');
   this.currentFrameSpan = document.getElementById('currentFrameSpan');
   this.labelingAreaTable = document.getElementById('labelingAreaTable');
@@ -88,14 +89,12 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
 
   this.loadingProgress.value = 0;
 
-  this.bboxCanvasCtx = this.bboxCanvas.getContext('2d');
-  this.canvasScale = 1;
-
   this.videoEntity = null;
 
-  this.canvasWidth = Number(this.util.getPreference('canvasWidth', 800));
-  this.smallerImageButton.disabled = (this.canvasWidth <= fmltc.LabelVideo.MIN_CANVAS_WIDTH);
-  this.largerImageButton.disabled = (this.canvasWidth >= fmltc.LabelVideo.MAX_CANVAS_WIDTH);
+  this.canvasScale = 1;
+  this.canvasWidth = 800;
+  this.smallerImageButton.disabled = true;
+  this.largerImageButton.disabled = true;
 
   this.videoFrameImage = [];
   this.videoFrameEntity = [];
@@ -153,9 +152,6 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   }
 };
 
-fmltc.LabelVideo.MIN_CANVAS_WIDTH = 500;
-fmltc.LabelVideo.MAX_CANVAS_WIDTH = 2000;
-
 fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   this.videoEntity = videoEntity;
 
@@ -172,7 +168,40 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   document.getElementById('descriptionSpan').textContent = this.videoEntity.description;
   document.getElementById('videoFrameCountSpan').textContent = String(this.videoEntity.frame_count);
 
-  this.rescaleCanvas();
+  this.canvasWidthChoices = [];
+  this.canvasWidthChoices.push(this.videoEntity.width);
+  for (let divisor = 1.5; true; divisor += 0.5) {
+    const width = this.videoEntity.width / divisor;
+    if (width < 500) {
+      break;
+    }
+    this.canvasWidthChoices.push(width);
+  }
+  for (let multiplier = 1.5; true; multiplier += 0.5) {
+    const width = this.videoEntity.width * multiplier;
+    if (width > 2000) {
+      break;
+    }
+    this.canvasWidthChoices.push(width);
+  }
+  this.canvasWidthChoices.sort(this.util.compare.bind(this.util));
+  const canvasWidthPreference = Number(this.util.getPreference('canvasWidth', 800));
+  if (this.videoEntity.width < canvasWidthPreference) {
+    this.rescaleCanvas(this.videoEntity.width);
+  } else {
+    let bestW = this.canvasWidthChoices[0];
+    for (let i = 1; i < this.canvasWidthChoices.length; i++) {
+      const w = this.canvasWidthChoices[i];
+      if (w > canvasWidthPreference) {
+        if (Math.abs(canvasWidthPreference - w) < Math.abs(canvasWidthPreference - bestW)) {
+          bestW = w;
+        }
+        break;
+      }
+      bestW = w;
+    }
+    this.rescaleCanvas(bestW);
+  }
   window.addEventListener('resize', this.repositionCanvas.bind(this));
 
   window.onbeforeunload = this.window_onbeforeunload.bind(this);
@@ -209,27 +238,25 @@ fmltc.LabelVideo.prototype.window_onbeforeunload = function() {
 };
 
 fmltc.LabelVideo.prototype.smallerImageButton_onclick = function() {
-  if (this.canvasWidth > fmltc.LabelVideo.MIN_CANVAS_WIDTH) {
-    this.canvasWidth = Math.max(fmltc.LabelVideo.MIN_CANVAS_WIDTH, this.canvasWidth - 100);
-    this.smallerImageButton.disabled = (this.canvasWidth <= fmltc.LabelVideo.MIN_CANVAS_WIDTH);
-    this.largerImageButton.disabled = (this.canvasWidth >= fmltc.LabelVideo.MAX_CANVAS_WIDTH);
-    this.rescaleCanvas();
-    this.util.setPreference('canvasWidth', this.canvasWidth);
+  const i = this.canvasWidthChoices.indexOf(this.canvasWidth);
+  if (i > 0) {
+    this.rescaleCanvas(this.canvasWidthChoices[i - 1]);
   }
 };
 
 fmltc.LabelVideo.prototype.largerImageButton_onclick = function() {
-  if (this.canvasWidth < fmltc.LabelVideo.MAX_CANVAS_WIDTH) {
-    this.canvasWidth = Math.min(fmltc.LabelVideo.MAX_CANVAS_WIDTH, this.canvasWidth + 100);
-    this.smallerImageButton.disabled = (this.canvasWidth <= fmltc.LabelVideo.MIN_CANVAS_WIDTH);
-    this.largerImageButton.disabled = (this.canvasWidth >= fmltc.LabelVideo.MAX_CANVAS_WIDTH);
-    this.rescaleCanvas();
-    this.util.setPreference('canvasWidth', this.canvasWidth);
+  const i = this.canvasWidthChoices.indexOf(this.canvasWidth);
+  if (i < this.canvasWidthChoices.length - 1) {
+    this.rescaleCanvas(this.canvasWidthChoices[i + 1]);
   }
 };
 
-fmltc.LabelVideo.prototype.rescaleCanvas = function() {
+fmltc.LabelVideo.prototype.rescaleCanvas = function(newCanvasWidth) {
+  this.canvasWidth = newCanvasWidth;
+  this.util.setPreference('canvasWidth', this.canvasWidth);
   this.canvasScale = this.canvasWidth / this.videoEntity.width;
+  this.smallerImageButton.disabled = (this.canvasWidth <= this.canvasWidthChoices[0]);
+  this.largerImageButton.disabled = (this.canvasWidth >= this.canvasWidthChoices[this.canvasWidthChoices.length - 1]);
   this.videoFrameImg.style.width = (this.videoEntity.width * this.canvasScale) + 'px';
   this.videoFrameImg.style.height = (this.videoEntity.height * this.canvasScale) + 'px';
   this.repositionCanvas();
@@ -283,7 +310,7 @@ fmltc.LabelVideo.prototype.redrawBboxes = function(updateCanvasPosition) {
   }
 
   if (this.mouseOverCanvas) {
-    this.bboxCanvasCtx.lineWidth = Math.max(1, Math.round(1 / this.canvasScale));
+    this.bboxCanvasCtx.lineWidth = 1.0 / this.canvasScale;
     this.bboxCanvasCtx.strokeStyle = "#FF0000";
     this.bboxCanvasCtx.beginPath();
     this.bboxCanvasCtx.moveTo(this.mousePoint.x + this.resizingDelta.x, 0);
