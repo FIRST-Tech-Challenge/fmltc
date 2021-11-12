@@ -43,6 +43,7 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.largerImageButton = document.getElementById('largerImageButton');
   this.loadingProgress = document.getElementById('loadingProgress');
   this.bboxCanvas = document.getElementById('bboxCanvas');
+  this.bboxCanvasCtx = this.bboxCanvas.getContext('2d');
   this.videoFrameImg = document.getElementById('videoFrameImg');
   this.currentFrameSpan = document.getElementById('currentFrameSpan');
   this.labelingAreaTable = document.getElementById('labelingAreaTable');
@@ -73,16 +74,27 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.trackingStopButton = document.getElementById('trackingStopButton');
   this.trackingMessageDiv = document.getElementById('trackingMessageDiv');
 
-  this.loadingProgress.value = 0;
+  this.bboxColors = [
+      '#F08080', // LightCoral
+      '#FFA500', // Orange
+      '#FFD700', // Gold
+      '#32CD32', // LimeGreen
+      '#87CEFA', // LightSkyBlue
+      '#9370DB', // MediumPurple
+      '#BC8F8F', // RosyBrown
+      '#008000', // Green
+      '#4169E1', // RoyalBlue
+      '#DA70D6', // Orchid
+  ];
 
-  this.bboxCanvasCtx = this.bboxCanvas.getContext('2d');
-  this.canvasScale = 1;
+  this.loadingProgress.value = 0;
 
   this.videoEntity = null;
 
-  this.canvasWidth = Number(this.util.getPreference('canvasWidth', 800));
-  this.smallerImageButton.disabled = (this.canvasWidth <= fmltc.LabelVideo.MIN_CANVAS_WIDTH);
-  this.largerImageButton.disabled = (this.canvasWidth >= fmltc.LabelVideo.MAX_CANVAS_WIDTH);
+  this.canvasScale = 1;
+  this.canvasWidth = 800;
+  this.smallerImageButton.disabled = true;
+  this.largerImageButton.disabled = true;
 
   this.videoFrameImage = [];
   this.videoFrameEntity = [];
@@ -93,8 +105,10 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   this.currentFrameSpan.textContent = String(this.currentFrameNumber + 1);
 
   this.ignoredFrameCount = 0;
+  this.ignoredFrameCountSpan.style.color = "LightGray";
   this.ignoredFrameCountSpan.textContent = String(this.ignoredFrameCount);
   this.unlabeledFrameCount = 0;
+  this.unlabeledFrameCountSpan.style.color = "LightGray";
   this.unlabeledFrameCountSpan.textContent = String(this.unlabeledFrameCount);
 
   this.retryingGoToFrame = false;
@@ -105,8 +119,12 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
 
   this.definingBbox = null;
   this.resizingBbox = null;
-  this.resizingBboxIndex = 0;
+  this.resizingBboxIndex = -1;
+  this.resizingDelta = new fmltc.Point();
+
   this.resizingBboxHotspot = 0;
+  this.mouseOverCanvas = false;
+  this.mousePoint = new fmltc.Point();
   this.point1 = new fmltc.Point();
   this.point2 = new fmltc.Point();
 
@@ -134,9 +152,6 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
   }
 };
 
-fmltc.LabelVideo.MIN_CANVAS_WIDTH = 500;
-fmltc.LabelVideo.MAX_CANVAS_WIDTH = 2000;
-
 fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   this.videoEntity = videoEntity;
 
@@ -153,7 +168,40 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   document.getElementById('descriptionSpan').textContent = this.videoEntity.description;
   document.getElementById('videoFrameCountSpan').textContent = String(this.videoEntity.frame_count);
 
-  this.rescaleCanvas();
+  this.canvasWidthChoices = [];
+  this.canvasWidthChoices.push(this.videoEntity.width);
+  for (let divisor = 1.5; true; divisor += 0.5) {
+    const width = this.videoEntity.width / divisor;
+    if (width < 500) {
+      break;
+    }
+    this.canvasWidthChoices.push(width);
+  }
+  for (let multiplier = 1.5; true; multiplier += 0.5) {
+    const width = this.videoEntity.width * multiplier;
+    if (width > 2000) {
+      break;
+    }
+    this.canvasWidthChoices.push(width);
+  }
+  this.canvasWidthChoices.sort(this.util.compare.bind(this.util));
+  const canvasWidthPreference = Number(this.util.getPreference('canvasWidth', 800));
+  if (this.videoEntity.width < canvasWidthPreference) {
+    this.rescaleCanvas(this.videoEntity.width);
+  } else {
+    let bestW = this.canvasWidthChoices[0];
+    for (let i = 1; i < this.canvasWidthChoices.length; i++) {
+      const w = this.canvasWidthChoices[i];
+      if (w > canvasWidthPreference) {
+        if (Math.abs(canvasWidthPreference - w) < Math.abs(canvasWidthPreference - bestW)) {
+          bestW = w;
+        }
+        break;
+      }
+      bestW = w;
+    }
+    this.rescaleCanvas(bestW);
+  }
   window.addEventListener('resize', this.repositionCanvas.bind(this));
 
   window.onbeforeunload = this.window_onbeforeunload.bind(this);
@@ -162,7 +210,7 @@ fmltc.LabelVideo.prototype.setVideoEntity = function(videoEntity) {
   this.bboxCanvas.onmousedown = this.bboxCanvas_onmousedown.bind(this);
   this.bboxCanvas.onmousemove = this.bboxCanvas_onmousemove.bind(this);
   this.bboxCanvas.onmouseleave = this.bboxCanvas_onmouseleave.bind(this);
-  this.bboxCanvas.onmouseup = this.bboxCanvas_onmouseup.bind(this);
+  window.onmouseup = this.window_onmouseup.bind(this);
   this.firstFrameButton.onclick = this.firstFrameButton_onclick.bind(this);
   this.previousTenFrameButton.onclick = this.previousTenFrameButton_onclick.bind(this);
   this.previousFrameButton.onclick = this.previousFrameButton_onclick.bind(this);
@@ -190,27 +238,25 @@ fmltc.LabelVideo.prototype.window_onbeforeunload = function() {
 };
 
 fmltc.LabelVideo.prototype.smallerImageButton_onclick = function() {
-  if (this.canvasWidth > fmltc.LabelVideo.MIN_CANVAS_WIDTH) {
-    this.canvasWidth = Math.max(fmltc.LabelVideo.MIN_CANVAS_WIDTH, this.canvasWidth - 100);
-    this.smallerImageButton.disabled = (this.canvasWidth <= fmltc.LabelVideo.MIN_CANVAS_WIDTH);
-    this.largerImageButton.disabled = (this.canvasWidth >= fmltc.LabelVideo.MAX_CANVAS_WIDTH);
-    this.rescaleCanvas();
-    this.util.setPreference('canvasWidth', this.canvasWidth);
+  const i = this.canvasWidthChoices.indexOf(this.canvasWidth);
+  if (i > 0) {
+    this.rescaleCanvas(this.canvasWidthChoices[i - 1]);
   }
 };
 
 fmltc.LabelVideo.prototype.largerImageButton_onclick = function() {
-  if (this.canvasWidth < fmltc.LabelVideo.MAX_CANVAS_WIDTH) {
-    this.canvasWidth = Math.min(fmltc.LabelVideo.MAX_CANVAS_WIDTH, this.canvasWidth + 100);
-    this.smallerImageButton.disabled = (this.canvasWidth <= fmltc.LabelVideo.MIN_CANVAS_WIDTH);
-    this.largerImageButton.disabled = (this.canvasWidth >= fmltc.LabelVideo.MAX_CANVAS_WIDTH);
-    this.rescaleCanvas();
-    this.util.setPreference('canvasWidth', this.canvasWidth);
+  const i = this.canvasWidthChoices.indexOf(this.canvasWidth);
+  if (i < this.canvasWidthChoices.length - 1) {
+    this.rescaleCanvas(this.canvasWidthChoices[i + 1]);
   }
 };
 
-fmltc.LabelVideo.prototype.rescaleCanvas = function() {
+fmltc.LabelVideo.prototype.rescaleCanvas = function(newCanvasWidth) {
+  this.canvasWidth = newCanvasWidth;
+  this.util.setPreference('canvasWidth', this.canvasWidth);
   this.canvasScale = this.canvasWidth / this.videoEntity.width;
+  this.smallerImageButton.disabled = (this.canvasWidth <= this.canvasWidthChoices[0]);
+  this.largerImageButton.disabled = (this.canvasWidth >= this.canvasWidthChoices[this.canvasWidthChoices.length - 1]);
   this.videoFrameImg.style.width = (this.videoEntity.width * this.canvasScale) + 'px';
   this.videoFrameImg.style.height = (this.videoEntity.height * this.canvasScale) + 'px';
   this.repositionCanvas();
@@ -248,8 +294,30 @@ fmltc.LabelVideo.prototype.redrawBboxes = function(updateCanvasPosition) {
 
   if (this.bboxes[this.currentFrameNumber] && this.videoFrameImage[this.currentFrameNumber]) {
     for (let i = 0; i < this.bboxes[this.currentFrameNumber].length; i++) {
-      this.bboxes[this.currentFrameNumber][i].draw(this.bboxCanvasCtx, this.canvasScale, false /*true*/);
+      if (i == this.resizingBboxIndex) {
+        continue;
+      }
+      this.bboxes[this.currentFrameNumber][i].draw(this.bboxCanvasCtx, this.canvasScale, true,
+          this.bboxColors[i % this.bboxColors.length]);
     }
+  }
+  if (this.definingBbox) {
+    this.definingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false,
+        this.bboxColors[this.bboxes[this.currentFrameNumber].length % this.bboxColors.length]);
+  } else if (this.resizingBbox) {
+    this.resizingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false,
+        this.bboxColors[this.resizingBboxIndex % this.bboxColors.length]);
+  }
+
+  if (this.mouseOverCanvas) {
+    this.bboxCanvasCtx.lineWidth = 1.0 / this.canvasScale;
+    this.bboxCanvasCtx.strokeStyle = "#FF0000";
+    this.bboxCanvasCtx.beginPath();
+    this.bboxCanvasCtx.moveTo(this.mousePoint.x + this.resizingDelta.x, 0);
+    this.bboxCanvasCtx.lineTo(this.mousePoint.x + this.resizingDelta.x, this.videoEntity.height);
+    this.bboxCanvasCtx.moveTo(0, this.mousePoint.y + this.resizingDelta.y);
+    this.bboxCanvasCtx.lineTo(this.videoEntity.width, this.mousePoint.y + this.resizingDelta.y);
+    this.bboxCanvasCtx.stroke();
   }
 };
 
@@ -464,7 +532,7 @@ fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameEntitiesWithImageUrls_onreadyst
 };
 
 fmltc.LabelVideo.prototype.videoFrameEntityLoaded = function(videoFrameEntity) {
-  frameNumber = videoFrameEntity.frame_number;
+  const frameNumber = videoFrameEntity.frame_number;
   const previousIgnoreFrame = this.videoFrameEntity[frameNumber]
       ? !this.videoFrameEntity[frameNumber].include_frame_in_dataset : false;
   const previousUnlabeledFrame = this.videoFrameEntity[frameNumber]
@@ -480,6 +548,11 @@ fmltc.LabelVideo.prototype.videoFrameEntityLoaded = function(videoFrameEntity) {
 
   this.loadedFrameEntityCount++;
   this.loadingProgress.value++;
+
+  if (this.loadedFrameEntityCount == this.videoEntity.frame_count) {
+    this.ignoredFrameCountSpan.style.color = this.ignoredFrameCountSpan.parentElement.style.color;
+    this.unlabeledFrameCountSpan.style.color = this.unlabeledFrameCountSpan.parentElement.style.color;
+  }
 
   setTimeout(this.retrieveVideoFrameImage.bind(this, frameNumber, videoFrameEntity.image_url, 0), 0);
 
@@ -602,9 +675,10 @@ fmltc.LabelVideo.prototype.convertTextToBboxes = function(bboxesText) {
         continue;
       }
       const tokens = bboxesLines[i].split(',');
-      if (tokens.length == 5) {
+      if (tokens.length >= 5) {
         bboxes[i] = new fmltc.Box(
-            Number(tokens[0]), Number(tokens[1]), Number(tokens[2]), Number(tokens[3]), tokens[4]);
+            Number(tokens[0]), Number(tokens[1]), Number(tokens[2]), Number(tokens[3]),
+            tokens.slice(4).join(','));
       } else {
         console.log('Failed to split line into 5 tokens: "' + bboxesLines[i] + '".');
       }
@@ -621,7 +695,9 @@ fmltc.LabelVideo.prototype.convertBboxesToText = function(bboxes) {
     const y1 = Math.min(box.y1, box.y2);
     const x2 = Math.max(box.x1, box.x2);
     const y2 = Math.max(box.y1, box.y2);
-    bboxesText += x1 + ',' + y1 + ',' + x2 + ',' + y2 + ',' + box.label + '\n';
+    if (box.label) {
+      bboxesText += x1 + ',' + y1 + ',' + x2 + ',' + y2 + ',' + box.label + '\n';
+    }
   }
   return bboxesText;
 };
@@ -737,11 +813,17 @@ fmltc.LabelVideo.prototype.refillLabelingArea = function(optLastLabelInputFocus)
       this.util.addClass(input, 'text-16');
       if (types[f] == 'number') {
         this.util.addClass(input, 'rightText');
+        input.min = 0;
+        if (field.startsWith('x')) {
+          input.max = this.videoEntity.width;
+        } else if (field.startsWith('y')) {
+          input.max = this.videoEntity.height;
+        }
       }
       input.setAttribute('type', types[f]);
       input.style.width = widths[f];
       input.value = box[field];
-      input.oninput = this.bboxFieldInput_oninput.bind(this, i, input, field);
+      input.oninput = this.bboxFieldInput_oninput.bind(this, i, input, field, types[f]);
       td.appendChild(input);
       lastLabelInput = input
     }
@@ -751,6 +833,7 @@ fmltc.LabelVideo.prototype.refillLabelingArea = function(optLastLabelInputFocus)
     this.util.addClass(deleteButton, 'text-16');
     this.util.addClass(deleteButton, 'buttonWithoutBorder');
     deleteButton.textContent = 'delete';
+    deleteButton.style.color = this.bboxColors[i % this.bboxColors.length];
     deleteButton.title = 'Delete this box';
     deleteButton.onclick = this.deleteButton_onclick.bind(this, tr);
     td.appendChild(deleteButton);
@@ -772,10 +855,14 @@ fmltc.LabelVideo.prototype.removeEventHandlers = function(element) {
   }
 };
 
-fmltc.LabelVideo.prototype.bboxFieldInput_oninput = function(i, input, field) {
+fmltc.LabelVideo.prototype.bboxFieldInput_oninput = function(i, input, field, type) {
   if (i < this.bboxes[this.currentFrameNumber].length) {
-    const box = this.bboxes[this.currentFrameNumber][i];
-    box[field] = input.value;
+    if (type == 'number') {
+      input.value = Math.max(input.min, Math.min(input.value, input.max));
+      this.bboxes[this.currentFrameNumber][i][field] = Number(input.value);
+    } else {
+      this.bboxes[this.currentFrameNumber][i][field] = input.value;
+    }
     this.redrawBboxes(true);
     this.saveBboxes();
   }
@@ -1034,12 +1121,17 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousedown = function(e) {
     return;
   }
 
-  this.point1.fromMouseEvent(e, this.bboxCanvas, this.canvasScale);
+  if (e.buttons != 1) {
+    return;
+  }
+
+  this.point1.fromMouseEvent(e, this.bboxCanvas,
+      this.canvasScale, this.videoEntity.width, this.videoEntity.height);
 
   let hotspot = 0;
   let i = 0;
   while (i < this.bboxes[this.currentFrameNumber].length) {
-    hotspot = this.bboxes[this.currentFrameNumber][i].getResizeHotspot(this.point1, this.canvasScale);
+    hotspot = this.bboxes[this.currentFrameNumber][i].getResizeHotspot(this.point1, this.canvasScale, this.resizingDelta);
     if (hotspot) {
       break;
     }
@@ -1047,24 +1139,29 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousedown = function(e) {
   }
   if (hotspot) {
     // Start resizing an existing box.
+    this.resizingBbox = this.bboxes[this.currentFrameNumber][i].duplicate();
     this.resizingBboxIndex = i;
     this.resizingBboxHotspot = hotspot;
-    // Note if the user is editing the label and then clicks on a resize hotspot, this.resizeingBbox
-    // won't contain the updated label.
-    this.resizingBbox = this.bboxes[this.currentFrameNumber][i].duplicate();
-    // Since the box already exists, we don't need to draw it here.
+    this.redrawBboxes(false);
   } else {
     // Start defining a new box.
     if (this.bboxes[this.currentFrameNumber].length >= this.util.limitData.MAX_BOUNDING_BOX_PER_FRAME) {
       return;
     }
     this.definingBbox = new fmltc.Box(this.point1.x, this.point1.y, this.point1.x, this.point1.y, '');
-    // Draw the box.
-    this.definingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
+    this.redrawBboxes(false);
   }
 };
 
 fmltc.LabelVideo.prototype.bboxCanvas_onmousemove = function(e) {
+  this.handleMouseMove(e, true);
+};
+
+fmltc.LabelVideo.prototype.bboxCanvas_onmouseleave = function(e) {
+  this.handleMouseMove(e, false);
+};
+
+fmltc.LabelVideo.prototype.handleMouseMove = function(e, mouseOverCanvas) {
   if (this.playing ||
       (this.trackingInProgress && (!this.trackingPaused || this.trackingWaitingForBboxes)) ||
       this.bboxes[this.currentFrameNumber] == undefined) {
@@ -1073,35 +1170,31 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousemove = function(e) {
     } else {
       this.bboxCanvas.style.cursor = 'auto';
     }
+    this.mouseOverCanvas = false;
     return;
   }
 
+  this.mousePoint.fromMouseEvent(e, this.bboxCanvas,
+      this.canvasScale, this.videoEntity.width, this.videoEntity.height);
+  this.mouseOverCanvas = mouseOverCanvas;
+
   if (this.definingBbox) {
-    // Erase the previous box.
-    this.bboxCanvasCtx.globalCompositeOperation = 'destination-out';
-    this.definingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
-    this.bboxCanvasCtx.globalCompositeOperation = 'source-over';
     // Adjust the box.
-    this.point2.fromMouseEvent(e, this.bboxCanvas, this.canvasScale);
+    this.point2.fromMouseEvent(e, this.bboxCanvas,
+        this.canvasScale, this.videoEntity.width, this.videoEntity.height);
     this.definingBbox.set(this.point1.x, this.point1.y, this.point2.x, this.point2.y);
-    // Draw the new box.
-    this.definingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
 
   } else if (this.resizingBbox) {
-    // Erase the previous box.
-    this.bboxCanvasCtx.globalCompositeOperation = 'destination-out';
-    this.resizingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
-    this.bboxCanvasCtx.globalCompositeOperation = 'source-over';
     // Adjust the box
-    this.point2.fromMouseEvent(e, this.bboxCanvas, this.canvasScale);
+    this.point2.fromMouseEvent(e, this.bboxCanvas,
+        this.canvasScale, this.videoEntity.width, this.videoEntity.height);
     this.resizingBbox.resize(this.resizingBboxHotspot, this.point2.x - this.point1.x, this.point2.y - this.point1.y);
     this.point1.fromAnotherPoint(this.point2);
-    // Draw the new box.
-    this.resizingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
 
   } else {
     // If the mouse is on a resize hotspot of an existing box, show a resize cursor.
-    this.point1.fromMouseEvent(e, this.bboxCanvas, this.canvasScale);
+    this.point1.fromMouseEvent(e, this.bboxCanvas,
+        this.canvasScale, this.videoEntity.width, this.videoEntity.height);
     let hotspot = 0;
     for (let i = 0; i < this.bboxes[this.currentFrameNumber].length; i++) {
       hotspot = this.bboxes[this.currentFrameNumber][i].getResizeHotspot(this.point1, this.canvasScale);
@@ -1119,35 +1212,12 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmousemove = function(e) {
       }
     }
   }
+
+  this.redrawBboxes(false);
 };
 
-fmltc.LabelVideo.prototype.bboxCanvas_onmouseleave = function(e) {
+fmltc.LabelVideo.prototype.window_onmouseup = function(e) {
   if (this.definingBbox) {
-    // Erase the previous temporary box.
-    this.bboxCanvasCtx.globalCompositeOperation = 'destination-out';
-    this.definingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
-    this.bboxCanvasCtx.globalCompositeOperation = 'source-over';
-    // Abort the new box.
-    this.definingBbox = null;
-    this.redrawBboxes(true);
-
-  } else if (this.resizingBbox) {
-    // Erase the previous temporary box.
-    this.bboxCanvasCtx.globalCompositeOperation = 'destination-out';
-    this.resizingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
-    this.bboxCanvasCtx.globalCompositeOperation = 'source-over';
-    // Abort the resize.
-    this.resizingBbox = null;
-    this.redrawBboxes(true);
-  }
-};
-
-fmltc.LabelVideo.prototype.bboxCanvas_onmouseup = function(e) {
-  if (this.definingBbox) {
-    // Erase the previous temporary box.
-    this.bboxCanvasCtx.globalCompositeOperation = 'destination-out';
-    this.definingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
-    this.bboxCanvasCtx.globalCompositeOperation = 'source-over';
     // Save the box.
     if (!this.definingBbox.isEmpty()) {
       this.bboxes[this.currentFrameNumber].push(this.definingBbox);
@@ -1160,14 +1230,12 @@ fmltc.LabelVideo.prototype.bboxCanvas_onmouseup = function(e) {
     this.saveBboxes();
 
   } else if (this.resizingBbox) {
-    // Erase the previous temporary box.
-    this.bboxCanvasCtx.globalCompositeOperation = 'destination-out';
-    this.resizingBbox.draw(this.bboxCanvasCtx, this.canvasScale, false);
-    this.bboxCanvasCtx.globalCompositeOperation = 'source-over';
     // Save the resized box.
     this.bboxes[this.currentFrameNumber][this.resizingBboxIndex].setXYFromAnotherBox(this.resizingBbox);
     // Stop resizing
     this.resizingBbox = null;
+    this.resizingBboxIndex = -1;
+    this.resizingDelta.x = this.resizingDelta.y = 0;
     this.refillLabelingArea();
     this.redrawBboxes(true);
     this.saveBboxes();

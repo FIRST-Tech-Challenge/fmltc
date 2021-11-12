@@ -28,7 +28,7 @@ import exceptions
 import constants
 
 
-def __convert_bbox_to_text(bbox, scale):
+def __convert_bbox_to_text(bbox, scale, x_max, y_max):
     # Scale the bbox
     p0 = bbox[:2].astype(float)
     p1 = p0 + bbox[2:].astype(float)
@@ -42,10 +42,14 @@ def __convert_bbox_to_text(bbox, scale):
     p0 = scaled_bbox[:2]
     size = scaled_bbox[2:]
     p1 = p0 + size
-    return "%d,%d,%d,%d" % (int(p0[0]), int(p0[1]), int(p1[0]), int(p1[1]))
+    return "%d,%d,%d,%d" % (
+        int(max(p0[0], 0)),
+        int(max(p0[1], 0)),
+        int(min(p1[0], x_max)),
+        int(min(p1[1], y_max)))
 
 
-def __convert_bboxes_and_labels_to_text(bboxes, scale, labels):
+def __convert_bboxes_and_labels_to_text(bboxes, scale, max_x, max_y, labels):
     assert(len(bboxes) == len(labels))
     bboxes_text = ""
     for i in range(len(bboxes)):
@@ -53,7 +57,7 @@ def __convert_bboxes_and_labels_to_text(bboxes, scale, labels):
         label = labels[i]
         if bbox is None or label is None:
             continue
-        bboxes_text += "%s,%s\n" % (__convert_bbox_to_text(bbox, scale), label)
+        bboxes_text += "%s,%s\n" % (__convert_bbox_to_text(bbox, scale, max_x, max_y), label)
     return bboxes_text
 
 
@@ -165,5 +169,5 @@ def extract_labels(bboxes_text):
     return labels
 
 
-def format_bboxes_text(bboxes, labels, scale):
-    return __convert_bboxes_and_labels_to_text(bboxes, 1 / scale, labels)
+def format_bboxes_text(bboxes, labels, scale, max_x, max_y):
+    return __convert_bboxes_and_labels_to_text(bboxes, 1 / scale, max_x, max_y, labels)

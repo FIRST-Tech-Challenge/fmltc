@@ -147,6 +147,15 @@ body {
   border: none;
 }
 
+#labelingAreaTable {
+	background: #ffffff;
+}
+
+#bboxCanvas {
+	-webkit-user-select: none;
+	-webkit-user-drag: none;
+}
+
 #scalarsDiv {
   overflow: scroll;
 }
