@@ -172,7 +172,7 @@ fmltc.TrainMoreDialog.prototype.getTrainingInfo = function() {
 };
 
 fmltc.TrainMoreDialog.prototype.numTrainingStepsInput_onchange = function() {
-  this.numTrainingStepsInput.value = Math.max(this.numTrainingStepsInput.min, Math.min(this.numTrainingStepsInput.value, this.numTrainingStepsInput.max));
+  this.numTrainingStepsInput.value = Math.max(this.numTrainingStepsInput.min, Math.min(Math.round(this.numTrainingStepsInput.value), this.numTrainingStepsInput.max));
   this.updateHelpfulText();
   this.updateStartButton();
 };
