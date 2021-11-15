@@ -63,7 +63,7 @@ fmltc.Admin.prototype.enableInputsAndButtons = function(enable) {
 };
 
 fmltc.Admin.prototype.resetInput_onchange = function() {
-  this.resetInput.value = Math.max(this.resetInput.min, Math.min(this.resetInput.value, this.resetInput.max));
+  this.resetInput.value = Math.max(this.resetInput.min, Math.min(Math.round(this.resetInput.value), this.resetInput.max));
 };
 
 fmltc.Admin.prototype.resetButton_onclick = function() {
@@ -94,7 +94,7 @@ fmltc.Admin.prototype.xhr_resetRemainingTrainingMinutes_onreadystatechange = fun
 };
 
 fmltc.Admin.prototype.incrementInput_onchange = function() {
-  this.incrementInput.value = Math.max(this.incrementInput.min, Math.min(this.incrementInput.value, this.incrementInput.max));
+  this.incrementInput.value = Math.max(this.incrementInput.min, Math.min(Math.round(this.incrementInput.value), this.incrementInput.max));
 };
 
 fmltc.Admin.prototype.incrementButton_onclick = function() {
