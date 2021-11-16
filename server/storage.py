@@ -887,34 +887,49 @@ def dataset_producer_starting(team_uuid, dataset_uuid, sorted_label_list,
         dataset_entity['label_map_blob_name'] = label_map_blob_name
         dataset_entity['label_map_path'] = label_map_path
         transaction.put(dataset_entity)
-        # Create dataset_record_writer and dataset_record entities.
-        for record_number in range(train_record_count + eval_record_count):
-            incomplete_key = datastore_client.key(DS_KIND_DATASET_RECORD_WRITER)
-            dataset_record_writer_entity = datastore.Entity(key=incomplete_key)
-            dataset_record_writer_entity.update({
-                'team_uuid': team_uuid,
-                'dataset_uuid': dataset_uuid,
-                'record_number': record_number,
-                'frames_written': 0,
-                'update_time': datetime.now(timezone.utc),
-            })
-            transaction.put(dataset_record_writer_entity)
-            incomplete_key = datastore_client.key(DS_KIND_DATASET_RECORD)
-            dataset_record_entity = datastore.Entity(key=incomplete_key)
-            dataset_record_entity.update({
-                'team_uuid': team_uuid,
-                'dataset_uuid': dataset_uuid,
-                'record_number': record_number,
-                'dataset_record_completed': False,
-                'update_time': datetime.now(timezone.utc),
-            })
-            transaction.put(dataset_record_entity)
-            team_entity = retrieve_team_entity(team_uuid)
-            if 'datasets_created_today' in team_entity:
-                team_entity['datasets_created_today'] += 1
-            else:
-                team_entity['datasets_created_today'] = 1
-            transaction.put(team_entity)
+        team_entity = retrieve_team_entity(team_uuid)
+        if 'datasets_created_today' in team_entity:
+            team_entity['datasets_created_today'] += 1
+        else:
+            team_entity['datasets_created_today'] = 1
+        transaction.put(team_entity)
+    # Create the dataset_record_writer and dataset_record entities, 500 at a time.
+    record_numbers = [i for i in range(train_record_count + eval_record_count)]
+    while len(record_numbers) > 0:
+        if len(record_numbers) > 250:
+            record_numbers_to_do_now = record_numbers[0:250]
+            record_numbers = record_numbers[250:]
+        else:
+            record_numbers_to_do_now = record_numbers
+            record_numbers = []
+        __create_dataset_records_batch(team_uuid, dataset_uuid, record_numbers_to_do_now)
+
+def __create_dataset_records_batch(team_uuid, dataset_uuid, record_numbers):
+    datastore_client = datastore.Client()
+    batch = datastore_client.batch()
+    batch.begin()
+    for record_number in record_numbers:
+        incomplete_key = datastore_client.key(DS_KIND_DATASET_RECORD_WRITER)
+        dataset_record_writer_entity = datastore.Entity(key=incomplete_key)
+        dataset_record_writer_entity.update({
+            'team_uuid': team_uuid,
+            'dataset_uuid': dataset_uuid,
+            'record_number': record_number,
+            'frames_written': 0,
+            'update_time': datetime.now(timezone.utc),
+        })
+        batch.put(dataset_record_writer_entity)
+        incomplete_key = datastore_client.key(DS_KIND_DATASET_RECORD)
+        dataset_record_entity = datastore.Entity(key=incomplete_key)
+        dataset_record_entity.update({
+            'team_uuid': team_uuid,
+            'dataset_uuid': dataset_uuid,
+            'record_number': record_number,
+            'dataset_record_completed': False,
+            'update_time': datetime.now(timezone.utc),
+        })
+        batch.put(dataset_record_entity)
+    batch.commit()
 
 def dataset_producer_maybe_done(team_uuid, dataset_uuid):
     datastore_client = datastore.Client()
