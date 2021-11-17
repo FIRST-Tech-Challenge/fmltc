@@ -48,24 +48,28 @@ STARTING_MODELS = {
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8/checkpoint/ckpt-0',
         'tpu_batch_size': 512,
         'gpu_batch_size': 32,
+        'num_warmup_steps': 2000,
     },
     'SSD MobileNet V2 FPNLite 320x320': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8/checkpoint/ckpt-0',
         'tpu_batch_size': 128,
         'gpu_batch_size': 32,
+        'num_warmup_steps': 1000,
     },
     'SSD MobileNet V1 FPN 640x640': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8/checkpoint/ckpt-0',
         'tpu_batch_size': 64,
         'gpu_batch_size': 16,
+        'num_warmup_steps': 2000,
     },
     'SSD MobileNet V2 FPNLite 640x640': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8/pipeline.config',
         'checkpoint': 'tf2/20200711/ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8/checkpoint/ckpt-0',
         'tpu_batch_size': 128,
         'gpu_batch_size': 16,
+        'num_warmup_steps': 1000,
     },
 }
 
@@ -117,6 +121,10 @@ def __get_batch_size(use_tpu, original_starting_model, train_frame_count):
     while batch_size > train_frame_count and batch_size >= 2:
         batch_size /= 2
     return batch_size
+
+def __get_num_warmup_steps(original_starting_model, checkpoint_every_n, num_training_steps):
+    starting_model_data = STARTING_MODELS[original_starting_model]
+    return min(starting_model_data['num_warmup_steps'], num_training_steps)
 
 def __get_scale_tier(use_tpu):
     if use_tpu:
@@ -213,6 +221,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             raise exceptions.HttpErrorBadRequest(message)
 
     batch_size = __get_batch_size(use_tpu, original_starting_model, train_frame_count)
+    checkpoint_every_n = 100
+    num_warmup_steps = __get_num_warmup_steps(original_starting_model, checkpoint_every_n, num_training_steps)
 
     # Create the pipeline.config file and store it in cloud storage.
     bucket = util.storage_client().get_bucket(BUCKET)
@@ -226,8 +236,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         .replace('TO_BE_CONFIGURED/num_visualizations', str(min(100, eval_frame_count)))
         .replace('TO_BE_CONFIGURED/train_batch_size', str(int(batch_size)))
         .replace('TO_BE_CONFIGURED/train_input_path',  json.dumps(train_input_path))
-        .replace('TO_BE_CONFIGURED/warmup_steps_1000',  str(min(1000, num_training_steps)))
-        .replace('TO_BE_CONFIGURED/warmup_steps_2000',  str(min(2000, num_training_steps)))
+        .replace('TO_BE_CONFIGURED/num_warmup_steps',  str(int(num_warmup_steps)))
         )
 
     packageUris = [
@@ -258,7 +267,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         args = [
             '--model_dir', model_dir,
             '--pipeline_config_path', pipeline_config_path,
-            '--checkpoint_every_n', str(100),
+            '--checkpoint_every_n', str(checkpoint_every_n),
         ]
         if use_tpu:
             args.append('--use_tpu')
@@ -333,7 +342,8 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
     tensorflow_version = '2'
     model_entity = storage.model_trainer_started(team_uuid, model_uuid, description, model_folder,
         tensorflow_version, use_tpu, dataset_uuids, create_time_ms, max_running_minutes,
-        num_training_steps, batch_size, previous_training_steps, starting_model, user_visible_starting_model,
+        num_training_steps, batch_size, num_warmup_steps, checkpoint_every_n,
+        previous_training_steps, starting_model, user_visible_starting_model,
         original_starting_model, fine_tune_checkpoint,
         sorted_label_list, label_map_path, train_input_path, eval_input_path,
         train_frame_count, eval_frame_count, train_negative_frame_count, eval_negative_frame_count,
@@ -515,8 +525,10 @@ def monitor_training(action_parameters):
         if not prev_training_done:
             training_done = __is_done(model_entity['train_job_state'])
             if training_done:
-                # Training just finished. Trigger the action to create the tflite model.
-                tflite_creator.trigger_create_tflite(team_uuid, model_uuid)
+                # Training just finished. Trigger the action to create the tflite model if there is
+                # a checkpoint.
+                if model_entity['trained_checkpoint_path'] != '':
+                    tflite_creator.trigger_create_tflite(team_uuid, model_uuid)
             prev_training_done = training_done
 
         for job_type in ['train', 'eval']:
