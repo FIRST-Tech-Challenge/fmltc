@@ -266,10 +266,10 @@ def store_event_summary_image(model_folder, job_type, step, tag, encoded_image_s
       except:
         if i == max_failures - 1:
             logging.critical('Unable to store event summary image (failed %d times), traceback: %s' %
-                    (i + 1, traceback.format_exc().replace('\n', ' ... ')))
+                    ((i + 1), traceback.format_exc().replace('\n', ' ... ')))
         else:
             logging.warning('Unable to store event summary image (failed %d times) will try again in 3 seconds' %
-                    i + 1)
+                    (i + 1))
             time.sleep(3)
 
 def get_event_summary_image_download_url(model_folder, job_type, step, tag, encoded_image_string):

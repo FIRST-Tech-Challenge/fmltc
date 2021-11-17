@@ -68,8 +68,8 @@ fmltc.DownloadDatasetDialog = function(util, datasetEntity, downloadStartTime) {
 };
 
 fmltc.DownloadDatasetDialog.prototype.closeButton_onclick = function() {
-  this.downloadStartedArray = [];
-  this.downloadFinishedArray = [];
+  // We do not clear this.downloadStartedArray or this.downloadFinishedArray here because it causes
+  // the files to be downloaded twice.
   this.zipProgressArray = [];
   this.zipProgressSpanArray = [];
   this.downloadProgressArray = [];
