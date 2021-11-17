@@ -136,16 +136,23 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
     shell = "gunicorn -b :$PORT app_engine:app"
   }
 
+  #
+  # The total number of instances is computed via max(min_instances, min_idle_instances + needed_instance_count)
+  # where needed_instance_count is what the app engine scheduler thinks you need capped by max_instances.
+  # If min_idle_instances is 0, then the lower bound is always min_instances.
+  #
+  # max_idle_instances controls how fast the scheduler will take an instance offline after a load spike.
+  #
   automatic_scaling {
-    max_concurrent_requests = 10
+    max_concurrent_requests = 20
     min_idle_instances = 0
-    max_idle_instances = 3
-    min_pending_latency = "1s"
+    max_idle_instances = 2
+    min_pending_latency = "0.1s"
     max_pending_latency = "5s"
     standard_scheduler_settings {
-      target_cpu_utilization = 0.5
+      target_cpu_utilization = 0.80
       target_throughput_utilization = 0.75
-      min_instances = 2
+      min_instances = 1
       max_instances = 10
     }
   }
