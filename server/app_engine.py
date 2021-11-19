@@ -306,31 +306,102 @@ def get_limit_data_for_render_template(): # Dictionary for passing limits to JS
     }
 
 
-def sanitize(o):
+def __sanitize(o):
     if isinstance(o, list):
         for item in o:
-            sanitize(item)
+            __sanitize(item)
     if isinstance(o, dict):
         if 'team_uuid' in o:
             o.pop('team_uuid', None)
         for key, value in o.items():
-            sanitize(value)
+            __sanitize(value)
     return o
 
-
-def strip_model_entity(model_entity):
-    props_to_remove = [
-        'dict_event_file_path_to_updated',
-        'train_image_summary_items',
-        'train_scalar_summary_items',
-        'train_input_path',
-        'eval_image_summary_items',
-        'eval_scalar_summary_items',
-        'eval_input_path'
-    ]
+def __strip_entity(entity, props_to_keep):
+    props_to_remove = []
+    for prop in entity:
+        if prop not in props_to_keep:
+            props_to_remove.append(prop)
     for prop in props_to_remove:
-        if prop in model_entity:
-            model_entity.pop(prop, None)
+        if prop in entity:
+            entity.pop(prop, None)
+    return entity
+
+def __strip_video_entity(video_entity):
+    return __strip_entity(video_entity, [
+        'create_time_ms',
+        'description',
+        'extracted_frame_count',
+        'file_size',
+        'fps',
+        'frame_count',
+        'frame_extraction_active_time_ms',
+        'frame_extraction_error_message',
+        'frame_extraction_failed',
+        'frame_extraction_triggered_time_ms',
+        'height',
+        'included_frame_count',
+        'labeled_frame_count',
+        'tracking_in_progress',
+        'video_filename',
+        'video_uuid',
+        'width',
+    ])
+
+def __strip_video_frame_entity(video_frame_entity):
+    return __strip_entity(video_frame_entity, [
+        'bboxes_text',
+        'frame_number',
+        'image_url',
+        'include_frame_in_dataset',
+    ])
+
+def __strip_dataset_entity(dataset_entity):
+    return __strip_entity(dataset_entity, [
+        'create_time_ms',
+        'dataset_completed',
+        'dataset_uuid',
+        'description',
+        'eval_frame_count',
+        'eval_negative_frame_count',
+        'sorted_label_list',
+        'total_record_count',
+        'train_frame_count',
+        'train_negative_frame_count',
+    ])
+
+def __strip_model_entity(model_entity):
+    return __strip_entity(model_entity, [
+        'cancel_requested',
+        'create_time_ms',
+        'dataset_uuids',
+        'description',
+        'eval_dict_label_to_count',
+        'eval_frame_count',
+        'eval_job_state',
+        'eval_negative_frame_count',
+        'evaled_steps',
+        'model_uuid',
+        'monitor_training_active_time_ms',
+        'monitor_training_finished',
+        'monitor_training_triggered_time_ms',
+        'num_training_steps',
+        'original_starting_model',
+        'sorted_label_list',
+        'starting_model',
+        'tensorflow_version',
+        'total_training_steps',
+        'train_dict_label_to_count',
+        'train_error_message',
+        'train_frame_count',
+        'train_job_elapsed_seconds',
+        'train_job_start_time',
+        'train_job_state',
+        'train_negative_frame_count',
+        'trained_checkpoint_path',
+        'trained_steps',
+        'user_visible_starting_model',
+    ])
 
 
 @oidc_require_login
@@ -466,8 +537,10 @@ def label_video():
     video_frame_entity_0 = storage.retrieve_video_frame_entities_with_image_urls(
         team_uuid, video_uuid, 0, 0)[0]
     blob_storage.set_cors_policy_for_get()
-    sanitize(video_entity)
-    sanitize(video_frame_entity_0)
+    __strip_video_entity(video_entity)
+    __sanitize(video_entity)
+    __strip_video_frame_entity(video_frame_entity_0)
+    __sanitize(video_frame_entity_0)
     return flask.render_template('labelVideo.html',
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         limit_data=get_limit_data_for_render_template(),
@@ -488,10 +561,14 @@ def monitor_training():
     model_entities_by_uuid, dataset_entities_by_uuid, video_entities_by_uuid = storage.retrieve_entities_for_monitor_training(
         team_uuid, model_uuid, storage.retrieve_model_list(team_uuid))
     for _, model_entity in model_entities_by_uuid.items():
-        strip_model_entity(model_entity)
-    sanitize(model_entities_by_uuid)
-    sanitize(dataset_entities_by_uuid)
-    sanitize(video_entities_by_uuid)
+        __strip_model_entity(model_entity)
+    for _, dataset_entity in dataset_entities_by_uuid.items():
+        __strip_dataset_entity(dataset_entity)
+    for _, video_entity in video_entities_by_uuid.items():
+        __strip_video_entity(video_entity)
+    __sanitize(model_entities_by_uuid)
+    __sanitize(dataset_entities_by_uuid)
+    __sanitize(video_entities_by_uuid)
     return flask.render_template('monitorTraining.html',
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         model_uuid=model_uuid,
@@ -589,7 +666,7 @@ def prepare_to_upload_video():
             'upload_url': '',
             'message': 'The Description is not valid or is a duplicate.'
         }
-        return flask.jsonify(response)
+        return flask.jsonify(__sanitize(response))
     video_filename = data.get('video_filename')
     try:
         file_size = validate_positive_int(data.get('file_size'))
@@ -602,7 +679,7 @@ def prepare_to_upload_video():
                 'upload_url': '',
                 'message': message,
             }
-            return flask.jsonify(response)
+            return flask.jsonify(__sanitize(response))
     except exceptions.HttpErrorBadRequest:
         # Send a message to the client.
         response = {
@@ -610,7 +687,7 @@ def prepare_to_upload_video():
             'upload_url': '',
             'message': 'The file is not a valid size.'
         }
-        return flask.jsonify(response)
+        return flask.jsonify(__sanitize(response))
     try:
         content_type = validate_video_content_type(data.get('content_type'))
     except exceptions.HttpErrorBadRequest:
@@ -620,7 +697,7 @@ def prepare_to_upload_video():
             'upload_url': '',
             'message': 'The type of the file is not valid.'
         }
-        return flask.jsonify(response)
+        return flask.jsonify(__sanitize(response))
     try:
         create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
     except exceptions.HttpErrorBadRequest:
@@ -630,7 +707,7 @@ def prepare_to_upload_video():
             'upload_url': '',
             'message': 'The time of the request is not valid. Is your computer\'s clock set correctly?'
         }
-        return flask.jsonify(response)
+        return flask.jsonify(__sanitize(response))
 
     # Check whether the team is currently uploading a video or extracting frames for a video.
     # We only allow one at a time.
@@ -649,7 +726,7 @@ def prepare_to_upload_video():
             ###         'upload_url': '',
             ###         'message': 'The previous video has not been uploaded yet. Please wait a few minutes and try again.'
             ###     }
-            ###     return flask.jsonify(response)
+            ###     return flask.jsonify(__sanitize(response))
         elif 'frame_extraction_active_time' not in last_video_entity:
             # Frame extraction of the last video hasn't started yet. Check if it has been less than
             # 10 minutes since the video entity was created.
@@ -660,7 +737,7 @@ def prepare_to_upload_video():
                     'upload_url': '',
                     'message': 'The previous video has not been processed yet. Please wait a few minutes and try again.'
                 }
-                return flask.jsonify(response)
+                return flask.jsonify(__sanitize(response))
         else:
             # Frame extraction of the last video hasn't finished yet. Check if it has been less
             # than 10 minutes since the frame extraction was active.
@@ -671,7 +748,7 @@ def prepare_to_upload_video():
                     'upload_url': '',
                     'message': 'The previous video has not been processed yet. Please wait a few minutes and try again.'
                 }
-                return flask.jsonify(response)
+                return flask.jsonify(__sanitize(response))
     # Don't allow a team to have more than the maximum allowed number of videos.
     if len(video_entities) >= constants.MAX_VIDEOS_PER_TEAM:
         # Send a message to the client.
@@ -681,7 +758,7 @@ def prepare_to_upload_video():
             'message': ('Unable to upload a video because your team already has %s videos.' %
                     len(video_entities))
         }
-        return flask.jsonify(response)
+        return flask.jsonify(__sanitize(response))
     # Proceed with the upload.
     video_uuid, upload_url = storage.prepare_to_upload_video(team_uuid, content_type)
     frame_extractor.start_wait_for_video_upload(team_uuid, video_uuid, description, video_filename, file_size, content_type, create_time_ms)
@@ -691,7 +768,7 @@ def prepare_to_upload_video():
         'message': '',
     }
     blob_storage.set_cors_policy_for_put()
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 
 @app.route('/maybeRestartFrameExtraction', methods=['POST'])
@@ -708,7 +785,7 @@ def maybe_restart_frame_extraction():
     response = {
         'restarted': restarted,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/retrieveVideoEntities', methods=['POST'])
 @handle_exceptions
@@ -717,11 +794,12 @@ def retrieve_video_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     validate_keys(flask.request.form.to_dict(flat=True), [])
     video_entities = storage.retrieve_video_list(team_uuid)
+    for video_entity in video_entities:
+        __strip_video_entity(video_entity)
     response = {
         'video_entities': video_entities,
     }
-    sanitize(response)
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/doesVideoEntityExist', methods=['POST'])
 @handle_exceptions
@@ -736,8 +814,7 @@ def does_video_entity_exist():
     response = {
         'video_entity_exists': video_entity_exists,
     }
-    sanitize(response)
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/retrieveVideoEntity', methods=['POST'])
 @handle_exceptions
@@ -750,11 +827,11 @@ def retrieve_video_entity():
     # storage.retrieve_video_entity will raise HttpErrorNotFound
     # if the team_uuid/video_uuid is not found.
     video_entity = storage.retrieve_video_entity(team_uuid, video_uuid)
+    __strip_video_entity(video_entity)
     response = {
         'video_entity': video_entity,
     }
-    sanitize(response)
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/canDeleteVideos', methods=['POST'])
 @handle_exceptions
@@ -771,7 +848,7 @@ def can_delete_videos():
         'can_delete_videos': can_delete_videos,
         'messages': messages,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/deleteVideo', methods=['POST'])
 @handle_exceptions
@@ -819,12 +896,13 @@ def retrieve_video_frame_entities_with_image_urls():
     # if none of the team_uuid/video_uuid/frame_numbers is found.
     video_frame_entities = storage.retrieve_video_frame_entities_with_image_urls(
         team_uuid, video_uuid, min_frame_number, max_frame_number)
+    for video_frame_entity in video_frame_entities:
+        __strip_video_frame_entity(video_frame_entity)
     blob_storage.set_cors_policy_for_get()
     response = {
         'video_frame_entities': video_frame_entities,
     }
-    sanitize(response)
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 
 @app.route('/storeVideoFrameBboxesText', methods=['POST'])
@@ -879,7 +957,7 @@ def prepare_to_start_tracking():
                 'tracker_uuid': '',
                 'message': 'Unable to start tracking because this video is already doing tracking, maybe in a different browser tab or window.',
             }
-            return flask.jsonify(response)
+            return flask.jsonify(__sanitize(response))
         if len(team_entity['video_uuids_tracking_now']) >= constants.MAX_VIDEOS_TRACKING_PER_TEAM:
             # Send a message to the client.
             response = {
@@ -887,7 +965,7 @@ def prepare_to_start_tracking():
                 'message': ('Unable to start tracking because your team is currently doing tracking for %s videos.' %
                         len(team_entity['video_uuids_tracking_now'])),
             }
-            return flask.jsonify(response)
+            return flask.jsonify(__sanitize(response))
     # tracking.prepare_to_start_tracking will raise HttpErrorNotFound
     # if the team_uuid/video_uuid is not found.
     tracker_uuid = tracking.prepare_to_start_tracking(team_uuid, video_uuid,
@@ -896,7 +974,7 @@ def prepare_to_start_tracking():
         'tracker_uuid': tracker_uuid,
         'message': '',
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/retrieveTrackedBboxes', methods=['POST'])
 @handle_exceptions
@@ -917,7 +995,7 @@ def retrieve_tracked_bboxes():
         'frame_number': frame_number,
         'bboxes_text': bboxes_text,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/continueTracking', methods=['POST'])
 @handle_exceptions
@@ -946,7 +1024,7 @@ def continue_tracking():
             'frame_number': frame_number,
             'bboxes_text': bboxes_text,
         }
-        return flask.jsonify(response)
+        return flask.jsonify(__sanitize(response))
     return 'OK'
 
 @app.route('/trackingClientStillAlive', methods=['POST'])
@@ -992,7 +1070,7 @@ def prepare_to_start_dataset_production():
             'dataset_uuid': '',
             'message': 'The Description is not valid or is a duplicate.'
         }
-        return flask.jsonify(response)
+        return flask.jsonify(__sanitize(response))
     video_uuids_json = storage.validate_uuids_json(data.get('video_uuids'))
     try:
         # The following min/max number (0 and 90) should match the min/max values in root.html.
@@ -1003,7 +1081,7 @@ def prepare_to_start_dataset_production():
             'dataset_uuid': '',
             'message': 'The percentage of frames for evaluation is not valid.'
         }
-        return flask.jsonify(response)
+        return flask.jsonify(__sanitize(response))
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
     # Don't allow a team to have more than the maximum allowed number of datasets.
     dataset_entities = storage.retrieve_dataset_list(team_uuid)
@@ -1014,7 +1092,7 @@ def prepare_to_start_dataset_production():
             'message': ('Unable to produce the dataset because your team already has %s datasets.' %
                     len(dataset_entities))
         }
-        return flask.jsonify(response)
+        return flask.jsonify(__sanitize(response))
     # dataset_producer.prepare_to_start_dataset_production will raise HttpErrorNotFound
     # if any of the team_uuid/video_uuids is not found or if none of the videos have labeled frames.
     dataset_uuid = dataset_producer.prepare_to_start_dataset_production(
@@ -1026,7 +1104,7 @@ def prepare_to_start_dataset_production():
         'dataset_uuid': dataset_uuid,
         'message': '',
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/retrieveDatasetEntities', methods=['POST'])
 @handle_exceptions
@@ -1035,11 +1113,12 @@ def retrieve_dataset_entities():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     validate_keys(flask.request.form.to_dict(flat=True), [])
     dataset_entities = storage.retrieve_dataset_list(team_uuid)
+    for dataset_entity in dataset_entities:
+        __strip_dataset_entity(dataset_entity)
     response = {
         'dataset_entities': dataset_entities,
     }
-    sanitize(response)
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/retrieveDatasetEntity', methods=['POST'])
 @handle_exceptions
@@ -1056,13 +1135,13 @@ def retrieve_dataset_entity():
         frames_written = None
     else:
         frames_written = storage.retrieve_dataset_record_writer_frames_written(dataset_entity)
+    __strip_dataset_entity(dataset_entity)
     response = {
         'dataset_entity': dataset_entity,
     }
     if frames_written is not None:
         response['frames_written'] = frames_written
-    sanitize(response)
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/canDeleteDatasets', methods=['POST'])
 @handle_exceptions
@@ -1079,7 +1158,7 @@ def can_delete_datasets():
         'can_delete_datasets': can_delete_datasets,
         'messages': messages,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/deleteDataset', methods=['POST'])
 @handle_exceptions
@@ -1113,7 +1192,7 @@ def prepare_to_zip_dataset():
         'dataset_zip_uuid': dataset_zip_uuid,
         'partition_count': partition_count,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/getDatasetZipStatus', methods=['POST'])
 @handle_exceptions
@@ -1137,7 +1216,7 @@ def get_dataset_zip_status():
         'download_url_array': download_url_array,
     }
     blob_storage.set_cors_policy_for_get()
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/deleteDatasetZip', methods=['POST'])
 @handle_exceptions
@@ -1187,13 +1266,12 @@ def start_training_model():
         starting_model, max_running_minutes, num_training_steps, create_time_ms, config[KEY_USE_TPU])
     # Retrieve the team entity so the client gets the updated remaining_training_minutes.
     team_entity = storage.retrieve_team_entity(team_uuid)
-    strip_model_entity(model_entity)
+    __strip_model_entity(model_entity)
     response = {
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entity': model_entity,
     }
-    sanitize(response)
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/maybeRestartMonitorTraining', methods=['POST'])
 @handle_exceptions
@@ -1206,11 +1284,12 @@ def maybe_restart_monitor_training():
     # model_trainer.maybe_restart_monitor_training will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     restarted, model_entity = model_trainer.maybe_restart_monitor_training(team_uuid, model_uuid)
+    __strip_model_entity(model_entity)
     response = {
         'restarted': restarted,
         'model_entity': model_entity,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/retrieveSummariesUpdated', methods=['POST'])
 @handle_exceptions
@@ -1226,7 +1305,7 @@ def retrieve_summaries_updated():
     model_folder = model_entity['model_folder']
     training_dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, 'train')
     eval_dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, 'eval')
-    strip_model_entity(model_entity)
+    __strip_model_entity(model_entity)
     response = {
         'model_entity': model_entity,
     }
@@ -1236,8 +1315,7 @@ def retrieve_summaries_updated():
     for path, updated in eval_dict_path_to_updated.items():
         if 'eval_updated' not in response or updated > response['eval_updated']:
             response['eval_updated'] = updated
-    sanitize(response)
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/retrieveTagsAndSteps', methods=['POST'])
 @handle_exceptions
@@ -1256,7 +1334,7 @@ def retrieve_tags_and_steps():
     response = {
         'step_and_tag_pairs': step_and_tag_pairs,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/retrieveSummaryItems', methods=['POST'])
 @handle_exceptions
@@ -1291,7 +1369,7 @@ def retrieve_summary_items():
     }
     if value_type == 'image':
         blob_storage.set_cors_policy_for_get()
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/stopTrainingModel', methods=['POST'])
 @handle_exceptions
@@ -1304,12 +1382,11 @@ def stop_training_model():
     # model_trainer.stop_training_model will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     model_entity = model_trainer.stop_training_model(team_uuid, model_uuid)
-    strip_model_entity(model_entity)
+    __strip_model_entity(model_entity)
     response = {
         'model_entity': model_entity,
     }
-    sanitize(response)
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/retrieveModelEntities', methods=['POST'])
 @handle_exceptions
@@ -1320,13 +1397,12 @@ def retrieve_model_entities():
     team_entity = storage.retrieve_team_entity(team_uuid)
     model_entities = storage.retrieve_model_list(team_uuid)
     for model_entity in model_entities:
-        strip_model_entity(model_entity)
+        __strip_model_entity(model_entity)
     response = {
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entities': model_entities,
     }
-    sanitize(response)
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/retrieveModelEntity', methods=['POST'])
 @handle_exceptions
@@ -1340,13 +1416,12 @@ def retrieve_model_entity():
     # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
-    strip_model_entity(model_entity)
+    __strip_model_entity(model_entity)
     response = {
         'remaining_training_minutes': team_entity['remaining_training_minutes'],
         'model_entity': model_entity,
     }
-    sanitize(response)
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/canDeleteModels', methods=['POST'])
 @handle_exceptions
@@ -1363,7 +1438,7 @@ def can_delete_models():
         'can_delete_models': can_delete_models,
         'messages': messages,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/deleteModel', methods=['POST'])
 @handle_exceptions
@@ -1399,7 +1474,7 @@ def create_tflite():
         'exists': exists,
         'download_url': download_url,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/getTFLiteDownloadUrl', methods=['POST'])
 @handle_exceptions
@@ -1420,7 +1495,7 @@ def get_tflite_download_url():
         'exists': exists,
         'download_url': download_url,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 @app.route('/resources', methods=['GET'])
 def resources():
@@ -1447,7 +1522,7 @@ def reset_remaining_training_minutes():
     response = {
         'action_uuid': action_uuid,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 
 @app.route('/incrementRemainingTrainingMinutes', methods=['POST'])
@@ -1469,7 +1544,7 @@ def increment_remaining_training_minutes():
     response = {
         'action_uuid': action_uuid,
     }
-    return flask.jsonify(response)
+    return flask.jsonify(__sanitize(response))
 
 
 # performActionGAE is for debugging purposes only.
