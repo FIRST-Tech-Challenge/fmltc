@@ -61,7 +61,7 @@ def __validate_team_oidc(session):
     #
     user_roles = session.get('user_roles')
     if user_roles:
-        roles.can_login(session['user_roles'], session['team_number'])
+        roles.can_login(session['user_roles'])
         return True
     else:
         return False

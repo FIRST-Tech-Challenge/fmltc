@@ -405,7 +405,7 @@ def submit_team():
         flask.session['team_number'] = team_num
         flask.session['name'] = given_name
 
-        roles.can_login(flask.session['user_roles'], team_num)
+        roles.can_login(flask.session['user_roles'])
 
         return flask.redirect(flask.url_for('index'))
     else:
@@ -441,7 +441,7 @@ def login():
 @handle_exceptions
 @redirect_to_login_if_needed
 def index():
-    roles.can_login(flask.session['user_roles'], flask.session['team_number'])
+    roles.can_login(flask.session['user_roles'])
 
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)

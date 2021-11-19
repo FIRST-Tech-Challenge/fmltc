@@ -55,19 +55,9 @@ def closed_beta_team(team_num):
 # Silent if the user can login, raises either NoRoles or Forbidden if the use
 # can not login in.
 #
-def can_login(roles, team_num):
+def can_login(roles):
     if not has_team_role(roles):
         raise NoRoles()
-
-    #
-    # In production during the closed beta we'll allow any global admin, developer, or test role
-    # plus any team that is in the closed beta.  Once the beta period is over, and go completely
-    # open this if clause is removed entirely, and we only retain the lock down on the development
-    # environment.
-    #
-    if util.is_production_env():
-        if not (is_global_admin(roles) or is_ml_developer(roles) or is_ml_test(roles, team_num)):
-            raise Forbidden()
 
     if util.is_development_env():
         if not (is_global_admin(roles) or is_ml_developer(roles)):
