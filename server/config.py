@@ -27,6 +27,7 @@ KEY_TRAINING_ENABLED = 'training_enabled'
 KEY_USE_TPU = 'use_tpu'
 KEY_SECURE_SESSION_COOKIES = 'secure_session_cookies'
 KEY_SAMESITE_SESSION_COOKIES = 'samesite_session_cookies'
+KEY_RESTRICT_BETA = 'restrict_beta'
 
 from distutils.util import strtobool
 
@@ -47,6 +48,7 @@ from distutils.util import strtobool
 # changed in the datastore, then that second instance will refresh the items
 # in the redis server.
 #
+
 class Config(dict):
 
     def __init__(self):
@@ -69,6 +71,7 @@ class Config(dict):
         self[KEY_USE_TPU] = True
         self[KEY_SECURE_SESSION_COOKIES] = True
         self[KEY_SAMESITE_SESSION_COOKIES] = True
+        self[KEY_RESTRICT_BETA] = False
 
     def refresh(self):
         client = datastore.Client()
@@ -86,6 +89,7 @@ class Config(dict):
         self.__setvalue(entity, KEY_USE_TPU, True)
         self.__setvalue(entity, KEY_SECURE_SESSION_COOKIES, True)
         self.__setvalue(entity, KEY_SAMESITE_SESSION_COOKIES, True)
+        self.__setvalue(entity, KEY_RESTRICT_BETA, False)
 
     def __setvalue(self, entity, key, default):
         self[key] = entity[key] if key in entity else default
@@ -96,4 +100,11 @@ class Config(dict):
     #
     def get_training_enabled_as_str(self):
         return str(self[KEY_TRAINING_ENABLED]).lower()
+
+
+#
+# Lazy way to get a singleton
+#
+config = Config()
+config.refresh()
 

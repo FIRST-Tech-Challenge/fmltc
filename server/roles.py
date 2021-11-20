@@ -18,6 +18,8 @@ import constants
 import util
 from exceptions import NoRoles
 from werkzeug.exceptions import Forbidden
+import config
+from config import KEY_RESTRICT_BETA
 
 
 class Role(str, Enum):
@@ -32,9 +34,6 @@ def can_upload_video(roles):
     return Role.TEAM_ADMIN in roles
 
 
-#
-# Remove after closed beta is over.
-#
 def closed_beta_team(team_num):
     BUCKET_BLOBS = ('%s-blobs' % constants.PROJECT_ID)
     TEAMS_FILE = 'team_info/beta_teams'
@@ -59,13 +58,7 @@ def can_login(roles, team_num):
     if not has_team_role(roles):
         raise NoRoles()
 
-    #
-    # In production during the closed beta we'll allow any global admin, developer, or test role
-    # plus any team that is in the closed beta.  Once the beta period is over, and go completely
-    # open this if clause is removed entirely, and we only retain the lock down on the development
-    # environment.
-    #
-    if util.is_production_env():
+    if util.is_production_env() and config.config[KEY_RESTRICT_BETA]:
         if not (is_global_admin(roles) or is_ml_developer(roles) or is_ml_test(roles, team_num)):
             raise Forbidden()
 
