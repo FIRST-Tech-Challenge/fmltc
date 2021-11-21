@@ -45,7 +45,7 @@ import model_trainer
 import oidc
 import roles
 from roles import Role
-from config import Config
+import config
 from config import KEY_TRAINING_ENABLED
 from config import KEY_USE_TPU
 from config import KEY_SECURE_SESSION_COOKIES
@@ -63,9 +63,6 @@ from wrappers import oidc_require_login
 from wrappers import roles_accepted
 from wrappers import roles_required
 
-
-config = Config()
-config.refresh()
 
 sentry_dsn = cloud_secrets.get_or_none('sentry_dsn')
 if sentry_dsn is not None:
@@ -93,12 +90,12 @@ app.config.update(
         # For SESSION_COOKIE_SECURE, True means that cookies will only be sent to the server with an
         # encrypted request over the HTTPS protocol.
         # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#restrict_access_to_cookies
-        "SESSION_COOKIE_SECURE": config[KEY_SECURE_SESSION_COOKIES],
+        "SESSION_COOKIE_SECURE": config.config[KEY_SECURE_SESSION_COOKIES],
 
         # For SESSION_COOKIE_SAMESITE, Strict means that cookies will only be sent in a first-party
         # context and not be sent along with requests initiated by third party websites.
         # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#values
-        "SESSION_COOKIE_SAMESITE": "Strict" if config[KEY_SAMESITE_SESSION_COOKIES] else "Lax",
+        "SESSION_COOKIE_SAMESITE": "Strict" if config.config[KEY_SAMESITE_SESSION_COOKIES] else "Lax",
 
         # OIDC properties
 
@@ -518,10 +515,10 @@ def index():
     program, team_number = team_info.retrieve_program_and_team_number(flask.session)
     return flask.render_template('root.html',
         can_upload_video=roles.can_upload_video(flask.session['user_roles']),
-        training_enabled=config.get_training_enabled_as_str(),
+        training_enabled=config.config.get_training_enabled_as_str(),
         team_preferences=storage.retrieve_user_preferences(team_uuid),
         limit_data=get_limit_data_for_render_template(),
-        model_trainer_data=model_trainer.get_data_for_root_template(config[KEY_USE_TPU]))
+        model_trainer_data=model_trainer.get_data_for_root_template(config.config[KEY_USE_TPU]))
 
 @app.route('/labelVideo')
 @handle_exceptions
@@ -582,7 +579,7 @@ def monitor_training():
 @login_required
 @roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
 def admin():
-    return flask.render_template('admin.html', config=config)
+    return flask.render_template('admin.html', config=config.config)
 
 
 @app.route('/refreshConfig', methods=['POST'])
@@ -590,12 +587,12 @@ def admin():
 @login_required
 @roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
 def refresh_config():
-    config.refresh()
+    config.config.refresh()
     app.config.update({
-        "SESSION_COOKIE_SECURE": config[KEY_SECURE_SESSION_COOKIES],
-        "SESSION_COOKIE_SAMESITE": "Strict" if config[KEY_SAMESITE_SESSION_COOKIES] else "Lax",
+        "SESSION_COOKIE_SECURE": config.config[KEY_SECURE_SESSION_COOKIES],
+        "SESSION_COOKIE_SAMESITE": "Strict" if config.config[KEY_SAMESITE_SESSION_COOKIES] else "Lax",
     })
-    return flask.jsonify(config)
+    return flask.jsonify(config.config)
 
 
 # requests
