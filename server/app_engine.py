@@ -1236,7 +1236,7 @@ def delete_dataset_zip():
 @handle_exceptions
 @login_required
 def start_training_model():
-    if not config[KEY_TRAINING_ENABLED]:
+    if not config.config[KEY_TRAINING_ENABLED]:
         raise Forbidden
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
@@ -1249,8 +1249,8 @@ def start_training_model():
     starting_model = model_trainer.validate_starting_model(data.get('starting_model'))
     max_running_minutes = validate_positive_float(data.get('max_running_minutes'))
     num_training_steps = validate_int(data.get('num_training_steps'),
-        min=model_trainer.get_min_training_steps(config[KEY_USE_TPU]),
-        max=model_trainer.get_max_training_steps(config[KEY_USE_TPU]))
+        min=model_trainer.get_min_training_steps(config.config[KEY_USE_TPU]),
+        max=model_trainer.get_max_training_steps(config.config[KEY_USE_TPU]))
     create_time_ms = validate_create_time_ms(data.get('create_time_ms'))
     # model_trainer.start_training_model will raise HttpErrorNotFound
     # if starting_model is not a valid starting model and it's not a valid model_uuid, or
@@ -1260,7 +1260,7 @@ def start_training_model():
     # model_trainer.start_training_model will raise HttpErrorUnprocessableEntity
     # if the max_running_minutes exceeds the team's remaining_training_minutes.
     model_entity = model_trainer.start_training_model(team_uuid, description, dataset_uuids_json,
-        starting_model, max_running_minutes, num_training_steps, create_time_ms, config[KEY_USE_TPU])
+        starting_model, max_running_minutes, num_training_steps, create_time_ms, config.config[KEY_USE_TPU])
     # Retrieve the team entity so the client gets the updated remaining_training_minutes.
     team_entity = storage.retrieve_team_entity(team_uuid)
     __strip_model_entity(model_entity)
