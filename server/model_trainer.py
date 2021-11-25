@@ -42,6 +42,8 @@ import util
 
 BUCKET = ('%s' % constants.PROJECT_ID)
 
+IMAGE_URI = ('gcr.io/%s/object_detection:2021_11_25' % constants.PROJECT_ID)
+
 STARTING_MODELS = {
     'SSD MobileNet v2 320x320': {
         'pipeline_config': 'tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8/pipeline.config',
@@ -126,8 +128,8 @@ def __get_num_warmup_steps(original_starting_model, checkpoint_every_n, num_trai
     starting_model_data = STARTING_MODELS[original_starting_model]
     return min(starting_model_data['num_warmup_steps'], num_training_steps)
 
-def __get_scale_tier(use_tpu):
-    if use_tpu:
+def __get_scale_tier(use_tpu, job_type):
+    if use_tpu and job_type == 'train':
         return 'BASIC_TPU'
     return 'BASIC_GPU'
 
@@ -239,15 +241,6 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         .replace('TO_BE_CONFIGURED/num_warmup_steps',  str(int(num_warmup_steps)))
         )
 
-    packageUris = [
-        'gs://%s/static/training/object_detection-0.1_2.5.0.tar.gz' % BUCKET,
-        'gs://%s/static/training/slim-0.1.tar.gz' % BUCKET,
-        'gs://%s/static/training/pycocotools-2.0.tar.gz' % BUCKET,
-    ]
-    region = 'us-central1' # Choices are us-central1 or europe-west4
-    runtimeVersion = '2.5' # Not supported beginning August 13, 2022
-    pythonVersion = '3.7'
-
     # storage.model_trainer_starting will raise HttpErrorUnprocessableEntity
     # if the max_running_minutes exceeds the team's remaining_training_minutes.
     model_uuid = storage.model_trainer_starting(team_uuid, max_running_minutes)
@@ -255,10 +248,7 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
 
     try:
         pipeline_config_path = blob_storage.store_pipeline_config(model_folder, pipeline_config)
-
         model_dir = blob_storage.get_model_folder_path(model_folder)
-        job_dir = model_dir
-        checkpoint_dir = model_dir
 
         train_job_id = __get_train_job_id(model_uuid)
         scheduling = {
@@ -273,15 +263,14 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
             args.append('--use_tpu')
             args.append('true')
         train_training_input = {
-            'scaleTier': __get_scale_tier(use_tpu),
-            'packageUris': packageUris,
-            'pythonModule': 'object_detection.model_main_tf2',
-            'args': args,
-            'region': region,
-            'jobDir': job_dir,
-            'runtimeVersion': runtimeVersion,
-            'pythonVersion': pythonVersion,
+            'jobDir': model_dir,
+            'region': 'us-central1',
+            'scaleTier': __get_scale_tier(use_tpu, 'train'),
+            'masterConfig': {
+                'imageUri': IMAGE_URI,
+            },
             'scheduling': scheduling,
+            'args': args,
         }
         train_job = {
             'jobId': train_job_id,
@@ -290,18 +279,17 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
 
         eval_job_id = __get_eval_job_id(model_uuid)
         eval_training_input = {
-            'scaleTier': 'BASIC_GPU',
-            'packageUris': packageUris,
-            'pythonModule': 'object_detection.model_main_tf2',
+            'jobDir': model_dir,
+            'region': 'us-central1',
+            'scaleTier': __get_scale_tier(use_tpu, 'eval'),
+            'masterConfig': {
+                'imageUri': IMAGE_URI,
+            },
             'args': [
                 '--model_dir', model_dir,
                 '--pipeline_config_path', pipeline_config_path,
-                '--checkpoint_dir', checkpoint_dir,
+                '--checkpoint_dir', model_dir,
             ],
-            'region': region,
-            'jobDir': job_dir,
-            'runtimeVersion': runtimeVersion,
-            'pythonVersion': pythonVersion,
         }
         eval_job = {
             'jobId': eval_job_id,
