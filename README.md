@@ -126,6 +126,12 @@ Visit this [file](doc/usage.md) for a user guide.
 1. Click `team_info` to go to https://console.cloud.google.com/storage/browser/my_project_id-blobs/team_info/?project=my_project_id (replace my_project_id with your actual project ID)
 1. Click `Upload files`. In the file chooser, select your `teams` file.
 
+## Clone the fmltc repo.
+
+1. In a browser, go to https://github.com/FIRST-Tech-Challenge/fmltc
+1. Click on the green Code button and figure out which way to clone the repo onto your local machine.
+1. After cloning the repo, ```cd fmltc```
+
 ## Install the Google Closure Compiler
 **Important!** Make sure the current working directory is the fmltc directory when you run these
   commands.
