@@ -43,6 +43,7 @@ import util
 BUCKET = ('%s' % constants.PROJECT_ID)
 
 IMAGE_URI = ('gcr.io/%s/object_detection:2021_11_25' % constants.PROJECT_ID)
+PACKAGE_URI = ('gs://%s/static/training/object_detection-0.1.tar.gz' % BUCKET)
 
 STARTING_MODELS = {
     'SSD MobileNet v2 320x320': {
@@ -127,11 +128,6 @@ def __get_batch_size(use_tpu, original_starting_model, train_frame_count):
 def __get_num_warmup_steps(original_starting_model, checkpoint_every_n, num_training_steps):
     starting_model_data = STARTING_MODELS[original_starting_model]
     return min(starting_model_data['num_warmup_steps'], num_training_steps)
-
-def __get_scale_tier(use_tpu, job_type):
-    if use_tpu and job_type == 'train':
-        return 'BASIC_TPU'
-    return 'BASIC_GPU'
 
 def start_training_model(team_uuid, description, dataset_uuids_json,
         starting_model, max_running_minutes, num_training_steps, create_time_ms, use_tpu):
@@ -254,24 +250,29 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         scheduling = {
             'maxRunningTime': '%ds' % int(max_running_minutes * 60),
         }
-        args = [
-            '--model_dir', model_dir,
-            '--pipeline_config_path', pipeline_config_path,
-            '--checkpoint_every_n', str(checkpoint_every_n),
-        ]
-        if use_tpu:
-            args.append('--use_tpu')
-            args.append('true')
         train_training_input = {
-            'jobDir': model_dir,
             'region': 'us-central1',
-            'scaleTier': __get_scale_tier(use_tpu, 'train'),
-            'masterConfig': {
-                'imageUri': IMAGE_URI,
-            },
             'scheduling': scheduling,
-            'args': args,
+            'jobDir': model_dir,
+            'args': [
+                '--model_dir', model_dir,
+                '--pipeline_config_path', pipeline_config_path,
+                '--checkpoint_every_n', str(checkpoint_every_n),
+            ],
         }
+        if use_tpu:
+            train_training_input['scaleTier'] = 'BASIC_TPU'
+            train_training_input['packageUris'] = [PACKAGE_URI]
+            train_training_input['pythonModule'] = 'object_detection.model_main_tf2'
+            train_training_input['runtimeVersion'] = '2.6'
+            train_training_input['pythonVersion'] = '3.7'
+            train_training_input['args'].append('--use_tpu')
+            train_training_input['args'].append('true')
+        else:
+            train_training_input['scaleTier'] = 'BASIC_GPU'
+            train_training_input['masterConfig'] = {
+                'imageUri': IMAGE_URI,
+            }
         train_job = {
             'jobId': train_job_id,
             'trainingInput': train_training_input
@@ -279,12 +280,12 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
 
         eval_job_id = __get_eval_job_id(model_uuid)
         eval_training_input = {
-            'jobDir': model_dir,
             'region': 'us-central1',
-            'scaleTier': __get_scale_tier(use_tpu, 'eval'),
+            'scaleTier': 'BASIC_GPU',
             'masterConfig': {
                 'imageUri': IMAGE_URI,
             },
+            'jobDir': model_dir,
             'args': [
                 '--model_dir', model_dir,
                 '--pipeline_config_path', pipeline_config_path,
