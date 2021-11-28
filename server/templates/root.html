@@ -50,31 +50,28 @@ limitations under the License.
                   <br>
                   <table class="collapsedBorder">
                     <tr>
-                      <td align="center" valign="top">
+                      <td class="noWrap" align="center" valign="top">
                         {% if can_upload_video %}
-                          <button id="uploadVideoFileButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#uploadVideoFileDialog">
+                          <button id="uploadVideoFileButton" class="btn btn-secondary margin-right-10" data-bs-toggle="modal" data-bs-target="#uploadVideoFileDialog">
                         {% else %}
-                          <button id="uploadVideoFileButton" disabled class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#uploadVideoFileDialog">
+                          <button id="uploadVideoFileButton" disabled class="btn btn-secondary margin-right-10" data-bs-toggle="modal" data-bs-target="#uploadVideoFileDialog">
                         {% endif %}
                           <span class="material-icons iconVerticalAlign">cloud_upload</span>
                           <span class="iconVerticalAlign">Upload Video</span>
                         </button>
                       </td>
-                      <td width="10px"></td>
-                      <td align="center" valign="top">
-                        <button id="produceDatasetButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#produceDatasetDialog">
+                      <td class="noWrap" align="center" valign="top">
+                        <button id="produceDatasetButton" class="btn btn-secondary margin-right-10" data-bs-toggle="modal" data-bs-target="#produceDatasetDialog">
                           <span class="material-icons iconVerticalAlign">construction</span>
                           <span class="iconVerticalAlign">Produce Dataset</span>
                         </button>
                       </td>
-                      <td width="10px"></td>
-                      <td align="center" valign="top">
-                        <button id="deleteVideosButton" class="btn btn-secondary">
+                      <td class="noWrap" align="center" valign="top">
+                        <button id="deleteVideosButton" class="btn btn-secondary margin-right-10">
                           <span class="material-icons iconVerticalAlign">delete</span>
                           <span class="iconVerticalAlign">Delete Videos</span>
                         </button>
                       </td>
-                      <td width="10px"></td>
                     </tr>
                   </table>
                   <br>
@@ -110,27 +107,27 @@ limitations under the License.
                   <br>
                   <table class="collapsedBorder">
                     <tr>
-                      <td align="center" valign="top">
-                        <button id="downloadDatasetButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#downloadDatasetDialog">
+                      <td class="noWrap" align="center" valign="top">
+                        <button id="downloadDatasetButton" class="btn btn-secondary margin-right-10" data-bs-toggle="modal" data-bs-target="#downloadDatasetDialog">
                           <span class="material-icons iconVerticalAlign">cloud_download</span>
                           <span class="iconVerticalAlign">Download Dataset</span>
                         </button>
                       </td>
-                      <td width="10px"></td>
-                      <td align="center" valign="top">
-                        <button id="startTrainingButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#startTrainingDialog">
+                      <td class="noWrap" align="center" valign="top">
+                        <button id="startTrainingButton" class="btn btn-secondary margin-right-10" data-bs-toggle="modal" data-bs-target="#startTrainingDialog">
                           <span class="material-icons iconVerticalAlign">model_training</span>
                           <span class="iconVerticalAlign">Start Training</span>
                         </button>
                       </td>
-                      <td width="10px"></td>
-                      <td align="center" valign="top">
-                        <button id="deleteDatasetsButton" class="btn btn-secondary">
+                      <td class="noWrap" align="center" valign="top">
+                        <button id="deleteDatasetsButton" class="btn btn-secondary margin-right-10">
                           <span class="material-icons iconVerticalAlign">delete</span>
                           <span class="iconVerticalAlign">Delete Datasets</span>
                         </button>
                       </td>
-                      <td width="10px"></td>
+                      <td width="99%" align="right" valign="top">
+                        Remaining training time: <span id="dRemainingTrainingMinutesSpan"></span> minutes
+                      </td>
                     </tr>
                   </table>
                   <br>
@@ -164,58 +161,53 @@ limitations under the License.
               <div class="tab-pane fade" role="tabpanel" aria-labelledby="modelsTab" id="modelsTabContent">
                 <div>
                   <br>
-                  <table class="table table-striped">
-                    <thead>
-                      <tr>
-                        <td align="center" valign="top">
-                          <button id="trainMoreButton" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#trainMoreDialog">
-                            <span class="material-icons iconVerticalAlign">model_training</span>
-                            <span class="iconVerticalAlign">More Training</span>
-                          </button>
-                        </td>
-                        <td width="10px"></td>
-                        <td align="center" valign="top">
-                          <button id="downloadTFLiteButton" class="btn btn-secondary">
-                            <span class="material-icons iconVerticalAlign">cloud_download</span>
-                            <span class="iconVerticalAlign">Download Model</span>
-                          </button>
-                        </td>
-                        <td width="10px"></td>
-                        <td align="center" valign="top">
-                          <button id="stopTrainingButton" class="btn btn-secondary">
-                            <span class="material-icons iconVerticalAlign">cancel</span>
-                            <span class="iconVerticalAlign">Stop Training</span>
-                          </button>
-                        </td>
-                        <td width="10px"></td>
-                        <td align="center" valign="top">
-                          <button id="deleteModelsButton" class="btn btn-secondary">
-                            <span class="material-icons iconVerticalAlign">delete</span>
-                            <span class="iconVerticalAlign">Delete Models</span>
-                          </button>
-                        </td>
-                        <td width="10px"></td>
-                      </tr>
-                    </thead>
-                    <tr><tr>
-                    </table>
-                    <br>
-                    <div id="modelsListDiv" style="display: none;" class="pb-3">
-                      <table id="modelsTable" class="table table-striped">
-                        <thead>
-                          <tr>
-                            <th class="cellWithBorder"><input type="checkbox" id="modelCheckboxAll"></th>
-                            <th class="cellWithBorder">Date Created</th>
-                            <th class="cellWithBorder" width="200px">Description</th>
-                            <th class="cellWithBorder">Starting Model</th>
-                            <th class="cellWithBorder">Steps Requested</th>
-                            <th class="cellWithBorder">Job State</th>
-                            <th class="cellWithBorder">Steps Completed</th>
-                            <th class="cellWithBorder">Training Time</th>
-                          </tr>
-                        </thead>
-                        <tr></tr>
-                      </table>
+                  <table class="collapsedBorder">
+                    <tr>
+                      <td class="noWrap" align="center" valign="top">
+                        <button id="trainMoreButton" class="btn btn-secondary margin-right-10" data-bs-toggle="modal" data-bs-target="#trainMoreDialog">
+                          <span class="material-icons iconVerticalAlign">model_training</span>
+                          <span class="iconVerticalAlign">More Training</span>
+                        </button>
+                      </td>
+                      <td class="noWrap" align="center" valign="top">
+                        <button id="downloadTFLiteButton" class="btn btn-secondary margin-right-10">
+                          <span class="material-icons iconVerticalAlign">cloud_download</span>
+                          <span class="iconVerticalAlign">Download Model</span>
+                        </button>
+                      </td>
+                      <td class="noWrap" align="center" valign="top">
+                        <button id="stopTrainingButton" class="btn btn-secondary margin-right-10">
+                          <span class="material-icons iconVerticalAlign">cancel</span>
+                          <span class="iconVerticalAlign">Stop Training</span>
+                        </button>
+                      </td>
+                      <td class="noWrap" align="center" valign="top">
+                        <button id="deleteModelsButton" class="btn btn-secondary margin-right-10">
+                          <span class="material-icons iconVerticalAlign">delete</span>
+                          <span class="iconVerticalAlign">Delete Models</span>
+                        </button>
+                      </td>
+                      <td width="99%" align="right" valign="top">
+                        Remaining training time: <span id="mRemainingTrainingMinutesSpan"></span> minutes
+                      </td>
+                    </tr>
+                  </table>
+                  <br>
+                  <div id="modelsListDiv" style="display: none;" class="pb-3">
+                    <table id="modelsTable" class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th class="cellWithBorder"><input type="checkbox" id="modelCheckboxAll"></th>
+                          <th class="cellWithBorder">Date Created</th>
+                          <th class="cellWithBorder" width="200px">Description</th>
+                          <th class="cellWithBorder">Starting Model</th>
+                          <th class="cellWithBorder">Steps Requested</th>
+                          <th class="cellWithBorder">Job State</th>
+                          <th class="cellWithBorder">Steps Completed</th>
+                          <th class="cellWithBorder">Training Time</th>
+                        </tr>
+                      </thead>
+                      <tr></tr>
                     </table>
                   </div>
                 </div>

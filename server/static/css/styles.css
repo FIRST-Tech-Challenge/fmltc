@@ -411,3 +411,11 @@ form {
 .hasTooltip:hover .isTooltipText {
   visibility: visible;
 }
+
+.noWrap {
+    white-space: nowrap;
+}
+
+.margin-right-10 {
+  margin-right: 10px;
+}
