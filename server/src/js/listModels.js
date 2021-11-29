@@ -33,6 +33,8 @@ fmltc.ListModels = function(util) {
   /** @type {!fmltc.Util} */
   this.util = util;
 
+  this.dRemainingTrainingMinutesSpan = document.getElementById('dRemainingTrainingMinutesSpan');
+  this.mRemainingTrainingMinutesSpan = document.getElementById('mRemainingTrainingMinutesSpan');
   this.modelsListDiv = document.getElementById('modelsListDiv');
   this.modelsTable = document.getElementById('modelsTable');
   this.modelCheckboxAll = document.getElementById('modelCheckboxAll');
@@ -83,7 +85,7 @@ fmltc.ListModels.prototype.xhr_retrieveModelEntities_onreadystatechange = functi
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      this.remainingTrainingMinutes = Math.floor(response.remaining_training_minutes);
+      this.updateRemainingTrainingMinutes(response.remaining_training_minutes);
       const modelEntityArray = response.model_entities;
       for (let i = 0; i < modelEntityArray.length; i++) {
         this.onModelEntityUpdated(modelEntityArray[i]);
@@ -326,7 +328,7 @@ fmltc.ListModels.prototype.xhr_retrieveModelEntity_onreadystatechange = function
 
     if (xhr.status === 200) {
       const response = JSON.parse(xhr.responseText);
-      this.remainingTrainingMinutes = Math.floor(response.remaining_training_minutes);
+      this.updateRemainingTrainingMinutes(response.remaining_training_minutes);
       const modelEntity = response.model_entity;
       this.onModelEntityUpdated(modelEntity);
 
@@ -344,7 +346,7 @@ fmltc.ListModels.prototype.xhr_retrieveModelEntity_onreadystatechange = function
 };
 
 fmltc.ListModels.prototype.addNewModel = function(remainingTrainingMinutes, modelEntity) {
-  this.remainingTrainingMinutes = remainingTrainingMinutes;
+  this.updateRemainingTrainingMinutes(remainingTrainingMinutes);
   this.onModelEntityUpdated(modelEntity);
 }
 
@@ -674,4 +676,10 @@ fmltc.ListModels.prototype.xhr_downloadTFLite_onreadystatechange = function(xhr,
       }
     }
   }
+};
+
+fmltc.ListModels.prototype.updateRemainingTrainingMinutes = function(remainingTrainingMinutes) {
+  this.remainingTrainingMinutes = Math.floor(remainingTrainingMinutes);
+  this.dRemainingTrainingMinutesSpan.textContent = String(this.remainingTrainingMinutes);
+  this.mRemainingTrainingMinutesSpan.textContent = String(this.remainingTrainingMinutes);
 };

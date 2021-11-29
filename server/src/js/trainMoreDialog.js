@@ -238,7 +238,6 @@ fmltc.TrainMoreDialog.prototype.xhr_startTrainingModel_onreadystatechange = func
     if (xhr.status === 200) {
       //console.log('Success! /startTrainingModel');
       const response = JSON.parse(xhr.responseText);
-      const remainingTrainingMinutes = Math.floor(response.remaining_training_minutes);
       const modelEntity = response.model_entity;
 
       this.startTrainingInProgress = false;
@@ -247,7 +246,7 @@ fmltc.TrainMoreDialog.prototype.xhr_startTrainingModel_onreadystatechange = func
       this.successDiv.style.display = 'block';
       this.util.clearWaitCursor();
 
-      this.onTrainingStarted(remainingTrainingMinutes, modelEntity);
+      this.onTrainingStarted(response.remaining_training_minutes, modelEntity);
       setTimeout(this.closeButton_onclick.bind(this), 1000);
 
     } else {
