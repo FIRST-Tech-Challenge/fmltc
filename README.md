@@ -160,6 +160,19 @@ popd
 ## Install JDK
 Depending on your OS and distribution there are various ways to install JDK. See https://www.oracle.com/java/technologies/downloads/ for instructions. 
 
+## Docker
+
+### Install
+
+Depending on your OS and distribution there are various ways to install Docker. https://docs.docker.com/get-docker/
+
+### Authenticate
+
+```
+gcloud auth configure-docker
+Do you want to continue (Y/n)?  y
+```
+
 ## Fill in the values in server/env_variables.yaml
 
 1. Replace `<YOUR-PROJECT-ID>` with the Google Cloud Project ID for your project.
@@ -195,16 +208,19 @@ source env_setup.sh
     source env_setup.sh
     scripts/deploy_indexes.sh
     ```
+
 1. Deploy the static content (the CSS styles and the favicon).
     ```
     source env_setup.sh
     scripts/deploy_static.sh
     ```
+
 1. Deploy the javascript code.
     ```
     source env_setup.sh
     scripts/deploy_js.sh
     ```
+
 1. Deploy the Cloud Function.
     ```
     source env_setup.sh
@@ -220,6 +236,12 @@ source env_setup.sh
     ```
     source env_setup.sh
     scripts/deploy_gae.sh
+    ```
+
+1. Deploy the object detection docker image.
+    ```
+    source env_setup.sh
+    scripts/deploy_docker_image.sh
     ```
 
 ## Try it out
