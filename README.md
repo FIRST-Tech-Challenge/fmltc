@@ -160,8 +160,18 @@ popd
 ## Install JDK
 Depending on your OS and distribution there are various ways to install JDK. See https://www.oracle.com/java/technologies/downloads/ for instructions. 
 
-## Install Docker
+## Docker
+
+### Install
+
 Depending on your OS and distribution there are various ways to install Docker. https://docs.docker.com/get-docker/
+
+### Authenticate
+
+```
+gcloud auth configure-docker
+Do you want to continue (Y/n)?  y
+```
 
 ## Fill in the values in server/env_variables.yaml
 
