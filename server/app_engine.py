@@ -579,7 +579,7 @@ def monitor_training():
 @login_required
 @roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
 def admin():
-    return flask.render_template('admin.html', config=config.config)
+    return flask.render_template('admin.html', config=config.config, max_mins=team_info.TOTAL_TRAINING_MINUTES_PER_TEAM)
 
 
 @app.route('/refreshConfig', methods=['POST'])
@@ -1507,7 +1507,7 @@ def resources():
 def reset_remaining_training_minutes():
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['reset_minutes', 'date_time_string'])
-    reset_minutes = validate_int(data.get('reset_minutes'), min=1, max=240)
+    reset_minutes = validate_int(data.get('reset_minutes'), min=1, max=team_info.TOTAL_TRAINING_MINUTES_PER_TEAM)
     action_parameters = action.create_action_parameters(
         '', action.ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES)
     action_parameters['reset_minutes'] = reset_minutes

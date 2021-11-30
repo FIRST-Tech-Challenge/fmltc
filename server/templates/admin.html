@@ -21,8 +21,8 @@ limitations under the License.
   <div class="container">
     <h2>Reset all teams' remaining_training_minutes</h2>
     <label for="resetInput" class="text-18">Reset to:</label>&nbsp;
-    <input id="resetInput" type="number" class="text-18 rightText" value="240"
-          min="1" max="240" style="width: 7ch">
+    <input id="resetInput" type="number" class="text-18 rightText" value="{{max_mins}}"
+          min="1" max="{{max_mins}}" style="width: 7ch">
     <br>
     <button id="resetButton" class="btn btn-secondary">Reset</button>
     <div id="resetResponse"></div>
@@ -42,7 +42,7 @@ limitations under the License.
     <h2>Increment all teams' remaining_training_minutes</h2>
     <label for="incrementInput" class="text-18">Increment by:</label>&nbsp;
     <input id="incrementInput" type="number" class="text-18 rightText" value="60"
-          min="1" max="240" style="width: 7ch">
+          min="1" max="{{max_mins}}" style="width: 7ch">
     <br>
     <button id="incrementButton" class="btn btn-secondary">Increment</button>
     <div id="incrementResponse"></div>
