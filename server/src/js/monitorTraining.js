@@ -82,6 +82,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.trainingScalars.jobType = 'train';
   this.trainingScalars.valueType = 'scalar';
   this.trainingScalars.maxItemsPerRequest = 50;
+  this.trainingScalars.parallelization = 2;
   this.trainingScalars.scalarsHeading = this.trainingScalarsHeading;
   this.trainingScalars.parentDiv = this.trainingScalarsDiv;
   this.trainingScalars.mapTagToSteps = {}; // map<tag, sortedArray<step>>
@@ -97,6 +98,7 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.evalScalars.jobType = 'eval';
   this.evalScalars.valueType = 'scalar';
   this.evalScalars.maxItemsPerRequest = 50;
+  this.evalScalars.parallelization = 2;
   this.evalScalars.scalarsHeading = this.evalScalarsHeading;
   this.evalScalars.parentDiv = this.evalScalarsDiv;
   this.evalScalars.mapTagToSteps = {}; // map<tag, sortedArray<step>>
@@ -111,7 +113,8 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.evalImages = {};
   this.evalImages.jobType = 'eval';
   this.evalImages.valueType = 'image';
-  this.evalImages.maxItemsPerRequest = 20;
+  this.evalImages.maxItemsPerRequest = 10;
+  this.evalImages.parallelization = 2;
   this.evalImages.parentDiv = this.evalImagesDiv;
   this.evalImages.mapTagToSteps = {}; // map<tag, sortedArray<step>>
   this.evalImages.sortedTags = [];
@@ -426,7 +429,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveTagsAndSteps_onreadystatechange = fu
           requestStepAndTagPairs.push(newStepAndTagPairs[i]);
         }
       }
-      this.retrieveSummaryItemsInParallel(o, requestStepAndTagPairs, 2);
+      this.retrieveSummaryItemsInParallel(o, requestStepAndTagPairs);
 
       this.decrementRetrieveDataInProgressCounter(o.valueType);
 
@@ -471,7 +474,8 @@ fmltc.MonitorTraining.prototype.addToMapTagToSteps = function(stepAndTagPairs, m
   }
 };
 
-fmltc.MonitorTraining.prototype.retrieveSummaryItemsInParallel = function(o, requestStepAndTagPairs, parallelization) {
+fmltc.MonitorTraining.prototype.retrieveSummaryItemsInParallel = function(o, requestStepAndTagPairs) {
+  const parallelization = Math.min(o.parallelization, requestStepAndTagPairs.length / o.maxItemsPerRequest);
   let requestStepAndTagPairsLater = requestStepAndTagPairs.slice(parallelization * o.maxItemsPerRequest);
   for (let i = 0; i < parallelization; i++) {
     const requestStepAndTagPairsNow = requestStepAndTagPairs.slice(o.maxItemsPerRequest * i, o.maxItemsPerRequest * (i + 1));
@@ -535,7 +539,7 @@ fmltc.MonitorTraining.prototype.xhr_retrieveSummaryItems_onreadystatechange = fu
 
       // Request the next batch of summary items.
       if (requestStepAndTagPairsLater.length > 0) {
-        this.retrieveSummaryItemsInParallel(o, requestStepAndTagPairsLater, 2);
+        this.retrieveSummaryItemsInParallel(o, requestStepAndTagPairsLater);
       }
 
       this.decrementRetrieveDataInProgressCounter(o.valueType);
@@ -1205,7 +1209,7 @@ fmltc.MonitorTraining.prototype.currentPageIndexChanged = function() {
       }
     }
   }
-  this.retrieveSummaryItemsInParallel(o, requestStepAndTagPairs, 2);
+  this.retrieveSummaryItemsInParallel(o, requestStepAndTagPairs);
 };
 
 fmltc.MonitorTraining.prototype.tab_onclick = function(tabContentId) {
