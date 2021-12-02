@@ -113,6 +113,8 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
 
   this.retryingGoToFrame = false;
 
+  this.savingBboxes = false;
+
   this.playing = false;
   this.playingDirection = 1;
   this.playingIntervalMs = 0;
@@ -130,6 +132,7 @@ fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
 
   this.trackingAlreadyInProgress = false;
   this.trackingInProgress = false;
+  this.trackingNumberOfBboxes = 0;
   this.trackingPaused = false;
   this.trackingWaitingForBboxes = false;
   this.trackingInitFrameNumber = 0;
@@ -734,6 +737,12 @@ fmltc.LabelVideo.prototype.saveBboxes = function() {
     return bboxesText;
   }
 
+  if (this.savingBboxes) {
+    setTimeout(this.saveBboxes.bind(this), 1000);
+    return;
+  }
+  this.savingBboxes = true;
+
   this.labelingAreaSavingMessageDiv.style.color = '#0d6efd';
   this.labelingAreaSavingMessageDiv.textContent = ''; // 'Saving...';
 
@@ -771,6 +780,7 @@ fmltc.LabelVideo.prototype.xhr_storeVideoFrameBboxesText_onreadystatechange = fu
       console.log('Failure! /storeVideoFrameBboxesText?' + params +
           ' xhr.status is ' + xhr.status + '. xhr.statusText is ' + xhr.statusText);
     }
+    this.savingBboxes = false;
   }
 };
 
@@ -1259,6 +1269,7 @@ fmltc.LabelVideo.prototype.trackingStartButton_onclick = function() {
   this.updateUI(false);
 
   const bboxesText = this.saveBboxes();
+  this.trackingNumberOfBboxes = this.convertTextToBboxes(bboxesText).length;
   const trackingScale = Math.max(this.trackingScaleInput.min, Math.min(this.trackingScaleInput.value, this.trackingScaleInput.max));
 
   const xhr = new XMLHttpRequest();
@@ -1393,7 +1404,10 @@ fmltc.LabelVideo.prototype.xhr_retrieveTrackedBboxes_onreadystatechange = functi
         }
         this.goToFrame(frameNumber);
 
-        if (this.trackingPaused) {
+        if (this.bboxes[frameNumber].length != this.trackingNumberOfBboxes) {
+          this.trackingPaused = true;
+          this.trackingMessageDiv.textContent = 'Could not track all objects. Paused.';
+        } else if (this.trackingPaused) {
           this.trackingMessageDiv.textContent = 'Paused.';
         } else {
           this.trackingMessageDiv.textContent =
@@ -1439,6 +1453,7 @@ fmltc.LabelVideo.prototype.sendContinueTracking = function(failureCount) {
   this.trackingWaitingForBboxes = true;
   this.updateUI(false);
 
+  this.trackingNumberOfBboxes = this.bboxes[this.currentFrameNumber].length;
   this.videoFrameEntity[this.currentFrameNumber].bboxes_text =
       this.convertBboxesToText(this.bboxes[this.currentFrameNumber]);
 

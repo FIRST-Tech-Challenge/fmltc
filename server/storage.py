@@ -360,23 +360,23 @@ def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
             tracker_entity = maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
             if tracker_entity is None:
                 tracking_in_progress = False
-                logging.critical('Tracker is not in progress. Tracker entity is missing.')
+                logging.warning('Tracker is not in progress. Tracker entity is missing.')
             else:
                 # If it's been more than two minutes, assume the tracker has died.
                 timedelta_since_last_update = datetime.now(timezone.utc) - tracker_entity['update_time']
                 if timedelta_since_last_update > timedelta(minutes=2):
-                    logging.critical('Tracker is not in progress. Elapsed time since last tracker update: %f seconds' %
+                    logging.warning('Tracker is not in progress. Elapsed time since last tracker update: %f seconds' %
                         timedelta_since_last_update.total_seconds())
                     tracking_in_progress = False
             tracker_client_entity = maybe_retrieve_tracker_client_entity(video_uuid, tracker_uuid)
             if tracker_client_entity is None:
                 tracking_in_progress = False
-                logging.critical('Tracker is not in progress. Tracker client entity is missing.')
+                logging.warning('Tracker is not in progress. Tracker client entity is missing.')
             else:
                 # If it's been more than two minutes, assume the tracker client is not connected.
                 timedelta_since_last_update = datetime.now(timezone.utc) - tracker_client_entity['update_time']
                 if timedelta_since_last_update > timedelta(minutes=2):
-                    logging.critical('Tracker is not in progress. Elapsed time since last tracker client update: %f seconds' %
+                    logging.warning('Tracker is not in progress. Elapsed time since last tracker client update: %f seconds' %
                         timedelta_since_last_update.total_seconds())
                     tracking_in_progress = False
             if not tracking_in_progress:
@@ -732,7 +732,7 @@ def retrieve_tracked_bboxes(video_uuid, tracker_uuid, retrieve_frame_number, tim
     tracker_entity = maybe_retrieve_tracker_entity(video_uuid, tracker_uuid)
     while True:
         if tracker_entity is None:
-            logging.critical('Tracker appears to have failed. Tracker entity is missing.')
+            logging.warning('Tracker appears to have failed. Tracker entity is missing.')
             return True, 0, ''
         if tracker_entity['frame_number'] == retrieve_frame_number:
             break
@@ -741,7 +741,7 @@ def retrieve_tracked_bboxes(video_uuid, tracker_uuid, retrieve_frame_number, tim
         # If it's been more than two minutes, assume the tracker has died.
         timedelta_since_last_update = datetime.now(timezone.utc) - tracker_entity['update_time']
         if timedelta_since_last_update > timedelta(minutes=2):
-            logging.critical('Tracker appears to have failed. Elapsed time since last tracker update: %f seconds' %
+            logging.warning('Tracker appears to have failed. Elapsed time since last tracker update: %f seconds' %
                 timedelta_since_last_update.total_seconds())
             tracker_stopping(tracker_entity['team_uuid'], tracker_entity['video_uuid'], tracker_uuid)
             tracker_failed = True

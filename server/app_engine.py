@@ -977,7 +977,7 @@ def prepare_to_start_tracking():
 @handle_exceptions
 @login_required
 def retrieve_tracked_bboxes():
-    time_limit = datetime.now(timezone.utc) + timedelta(seconds=25)
+    time_limit = datetime.now(timezone.utc) + timedelta(seconds=15)
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['video_uuid', 'tracker_uuid', 'retrieve_frame_number'])
     video_uuid = storage.validate_uuid(data.get('video_uuid'))
@@ -998,7 +998,7 @@ def retrieve_tracked_bboxes():
 @handle_exceptions
 @login_required
 def continue_tracking():
-    time_limit = datetime.now(timezone.utc) + timedelta(seconds=25)
+    time_limit = datetime.now(timezone.utc) + timedelta(seconds=15)
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['video_uuid', 'tracker_uuid', 'frame_number', 'bboxes_text'], optional_keys=['retrieve_frame_number'])
