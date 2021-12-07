@@ -129,7 +129,7 @@ def __get_num_warmup_steps(original_starting_model, checkpoint_every_n, num_trai
     starting_model_data = STARTING_MODELS[original_starting_model]
     return min(starting_model_data['num_warmup_steps'], num_training_steps)
 
-def start_training_model(team_uuid, description, dataset_uuids_json,
+def start_training_model(team_uuid, description, dataset_uuid_list,
         starting_model, max_running_minutes, num_training_steps, create_time_ms, use_tpu):
     found_starting_model = starting_model in STARTING_MODELS
     if found_starting_model:
@@ -167,10 +167,9 @@ def start_training_model(team_uuid, description, dataset_uuids_json,
         if fine_tune_checkpoint.endswith('.index'):
             fine_tune_checkpoint = fine_tune_checkpoint[:-6]
 
-    dataset_uuid_list = json.loads(dataset_uuids_json)
     dataset_entities = storage.retrieve_dataset_entities(team_uuid, dataset_uuid_list)
     if len(dataset_entities) != len(dataset_uuid_list):
-        message = 'Error: One or more datasets not found for dataset_uuids=%s.' % dataset_uuids_json
+        message = 'Error: One or more datasets not found for dataset_uuids=%s.' % str(dataset_uuid_list)
         logging.critical(message)
         raise exceptions.HttpErrorNotFound(message)
 

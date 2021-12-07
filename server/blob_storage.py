@@ -16,7 +16,6 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
 from datetime import datetime, timedelta
-import json
 import logging
 import re
 import time
