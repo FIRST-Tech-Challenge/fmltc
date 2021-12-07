@@ -1316,7 +1316,7 @@ def model_trainer_started(team_uuid, model_uuid, description, model_folder,
                 # If the job failed, give the max_running_minutes back to the team.
                 delta = model_entity['max_running_minutes']
             else:
-                # Otherwise, give the different between the max_running_minutes and the actual
+                # Otherwise, give the difference between the max_running_minutes and the actual
                 # training time back to the team.
                 train_job_elapsed_minutes = model_entity['train_job_elapsed_seconds'] / 60
                 delta = model_entity['max_running_minutes'] - train_job_elapsed_minutes

@@ -3,6 +3,7 @@ __pycache__/
 compiled/*
 env_variables.yaml
 flask_secret_key.txt
+cloud_run_secret_key.txt
 client_secrets.json
 key.json
 teams

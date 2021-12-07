@@ -1,0 +1,20 @@
+# This file specifies files that are not uploaded to App Engine.
+
+.app_engine_ignore
+.cloud_function_ignore
+.cloud_run_ignore
+client_secrets.json
+client_secrets.json.example
+cloudbuild.yaml
+Dockerfile \
+flask_secret_key.txt
+cloud_run_secret_key.txt
+key.json
+main.py
+main_cloud_run.py
+teams
+
+__pycache__/
+src/
+static/training/
+cloud_run/

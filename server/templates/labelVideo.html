@@ -152,7 +152,9 @@ limitations under the License.
             const util = new fmltc.Util('labelVideo',
                 {{ team_preferences|tojson }},
                 {{ limit_data|tojson }});
-            new fmltc.LabelVideo(util, {{ video_entity|tojson }}, {{ video_frame_entity_0|tojson }});
+            new fmltc.LabelVideo(util,
+                '{{cloud_run_url}}', '{{encoded_jwt}}',
+                {{ video_entity|tojson }}, {{ video_frame_entity_0|tojson }});
           });
         </script>
       </main>

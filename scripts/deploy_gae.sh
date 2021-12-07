@@ -5,5 +5,8 @@ fi
 
 
 pushd server
-gcloud -q app deploy --version v1
+gcloud -q app deploy \
+    --version v1 \
+    --appyaml=app.yaml \
+    --ignore-file=.app_engine_ignore
 popd

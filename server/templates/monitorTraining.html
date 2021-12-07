@@ -201,7 +201,9 @@ limitations under the License.
 <script type="text/javascript">
   window.addEventListener('load', function() {
     const util = new fmltc.Util('monitorTraining', {{ team_preferences|tojson }});
-    new fmltc.MonitorTraining(util, '{{model_uuid}}',
+    new fmltc.MonitorTraining(util,
+        '{{cloud_run_url}}', '{{encoded_jwt}}',
+        '{{model_uuid}}',
         {{ model_entities_by_uuid|tojson }},
         {{ dataset_entities_by_uuid|tojson }});
   });

@@ -16,15 +16,19 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 
 import os
 
-# PROJECT_ID is set in the environment in app engine and cloud functions.
+# PROJECT_ID is set in the environment in app engine, cloud run, and cloud functions.
 PROJECT_ID = os.getenv('PROJECT_ID')
 
-# ORIGIN is set in the environment in app engine, but not cloud functions.
+# ORIGIN is set in the environment in app engine and cloud run, but not cloud functions.
 ORIGIN = os.getenv('ORIGIN')
 
-# REDIS_IP_ADDR may be set in the environment in app engine, but not cloud functions.
+# CLOUD_RUN_URL is set in the environnment in app engine, but not cloud run or cloud functions.
+CLOUD_RUN_URL = os.getenv('CLOUD_RUN_URL')
+
+# REDIS_IP_ADDR may be set in the environment in app engine, but not cloud run or cloud functions.
 REDIS_IP_ADDR = os.getenv('REDIS_IP_ADDR')
 
+# ENVIRONMENT is set in the environment in app engine, but not cloud run or cloud functions.
 # Expects to be 'development' or 'production'
 ENVIRONMENT = os.getenv('ENVIRONMENT')
 

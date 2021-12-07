@@ -12,6 +12,7 @@
 .index_updated
 env_variables.yaml
 flask_secret_key.txt
+cloud_run_secret_key.txt
 client_secrets.json
 key.json
 teams
@@ -22,3 +23,4 @@ compiled/
 saveForLater/
 src/
 static/training
+cloud_run/

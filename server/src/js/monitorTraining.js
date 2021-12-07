@@ -30,9 +30,13 @@ goog.require('fmltc.Util');
  * @param {!fmltc.Util} util The utility instance
  * @constructor
  */
-fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEntitiesByUuid) {
+fmltc.MonitorTraining = function(util,
+    cloudRunUrl, encodedJwt,
+    modelUuid, modelEntitiesByUuid, datasetEntitiesByUuid) {
   /** @type {!fmltc.Util} */
   this.util = util;
+  this.cloudRunUrl = cloudRunUrl;
+  this.encodedJwt = encodedJwt;
   this.modelUuid = modelUuid;
   this.modelEntity = modelEntitiesByUuid[modelUuid];
   this.modelEntitiesByUuid = modelEntitiesByUuid;
@@ -492,21 +496,40 @@ fmltc.MonitorTraining.prototype.retrieveSummaryItems = function(o, requestStepAn
     this.incrementRetrieveDataInProgressCounter(o.valueType);
   }
 
-  const xhr = new XMLHttpRequest();
-  let params =
-      'model_uuid=' + encodeURIComponent(this.modelUuid) +
-      '&job_type=' + encodeURIComponent(o.jobType) +
-      '&value_type=' + encodeURIComponent(o.valueType);
-  for (let i = 0; i < requestStepAndTagPairsNow.length; i++) {
-    params +=
-        '&step' + i + '=' + requestStepAndTagPairsNow[i].step +
-        '&tag' + i + '=' + requestStepAndTagPairsNow[i].tag;
+  if (this.cloudRunUrl) {
+    const xhr = new XMLHttpRequest();
+    let params =
+        'encoded_jwt=' + this.encodedJwt +
+        '&model_uuid=' + encodeURIComponent(this.modelUuid) +
+        '&job_type=' + encodeURIComponent(o.jobType) +
+        '&value_type=' + encodeURIComponent(o.valueType);
+    for (let i = 0; i < requestStepAndTagPairsNow.length; i++) {
+      params +=
+          '&step' + i + '=' + requestStepAndTagPairsNow[i].step +
+          '&tag' + i + '=' + requestStepAndTagPairsNow[i].tag;
+    }
+    xhr.open('POST', this.cloudRunUrl + '/retrieveSummaryItems', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onreadystatechange = this.xhr_retrieveSummaryItems_onreadystatechange.bind(this, xhr, params,
+        o, requestStepAndTagPairsNow, requestStepAndTagPairsLater, failureCount);
+    xhr.send(params);
+  } else {
+    const xhr = new XMLHttpRequest();
+    let params =
+        'model_uuid=' + encodeURIComponent(this.modelUuid) +
+        '&job_type=' + encodeURIComponent(o.jobType) +
+        '&value_type=' + encodeURIComponent(o.valueType);
+    for (let i = 0; i < requestStepAndTagPairsNow.length; i++) {
+      params +=
+          '&step' + i + '=' + requestStepAndTagPairsNow[i].step +
+          '&tag' + i + '=' + requestStepAndTagPairsNow[i].tag;
+    }
+    xhr.open('POST', '/retrieveSummaryItems', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onreadystatechange = this.xhr_retrieveSummaryItems_onreadystatechange.bind(this, xhr, params,
+        o, requestStepAndTagPairsNow, requestStepAndTagPairsLater, failureCount);
+    xhr.send(params);
   }
-  xhr.open('POST', '/retrieveSummaryItems', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveSummaryItems_onreadystatechange.bind(this, xhr, params,
-      o, requestStepAndTagPairsNow, requestStepAndTagPairsLater, failureCount);
-  xhr.send(params);
 };
 
 fmltc.MonitorTraining.prototype.xhr_retrieveSummaryItems_onreadystatechange = function(xhr, params,

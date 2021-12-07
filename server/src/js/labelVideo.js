@@ -32,9 +32,13 @@ goog.require('fmltc.Util');
  * @param {!fmltc.Util} util The utility instance
  * @constructor
  */
-fmltc.LabelVideo = function(util, videoEntity, videoFrameEntity0) {
+fmltc.LabelVideo = function(util,
+    cloudRunUrl, encodedJwt,
+    videoEntity, videoFrameEntity0) {
   /** @type {!fmltc.Util} */
   this.util = util;
+  this.cloudRunUrl = cloudRunUrl;
+  this.encodedJwt = encodedJwt;
   this.videoUuid = videoEntity.video_uuid;
 
   this.startTime = Date.now();
@@ -494,16 +498,30 @@ fmltc.LabelVideo.prototype.loadFailure = function() {
 };
 
 fmltc.LabelVideo.prototype.retrieveVideoFrameEntitiesWithImageUrls = function(minFrameNumber, maxFrameNumber, failureCount) {
-  const xhr = new XMLHttpRequest();
-  const params =
-      'video_uuid=' + encodeURIComponent(this.videoUuid) +
-      '&min_frame_number=' + encodeURIComponent(minFrameNumber) +
-      '&max_frame_number=' + encodeURIComponent(maxFrameNumber);
-  xhr.open('POST', '/retrieveVideoFrameEntitiesWithImageUrls', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_retrieveVideoFrameEntitiesWithImageUrls_onreadystatechange.bind(this, xhr, params,
-      minFrameNumber, maxFrameNumber, failureCount);
-  xhr.send(params);
+  if (this.cloudRunUrl) {
+    const xhr = new XMLHttpRequest();
+    const params =
+        'encoded_jwt=' + this.encodedJwt +
+        '&video_uuid=' + encodeURIComponent(this.videoUuid) +
+        '&min_frame_number=' + encodeURIComponent(minFrameNumber) +
+        '&max_frame_number=' + encodeURIComponent(maxFrameNumber);
+    xhr.open('POST', this.cloudRunUrl + '/retrieveVideoFrameEntitiesWithImageUrls', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onreadystatechange = this.xhr_retrieveVideoFrameEntitiesWithImageUrls_onreadystatechange.bind(this, xhr, params,
+        minFrameNumber, maxFrameNumber, failureCount);
+    xhr.send(params);
+  } else {
+    const xhr = new XMLHttpRequest();
+    const params =
+        'video_uuid=' + encodeURIComponent(this.videoUuid) +
+        '&min_frame_number=' + encodeURIComponent(minFrameNumber) +
+        '&max_frame_number=' + encodeURIComponent(maxFrameNumber);
+    xhr.open('POST', '/retrieveVideoFrameEntitiesWithImageUrls', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onreadystatechange = this.xhr_retrieveVideoFrameEntitiesWithImageUrls_onreadystatechange.bind(this, xhr, params,
+        minFrameNumber, maxFrameNumber, failureCount);
+    xhr.send(params);
+  }
 };
 
 fmltc.LabelVideo.prototype.xhr_retrieveVideoFrameEntitiesWithImageUrls_onreadystatechange = function(xhr, params,

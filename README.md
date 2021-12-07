@@ -38,6 +38,7 @@ Visit this [file](doc/usage.md) for a user guide.
    gcloud services enable secretmanager.googleapis.com
    gcloud services enable compute.googleapis.com
    gcloud services enable cloudbuild.googleapis.com
+   gcloud services enable run.googleapis.com
    ```
 
 1. Create a service account, generate a key.json file, and store it as a secret.\
@@ -58,9 +59,26 @@ Visit this [file](doc/usage.md) for a user guide.
     rm flask_secret_key.txt
     ```
 
-1. Give the App Engine default service account access to the secret.
+1. Create a secret key for authenticating cloud run requests. The secret key can be any text you want, but you should keep it private.
+   Execute the following commands, replacing `<YOUR-CLOUD-RUN-SECRET-KEY>` with the key you want to use.
+    ```
+    echo "<YOUR-CLOUD-RUN-SECRET-KEY>" >cloud_run_secret_key.txt
+    gcloud secrets create cloud_run_secret_key --replication-policy="automatic" --data-file=cloud_run_secret_key.txt
+    rm cloud_run_secret_key.txt
+    ```
+
+1. Give the App Engine default service account access to the secrets.
    - [ ] Go to https://console.cloud.google.com/iam-admin/iam?project=my_project_id (replace my_project_id with your actual project ID)
    - [ ] Look for the row that shows `App Engine default service account` in the Name column.
+   - [ ] At the far right of that row, click on the pencil icon (hint text says `Edit principal`)
+   - [ ] Click `+ ADD ANOTHER ROLE`
+   - [ ] Under `Select a role`, where it says `Type to filter` enter `secret accessor`
+   - [ ] Click `Secret Manager Secret Accessor`
+   - [ ] Click SAVE
+
+1. Give the Compute Engine default service account access to the secrets.
+   - [ ] Go to https://console.cloud.google.com/iam-admin/iam?project=my_project_id (replace my_project_id with your actual project ID)
+   - [ ] Look for the row that shows `Compute Engine default service account` in the Name column.
    - [ ] At the far right of that row, click on the pencil icon (hint text says `Edit principal`)
    - [ ] Click `+ ADD ANOTHER ROLE`
    - [ ] Under `Select a role`, where it says `Type to filter` enter `secret accessor`
@@ -99,6 +117,12 @@ Visit this [file](doc/usage.md) for a user guide.
         --member serviceAccount:${FMLTC_TPU_SERVICE_ACCOUNT} --role roles/ml.serviceAgent
     ```
 
+1. Create a repository in the Artifact Registry
+   - [ ] Run the following command
+   ```
+   gcloud artifacts repositories create cloud-run --location=us-central1 --repository-format=docker
+   ```
+
 
 ## Create and upload the team_info/teams file.
 1. Create a text file named `teams` containing one line for each team allowed to use the tools.
@@ -110,7 +134,7 @@ Visit this [file](doc/usage.md) for a user guide.
    - Team number should be the team number.
    - Team code should be the code that is given to that team. It can contain any characters and can be any length. It is in essence the user password.
    - It can be delimited by either `,` or `, `
-   
+
    Here's an example
     ```
     FTC, 25,    094e801d
@@ -173,12 +197,8 @@ gcloud auth configure-docker
 Do you want to continue (Y/n)?  y
 ```
 
-## Fill in the values in server/env_variables.yaml
+## Set Version in server/app.properties
 
-1. Replace `<YOUR-PROJECT-ID>` with the Google Cloud Project ID for your project.
-1. Replace `<YOUR-ORIGIN>` with the base URL that will serve the website.
-
-## Set Version
 **Important!** Make sure the current working directory is the fmltc root directory when you run these
   commands.
 
@@ -228,8 +248,8 @@ source env_setup.sh
     ```
    - If you see the following, enter N.
     ```
-    Allow unauthenticated invocations of new function 
-    [perform_action]? (y/N)? 
+    Allow unauthenticated invocations of new function
+    [perform_action]? (y/N)?
     ```
 
 1. Deploy the App Engine code.
@@ -242,6 +262,28 @@ source env_setup.sh
     ```
     source env_setup.sh
     scripts/deploy_docker_image.sh
+    ```
+
+1. Deploy the cloud run image.
+    ```
+    source env_setup.sh
+    scripts/deploy_cloud_run.sh
+    ```
+
+## Fill in the values in server/env_variables.yaml
+
+1. Replace `<YOUR-PROJECT-ID>` with the Google Cloud Project ID for your project.
+1. Replace `<YOUR-ORIGIN>` with the base URL that will serve the website.
+   See comments in server/env_variables.yaml regarding how to find this.
+1. Replace `<YOUR-CLOUD-RUN-URL>` with the URL for the cloud run server.
+   See comments in server/env_variables.yaml regarding how to fine this.
+
+## Redeploy the App Engine code.
+**Important!** Make sure the current working directory is the fmltc directory when you run these
+  commands.
+    ```
+    source env_setup.sh
+    scripts/deploy_gae.sh
     ```
 
 ## Try it out

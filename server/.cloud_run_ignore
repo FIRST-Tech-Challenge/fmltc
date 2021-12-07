@@ -1,0 +1,26 @@
+# This file specifies files that are not uploaded to Cloud Run.
+
+
+.app_engine_ignore
+.cloud_function_ignore
+.cloud_run_ignore
+announcements.py
+app.properties
+app.yaml
+app_engine.py
+client_secrets.json
+client_secrets.json.example
+cloudbuild.yaml
+env_variables.yaml
+flask_secret_key.txt
+cloud_run_secret_key.txt
+key.json
+main.py
+save_Dockerfile
+save_cloudbuild.yaml
+teams
+
+__pycache__/
+src/
+static/training/
+cloud_run/
