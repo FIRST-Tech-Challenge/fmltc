@@ -50,19 +50,19 @@ FrameData = collections.namedtuple('FrameData', [
     'video_filename', 'frame_number', 'filename', 'image', 'format', 'bboxes_text'])
 
 
-def prepare_to_start_dataset_production(team_uuid, description, video_uuids_json, eval_percent, create_time_ms):
+def prepare_to_start_dataset_production(team_uuid, description, video_uuid_list, eval_percent, create_time_ms):
     # storage.prepare_to_start_dataset_production will raise HttpErrorNotFound
     # if any of the team_uuid/video_uuids is not found or if none of the videos have labeled frames.
     dataset_uuid = storage.prepare_to_start_dataset_production(team_uuid, description,
-        json.loads(video_uuids_json), eval_percent, create_time_ms)
+        video_uuid_list, eval_percent, create_time_ms)
     return dataset_uuid
 
-def make_action_parameters(team_uuid, dataset_uuid, video_uuids_json, eval_percent, create_time_ms):
+def make_action_parameters(team_uuid, dataset_uuid, video_uuid_list, eval_percent, create_time_ms):
     action_parameters = action.create_action_parameters(
         team_uuid, action.ACTION_NAME_DATASET_PRODUCE)
     action_parameters['team_uuid'] = team_uuid
     action_parameters['dataset_uuid'] = dataset_uuid
-    action_parameters['video_uuids_json'] = video_uuids_json
+    action_parameters['video_uuid_list'] = video_uuid_list
     action_parameters['eval_percent'] = eval_percent
     action_parameters['create_time_ms'] = create_time_ms
     return action_parameters
@@ -70,11 +70,14 @@ def make_action_parameters(team_uuid, dataset_uuid, video_uuids_json, eval_perce
 def produce_dataset(action_parameters):
     team_uuid = action_parameters['team_uuid']
     dataset_uuid = action_parameters['dataset_uuid']
-    video_uuids_json = action_parameters['video_uuids_json']
+    if 'video_uuids_json' in action_parameters:
+        video_uuids_json = action_parameters['video_uuids_json']
+        video_uuid_list = json.loads(video_uuids_json)
+    else:
+        video_uuid_list = action_parameters['video_uuid_list']
     eval_percent = action_parameters['eval_percent']
     create_time_ms = action_parameters['create_time_ms']
 
-    video_uuid_list = json.loads(video_uuids_json)
     if len(video_uuid_list) == 0:
         message = "Error: No videos to process."
         logging.critical(message)
@@ -82,7 +85,7 @@ def produce_dataset(action_parameters):
 
     video_entities = storage.retrieve_video_entities(team_uuid, video_uuid_list)
     if len(video_entities) != len(video_uuid_list):
-        message = 'Error: One or more videos not found for video_uuids=%s.' % video_uuids_json
+        message = 'Error: One or more videos not found for video_uuids=%s.' % str(video_uuid_list)
         logging.critical(message)
         raise exceptions.HttpErrorNotFound(message)
 

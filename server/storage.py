@@ -63,13 +63,14 @@ def validate_uuid(s):
 
 def validate_uuids_json(s):
     try:
-        for u in json.loads(s):
+        l = json.loads(s)
+        for u in l:
             validate_uuid(u)
     except:
         message = "Error: '%s' is not a valid argument." % s
         logging.critical(message)
         raise exceptions.HttpErrorBadRequest(message)
-    return s
+    return l
 
 # teams - public methods
 
@@ -392,10 +393,9 @@ def retrieve_video_entity_for_labeling(team_uuid, video_uuid):
                     transaction.delete(tracker_client_entity.key)
         return video_entity
 
-def can_delete_videos(team_uuid, video_uuids_json):
+def can_delete_videos(team_uuid, video_uuid_requested_list):
     can_delete_videos = True
     messages = []
-    video_uuid_requested_list = json.loads(video_uuids_json)
     all_video_entities = retrieve_video_list(team_uuid)
     # Build a list of the video uuids that we found.
     video_uuids_found_list = []
@@ -1657,10 +1657,9 @@ def retrieve_model_list(team_uuid):
             model_entity['model_folder'] = blob_storage.get_old_model_folder(team_uuid, model_entity['model_uuid'])
     return model_entities
 
-def can_delete_datasets(team_uuid, dataset_uuids_json):
+def can_delete_datasets(team_uuid, dataset_uuid_requested_list):
     can_delete_datasets = True
     messages = []
-    dataset_uuid_requested_list = json.loads(dataset_uuids_json)
     all_dataset_entities = retrieve_dataset_list(team_uuid)
     # Build a list of the dataset uuids that we found.
     dataset_uuids_found_list = []
@@ -1704,10 +1703,9 @@ def can_delete_datasets(team_uuid, dataset_uuids_json):
                 messages.append(message)
     return can_delete_datasets, messages
 
-def can_delete_models(team_uuid, model_uuids_json):
+def can_delete_models(team_uuid, model_uuid_requested_list):
     can_delete_models = True
     messages = []
-    model_uuid_requested_list = json.loads(model_uuids_json)
     all_model_entities = retrieve_model_list(team_uuid)
     # Build a list of the model uuids that we found.
     model_uuids_found_list = []

@@ -837,10 +837,10 @@ def can_delete_videos():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['video_uuids'])
-    video_uuids_json = storage.validate_uuids_json(data.get('video_uuids'))
+    video_uuids = storage.validate_uuids_json(data.get('video_uuids'))
     # storage.can_delete_videos will raise HttpErrorNotFound
     # if any of the team_uuid/video_uuid is not found.
-    can_delete_videos, messages = storage.can_delete_videos(team_uuid, video_uuids_json)
+    can_delete_videos, messages = storage.can_delete_videos(team_uuid, video_uuids)
     response = {
         'can_delete_videos': can_delete_videos,
         'messages': messages,
@@ -1068,7 +1068,7 @@ def prepare_to_start_dataset_production():
             'message': 'The Description is not valid or is a duplicate.'
         }
         return flask.jsonify(__sanitize(response))
-    video_uuids_json = storage.validate_uuids_json(data.get('video_uuids'))
+    video_uuids = storage.validate_uuids_json(data.get('video_uuids'))
     try:
         # The following min/max number (0 and 90) should match the min/max values in root.html.
         eval_percent = validate_float(data.get('eval_percent'), min=0, max=90)
@@ -1093,9 +1093,9 @@ def prepare_to_start_dataset_production():
     # dataset_producer.prepare_to_start_dataset_production will raise HttpErrorNotFound
     # if any of the team_uuid/video_uuids is not found or if none of the videos have labeled frames.
     dataset_uuid = dataset_producer.prepare_to_start_dataset_production(
-        team_uuid, description, video_uuids_json, eval_percent, create_time_ms)
+        team_uuid, description, video_uuids, eval_percent, create_time_ms)
     action_parameters = dataset_producer.make_action_parameters(
-        team_uuid, dataset_uuid, video_uuids_json, eval_percent, create_time_ms)
+        team_uuid, dataset_uuid, video_uuids, eval_percent, create_time_ms)
     action.trigger_action_via_blob(action_parameters)
     response = {
         'dataset_uuid': dataset_uuid,
@@ -1147,10 +1147,10 @@ def can_delete_datasets():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['dataset_uuids'])
-    dataset_uuids_json = storage.validate_uuids_json(data.get('dataset_uuids'))
+    dataset_uuids = storage.validate_uuids_json(data.get('dataset_uuids'))
     # storage.can_delete_datasets will raise HttpErrorNotFound
     # if any of the team_uuid/dataset_uuid is not found.
-    can_delete_datasets, messages = storage.can_delete_datasets(team_uuid, dataset_uuids_json)
+    can_delete_datasets, messages = storage.can_delete_datasets(team_uuid, dataset_uuids)
     response = {
         'can_delete_datasets': can_delete_datasets,
         'messages': messages,
@@ -1245,7 +1245,7 @@ def start_training_model():
     # description = validate_description(data.get('description'),
     #        other_descriptions=[m['description'] for m in storage.retrieve_model_list(team_uuid)])
     description = validate_description(data.get('description'))
-    dataset_uuids_json = storage.validate_uuids_json(data.get('dataset_uuids'))
+    dataset_uuids = storage.validate_uuids_json(data.get('dataset_uuids'))
     starting_model = model_trainer.validate_starting_model(data.get('starting_model'))
     max_running_minutes = validate_positive_float(data.get('max_running_minutes'))
     num_training_steps = validate_int(data.get('num_training_steps'),
@@ -1259,7 +1259,7 @@ def start_training_model():
     # if the sorted_label_list values for all the datasets are not the same.
     # model_trainer.start_training_model will raise HttpErrorUnprocessableEntity
     # if the max_running_minutes exceeds the team's remaining_training_minutes.
-    model_entity = model_trainer.start_training_model(team_uuid, description, dataset_uuids_json,
+    model_entity = model_trainer.start_training_model(team_uuid, description, dataset_uuids,
         starting_model, max_running_minutes, num_training_steps, create_time_ms, config.config[KEY_USE_TPU])
     # Retrieve the team entity so the client gets the updated remaining_training_minutes.
     team_entity = storage.retrieve_team_entity(team_uuid)
@@ -1427,10 +1427,10 @@ def can_delete_models():
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['model_uuids'])
-    model_uuids_json = storage.validate_uuids_json(data.get('model_uuids'))
+    model_uuids = storage.validate_uuids_json(data.get('model_uuids'))
     # storage.can_delete_models will raise HttpErrorNotFound
     # if any of the team_uuid/model_uuid is not found.
-    can_delete_models, messages = storage.can_delete_models(team_uuid, model_uuids_json)
+    can_delete_models, messages = storage.can_delete_models(team_uuid, model_uuids)
     response = {
         'can_delete_models': can_delete_models,
         'messages': messages,
