@@ -150,7 +150,11 @@ fmltc.TrainMoreDialog.prototype.updateHelpfulText = function() {
       'It will take ' + info.stepsPerEpoch + ' steps to perform one full cycle through your training data. This is called an epoch.';
 
   document.getElementById('tmNumEpochs').textContent =
-      'Training for ' + info.numSteps + ' steps will perform ' + info.numEpochs + ' epochs.'
+      'Training for ' + info.numSteps + ' steps will perform ' + info.numEpochs + ' epochs.';
+
+  document.getElementById('tmTimeInfo').textContent =
+      'This training job will take approximately ' + info.estimateMinutes +
+      ' minutes, but will be stopped if it runs longer than ' + info.maxMinutes + ' minutes.';
 };
 
 fmltc.TrainMoreDialog.prototype.getTrainingInfo = function() {
@@ -167,6 +171,8 @@ fmltc.TrainMoreDialog.prototype.getTrainingInfo = function() {
   const stepsPerEpoch = Math.ceil(trainFrameCount / batchSize);
   const numSteps = this.numTrainingStepsInput.value;
   const numEpochs = Math.floor(numSteps * batchSize / trainFrameCount);
+  const estimateMinutes = Math.ceil(numSteps / 60);
+  const maxMinutes = this.maxRunningMinutesInput.value;
   return {
     'oneDataset': oneDataset,
     'trainFrameCount': trainFrameCount,
@@ -174,6 +180,8 @@ fmltc.TrainMoreDialog.prototype.getTrainingInfo = function() {
     'stepsPerEpoch': stepsPerEpoch,
     'numEpochs': numEpochs,
     'numSteps': numSteps,
+    'estimateMinutes': estimateMinutes,
+    'maxMinutes': maxMinutes,
   };
 };
 
@@ -195,6 +203,7 @@ fmltc.TrainMoreDialog.prototype.advanced_onclick = function() {
 
 fmltc.TrainMoreDialog.prototype.maxRunningMinutesInput_onchange = function() {
   this.maxRunningMinutesInput.value = Math.max(this.maxRunningMinutesInput.min, Math.min(this.maxRunningMinutesInput.value, this.maxRunningMinutesInput.max));
+  this.updateHelpfulText();
   this.updateStartButton();
 };
 
