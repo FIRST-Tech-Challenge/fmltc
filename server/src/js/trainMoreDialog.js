@@ -42,6 +42,9 @@ fmltc.TrainMoreDialog = function(
   this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.xButton = document.getElementById('tmXButton');
   this.closeButton = document.getElementById('tmCloseButton');
+  this.advanced = document.getElementById('tmAdvanced');
+  this.advancedUpDown = document.getElementById('tmAdvancedUpDown');
+  this.advancedDiv = document.getElementById('tmAdvancedDiv');
   this.maxRunningMinutesInput = document.getElementById('tmMaxRunningMinutesInput');
   this.remainingTrainingMinutesSpan = document.getElementById('tmRemainingTrainingMinutesSpan');
   this.numTrainingStepsInput = document.getElementById('tmNumTrainingStepsInput');
@@ -57,14 +60,16 @@ fmltc.TrainMoreDialog = function(
 
   this.startTrainingInProgress = false;
 
+  this.advancedDiv.style.display = 'none';
+  this.advancedUpDown.textContent = '▼'; // down
   this.maxRunningMinutesInput.min = Math.min(10, remainingTrainingMinutes);
   this.maxRunningMinutesInput.max = remainingTrainingMinutes;
-  this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
+  this.maxRunningMinutesInput.value = remainingTrainingMinutes;
 
   this.numTrainingStepsInput.min = this.util.modelTrainerData['min_training_steps'];
   this.numTrainingStepsInput.max = this.util.modelTrainerData['max_training_steps'];
   this.numTrainingStepsInput.value = this.util.modelTrainerData['default_training_steps'];
-  this.updateHelpfulText()
+  this.updateHelpfulText();
 
   // Create checkboxes for the datasets. Omit the datasets that are already part of this model.
   this.datasetsHeaderDiv.style.display = 'none';
@@ -99,6 +104,7 @@ fmltc.TrainMoreDialog = function(
 
   this.xButton.onclick = this.closeButton.onclick = this.closeButton_onclick.bind(this);
   this.numTrainingStepsInput.onchange = this.numTrainingStepsInput_onchange.bind(this);
+  this.advanced.onclick = this.advanced_onclick.bind(this);
   this.maxRunningMinutesInput.onchange = this.maxRunningMinutesInput_onchange.bind(this);
   this.descriptionInput.oninput = this.descriptionInput_oninput.bind(this);
   this.startButton.onclick = this.startButton_onclick.bind(this);
@@ -175,6 +181,16 @@ fmltc.TrainMoreDialog.prototype.numTrainingStepsInput_onchange = function() {
   this.numTrainingStepsInput.value = Math.max(this.numTrainingStepsInput.min, Math.min(Math.round(this.numTrainingStepsInput.value), this.numTrainingStepsInput.max));
   this.updateHelpfulText();
   this.updateStartButton();
+};
+
+fmltc.TrainMoreDialog.prototype.advanced_onclick = function() {
+  if (this.advancedDiv.style.display == 'none') {
+    this.advancedDiv.style.display = 'block';
+    this.advancedUpDown.textContent = '▲'; // up
+  } else {
+    this.advancedDiv.style.display = 'none';
+    this.advancedUpDown.textContent = '▼'; // down
+  }
 };
 
 fmltc.TrainMoreDialog.prototype.maxRunningMinutesInput_onchange = function() {

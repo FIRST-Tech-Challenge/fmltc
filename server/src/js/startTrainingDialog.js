@@ -41,6 +41,9 @@ fmltc.StartTrainingDialog = function(
   this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.xButton = document.getElementById('stXButton');
   this.closeButton = document.getElementById('stCloseButton');
+  this.advanced = document.getElementById('stAdvanced');
+  this.advancedUpDown = document.getElementById('stAdvancedUpDown');
+  this.advancedDiv = document.getElementById('stAdvancedDiv');
   this.maxRunningMinutesInput = document.getElementById('stMaxRunningMinutesInput');
   this.remainingTrainingMinutesSpan = document.getElementById('stRemainingTrainingMinutesSpan');
   this.startingModelSelect = document.getElementById('stStartingModelSelect');
@@ -53,9 +56,11 @@ fmltc.StartTrainingDialog = function(
 
   this.startTrainingInProgress = false;
 
+  this.advancedDiv.style.display = 'none';
+  this.advancedUpDown.textContent = '▼'; // down
   this.maxRunningMinutesInput.min = Math.min(10, remainingTrainingMinutes);
   this.maxRunningMinutesInput.max = remainingTrainingMinutes;
-  this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
+  this.maxRunningMinutesInput.value = remainingTrainingMinutes;
 
   if (this.startingModelSelect.options.length == 0) {
     const startingModels = this.util.modelTrainerData['starting_models'];
@@ -82,6 +87,7 @@ fmltc.StartTrainingDialog = function(
   this.xButton.onclick = this.closeButton.onclick = this.closeButton_onclick.bind(this);
   this.startingModelSelect.onchange = this.startingModelSelect_onchange.bind(this);
   this.numTrainingStepsInput.onchange = this.numTrainingStepsInput_onchange.bind(this);
+  this.advanced.onclick = this.advanced_onclick.bind(this);
   this.maxRunningMinutesInput.onchange = this.maxRunningMinutesInput_onchange.bind(this);
   this.descriptionInput.oninput = this.descriptionInput_oninput.bind(this);
   this.startButton.onclick = this.startButton_onclick.bind(this);
@@ -143,6 +149,16 @@ fmltc.StartTrainingDialog.prototype.numTrainingStepsInput_onchange = function() 
   this.numTrainingStepsInput.value = Math.max(this.numTrainingStepsInput.min, Math.min(Math.round(this.numTrainingStepsInput.value), this.numTrainingStepsInput.max));
   this.updateHelpfulText();
   this.updateStartButton();
+};
+
+fmltc.StartTrainingDialog.prototype.advanced_onclick = function() {
+  if (this.advancedDiv.style.display == 'none') {
+    this.advancedDiv.style.display = 'block';
+    this.advancedUpDown.textContent = '▲'; // up
+  } else {
+    this.advancedDiv.style.display = 'none';
+    this.advancedUpDown.textContent = '▼'; // down
+  }
 };
 
 fmltc.StartTrainingDialog.prototype.maxRunningMinutesInput_onchange = function() {
