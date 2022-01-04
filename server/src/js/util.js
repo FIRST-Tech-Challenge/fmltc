@@ -27,6 +27,23 @@ goog.provide('fmltc.Util');
  * @constructor
  */
 fmltc.Util = function(pageBasename, preferences, limitData, modelTrainerData, trainingEnabled) {
+  window.addEventListener('pageshow', function(event) {
+    // event.persisted means the page is loading from a cache.
+    var needToReload = false;
+    if (event.persisted) {
+      needToReload = true;
+    } else {
+      // Check if we got to this page from the back (or forward) button.
+      var perfEntries = performance.getEntriesByType('navigation');
+      if (perfEntries.length > 0 && perfEntries[0].type === 'back_forward') {
+        needToReload = true;
+      }
+    }
+    if (needToReload) {
+      location.reload();
+    }
+  });
+
   this.pageBasename = pageBasename;
   this.preferences = preferences;
   this.limitData = limitData;
