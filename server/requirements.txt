@@ -8,7 +8,7 @@ google-cloud-secret-manager==2.7.0
 google-cloud-storage==1.35.0
 gunicorn==20.1.0
 flask-oidc-ext==1.4.3
-numpy==1.19.4
+numpy==1.21.0
 object_detection-0.1_2.5.0.tar.gz
 opencv-contrib-python-headless==4.5.2.54
 Pillow==9.0.0
