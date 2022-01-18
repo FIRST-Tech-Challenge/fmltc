@@ -52,6 +52,10 @@ body {
   cursor: wait;
 }
 
+.pointerCursor {
+  cursor: pointer;
+}
+
 .rightText {
   text-align: right;
 }

@@ -399,6 +399,10 @@ limitations under the License.
                   </tr>
                 </table>
                 <br>
+                <div class="pointerCursor">
+                  <span id="stAdvanced" class="text-14">Advanced&nbsp;<span id="stAdvancedUpDown">&#x25BC;</span></span>
+                </div>
+                <div id="stAdvancedDiv" style="display: none; padding-left: 20px;">
                 <table>
                   <tr>
                     <td>
@@ -410,13 +414,14 @@ limitations under the License.
                   </tr>
                   <tr>
                     <td colspan="2">
-                      <div class="text-14" style="padding-left: 20px">
+                      <div class="text-14">
                         Your team has <span id="stRemainingTrainingMinutesSpan"></span> minutes of training time remaining.
                       </div>
                     </td>
                   </tr>
                 </table>
-                <br>
+                </div>
+                <hr>
                 <label for="stDescriptionInput">Description:</label><br>
                 <input type="text" maxlength="30" id="stDescriptionInput" class="form-control" style="width: 100%">
                 <br>
@@ -424,6 +429,8 @@ limitations under the License.
                 <div class="text-14" id="stBatchSizeInfo"></div>
                 <div class="text-14" id="stEpochInfo"></div>
                 <div class="text-14" id="stNumEpochs"></div>
+                <br>
+                <div class="text-14" id="stTimeInfo"></div>
                 <br>
                 <button id="stStartButton" class="btn btn-secondary">Start Training</button>
                 <br>
@@ -465,6 +472,10 @@ limitations under the License.
                   </tr>
                 </table>
                 <br>
+                <div class="pointerCursor">
+                  <span id="tmAdvanced" class="text-14">Advanced&nbsp;<span id="tmAdvancedUpDown">&#x25BC;</span></span>
+                </div>
+                <div id="tmAdvancedDiv" style="display: none; padding-left: 20px;">
                 <table>
                   <tr>
                     <td>
@@ -476,13 +487,14 @@ limitations under the License.
                   </tr>
                   <tr>
                     <td colspan="2">
-                      <div class="text-14" style="padding-left: 20px">
+                      <div class="text-14">
                         Your team has <span id="tmRemainingTrainingMinutesSpan"></span> minutes of training time remaining.
                       </div>
                     </td>
                   </tr>
                 </table>
-                <br>
+                </div>
+                <hr>
                 <label for="tmDescriptionInput">Description:</label><br>
                 <input type="text" maxlength="30" id="tmDescriptionInput" class="form-control" style="width: 100%">
                 <br>
@@ -490,6 +502,8 @@ limitations under the License.
                 <div class="text-14" id="tmBatchSizeInfo"></div>
                 <div class="text-14" id="tmEpochInfo"></div>
                 <div class="text-14" id="tmNumEpochs"></div>
+                <br>
+                <div class="text-14" id="tmTimeInfo"></div>
                 <br>
                 <button id="tmStartButton" class="btn btn-secondary">Start Training</button>
                 <br>

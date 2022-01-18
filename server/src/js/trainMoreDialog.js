@@ -42,6 +42,9 @@ fmltc.TrainMoreDialog = function(
   this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.xButton = document.getElementById('tmXButton');
   this.closeButton = document.getElementById('tmCloseButton');
+  this.advanced = document.getElementById('tmAdvanced');
+  this.advancedUpDown = document.getElementById('tmAdvancedUpDown');
+  this.advancedDiv = document.getElementById('tmAdvancedDiv');
   this.maxRunningMinutesInput = document.getElementById('tmMaxRunningMinutesInput');
   this.remainingTrainingMinutesSpan = document.getElementById('tmRemainingTrainingMinutesSpan');
   this.numTrainingStepsInput = document.getElementById('tmNumTrainingStepsInput');
@@ -57,14 +60,16 @@ fmltc.TrainMoreDialog = function(
 
   this.startTrainingInProgress = false;
 
+  this.advancedDiv.style.display = 'none';
+  this.advancedUpDown.textContent = '▼'; // down
   this.maxRunningMinutesInput.min = Math.min(10, remainingTrainingMinutes);
   this.maxRunningMinutesInput.max = remainingTrainingMinutes;
-  this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
+  this.maxRunningMinutesInput.value = remainingTrainingMinutes;
 
   this.numTrainingStepsInput.min = this.util.modelTrainerData['min_training_steps'];
   this.numTrainingStepsInput.max = this.util.modelTrainerData['max_training_steps'];
   this.numTrainingStepsInput.value = this.util.modelTrainerData['default_training_steps'];
-  this.updateHelpfulText()
+  this.updateHelpfulText();
 
   // Create checkboxes for the datasets. Omit the datasets that are already part of this model.
   this.datasetsHeaderDiv.style.display = 'none';
@@ -99,6 +104,7 @@ fmltc.TrainMoreDialog = function(
 
   this.xButton.onclick = this.closeButton.onclick = this.closeButton_onclick.bind(this);
   this.numTrainingStepsInput.onchange = this.numTrainingStepsInput_onchange.bind(this);
+  this.advanced.onclick = this.advanced_onclick.bind(this);
   this.maxRunningMinutesInput.onchange = this.maxRunningMinutesInput_onchange.bind(this);
   this.descriptionInput.oninput = this.descriptionInput_oninput.bind(this);
   this.startButton.onclick = this.startButton_onclick.bind(this);
@@ -144,7 +150,11 @@ fmltc.TrainMoreDialog.prototype.updateHelpfulText = function() {
       'It will take ' + info.stepsPerEpoch + ' steps to perform one full cycle through your training data. This is called an epoch.';
 
   document.getElementById('tmNumEpochs').textContent =
-      'Training for ' + info.numSteps + ' steps will perform ' + info.numEpochs + ' epochs.'
+      'Training for ' + info.numSteps + ' steps will perform ' + info.numEpochs + ' epochs.';
+
+  document.getElementById('tmTimeInfo').textContent =
+      'This training job will take approximately ' + info.estimateMinutes +
+      ' minutes, but will be stopped if it runs longer than ' + info.maxMinutes + ' minutes.';
 };
 
 fmltc.TrainMoreDialog.prototype.getTrainingInfo = function() {
@@ -161,6 +171,8 @@ fmltc.TrainMoreDialog.prototype.getTrainingInfo = function() {
   const stepsPerEpoch = Math.ceil(trainFrameCount / batchSize);
   const numSteps = this.numTrainingStepsInput.value;
   const numEpochs = Math.floor(numSteps * batchSize / trainFrameCount);
+  const estimateMinutes = Math.ceil(numSteps / 60);
+  const maxMinutes = this.maxRunningMinutesInput.value;
   return {
     'oneDataset': oneDataset,
     'trainFrameCount': trainFrameCount,
@@ -168,6 +180,8 @@ fmltc.TrainMoreDialog.prototype.getTrainingInfo = function() {
     'stepsPerEpoch': stepsPerEpoch,
     'numEpochs': numEpochs,
     'numSteps': numSteps,
+    'estimateMinutes': estimateMinutes,
+    'maxMinutes': maxMinutes,
   };
 };
 
@@ -177,8 +191,19 @@ fmltc.TrainMoreDialog.prototype.numTrainingStepsInput_onchange = function() {
   this.updateStartButton();
 };
 
+fmltc.TrainMoreDialog.prototype.advanced_onclick = function() {
+  if (this.advancedDiv.style.display == 'none') {
+    this.advancedDiv.style.display = 'block';
+    this.advancedUpDown.textContent = '▲'; // up
+  } else {
+    this.advancedDiv.style.display = 'none';
+    this.advancedUpDown.textContent = '▼'; // down
+  }
+};
+
 fmltc.TrainMoreDialog.prototype.maxRunningMinutesInput_onchange = function() {
   this.maxRunningMinutesInput.value = Math.max(this.maxRunningMinutesInput.min, Math.min(this.maxRunningMinutesInput.value, this.maxRunningMinutesInput.max));
+  this.updateHelpfulText();
   this.updateStartButton();
 };
 

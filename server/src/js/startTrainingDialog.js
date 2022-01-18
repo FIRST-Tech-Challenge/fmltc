@@ -41,6 +41,9 @@ fmltc.StartTrainingDialog = function(
   this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
   this.xButton = document.getElementById('stXButton');
   this.closeButton = document.getElementById('stCloseButton');
+  this.advanced = document.getElementById('stAdvanced');
+  this.advancedUpDown = document.getElementById('stAdvancedUpDown');
+  this.advancedDiv = document.getElementById('stAdvancedDiv');
   this.maxRunningMinutesInput = document.getElementById('stMaxRunningMinutesInput');
   this.remainingTrainingMinutesSpan = document.getElementById('stRemainingTrainingMinutesSpan');
   this.startingModelSelect = document.getElementById('stStartingModelSelect');
@@ -53,9 +56,11 @@ fmltc.StartTrainingDialog = function(
 
   this.startTrainingInProgress = false;
 
+  this.advancedDiv.style.display = 'none';
+  this.advancedUpDown.textContent = '▼'; // down
   this.maxRunningMinutesInput.min = Math.min(10, remainingTrainingMinutes);
   this.maxRunningMinutesInput.max = remainingTrainingMinutes;
-  this.maxRunningMinutesInput.value = Math.min(60, remainingTrainingMinutes);
+  this.maxRunningMinutesInput.value = remainingTrainingMinutes;
 
   if (this.startingModelSelect.options.length == 0) {
     const startingModels = this.util.modelTrainerData['starting_models'];
@@ -82,6 +87,7 @@ fmltc.StartTrainingDialog = function(
   this.xButton.onclick = this.closeButton.onclick = this.closeButton_onclick.bind(this);
   this.startingModelSelect.onchange = this.startingModelSelect_onchange.bind(this);
   this.numTrainingStepsInput.onchange = this.numTrainingStepsInput_onchange.bind(this);
+  this.advanced.onclick = this.advanced_onclick.bind(this);
   this.maxRunningMinutesInput.onchange = this.maxRunningMinutesInput_onchange.bind(this);
   this.descriptionInput.oninput = this.descriptionInput_oninput.bind(this);
   this.startButton.onclick = this.startButton_onclick.bind(this);
@@ -118,7 +124,11 @@ fmltc.StartTrainingDialog.prototype.updateHelpfulText = function() {
       'It will take ' + info.stepsPerEpoch + ' steps to perform one full cycle through your training data. This is called an epoch.';
 
   document.getElementById('stNumEpochs').textContent =
-      'Training for ' + info.numSteps + ' steps will perform ' + info.numEpochs + ' epochs.'
+      'Training for ' + info.numSteps + ' steps will perform ' + info.numEpochs + ' epochs.';
+
+  document.getElementById('stTimeInfo').textContent =
+      'This training job will take approximately ' + info.estimateMinutes +
+      ' minutes, but will be stopped if it runs longer than ' + info.maxMinutes + ' minutes.';
 };
 
 fmltc.StartTrainingDialog.prototype.getTrainingInfo = function() {
@@ -129,6 +139,8 @@ fmltc.StartTrainingDialog.prototype.getTrainingInfo = function() {
   const stepsPerEpoch = Math.ceil(trainFrameCount / batchSize);
   const numSteps = this.numTrainingStepsInput.value;
   const numEpochs = Math.floor(numSteps * batchSize / trainFrameCount);
+  const estimateMinutes = Math.ceil(numSteps / 60);
+  const maxMinutes = this.maxRunningMinutesInput.value;
   return {
     'oneDataset': oneDataset,
     'trainFrameCount': trainFrameCount,
@@ -136,6 +148,8 @@ fmltc.StartTrainingDialog.prototype.getTrainingInfo = function() {
     'stepsPerEpoch': stepsPerEpoch,
     'numEpochs': numEpochs,
     'numSteps': numSteps,
+    'estimateMinutes': estimateMinutes,
+    'maxMinutes': maxMinutes,
   };
 };
 
@@ -145,8 +159,19 @@ fmltc.StartTrainingDialog.prototype.numTrainingStepsInput_onchange = function() 
   this.updateStartButton();
 };
 
+fmltc.StartTrainingDialog.prototype.advanced_onclick = function() {
+  if (this.advancedDiv.style.display == 'none') {
+    this.advancedDiv.style.display = 'block';
+    this.advancedUpDown.textContent = '▲'; // up
+  } else {
+    this.advancedDiv.style.display = 'none';
+    this.advancedUpDown.textContent = '▼'; // down
+  }
+};
+
 fmltc.StartTrainingDialog.prototype.maxRunningMinutesInput_onchange = function() {
   this.maxRunningMinutesInput.value = Math.max(this.maxRunningMinutesInput.min, Math.min(this.maxRunningMinutesInput.value, this.maxRunningMinutesInput.max));
+  this.updateHelpfulText();
   this.updateStartButton();
 };
 
