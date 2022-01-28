@@ -469,7 +469,11 @@ def submit_team():
         if not team_num in team_roles:
             raise NoRoles()
 
-        flask.session['user_roles'].extend(team_roles[team_num])
+        if 'user_roles' in flask.session:
+            flask.session['user_roles'].extend(team_roles[team_num])
+        else:
+            flask.session['user_roles'] = team_roles[team_num]
+
         flask.session['team_number'] = team_num
         flask.session['name'] = given_name
 
