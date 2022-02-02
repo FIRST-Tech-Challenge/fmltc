@@ -99,6 +99,9 @@ def retrieve_team_uuid(program, team_number):
                 'datasets_created_today': 0,
                 'datasets_downloaded_today': 0,
                 'video_uuids_tracking_now': [],
+                'video_uuids_deleted': [],
+                'dataset_uuids_deleted': [],
+                'model_uuids_deleted': [],
             })
             need_put = True
         else:
@@ -180,6 +183,30 @@ def __remove_video_uuid_from_tracking_list(transaction, team_uuid, video_uuid):
         team_entity['video_uuids_tracking_now'] = []
     elif video_uuid in team_entity['video_uuids_tracking_now']:
         team_entity['video_uuids_tracking_now'].remove(video_uuid)
+    transaction.put(team_entity)
+
+def __add_video_uuid_to_deleted_list(transaction, team_uuid, video_uuid):
+    team_entity = retrieve_team_entity(team_uuid)
+    if 'video_uuids_deleted' not in team_entity:
+        team_entity['video_uuids_deleted'] = [video_uuid]
+    elif video_uuid not in team_entity['video_uuids_deleted']:
+        team_entity['video_uuids_deleted'].append(video_uuid)
+    transaction.put(team_entity)
+
+def __add_dataset_uuid_to_deleted_list(transaction, team_uuid, dataset_uuid):
+    team_entity = retrieve_team_entity(team_uuid)
+    if 'dataset_uuids_deleted' not in team_entity:
+        team_entity['dataset_uuids_deleted'] = [dataset_uuid]
+    elif dataset_uuid not in team_entity['dataset_uuids_deleted']:
+        team_entity['dataset_uuids_deleted'].append(dataset_uuid)
+    transaction.put(team_entity)
+
+def __add_model_uuid_to_deleted_list(transaction, team_uuid, model_uuid):
+    team_entity = retrieve_team_entity(team_uuid)
+    if 'model_uuids_deleted' not in team_entity:
+        team_entity['model_uuids_deleted'] = [model_uuid]
+    elif model_uuid not in team_entity['model_uuids_deleted']:
+        team_entity['model_uuids_deleted'].append(model_uuid)
     transaction.put(team_entity)
 
 # video - public methods
@@ -465,6 +492,8 @@ def delete_video(team_uuid, video_uuid):
             # Also update the team entity in the same transaction.
             __remove_video_uuid_from_tracking_list(transaction, team_uuid, video_uuid)
         transaction.put(video_entity)
+        # Also update the team entity in the same transaction.
+        __add_video_uuid_to_deleted_list(transaction, team_uuid, video_uuid)
         action_parameters = action.create_action_parameters(
             team_uuid, action.ACTION_NAME_DELETE_VIDEO)
         action_parameters['team_uuid'] = team_uuid
@@ -1015,6 +1044,8 @@ def delete_dataset(team_uuid, dataset_uuid):
         dataset_entity = dataset_entities[0]
         dataset_entity['delete_in_progress'] = True
         transaction.put(dataset_entity)
+        # Also update the team entity in the same transaction.
+        __add_dataset_uuid_to_deleted_list(transaction, team_uuid, dataset_uuid)
         action_parameters = action.create_action_parameters(
             team_uuid, action.ACTION_NAME_DELETE_DATASET)
         action_parameters['team_uuid'] = team_uuid
@@ -1766,6 +1797,8 @@ def delete_model(team_uuid, model_uuid):
         model_entity = model_entities[0]
         model_entity['delete_in_progress'] = True
         transaction.put(model_entity)
+        # Also update the team entity in the same transaction.
+        __add_model_uuid_to_deleted_list(transaction, team_uuid, model_uuid)
         action_parameters = action.create_action_parameters(
             team_uuid, action.ACTION_NAME_DELETE_MODEL)
         action_parameters['team_uuid'] = team_uuid

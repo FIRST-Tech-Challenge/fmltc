@@ -207,8 +207,16 @@ def extract_frames(action_parameters):
                 # Store the frame as a jpg image, which are smaller/faster than png.
                 success, buffer = cv2.imencode('.jpg', frame)
                 if success:
-                    video_entity = storage.store_frame_image(team_uuid, video_uuid, frame_number,
-                        'image/jpg', buffer.tostring())
+                    try:
+                        video_entity = storage.store_frame_image(team_uuid, video_uuid, frame_number,
+                            'image/jpg', buffer.tostring())
+                    except:
+                        # Check if the video has been deleted.
+                        team_entity = storage.retrieve_team_entity(team_uuid)
+                        if 'video_uuids_deleted' in team_entity:
+                            if video_uuid in team_entity['video_uuids_deleted']:
+                                return
+                        raise
                     if video_entity['delete_in_progress']:
                         return
                     frame_number += 1
