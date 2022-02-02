@@ -175,13 +175,7 @@ def __split_for_records(video_frame_entities, eval_percent, max_frames_per_recor
                 label_set.update(set(labels))
     random.shuffle(included_frame_numbers)
 
-    included_frame_count = len(included_frame_numbers)
-    if included_frame_count == 1 and eval_percent > 0 and eval_percent < 100:
-        message = "Error: if the number of included video frames is 1, eval_percent must be 0 or 100."
-        logging.critical(message)
-        raise exceptions.HttpErrorUnprocessableEntity(message)
-
-    if eval_percent == 0:
+    if eval_percent == 0 or len(included_frame_numbers) == 1:
         eval_frame_numbers = []
         train_frame_numbers = included_frame_numbers
     elif eval_percent == 100:
