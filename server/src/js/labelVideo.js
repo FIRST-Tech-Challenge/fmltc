@@ -739,7 +739,7 @@ fmltc.LabelVideo.prototype.saveBboxes = function() {
 
   if (this.savingBboxes) {
     setTimeout(this.saveBboxes.bind(this), 1000);
-    return;
+    return bboxesText;
   }
   this.savingBboxes = true;
 
