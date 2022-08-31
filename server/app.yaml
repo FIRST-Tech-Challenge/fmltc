@@ -24,6 +24,11 @@ handlers:
   upload: static/favicon.ico
   expiration: 1d
 
+- url: /WithSupportFromGoogleCloud.png
+  static_files: static/WithSupportFromGoogleCloud.png
+  upload: static/WithSupportFromGoogleCloud.png
+  expiration: 1m
+
 - url: /.*
   script: auto
   secure: always
