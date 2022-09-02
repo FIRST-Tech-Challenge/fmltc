@@ -1,4 +1,4 @@
-# Copyright 2020 Google LLC
+# Copyright 2022 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,19 +16,13 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
 from datetime import datetime, timedelta, timezone
-import dateutil.parser
 import json
 import logging
-import math
-import time
 import traceback
 
 # Other Modules
-from google.api_core.exceptions import GoogleAPIError
 import googleapiclient.discovery
 from google.oauth2 import service_account
-import tensorflow as tf
-from tensorflow.core.util import event_pb2
 
 # My Modules
 import action
@@ -37,7 +31,6 @@ import cloud_secrets
 import constants
 import exceptions
 import storage
-import tflite_creator
 import util
 
 BUCKET = ('%s' % constants.PROJECT_ID)
@@ -76,6 +69,7 @@ STARTING_MODELS = {
     },
 }
 
+
 def validate_starting_model(s):
     if s not in STARTING_MODELS:
         try:
@@ -96,26 +90,31 @@ def get_data_for_root_template(use_tpu):
         'batch_sizes': __get_batch_sizes(use_tpu),
     }
 
+
 def get_min_training_steps(use_tpu):
     if use_tpu:
         return 100
     return 200
+
 
 def get_max_training_steps(use_tpu):
     if use_tpu:
         return 4000
     return 8000
 
+
 def __get_default_training_steps(use_tpu):
     if use_tpu:
         return 2000
     return 3000
+
 
 def __get_batch_sizes(use_tpu):
     batch_sizes = {}
     for name, starting_model_data in STARTING_MODELS.items():
         batch_sizes[name] = starting_model_data['tpu_batch_size'] if use_tpu else starting_model_data['gpu_batch_size']
     return batch_sizes
+
 
 def __get_batch_size(use_tpu, original_starting_model, train_frame_count):
     # The following code matches the code in function getBatchSize in util.js.
@@ -125,9 +124,11 @@ def __get_batch_size(use_tpu, original_starting_model, train_frame_count):
         batch_size /= 2
     return batch_size
 
+
 def __get_num_warmup_steps(original_starting_model, checkpoint_every_n, num_training_steps):
     starting_model_data = STARTING_MODELS[original_starting_model]
     return min(starting_model_data['num_warmup_steps'], num_training_steps)
+
 
 def start_training_model(team_uuid, description, dataset_uuid_list,
         starting_model, max_running_minutes, num_training_steps, create_time_ms, use_tpu):
@@ -296,7 +297,7 @@ def start_training_model(team_uuid, description, dataset_uuid_list,
             'trainingInput': eval_training_input,
         }
 
-        ml = __get_ml_service()
+        ml = get_ml_service()
         parent = __get_parent()
 
         # Start the eval job first to because it runs slower than the train job. This helps it to
@@ -318,7 +319,7 @@ def start_training_model(team_uuid, description, dataset_uuid_list,
                 traceback.format_exc().replace('\n', ' ... '))
             if eval_job_response is not None:
                 # Cancel the eval job.
-                ml.projects().jobs().cancel(name=__get_eval_job_name(model_uuid)).execute()
+                ml.projects().jobs().cancel(name=get_eval_job_name(model_uuid)).execute()
             raise
 
     except:
@@ -339,75 +340,31 @@ def start_training_model(team_uuid, description, dataset_uuid_list,
     __start_monitor_training(team_uuid, model_entity['model_uuid'])
     return model_entity
 
-def __update_model_entity_job_state(model_entity):
-    # If the training and eval jobs weren't done last time we checked, check now.
-    if is_not_done(model_entity):
-        ml = __get_ml_service()
-        train_job_name = __get_train_job_name(model_entity['model_uuid'])
-        train_job_response = ml.projects().jobs().get(name=train_job_name).execute()
-        if model_entity['eval_job']:
-            eval_job_name = __get_eval_job_name(model_entity['model_uuid'])
-            eval_job_response = ml.projects().jobs().get(name=eval_job_name).execute()
-            need_to_cancel_eval = False
-            if __is_alive(eval_job_response['state']):
-                # If the training job has failed or been cancelled, cancel the eval job.
-                if __is_dead_or_dying(train_job_response['state']):
-                    need_to_cancel_eval = True
-                # If the training job succeeded and we have the final eval, cancel the eval job.
-                elif __is_done(train_job_response['state']):
-                    if model_entity['evaled_steps'] >= model_entity['trained_steps']:
-                        need_to_cancel_eval = True
-                    elif 'endTime' in train_job_response:
-                        time_since_train_ended = datetime.now(timezone.utc) - dateutil.parser.parse(train_job_response['endTime'])
-                        if time_since_train_ended> timedelta(minutes=10):
-                            need_to_cancel_eval = True
-            if need_to_cancel_eval:
-                ml.projects().jobs().cancel(name=eval_job_name).execute()
-                eval_job_response = ml.projects().jobs().get(name=eval_job_name).execute()
-        else:
-            eval_job_response = None
-        try:
-            model_entity = storage.update_model_entity_job_state(
-                model_entity['team_uuid'], model_entity['model_uuid'], train_job_response, eval_job_response)
-        except GoogleAPIError:
-            # This happens from time to time. It's not fatal if we can't update the job state in
-            # the model entity.
-            pass
-    return model_entity
-
-def is_not_done(model_entity):
-    return (
-        __is_not_done(model_entity['train_job_state']) or
-        __is_not_done(model_entity['eval_job_state']))
-
-def is_done(model_entity):
-    return (
-        __is_done(model_entity['train_job_state']) and
-        __is_done(model_entity['eval_job_state']))
 
 def stop_training_model(team_uuid, model_uuid):
     # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
-    ml = __get_ml_service()
-    if __is_alive(model_entity['train_job_state']):
+    ml = get_ml_service()
+    if is_alive(model_entity['train_job_state']):
         try:
-            train_job_name = __get_train_job_name(model_uuid)
+            train_job_name = get_train_job_name(model_uuid)
             ml.projects().jobs().cancel(name=train_job_name).execute()
         except:
             logging.critical('model_trainer.stop_training_model - canceling training job - except %s' %
                 traceback.format_exc().replace('\n', ' ... '))
     if model_entity['eval_job']:
-        if __is_alive(model_entity['eval_job_state']):
+        if is_alive(model_entity['eval_job_state']):
             try:
-                eval_job_name = __get_eval_job_name(model_uuid)
+                eval_job_name = get_eval_job_name(model_uuid)
                 ml.projects().jobs().cancel(name=eval_job_name).execute()
             except:
                 logging.critical('model_trainer.stop_training_model - canceling eval job - except %s' %
                     traceback.format_exc().replace('\n', ' ... '))
     return storage.stop_training_requested(team_uuid, model_uuid)
 
-def __get_ml_service():
+
+def get_ml_service():
     payload = cloud_secrets.get("key_json")
     credentials_dict = json.loads(payload)
     scopes = ['https://www.googleapis.com/auth/cloud-platform']
@@ -415,40 +372,33 @@ def __get_ml_service():
     return googleapiclient.discovery.build(
         serviceName='ml', version='v1', credentials=credentials, cache_discovery=False)
 
+
 def __get_parent():
     # TODO(lizlooney): Is the project id here supposed to be our Google Cloud Project ID?
     return 'projects/%s' % constants.PROJECT_ID
 
+
 def __get_train_job_id(model_uuid):
     return 'train_%s' % model_uuid
+
 
 def __get_eval_job_id(model_uuid):
     return 'eval_%s' % model_uuid
 
-def __get_train_job_name(model_uuid):
+
+def get_train_job_name(model_uuid):
     return '%s/jobs/%s' % (__get_parent(), __get_train_job_id(model_uuid))
 
-def __get_eval_job_name(model_uuid):
+
+def get_eval_job_name(model_uuid):
     return '%s/jobs/%s' % (__get_parent(), __get_eval_job_id(model_uuid))
 
-def __is_alive(state):
+
+def is_alive(state):
     return (state == 'QUEUED' or
             state == 'PREPARING' or
             state == 'RUNNING')
 
-def __is_dead_or_dying(state):
-    return (state == 'FAILED' or
-            state == 'CANCELLING' or
-            state == 'CANCELLED')
-
-def __is_not_done(state):
-    return (state != '' and
-            state != 'SUCCEEDED' and
-            state != 'FAILED' and
-            state != 'CANCELLED')
-
-def __is_done(state):
-    return not __is_not_done(state)
 
 def maybe_restart_monitor_training(team_uuid, model_uuid):
     # storage.retrieve_model_entity will raise HttpErrorNotFound
@@ -488,6 +438,7 @@ def maybe_restart_monitor_training(team_uuid, model_uuid):
 
     return True, __start_monitor_training(team_uuid, model_uuid)
 
+
 def __start_monitor_training(team_uuid, model_uuid):
     model_entity = storage.prepare_to_start_monitor_training(team_uuid, model_uuid)
     action_parameters = action.create_action_parameters(
@@ -497,109 +448,8 @@ def __start_monitor_training(team_uuid, model_uuid):
     action.trigger_action_via_blob(action_parameters)
     return model_entity
 
-def monitor_training(action_parameters):
-    team_uuid = action_parameters['team_uuid']
-    model_uuid = action_parameters['model_uuid']
 
-    model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
-    model_folder = model_entity['model_folder']
-    prev_training_done = __is_done(model_entity['train_job_state'])
-
-    while True:
-        model_entity = storage.monitor_training_active(team_uuid, model_uuid)
-        model_entity = __update_model_entity_job_state(model_entity)
-        previous_time_ms = model_entity['monitor_training_active_time_ms']
-
-        if not prev_training_done:
-            training_done = __is_done(model_entity['train_job_state'])
-            if training_done:
-                # Training just finished. Trigger the action to create the tflite model if there is
-                # a checkpoint.
-                if model_entity['trained_checkpoint_path'] != '':
-                    tflite_creator.trigger_create_tflite(team_uuid, model_uuid)
-            prev_training_done = training_done
-
-        for job_type in ['train', 'eval']:
-            dict_path_to_updated = blob_storage.get_event_file_paths(model_folder, job_type)
-            for event_file_path, updated in dict_path_to_updated.items():
-                if ('dict_event_file_path_to_updated' in model_entity and
-                        event_file_path in model_entity['dict_event_file_path_to_updated'] and
-                        model_entity['dict_event_file_path_to_updated'][event_file_path] == updated):
-                    continue
-                largest_step, scalar_summary_items, image_summary_items = __monitor_training_for_event_file(
-                    model_folder, job_type, event_file_path, action_parameters)
-                scalar_modified_count = storage.store_model_summary_items(team_uuid, model_uuid, job_type,
-                    'scalar', scalar_summary_items)
-                image_modified_count = storage.store_model_summary_items(team_uuid, model_uuid, job_type,
-                    'image', image_summary_items)
-                model_entity, modified_model_entity = storage.update_model_entity_for_event_file(team_uuid, model_uuid, job_type,
-                    event_file_path, updated, largest_step)
-                if scalar_modified_count > 0 or image_modified_count > 0 or modified_model_entity:
-                    action.retrigger_now(action_parameters)
-
-        if is_done(model_entity):
-            # The job(s) are done. If we didn't update the model entity during the for loop, we are done.
-            if model_entity['monitor_training_active_time_ms'] == previous_time_ms:
-                model_entity = storage.monitor_training_finished(team_uuid, model_uuid)
-                return
-
-        if action.remaining_timedelta(action_parameters) > timedelta(minutes=2):
-            time.sleep(30)
-        action.retrigger_if_necessary(action_parameters)
-
-
-def __monitor_training_for_event_file(model_folder, job_type, event_file_path, action_parameters):
-    largest_step = None
-    scalar_summary_items = {}
-    image_summary_items = {}
-    for record in tf.data.TFRecordDataset(event_file_path):
-        action.retrigger_if_necessary(action_parameters)
-        event = event_pb2.Event.FromString(record.numpy())
-        if not hasattr(event, 'step'):
-            continue
-        if largest_step is None or event.step > largest_step:
-            largest_step = event.step
-        if not hasattr(event, 'summary'):
-            continue
-        for value in event.summary.value:
-            if (not hasattr(value, 'metadata') or
-                    not hasattr(value.metadata, 'plugin_data') or
-                    not hasattr(value.metadata.plugin_data, 'plugin_name')):
-                continue
-            if value.metadata.plugin_data.plugin_name == 'scalars':
-                item_value = float(tf.make_ndarray(value.tensor))
-                if math.isnan(item_value):
-                    continue
-                item = {
-                    'step': event.step,
-                    'tag': value.tag,
-                    'value': item_value
-                }
-                scalar_summary_items[__make_key(event.step, value.tag)] = item
-            elif value.metadata.plugin_data.plugin_name == 'images':
-                if job_type == 'train':
-                    # Don't bother saving training images.
-                    continue
-                image_value = tf.make_ndarray(value.tensor)
-                if len(image_value) < 3: # width, height, image bytes
-                    continue
-                width = int(float(image_value[0].decode('utf-8')))
-                height = int(float(image_value[1].decode('utf-8')))
-                image_bytes = image_value[2]
-                # There might be more than one image, but we only look at the first one.
-                blob_storage.store_event_summary_image(model_folder, job_type,
-                    event.step, value.tag, image_bytes)
-                item = {
-                    'job_type': job_type,
-                    'step': event.step,
-                    'tag': value.tag,
-                    'width': width,
-                    'height': height,
-                }
-                image_summary_items[__make_key(event.step, value.tag)] = item
-    return largest_step, scalar_summary_items, image_summary_items
-
-def __make_key(step, tag):
+def make_key(step, tag):
     return storage.make_summary_item_key(step, tag)
 
 
@@ -630,10 +480,10 @@ def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_ste
         step = int(step_string)
         summary_items = storage.get_model_summary_items(model_entity, job_type, value_type, step)
         for tag in tags:
-            key = __make_key(step, tag)
+            key = make_key(step, tag)
             if key not in summary_items:
                 continue
-            item = summary_items[__make_key(step, tag)]
+            item = summary_items[make_key(step, tag)]
             summary_item = {
                 'step': item['step'],
                 'tag': item['tag'],
@@ -652,3 +502,4 @@ def retrieve_summary_items(team_uuid, model_uuid, job_type, value_type, dict_ste
                 }
             summary_items_list.append(summary_item)
     return summary_items_list
+

@@ -173,7 +173,7 @@ gcloud auth configure-docker
 Do you want to continue (Y/n)?  y
 ```
 
-## Fill in the values in server/env_variables.yaml
+## Fill in the values in server/app_engine/env_variables.yaml
 
 1. Replace `<YOUR-PROJECT-ID>` with the Google Cloud Project ID for your project.
 1. Replace `<YOUR-ORIGIN>` with the base URL that will serve the website.
@@ -185,11 +185,11 @@ Do you want to continue (Y/n)?  y
 The following command will set the version of fmltc displayed to the user to the current git commit hash.
 
 ```
-echo "{ \"version\": \"$(git rev-parse --short HEAD)\" }" > server/app.properties
+echo "{ \"version\": \"$(git rev-parse --short HEAD)\" }" > server/app_engine/app.properties
 ```
 If you wish the version to be set to something other than the current git commit hash you can use the following code replacing `<VERSION_NAME>` with the desired name of your version
 ```
-echo "{ \"version\": \"<VERSION_NAME>\" }" > server/app.properties
+echo "{ \"version\": \"<VERSION_NAME>\" }" > server/app_engine/app.properties
 ```
 
 ## Setup the environment.
@@ -209,7 +209,7 @@ source env_setup.sh
     scripts/deploy_indexes.sh
     ```
 
-1. Deploy the static content (the CSS styles and the favicon).
+1. Deploy the static content.
     ```
     source env_setup.sh
     scripts/deploy_static.sh

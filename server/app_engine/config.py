@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from google.cloud import datastore
+
 import constants
 import redis
 

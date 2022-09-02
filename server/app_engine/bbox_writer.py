@@ -24,8 +24,8 @@ import logging
 import numpy as np
 
 # My Modules
-import exceptions
 import constants
+import exceptions
 
 
 def __convert_bbox_to_text(bbox, scale, x_max, y_max):

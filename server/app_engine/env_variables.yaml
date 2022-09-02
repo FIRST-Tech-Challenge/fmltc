@@ -26,9 +26,9 @@ env_variables:
   # Replace <YOUR-ORIGIN> with the base URL that will serve the website. To get
   # this URL visit https://console.cloud.google.com/appengine?project=<YOUR-PROJECT-ID>
   # replacing <YOUR_PROJECT_ID> with the Google Cloud Project ID for your project.
-  # Then look in the upper right hand corner for your base URL. 
-  # It should end with ".appspot.com". Make sure to copy the actual link  
-  # and not just the link shown in text. The "https://" is necessary.   
+  # Then look in the upper right hand corner for your base URL.
+  # It should end with ".appspot.com". Make sure to copy the actual link
+  # and not just the link shown in text. The "https://" is necessary.
   # The value should not end with a / and should not contain a path.
   #
   ORIGIN: "<YOUR-ORIGIN>"

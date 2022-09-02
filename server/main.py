@@ -19,7 +19,8 @@ from datetime import datetime, timedelta, timezone
 import logging
 
 # My Modules
-import action
+from app_engine import action
+import cf_action
 
 
 logging.getLogger().setLevel(logging.INFO)
@@ -31,7 +32,7 @@ def perform_action(data, context):
     start_time = datetime.now(timezone.utc)
     if data['bucket'] == action.BUCKET_ACTION_PARAMETERS:
         time_limit = start_time + timedelta(seconds=500)
-        action.perform_action_from_blob(data['name'], time_limit)
+        cf_action.perform_action_from_blob(data['name'], time_limit)
     else:
         logging.critical('perform_action called on invalid bucket ' + action.BUCKET_ACTION_PARAMETERS)
     return 'OK'

@@ -1,4 +1,4 @@
-# Copyright 2020 Google LLC
+# Copyright 2022 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 from datetime import datetime, timedelta, timezone
 import json
 import logging
-import time
-import traceback
 import uuid
 
 # Other Modules
@@ -27,13 +25,7 @@ import psutil
 
 # My Modules
 import constants
-import dataset_producer
-import dataset_zipper
-import frame_extractor
-import model_trainer
 import storage
-import tflite_creator
-import tracking
 import util
 
 BUCKET_ACTION_PARAMETERS = ('%s-action-parameters' % constants.PROJECT_ID)
@@ -70,7 +62,8 @@ ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES = 'increment_remaining_training
 
 def create_action_parameters(team_uuid, action_name):
     if (action_name == ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES or
-            action_name == ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES):
+            action_name == ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES or
+            action_name == ACTION_NAME_TEST):
         is_admin_action = True
     else:
         is_admin_action = False
@@ -139,55 +132,6 @@ def trigger_action_via_blob(action_parameters_arg):
     logging.info('action.trigger_action_via_blob - %s' % action_parameters[ACTION_NAME])
     blob.upload_from_string(action_parameters_json, content_type="text/json")
     return action_parameters[ACTION_UUID]
-
-def perform_action_from_blob(action_parameters_blob_name, time_limit):
-    blob = util.storage_client().get_bucket(BUCKET_ACTION_PARAMETERS).blob(action_parameters_blob_name)
-    # If the blob no longer exists, this event is a duplicate and is ignored.
-    if blob.exists():
-        action_parameters_json = blob.download_as_string()
-        blob.delete()
-        action_parameters = json.loads(action_parameters_json)
-        __perform_action(action_parameters, time_limit)
-
-
-def __perform_action(action_parameters, time_limit):
-    action_parameters[ACTION_TIME_LIMIT] = time_limit
-    logging.info('action.__perform_action - %s - start' % action_parameters[ACTION_NAME])
-    storage.action_on_start(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION])
-
-    action_fns = {
-        ACTION_NAME_TEST: test, # For debugging purposes only
-        ACTION_NAME_WAIT_FOR_VIDEO_UPLOAD: frame_extractor.wait_for_video_upload,
-        ACTION_NAME_FRAME_EXTRACTION: frame_extractor.extract_frames,
-        ACTION_NAME_TRACKING: tracking.start_tracking,
-        ACTION_NAME_DATASET_PRODUCE: dataset_producer.produce_dataset,
-        ACTION_NAME_DATASET_PRODUCE_RECORD: dataset_producer.produce_dataset_record,
-        ACTION_NAME_DELETE_DATASET_RECORD_WRITERS: storage.finish_delete_dataset_record_writers,
-        ACTION_NAME_DATASET_ZIP: dataset_zipper.zip_dataset,
-        ACTION_NAME_DATASET_ZIP_PARTITION: dataset_zipper.zip_dataset_partition,
-        ACTION_NAME_MONITOR_TRAINING: model_trainer.monitor_training,
-        ACTION_NAME_CREATE_TFLITE: tflite_creator.create_tflite,
-        ACTION_NAME_DELETE_MODEL: storage.finish_delete_model,
-        ACTION_NAME_DELETE_DATASET: storage.finish_delete_dataset,
-        ACTION_NAME_DELETE_VIDEO: storage.finish_delete_video,
-        ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES: storage.reset_remaining_training_minutes,
-        ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES: storage.increment_remaining_training_minutes,
-    }
-    action_fn = action_fns.get(action_parameters[ACTION_NAME], None)
-    if action_fn is not None:
-        try:
-            action_fn(action_parameters)
-        except Stop as e:
-            pass
-        except:
-            logging.critical('action.__perform_action - %s exception!!! action_parameters: %s traceback: %s' %
-                (action_parameters[ACTION_NAME], str(action_parameters), traceback.format_exc().replace('\n', ' ... ')))
-    else:
-        logging.warning('action.__perform_action - %s - action_fn is None' % action_parameters[ACTION_NAME])
-
-    if ACTION_RETRIGGERED not in action_parameters:
-        logging.info('action.__perform_action - %s - finish' % action_parameters[ACTION_NAME])
-        storage.action_on_finish(action_parameters[ACTION_UUID], action_parameters[ACTION_IS_ADMIN_ACTION], action_parameters)
 
 
 def retrigger_now(action_parameters):

@@ -10,7 +10,7 @@
 .git
 .gitignore
 .index_updated
-env_variables.yaml
+app_engine/env_variables.yaml
 flask_secret_key.txt
 client_secrets.json
 key.json

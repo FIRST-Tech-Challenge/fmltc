@@ -22,12 +22,12 @@ handlers:
 - url: /favicon.ico
   static_files: static/favicon.ico
   upload: static/favicon.ico
-  expiration: 1d
+  expiration: 0s
 
-- url: /WithSupportFromGoogleCloud.png
-  static_files: static/WithSupportFromGoogleCloud.png
-  upload: static/WithSupportFromGoogleCloud.png
-  expiration: 1m
+- url: /robots.txt
+  static_files: static/robots.txt
+  upload: static/robots.txt
+  expiration: 0s
 
 - url: /.*
   script: auto

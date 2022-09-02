@@ -20,7 +20,6 @@ import logging
 import re
 import time
 import traceback
-import uuid
 
 # My Modules
 import action

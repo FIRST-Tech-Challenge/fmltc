@@ -68,14 +68,35 @@ data "archive_file" "cloud-function-src" {
   type        = "zip"
   source_dir  = "${path.root}/../../server"
   output_path = "${path.root}/../../generated/gcf-src.zip"
-  excludes = [ "__pycache__", "static" ]
+  excludes = [
+    "__pycache__",
+    "app_engine/.app_engine_ignore",
+    "app_engine/announcements.py",
+    "app_engine/app.yaml",
+    "app_engine/app_engine.py",
+    "app_engine/config.py",
+    "app_engine/credentialstore.py",
+    "app_engine/dataset_producer.py",
+    "app_engine/dataset_zipper.py",
+    "app_engine/env_variables.yaml",
+    "app_engine/oidc.py",
+    "app_engine/requirements.txt",
+    "app_engine/roles.py",
+    "app_engine/team_info.py",
+    "app_engine/test_routes.py",
+    "app_engine/tracking.py",
+    "app_engine/wrappers.py",
+    "src",
+    "static",
+    "templates"
+  ]
 }
 
 data "archive_file" "app-server-src" {
   type        = "zip"
-  source_dir  = "${path.root}/../../server"
+  source_dir  = "${path.root}/../../server/app_engine"
   output_path = "${path.root}/../../generated/gae-src.zip"
-  excludes = [ "__pycache__", "static/training" ]
+  excludes = [ "__pycache__" ]
 }
 
 resource "google_storage_bucket_object" "cloud-function-archive" {
@@ -196,19 +217,6 @@ resource "google_app_engine_standard_app_version" "fmltc-app-v1" {
       path = "static/\\1"
       mime_type = "image/x-icon"
       upload_path_regex = "static/(.*\\.ico)"
-      expiration = "0s"
-    }
-  }
-
-  handlers {
-    auth_fail_action = "AUTH_FAIL_ACTION_REDIRECT"
-    login            = "LOGIN_OPTIONAL"
-    security_level   = "SECURE_OPTIONAL"
-    url_regex = "/(.*\\.png)"
-    static_files {
-      path = "static/\\1"
-      mime_type = "image/png"
-      upload_path_regex = "static/(.*\\.png)"
       expiration = "0s"
     }
   }

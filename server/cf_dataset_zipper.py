@@ -16,38 +16,14 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 
 # Python Standard Library
 import io
-import math
 import os
-import uuid
 import zipfile
 
-# Other Modules
-
 # My Modules
-import action
-import blob_storage
-import storage
+from app_engine import action
+from app_engine import blob_storage
+from app_engine import storage
 
-def prepare_to_zip_dataset(team_uuid, dataset_uuid):
-    dataset_zip_uuid = str(uuid.uuid4().hex)
-    max_files_per_partition = 10
-    # storage.retrieve_dataset_entity will raise HttpErrorNotFound
-    # if the team_uuid/dataset_uuid is not found.
-    dataset_entity = storage.retrieve_dataset_entity(team_uuid, dataset_uuid)
-    total_file_count = dataset_entity['total_record_count'] + 1
-    partition_count = math.ceil(total_file_count / max_files_per_partition)
-    storage.create_dataset_zippers(team_uuid, dataset_zip_uuid, partition_count)
-    storage.increment_datasets_downloaded_today(team_uuid)
-    return dataset_zip_uuid, partition_count
-
-def make_action_parameters(team_uuid, dataset_uuid, dataset_zip_uuid, partition_count):
-    action_parameters = action.create_action_parameters(
-        team_uuid, action.ACTION_NAME_DATASET_ZIP)
-    action_parameters['team_uuid'] = team_uuid
-    action_parameters['dataset_uuid'] = dataset_uuid
-    action_parameters['dataset_zip_uuid'] = dataset_zip_uuid
-    action_parameters['partition_count']  = partition_count
-    return action_parameters
 
 def zip_dataset(action_parameters):
     team_uuid = action_parameters['team_uuid']

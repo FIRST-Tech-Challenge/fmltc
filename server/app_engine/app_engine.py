@@ -35,6 +35,11 @@ import announcements
 import bbox_writer
 import blob_storage
 import cloud_secrets
+import config
+from config import KEY_TRAINING_ENABLED
+from config import KEY_USE_TPU
+from config import KEY_SECURE_SESSION_COOKIES
+from config import KEY_SAMESITE_SESSION_COOKIES
 import constants
 import dataset_producer
 import dataset_zipper
@@ -45,11 +50,6 @@ import model_trainer
 import oidc
 import roles
 from roles import Role
-import config
-from config import KEY_TRAINING_ENABLED
-from config import KEY_USE_TPU
-from config import KEY_SECURE_SESSION_COOKIES
-from config import KEY_SAMESITE_SESSION_COOKIES
 import storage
 import team_info
 import test_routes
@@ -583,7 +583,7 @@ def monitor_training():
 @login_required
 @roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
 def admin():
-    return flask.render_template('admin.html', config=config.config, max_mins=team_info.TOTAL_TRAINING_MINUTES_PER_TEAM)
+    return flask.render_template('admin.html', config=config.config, max_mins=constants.TOTAL_TRAINING_MINUTES_PER_TEAM)
 
 
 @app.route('/refreshConfig', methods=['POST'])
@@ -1511,7 +1511,7 @@ def resources():
 def reset_remaining_training_minutes():
     data = validate_keys(flask.request.form.to_dict(flat=True),
         ['reset_minutes', 'date_time_string'])
-    reset_minutes = validate_int(data.get('reset_minutes'), min=1, max=team_info.TOTAL_TRAINING_MINUTES_PER_TEAM)
+    reset_minutes = validate_int(data.get('reset_minutes'), min=1, max=constants.TOTAL_TRAINING_MINUTES_PER_TEAM)
     action_parameters = action.create_action_parameters(
         '', action.ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES)
     action_parameters['reset_minutes'] = reset_minutes
