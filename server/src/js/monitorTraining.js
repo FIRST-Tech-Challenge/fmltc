@@ -143,6 +143,8 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.imagesDiv.style.height = this.modelDiv.clientHeight + 'px';
 
   this.util.addTabClickListener(this.tab_onclick.bind(this));
+  window.addEventListener('resize', this.resizeImages.bind(this));
+
 
   if (!this.util.isTrainingDone(this.modelEntity)) {
     this.util.showTab('modelTab');
@@ -164,10 +166,10 @@ fmltc.MonitorTraining = function(util, modelUuid, modelEntitiesByUuid, datasetEn
   this.lastPageButton.onclick = this.lastPageButton_onclick.bind(this);
 };
 
-fmltc.MonitorTraining.prototype.setHeightOfEvalImagesDiv = function() {
+fmltc.MonitorTraining.prototype.onImagesTabSelected = function() {
   let height = this.imagesDiv.clientHeight;
   if (height == 0) {
-    setTimeout(this.setHeightOfEvalImagesDiv.bind(this), 100);
+    setTimeout(this.onImagesTabSelected.bind(this), 100);
     return;
   }
   let element = this.evalImagesDiv;
@@ -183,6 +185,23 @@ fmltc.MonitorTraining.prototype.setHeightOfEvalImagesDiv = function() {
     element = parent;
   }
   this.evalImagesDiv.style.height = height + 'px';
+
+  this.resizeImages();
+};
+
+fmltc.MonitorTraining.prototype.onResize = function() {
+  this.resizeImages();
+};
+
+fmltc.MonitorTraining.prototype.resizeImages = function() {
+  for (const tag in this.evalImages.mapTagToImgs) {
+    const divForTag = this.evalImages.mapTagToDiv[tag];
+    const mapStepToImg = this.evalImages.mapTagToImgs[tag];
+    for (const step in mapStepToImg) {
+      const img = mapStepToImg[step];
+      this.setImgSize(img, img.naturalWidth, img.naturalHeight, divForTag);
+    }
+  }
 };
 
 fmltc.MonitorTraining.prototype.updateButtons = function() {
@@ -974,7 +993,6 @@ fmltc.MonitorTraining.prototype.addImages = function(o, newMapTagToSteps) {
 
       // Create a table with captions in the top row and the image in the bottom row.
       const table = document.createElement('table');
-      table.style.width = this.evalImagesDiv.scrollWidth + 'px';
       // Top row.
       let tr = table.insertRow(-1);
       let td = tr.insertCell(-1);
@@ -1110,13 +1128,8 @@ fmltc.MonitorTraining.prototype.xhr_retrieveImage_onreadystatechange = function(
       const mapStepToImg = o.mapTagToImgs[tag];
       const img = mapStepToImg[step];
       img.src = window.URL.createObjectURL(xhr.response);
-      const parentClientWidth = img.parentElement.clientWidth;
-      let divisor = 3;
-      if (value.width > value.height) {
-        divisor = value.width / (parentClientWidth - 2);
-      }
-      img.setAttribute('width', value.width / divisor);
-      img.setAttribute('height', value.height / divisor);
+      const divForTag = o.mapTagToDiv[tag];
+      this.setImgSize(img, value.width, value.height, divForTag);
 
       const sortedSteps = o.mapTagToSteps[tag];
       if (step == sortedSteps[sortedSteps.length-1]) {
@@ -1137,6 +1150,17 @@ fmltc.MonitorTraining.prototype.xhr_retrieveImage_onreadystatechange = function(
         console.log('Unable to retrieve an image with url ' + value.image_url);
       }
     }
+  }
+};
+
+fmltc.MonitorTraining.prototype.setImgSize = function(img, naturalWidth, naturalHeight, divForTag) {
+  if (img.src == '//:0' || naturalWidth == 0 || divForTag.clientWidth == 0) {
+    return;
+  }
+  let divisor = naturalWidth / (divForTag.clientWidth - 2);
+  if (divisor != 0) {
+    img.setAttribute('width', naturalWidth / divisor);
+    img.setAttribute('height', naturalHeight / divisor);
   }
 };
 
@@ -1217,6 +1241,6 @@ fmltc.MonitorTraining.prototype.tab_onclick = function(tabContentId) {
     this.drawCharts();
 
   } else if (tabContentId == 'imagesTabContent') {
-    this.setHeightOfEvalImagesDiv();
+    this.onImagesTabSelected();
   }
 };
