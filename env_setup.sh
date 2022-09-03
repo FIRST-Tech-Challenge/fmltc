@@ -5,6 +5,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+
 # Check that the Google Cloud project id is set.
 FMLTC_GCLOUD_PROJECT_ID=$(gcloud config list --format='text(core.project)' 2>/dev/null | grep ^project: | colrm 1 9)
 if [ "$FMLTC_GCLOUD_PROJECT_ID" != "" ]; then
@@ -15,6 +16,7 @@ else
   exit 1
 fi
 
+
 # Locate the Google Closure Compiler.
 if [ -f ../closure-compiler/closure-compiler-v20200406.jar ]; then
   FMLTC_CLOSURE_COMPILER_JAR="../closure-compiler/closure-compiler-v20200406.jar"
@@ -24,6 +26,7 @@ else
   echo "Please install the Google Closure Compiler"
   exit 1
 fi
+
 
 # Locate the Google Closure Library.
 if [ -f ../closure-library/closure-library-20200406/closure/goog/base.js ]; then
