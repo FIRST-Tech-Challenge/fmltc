@@ -44,6 +44,13 @@ fmltc.Admin = function() {
   this.incrementInput.onchange = this.incrementInput_onchange.bind(this);
   this.incrementButton.onclick = this.incrementButton_onclick.bind(this);
 
+  this.saveEndOfSeasonEntitiesButton = document.getElementById('saveEndOfSeasonEntitiesButton');
+  this.seasonInput = document.getElementById('seasonInput');
+  this.saveEndOfSeasonEntitiesResponse = document.getElementById('saveEndOfSeasonEntitiesResponse');
+  this.saveEndOfSeasonEntitiesMonitorInfo = document.getElementById('saveEndOfSeasonEntitiesMonitorInfo');
+  this.saveEndOfSeasonEntitiesActionUuid = document.getElementById('saveEndOfSeasonEntitiesActionUuid');
+  this.saveEndOfSeasonEntitiesButton.onclick = this.saveEndOfSeasonEntitiesButton_onclick.bind(this);
+
   this.trainingEnabled = document.getElementById('trainingEnabled');
   this.useTpu = document.getElementById('useTpu');
   this.secureSessionCookies = document.getElementById('secureSessionCookies');
@@ -59,6 +66,8 @@ fmltc.Admin.prototype.enableInputsAndButtons = function(enable) {
   this.resetButton.disabled = !enable;
   this.incrementInput.disabled = !enable;
   this.incrementButton.disabled = !enable;
+  this.seasonInput.disabled = !enable;
+  this.saveEndOfSeasonEntitiesButton.disabled = !enable;
   this.refreshConfigButton.disables = !enable;
 };
 
@@ -120,6 +129,33 @@ fmltc.Admin.prototype.xhr_incrementRemainingTrainingMinutes_onreadystatechange =
 
     } else {
       this.incrementResponse.textContent = 'Failure - status: ' + xhr.status + ', statusText: ' + xhr.status;
+    }
+  }
+};
+
+fmltc.Admin.prototype.saveEndOfSeasonEntitiesButton_onclick = function() {
+  this.enableInputsAndButtons(false);
+
+  const xhr = new XMLHttpRequest();
+  const params = 'season=' + this.seasonInput.value +
+      '&date_time_string=' + encodeURIComponent(new Date().toLocaleString());
+  xhr.open('POST', '/saveEndOfSeasonEntities', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_saveEndOfSeasonEntities_onreadystatechange.bind(this, xhr, params);
+  xhr.send(params);
+};
+
+fmltc.Admin.prototype.xhr_saveEndOfSeasonEntities_onreadystatechange = function(xhr, params) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+      this.saveEndOfSeasonEntitiesActionUuid.textContent = response.action_uuid;
+      this.saveEndOfSeasonEntitiesMonitorInfo.style.display = 'block';
+
+    } else {
+      this.saveEndOfSeasonEntitiesResponse.textContent = 'Failure - status: ' + xhr.status + ', statusText: ' + xhr.status;
     }
   }
 };

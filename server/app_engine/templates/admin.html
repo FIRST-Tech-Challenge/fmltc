@@ -59,6 +59,25 @@ limitations under the License.
 
     <br><hr><br>
 
+    <h2>Save end-of-season entities for all teams</h2>
+    <label for="seasonInput" class="text-18">Season:</label>&nbsp;
+    <input id="seasonInput" type="text" maxlength="30" class="text-18" value="2021-2022"
+          style="width: 15ch">
+    <br>
+    <button id="saveEndOfSeasonEntitiesButton" class="btn btn-secondary">Save</button>
+    <div id="saveEndOfSeasonEntitiesResponse"></div>
+    <div id="saveEndOfSeasonEntitiesMonitorInfo" style="display: none">
+        The action to save the end-of-season entities for all team has been triggered.<br>
+        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i><br>
+        &quot;<span id="saveEndOfSeasonEntitiesActionUuid" class="fw-bold"></span>&quot;.<br>
+        When the <i>state</i> field becomes &quot;finished&quot;, the <i>action_parameters.teams_processed</i>
+        field will contain all the teams that have been processed.<br>
+        The <i>action_parameters.failure_counts</i> field will contain the teams that were not
+        processed, along with the number of times that processing failed.
+    </div>
+
+    <br><hr><br>
+
     <h2>Configuration</h2>
       <div>Training Enabled: <span id="trainingEnabled">{{config['training_enabled']}}</span></div>
       <div>Use TPU: <span id="useTpu">{{config['use_tpu']}}</span></div>

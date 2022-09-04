@@ -20,6 +20,7 @@ import dateutil.parser
 import json
 import logging
 import time
+import traceback
 import uuid
 
 # Other Modules
@@ -46,6 +47,7 @@ DS_KIND_MODEL = 'Model'
 DS_KIND_MODEL_SUMMARY_ITEMS = 'ModelSummaryItems'
 DS_KIND_ACTION = 'Action'
 DS_KIND_ADMIN_ACTION = 'AdminAction'
+DS_KIND_END_OF_SEASON = 'EndOfSeason'
 
 
 def validate_uuid(s):
@@ -1920,7 +1922,6 @@ def action_on_remove_old_action(action_entity):
 def reset_remaining_training_minutes(action_parameters):
     reset_minutes = action_parameters['reset_minutes']
     datastore_client = datastore.Client()
-    count_puts = 0
     loop = True
     while loop:
         loop = False
@@ -1935,6 +1936,8 @@ def reset_remaining_training_minutes(action_parameters):
                 try:
                     datastore_client.put(team_entity)
                 except:
+                    logging.critical('reset_remaining_training_minutes - exception!!! team_key: %s traceback: %s' %
+                        (team_key, traceback.format_exc().replace('\n', ' ... ')))
                     if team_key not in action_parameters['failure_counts']:
                         action_parameters['failure_counts'][team_key] = 1
                         loop = True # repeat the outer while loop
@@ -1943,7 +1946,6 @@ def reset_remaining_training_minutes(action_parameters):
                         # We've failed to update this team twice, don't repeat the outer while loop
                         # just for this team.
                     continue
-                count_puts += 1
                 action_parameters['teams_updated'].append(team_key)
                 action_parameters['num_teams_updated'] += 1
                 action_parameters['failure_counts'].pop(team_key, None)
@@ -1952,7 +1954,6 @@ def reset_remaining_training_minutes(action_parameters):
 def increment_remaining_training_minutes(action_parameters):
     increment_minutes = action_parameters['increment_minutes']
     datastore_client = datastore.Client()
-    count_puts = 0
     loop = True
     while loop:
         loop = False
@@ -1967,6 +1968,8 @@ def increment_remaining_training_minutes(action_parameters):
                 try:
                     datastore_client.put(team_entity)
                 except:
+                    logging.critical('increment_remaining_training_minutes - exception!!! team_key: %s traceback: %s' %
+                        (team_key, traceback.format_exc().replace('\n', ' ... ')))
                     if team_key not in action_parameters['failure_counts']:
                         action_parameters['failure_counts'][team_key] = 1
                         loop = True # repeat the outer while loop
@@ -1975,7 +1978,72 @@ def increment_remaining_training_minutes(action_parameters):
                         # We've failed to update this team twice, don't repeat the outer while loop
                         # just for this team.
                     continue
-                count_puts += 1
                 action_parameters['teams_updated'].append(team_key)
                 action_parameters['num_teams_updated'] += 1
                 action_parameters['failure_counts'].pop(team_key, None)
+
+def save_end_of_season_entities(action_parameters):
+    season = action_parameters['season']
+    datastore_client = datastore.Client()
+    loop = True
+    while loop:
+        loop = False
+        action.retrigger_if_necessary(action_parameters)
+        query = datastore_client.query(kind=DS_KIND_TEAM)
+        query.order = ['program', 'team_number']
+        for team_entity in query.fetch():
+            action.retrigger_if_necessary(action_parameters)
+            team_key = '%s %s' % (team_entity['program'], str(team_entity['team_number']))
+            if team_key not in action_parameters['teams_processed']:
+                num_models = 0
+                try:
+                    num_models = __save_end_of_season_entity(season, team_entity)
+                except:
+                    logging.critical('save_end_of_season_entities - exception!!! team_key: %s traceback: %s' %
+                        (team_key, traceback.format_exc().replace('\n', ' ... ')))
+                    if team_key not in action_parameters['failure_counts']:
+                        action_parameters['failure_counts'][team_key] = 1
+                        loop = True # repeat the outer while loop
+                    else:
+                        action_parameters['failure_counts'][team_key] += 1
+                        # We've failed to update this team twice, don't repeat the outer while loop
+                        # just for this team.
+                    continue
+                action_parameters['num_models'] += num_models
+                action_parameters['teams_processed'].append(team_key)
+                action_parameters['num_teams_processed'] += 1
+                action_parameters['failure_counts'].pop(team_key, None)
+
+
+def __save_end_of_season_entity(season, team_entity):
+    model_entities = retrieve_model_list(team_entity['team_uuid'])
+    datastore_client = datastore.Client()
+    with datastore_client.transaction() as transaction:
+        query = datastore_client.query(kind=DS_KIND_END_OF_SEASON)
+        query.add_filter('season', '=', season)
+        query.add_filter('program', '=', team_entity['program'])
+        query.add_filter('team_number', '=', team_entity['team_number'])
+        end_of_season_entities = list(query.fetch(1))
+        if len(end_of_season_entities) == 0:
+            incomplete_key = datastore_client.key(DS_KIND_END_OF_SEASON)
+            end_of_season_entity = datastore.Entity(key=incomplete_key)
+            end_of_season_entity.update({
+                'season': season,
+                'program': team_entity['program'],
+                'team_number': team_entity['team_number'],
+                'model_names': [],
+                'tflite_blob_names': [],
+            })
+        else:
+            end_of_season_entity = end_of_season_entities[0]
+        num_models = 0
+        model_names = []
+        tflite_blob_names = []
+        for model_entity in model_entities:
+            num_models += 1
+            model_names.append(model_entity['description'])
+            tflite_blob_names.append(blob_storage.get_tflite_model_with_metadata_blob_name(model_entity['model_folder']))
+        end_of_season_entity['model_names'] = model_names
+        end_of_season_entity['tflite_blob_names'] = tflite_blob_names
+        transaction.put(end_of_season_entity)
+        return num_models

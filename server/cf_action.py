@@ -62,6 +62,7 @@ def __perform_action(action_parameters, time_limit):
         action.ACTION_NAME_DELETE_VIDEO: storage.finish_delete_video,
         action.ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES: storage.reset_remaining_training_minutes,
         action.ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES: storage.increment_remaining_training_minutes,
+        action.ACTION_NAME_SAVE_END_OF_SEASON_ENTITIES: storage.save_end_of_season_entities,
     }
     action_fn = action_fns.get(action_parameters[action.ACTION_NAME], None)
     if action_fn is not None:

@@ -350,21 +350,20 @@ def write_tflite_label_map_txt_to_file(model_folder, filename):
     blob_name = __get_tflite_label_map_txt_blob_name(model_folder)
     return __write_blob_to_file(blob_name, filename)
 
-def __get_tflite_model_with_metadata_blob_name(model_folder):
+def get_tflite_model_with_metadata_blob_name(model_folder):
     return '%s/model_with_metadata.tflite' % __get_tflite_folder(model_folder)
 
 def tflite_model_with_metadata_exists(model_folder):
-    client = util.storage_client()
-    blob_name = __get_tflite_model_with_metadata_blob_name(model_folder)
+    blob_name = get_tflite_model_with_metadata_blob_name(model_folder)
     blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
     return blob.exists()
 
 def store_tflite_model_with_metadata(model_folder, tflite_model_with_metadata_filename):
-    blob_name = __get_tflite_model_with_metadata_blob_name(model_folder)
+    blob_name = get_tflite_model_with_metadata_blob_name(model_folder)
     __write_file_to_blob(blob_name, tflite_model_with_metadata_filename, 'application/octet-stream')
 
 def get_tflite_model_with_metadata_url(model_folder):
-    return __get_download_url(__get_tflite_model_with_metadata_blob_name(model_folder))
+    return __get_download_url(get_tflite_model_with_metadata_blob_name(model_folder))
 
 def delete_model_blobs(model_folder, action_parameters=None):
     client = util.storage_client()
