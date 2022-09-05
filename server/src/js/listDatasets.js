@@ -137,7 +137,7 @@ fmltc.ListDatasets.prototype.addDataset = function(datasetEntity) {
 
 fmltc.ListDatasets.prototype.addNewDataset = function(datasetEntity) {
   this.addDataset(datasetEntity);
-}
+};
 
 fmltc.ListDatasets.prototype.datasetCheckboxAll_onclick = function() {
   this.util.checkAllOrNone(this.datasetCheckboxAll, this.checkboxes);

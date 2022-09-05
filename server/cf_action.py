@@ -21,6 +21,7 @@ import traceback
 
 # My Modules
 from app_engine import action
+from app_engine import blob_storage
 from app_engine import storage
 from app_engine import util
 import cf_dataset_producer
@@ -63,6 +64,8 @@ def __perform_action(action_parameters, time_limit):
         action.ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES: storage.reset_remaining_training_minutes,
         action.ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES: storage.increment_remaining_training_minutes,
         action.ACTION_NAME_SAVE_END_OF_SEASON_ENTITIES: storage.save_end_of_season_entities,
+        action.ACTION_NAME_EXPUNGE_STORAGE: storage.expunge_storage,
+        action.ACTION_NAME_EXPUNGE_BLOB_STORAGE: blob_storage.expunge_blob_storage,
     }
     action_fn = action_fns.get(action_parameters[action.ACTION_NAME], None)
     if action_fn is not None:

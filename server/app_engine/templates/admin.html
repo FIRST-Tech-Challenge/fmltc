@@ -28,13 +28,16 @@ limitations under the License.
     <div id="resetResponse"></div>
     <div id="resetMonitorInfo" style="display: none">
         The action to reset the <i>remaining_training_minutes</i> field in all team entities
-        has been triggered.<br>
-        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i><br>
-        &quot;<span id="resetActionUuid" class="fw-bold"></span>&quot;.<br>
-        When the <i>state</i> field becomes &quot;finished&quot;, the <i>action_parameters.teams_updated</i> field will contain all the<br>
-        teams that have been updated.<br>
-        The <i>action_parameters.failure_counts</i> field will contain the teams that were not updated, along with the<br>
-        number of times that updating failed.
+        has been triggered.<br><br>
+        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i>
+        value<ul>
+          <li>&quot;<span id="resetActionUuid" class="fw-bold"></span>&quot;</li>
+        </ul>
+        When the <i>state</i> field becomes &quot;finished&quot;, the
+        <i>action_parameters.teams_updated</i> field will contain all the teams that have been
+        updated.<br><br>
+        The <i>action_parameters.failure_counts</i> field will contain the teams that were not
+        updated, along with the number of times that updating failed.
     </div>
 
     <br><hr><br>
@@ -48,13 +51,16 @@ limitations under the License.
     <div id="incrementResponse"></div>
     <div id="incrementMonitorInfo" style="display: none">
         The action to increment the <i>remaining_training_minutes</i> field in all team entities
-        has been triggered.<br>
-        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i><br>
-        &quot;<span id="incrementActionUuid" class="fw-bold"></span>&quot;.<br>
-        When the <i>state</i> field becomes &quot;finished&quot;, the <i>action_parameters.teams_updated</i> field will contain all the<br>
-        teams that have been updated.<br>
-        The <i>action_parameters.failure_counts</i> field will contain the teams that were not updated, along with the<br>
-        number of times that updating failed.
+        has been triggered.<br><br>
+        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i>
+        value<ul>
+          <li>&quot;<span id="incrementActionUuid" class="fw-bold"></span>&quot;</li>
+        </ul>
+        When the <i>state</i> field becomes &quot;finished&quot;, the
+        <i>action_parameters.teams_updated</i> field will contain all the teams that have been
+        updated.<br><br>
+        The <i>action_parameters.failure_counts</i> field will contain the teams that were not
+        updated, along with the number of times that updating failed.
     </div>
 
     <br><hr><br>
@@ -67,13 +73,38 @@ limitations under the License.
     <button id="saveEndOfSeasonEntitiesButton" class="btn btn-secondary">Save</button>
     <div id="saveEndOfSeasonEntitiesResponse"></div>
     <div id="saveEndOfSeasonEntitiesMonitorInfo" style="display: none">
-        The action to save the end-of-season entities for all team has been triggered.<br>
-        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i><br>
-        &quot;<span id="saveEndOfSeasonEntitiesActionUuid" class="fw-bold"></span>&quot;.<br>
-        When the <i>state</i> field becomes &quot;finished&quot;, the <i>action_parameters.teams_processed</i>
-        field will contain all the teams that have been processed.<br>
+        The action to save the end-of-season entities for all team has been triggered.<br><br>
+        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i>
+        value<ul>
+          <li>&quot;<span id="saveEndOfSeasonEntitiesActionUuid" class="fw-bold"></span>&quot;</li>
+        </ul>
+        When the <i>state</i> field becomes &quot;finished&quot;, the
+        <i>action_parameters.teams_processed</i> field will contain all the teams that have been
+        processed.<br><br>
         The <i>action_parameters.failure_counts</i> field will contain the teams that were not
         processed, along with the number of times that processing failed.
+    </div>
+
+    <br><hr><br>
+
+    <h2>Expunge storage and blob storage</h2>
+    <div><input type="checkbox" id="keepTeamEntitiesCheckbox" />
+      <label for="keepTeamEntitiesCheckbox" class="text-22">Keep Team entities (do not delete them)</label>
+    </div>
+    <div><input type="checkbox" id="keepTfLiteFilesCheckbox" checked="true" />
+      <label for="keepTfLiteFilesCheckbox" class="text-22">Keep TFLite files (do not delete them)</label>
+    </div>
+    <br>
+    <button id="expungeDataButton" class="btn btn-secondary">Expunge</button>
+    <div id="expungeDataResponse"></div>
+    <div id="expungeDataMonitorInfo" style="display: none">
+        The actions to expunge storage and blob storage have been triggered.<br><br>
+        You should monitor the AdminAction entities (in the datastore) with the <i>action_uuid</i>
+        values<ul>
+          <li>&quot;<span id="expungeStorageActionUuid" class="fw-bold"></span>&quot;</li>
+          <li>&quot;<span id="expungeBlobStorageActionUuid" class="fw-bold"></span>&quot;</li>
+        </ul>
+        When the <i>state</i> field becomes &quot;finished&quot;, the expunging is finished.
     </div>
 
     <br><hr><br>
@@ -87,6 +118,31 @@ limitations under the License.
       <button id="refreshConfigButton" class="btn btn-secondary">Refresh Cache</button>
       <br><hr><br>
   </div>
+
+  <div class="modal" id="expungeConfirmationDialog" tabindex="-1" aria-labelledby="expungeConfirmationLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content"><div class="orange-border">
+        <div class="modal-header">
+          <h5 class="modal-title">Expunge Storage and Blob Storage?<h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="expungeConfirmationXButton"></button>
+        </div>
+        <div class="modal-body">
+          <center>
+            <div id="expungeConfirmationAreYouSure"></div>
+            <div class="fw-bold">This is permanent and cannot be undone.</div>
+            <br>
+            <div>To confirm, please type the following into the box below: <span class="fw-bold">Expunge</span></div>
+            <input type="text" maxlength="30" id="expungeConfirmationInput" class="form-control" style="width: 100%">
+          </center>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="expungeConfirmationNoButton">Cancel</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="expungeConfirmationYesButton">Expunge</button>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
 
 <script type="text/javascript">
   window.addEventListener('load', function() {

@@ -2047,3 +2047,37 @@ def __save_end_of_season_entity(season, team_entity):
         end_of_season_entity['tflite_blob_names'] = tflite_blob_names
         transaction.put(end_of_season_entity)
         return num_models
+
+
+def expunge_storage(action_parameters):
+    keep_team_entities = action_parameters['keep_team_entities']
+    if not keep_team_entities:
+        __expunge_entities(DS_KIND_TEAM, action_parameters)
+    __expunge_entities(DS_KIND_VIDEO, action_parameters)
+    __expunge_entities(DS_KIND_VIDEO_FRAME, action_parameters)
+    __expunge_entities(DS_KIND_DATASET, action_parameters)
+    __expunge_entities(DS_KIND_DATASET_RECORD, action_parameters)
+    __expunge_entities(DS_KIND_MODEL, action_parameters)
+    __expunge_entities(DS_KIND_MODEL_SUMMARY_ITEMS, action_parameters)
+    logging.info('expunge_storage - all done!')
+
+
+def __expunge_entities(kind, action_parameters):
+    logging.info('expunge_storage - %s' % kind)
+    datastore_client = datastore.Client()
+    # Delete the entities, 500 at a time.
+    while True:
+        action.retrigger_if_necessary(action_parameters)
+        query = datastore_client.query(kind=kind)
+        entities = list(query.fetch(500))
+        if len(entities) == 0:
+            break
+        action.retrigger_if_necessary(action_parameters)
+        keys = []
+        while len(entities) > 0:
+            entity = entities.pop()
+            keys.append(entity.key)
+        if len(keys) > 0:
+            logging.info('expunge_storage - deleting %d %s entities' % (len(keys), kind))
+            datastore_client.delete_multi(keys)
+            action_parameters['num_entities_deleted'] += len(keys)

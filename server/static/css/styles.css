@@ -423,3 +423,7 @@ form {
 .margin-right-10 {
   margin-right: 10px;
 }
+
+.orange-border {
+  border: 8px solid #fd7e14;
+}
