@@ -148,3 +148,9 @@ indexes:
   properties:
   - name: action_uuid
   - name: create_time
+
+- kind: EndOfSeason
+  properties:
+  - name: season
+  - name: program
+  - name: team_number

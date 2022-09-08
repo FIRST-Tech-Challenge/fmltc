@@ -164,6 +164,24 @@ def validate_string(s, *args):
     raise exceptions.HttpErrorBadRequest(message)
 
 
+def validate_string_not_empty(s):
+    if s != '':
+        return s
+    message = "Error: '%s' is not a valid argument." % s
+    logging.critical(message)
+    raise exceptions.HttpErrorBadRequest(message)
+
+
+def validate_boolean(s):
+    if s == 'false':
+        return False;
+    if s == 'true':
+        return True;
+    message = "Error: '%s' is not a valid boolean argument." % s
+    logging.critical(message)
+    raise exceptions.HttpErrorBadRequest(message)
+
+
 def validate_description(s, other_descriptions=[]):
     duplicate = s in other_descriptions
     if not duplicate and len(s) >= 1 and len(s) <= 30 :
@@ -615,7 +633,6 @@ def logout():
     flask.session.clear()
     if oidc.is_using_oidc():
         oidc.logout()
-
     return 'OK'
 
 
@@ -1544,6 +1561,60 @@ def increment_remaining_training_minutes():
     action_uuid = action.trigger_action_via_blob(action_parameters)
     response = {
         'action_uuid': action_uuid,
+    }
+    return flask.jsonify(__sanitize(response))
+
+
+@app.route('/saveEndOfSeasonEntities', methods=['POST'])
+@handle_exceptions
+@login_required
+@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
+def save_end_of_season_entities():
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['season', 'date_time_string'])
+    season = validate_string_not_empty(data.get('season'))
+    action_parameters = action.create_action_parameters(
+        '', action.ACTION_NAME_SAVE_END_OF_SEASON_ENTITIES)
+    action_parameters['season'] = season
+    action_parameters['date_time_string'] = data.get('date_time_string')
+    action_parameters['num_models'] = 0
+    action_parameters['num_teams_processed'] = 0
+    action_parameters['teams_processed'] = []
+    action_parameters['failure_counts'] = {}
+    action_uuid = action.trigger_action_via_blob(action_parameters)
+    response = {
+        'action_uuid': action_uuid,
+    }
+    return flask.jsonify(__sanitize(response))
+
+
+@app.route('/expungeData', methods=['POST'])
+@handle_exceptions
+@login_required
+@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
+def expunge_data():
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['keep_team_entities', 'keep_tflite_and_labels', 'date_time_string'])
+    keep_team_entities = validate_boolean(data.get('keep_team_entities'))
+    keep_tflite_and_labels = validate_boolean(data.get('keep_tflite_and_labels'))
+
+    action_parameters = action.create_action_parameters(
+        '', action.ACTION_NAME_EXPUNGE_STORAGE)
+    action_parameters['date_time_string'] = data.get('date_time_string')
+    action_parameters['keep_team_entities'] = keep_team_entities
+    action_parameters['num_entities_deleted'] = 0
+    storage_action_uuid = action.trigger_action_via_blob(action_parameters)
+
+    action_parameters = action.create_action_parameters(
+        '', action.ACTION_NAME_EXPUNGE_BLOB_STORAGE)
+    action_parameters['date_time_string'] = data.get('date_time_string')
+    action_parameters['keep_tflite_and_labels'] = keep_tflite_and_labels
+    action_parameters['num_blobs_deleted'] = 0
+    action_parameters['num_blobs_not_deleted'] = 0
+    blob_storage_action_uuid = action.trigger_action_via_blob(action_parameters)
+    response = {
+        'storage_action_uuid': storage_action_uuid,
+        'blob_storage_action_uuid': blob_storage_action_uuid,
     }
     return flask.jsonify(__sanitize(response))
 

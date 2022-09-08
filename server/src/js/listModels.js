@@ -348,7 +348,7 @@ fmltc.ListModels.prototype.xhr_retrieveModelEntity_onreadystatechange = function
 fmltc.ListModels.prototype.addNewModel = function(remainingTrainingMinutes, modelEntity) {
   this.updateRemainingTrainingMinutes(remainingTrainingMinutes);
   this.onModelEntityUpdated(modelEntity);
-}
+};
 
 fmltc.ListModels.prototype.modelCheckboxAll_onclick = function() {
   this.util.checkAllOrNone(this.modelCheckboxAll, this.checkboxes);
