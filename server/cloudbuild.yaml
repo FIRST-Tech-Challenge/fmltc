@@ -2,11 +2,11 @@ steps:
   # Install dependencies
   - name: python:3.9
     entrypoint: pip
-    dir: 'server'
+    dir: 'server/app_engine'
     args: ["install", "-r", "requirements.txt", "--user"]
 
   # Docker Build
   - name: 'gcr.io/cloud-builders/docker'
-    dir: 'server'
+    dir: 'server/app_engine'
     args: ['build',
            '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/fmltc:$SHORT_SHA', '.']

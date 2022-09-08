@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import redis
+
 import constants
 
 class CredentialStore():

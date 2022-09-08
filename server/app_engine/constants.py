@@ -28,6 +28,10 @@ REDIS_IP_ADDR = os.getenv('REDIS_IP_ADDR')
 # Expects to be 'development' or 'production'
 ENVIRONMENT = os.getenv('ENVIRONMENT')
 
+
+TOTAL_TRAINING_MINUTES_PER_TEAM = 300
+
+
 # Limits
 MAX_DESCRIPTION_LENGTH = 30
 MAX_VIDEOS_PER_TEAM = 50

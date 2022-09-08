@@ -4,6 +4,9 @@ if [[ "${FMLTC_GCLOUD_PROJECT_ID}" == "" ]]; then
 fi
 
 
-pushd server
-gcloud -q app deploy --version v1
+pushd server/app_engine
+gcloud -q app deploy \
+    --ignore-file=.app_engine_ignore \
+    --appyaml=app.yaml \
+    --version v1
 popd

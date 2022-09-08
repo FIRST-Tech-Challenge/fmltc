@@ -6,8 +6,9 @@ fi
 
 pushd server
 gcloud functions deploy perform_action \
+    --ignore-file=.cloud_function_ignore \
     --runtime=python39 \
-    --set-env-vars PROJECT_ID=${FMLTC_GCLOUD_PROJECT_ID} \
+    --set-env-vars=PROJECT_ID=${FMLTC_GCLOUD_PROJECT_ID} \
     --memory=8192MB \
     --timeout=540 \
     --trigger-resource=${FMLTC_GCLOUD_PROJECT_ID}-action-parameters \

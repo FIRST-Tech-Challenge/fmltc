@@ -29,7 +29,7 @@ jobs:
       - name: Write Properties
         run: |
           sha=$(git rev-list --tags --max-count=1)
-          echo "{ \"version\" : \"$(git describe --tags $sha)\" }" > server/app.properties
+          echo "{ \"version\" : \"$(git describe --tags $sha)\" }" > server/app_engine/app.properties
 
       - name: Closure Build
         run: ./gradlew compileJavascript
@@ -81,7 +81,7 @@ jobs:
       - name: Write Properties
         run: |
           sha=$(git rev-list --tags --max-count=1)
-          echo "{ \"version\" : \"$(git describe --tags $sha)\" }" > server/app.properties
+          echo "{ \"version\" : \"$(git describe --tags $sha)\" }" > server/app_engine/app.properties
 
       - name: Closure Build
         run: ./gradlew compileJavascript

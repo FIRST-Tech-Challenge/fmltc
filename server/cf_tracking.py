@@ -30,13 +30,14 @@ import cv2
 import numpy as np
 
 # My Modules
-import action
-import bbox_writer
-import blob_storage
-import exceptions
-import storage
+from app_engine import action
+from app_engine import bbox_writer
+from app_engine import blob_storage
+from app_engine import exceptions
+from app_engine import storage
 
 
+# These keys should match the values in tracker_fns in server/app_engine/tracking.py.
 tracker_fns = {
     'CSRT': cv2.legacy.TrackerCSRT_create,
     'MedianFlow': cv2.legacy.TrackerMedianFlow_create,
@@ -47,25 +48,6 @@ tracker_fns = {
     'Boosting': cv2.legacy.TrackerBoosting_create,
 }
 
-
-def validate_tracker_name(s):
-    if s not in tracker_fns:
-        message = "Error: '%s' is not a valid argument." % s
-        logging.critical(message)
-        raise exceptions.HttpErrorBadRequest(message)
-    return s
-
-
-def prepare_to_start_tracking(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text):
-    # storage.tracker_starting will raise HttpErrorConflict if tracking is already in progress on
-    # this video.
-    tracker_uuid = storage.tracker_starting(team_uuid, video_uuid, tracker_name, scale, init_frame_number, init_bboxes_text)
-    action_parameters = action.create_action_parameters(
-        team_uuid, action.ACTION_NAME_TRACKING)
-    action_parameters['video_uuid'] = video_uuid
-    action_parameters['tracker_uuid'] = tracker_uuid
-    action.trigger_action_via_blob(action_parameters)
-    return tracker_uuid
 
 def start_tracking(action_parameters):
     video_uuid = action_parameters['video_uuid']

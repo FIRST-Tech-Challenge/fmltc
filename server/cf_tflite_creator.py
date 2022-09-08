@@ -29,18 +29,11 @@ from tflite_support.metadata_writers import object_detector
 from tflite_support.metadata_writers import writer_utils
 
 # My Modules
-import action
-import blob_storage
-import exceptions
-import storage
+from app_engine import action
+from app_engine import blob_storage
+from app_engine import exceptions
+from app_engine import storage
 
-
-def trigger_create_tflite(team_uuid, model_uuid):
-    action_parameters = action.create_action_parameters(
-        team_uuid, action.ACTION_NAME_CREATE_TFLITE)
-    action_parameters['team_uuid'] = team_uuid
-    action_parameters['model_uuid'] = model_uuid
-    action.trigger_action_via_blob(action_parameters)
 
 def create_tflite(action_parameters):
     team_uuid = action_parameters['team_uuid']

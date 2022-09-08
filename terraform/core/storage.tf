@@ -41,6 +41,14 @@ resource "google_storage_bucket" "fmltc-gae-source" {
   depends_on = [google_project_service.gcp_services]
 }
 
+resource "google_storage_bucket_object" "with_support_from_google_cloud" {
+  name         = "static/WithSupportFromGoogleCloud.png"
+  source       = "${path.root}/../../server/static/WithSupportFromGoogleCloud.png"
+  content_type = "image/png"
+  bucket       = google_storage_bucket.fmltc.name
+  depends_on   = [google_storage_default_object_access_control.public_rule]
+}
+
 resource "google_storage_bucket_object" "styles" {
   name         = "static/css/styles.css"
   source       = "${path.root}/../../server/static/css/styles.css"
@@ -52,7 +60,7 @@ resource "google_storage_bucket_object" "styles" {
 resource "google_storage_bucket_object" "closure_js" {
   name         = "compiled/js/fmltc.js"
   source       = "${path.root}/../../compiled/js/fmltc.js"
-  content_type = "application/css"
+  content_type = "text/javascript"
   bucket       = google_storage_bucket.fmltc.name
   depends_on   = [google_storage_default_object_access_control.public_rule]
 }

@@ -29,9 +29,9 @@ from google.cloud import datastore
 import action
 import bbox_writer
 import blob_storage
+import constants
 import exceptions
 import util
-import team_info
 
 DS_KIND_TEAM = 'Team'
 DS_KIND_VIDEO = 'Video'
@@ -90,7 +90,7 @@ def retrieve_team_uuid(program, team_number):
                 'team_uuid': team_uuid,
                 'program': program,
                 'team_number': team_number,
-                'remaining_training_minutes': team_info.TOTAL_TRAINING_MINUTES_PER_TEAM,
+                'remaining_training_minutes': constants.TOTAL_TRAINING_MINUTES_PER_TEAM,
                 'create_time': datetime.now(timezone.utc),
                 'last_time': datetime.now(timezone.utc),
                 'preferences': {},

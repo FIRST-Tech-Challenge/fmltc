@@ -14,10 +14,11 @@
 
 from enum import Enum
 
+from werkzeug.exceptions import Forbidden
+
 import constants
 import util
 from exceptions import NoRoles
-from werkzeug.exceptions import Forbidden
 import config
 from config import KEY_RESTRICT_BETA
 
