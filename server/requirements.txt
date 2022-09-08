@@ -13,6 +13,6 @@ psutil==5.8.0
 python-dateutil==2.8.1
 slim-0.1.tar.gz
 sqlitedict==1.7.0
-tensorflow==2.5.3
+tensorflow==2.7.2
 tflite-support==0.2.0
 Werkzeug==2.0.1
