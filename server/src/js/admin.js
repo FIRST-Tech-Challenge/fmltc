@@ -44,6 +44,33 @@ fmltc.Admin = function() {
   this.incrementInput.onchange = this.incrementInput_onchange.bind(this);
   this.incrementButton.onclick = this.incrementButton_onclick.bind(this);
 
+  this.saveEndOfSeasonEntitiesButton = document.getElementById('saveEndOfSeasonEntitiesButton');
+  this.seasonInput = document.getElementById('seasonInput');
+  this.saveEndOfSeasonEntitiesResponse = document.getElementById('saveEndOfSeasonEntitiesResponse');
+  this.saveEndOfSeasonEntitiesMonitorInfo = document.getElementById('saveEndOfSeasonEntitiesMonitorInfo');
+  this.saveEndOfSeasonEntitiesActionUuid = document.getElementById('saveEndOfSeasonEntitiesActionUuid');
+  this.saveEndOfSeasonEntitiesButton.onclick = this.saveEndOfSeasonEntitiesButton_onclick.bind(this);
+
+  this.expungeDataButton = document.getElementById('expungeDataButton');
+  this.keepTeamEntitiesCheckbox = document.getElementById('keepTeamEntitiesCheckbox');
+  this.keepTfLiteFilesCheckbox = document.getElementById('keepTfLiteFilesCheckbox');
+  this.expungeDataResponse = document.getElementById('expungeDataResponse');
+  this.expungeDataMonitorInfo = document.getElementById('expungeDataMonitorInfo');
+  this.expungeStorageActionUuid = document.getElementById('expungeStorageActionUuid');
+  this.expungeBlobStorageActionUuid = document.getElementById('expungeBlobStorageActionUuid');
+  this.expungeDataButton.onclick = this.expungeDataButton_onclick.bind(this);
+  this.expungeConfirmationDialog = document.getElementById('expungeConfirmationDialog');
+  this.expungeConfirmationXButton = document.getElementById('expungeConfirmationXButton');
+  this.expungeConfirmationAreYouSure = document.getElementById('expungeConfirmationAreYouSure');
+  this.expungeConfirmationInput = document.getElementById('expungeConfirmationInput');
+  this.expungeConfirmationNoButton = document.getElementById('expungeConfirmationNoButton');
+  this.expungeConfirmationYesButton = document.getElementById('expungeConfirmationYesButton');
+  this.backdrop = document.getElementsByClassName('modal-backdrop')[0];
+  this.expungeConfirmationInput.oninput = this.expungeConfirmationInput_oninput.bind(this);
+  this.expungeConfirmationYesButton.onclick = this.expungeConfirmationYesButton_onclick.bind(this);
+  this.expungeConfirmationNoButton.onclick = this.expungeConfirmationNoButton_onclick.bind(this);
+  this.expungeConfirmationXButton.onclick = this.expungeConfirmationNoButton_onclick.bind(this);
+
   this.trainingEnabled = document.getElementById('trainingEnabled');
   this.useTpu = document.getElementById('useTpu');
   this.secureSessionCookies = document.getElementById('secureSessionCookies');
@@ -57,8 +84,17 @@ fmltc.Admin = function() {
 fmltc.Admin.prototype.enableInputsAndButtons = function(enable) {
   this.resetInput.disabled = !enable;
   this.resetButton.disabled = !enable;
+
   this.incrementInput.disabled = !enable;
   this.incrementButton.disabled = !enable;
+
+  this.seasonInput.disabled = !enable;
+  this.saveEndOfSeasonEntitiesButton.disabled = !enable;
+
+  this.keepTeamEntitiesCheckbox.disabled = !enable;
+  this.keepTfLiteFilesCheckbox.disabled = !enable;
+  this.expungeDataButton.disabled = !enable;
+
   this.refreshConfigButton.disables = !enable;
 };
 
@@ -124,6 +160,101 @@ fmltc.Admin.prototype.xhr_incrementRemainingTrainingMinutes_onreadystatechange =
   }
 };
 
+fmltc.Admin.prototype.saveEndOfSeasonEntitiesButton_onclick = function() {
+  this.enableInputsAndButtons(false);
+
+  const xhr = new XMLHttpRequest();
+  const params = 'season=' + this.seasonInput.value +
+      '&date_time_string=' + encodeURIComponent(new Date().toLocaleString());
+  xhr.open('POST', '/saveEndOfSeasonEntities', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_saveEndOfSeasonEntities_onreadystatechange.bind(this, xhr, params);
+  xhr.send(params);
+};
+
+fmltc.Admin.prototype.xhr_saveEndOfSeasonEntities_onreadystatechange = function(xhr, params) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+      this.saveEndOfSeasonEntitiesActionUuid.textContent = response.action_uuid;
+      this.saveEndOfSeasonEntitiesMonitorInfo.style.display = 'block';
+
+    } else {
+      this.saveEndOfSeasonEntitiesResponse.textContent = 'Failure - status: ' + xhr.status + ', statusText: ' + xhr.status;
+    }
+  }
+};
+
+fmltc.Admin.prototype.expungeDataButton_onclick = function() {
+  let message = 'Are you sure you want to delete all entities';
+  if (this.keepTeamEntitiesCheckbox.checked) {
+    message += ', except Team entities,';
+  }
+  message += ' and all blobs';
+  if (this.keepTfLiteFilesCheckbox.checked) {
+    message += ', except TFLite files';
+  }
+  message += '?';
+  this.expungeConfirmationAreYouSure.textContent = message;
+  this.expungeConfirmationInput.value = '';
+  this.expungeConfirmationYesButton.disabled = true;
+  this.expungeConfirmationDialog.style.display = 'block';
+};
+
+fmltc.Admin.prototype.expungeConfirmationInput_oninput = function() {
+  this.expungeConfirmationYesButton.disabled = (this.expungeConfirmationInput.value != 'Expunge');
+};
+
+fmltc.Admin.prototype.expungeConfirmationNoButton_onclick = function() {
+  this.dismissExpungeConfirmationDialog();
+};
+
+fmltc.Admin.prototype.dismissExpungeConfirmationDialog = function() {
+  // Hide the dialog.
+  this.expungeConfirmationDialog.style.display = 'none';
+  if (this.backdrop) {
+    this.backdrop.style.display = 'none';
+  }
+};
+
+fmltc.Admin.prototype.expungeConfirmationYesButton_onclick = function() {
+  if (this.expungeConfirmationInput.value != 'Expunge') {
+    alert('The text you entered does not match "Expunge"');
+    return;
+  }
+
+  this.dismissExpungeConfirmationDialog();
+
+  this.enableInputsAndButtons(false);
+
+  const xhr = new XMLHttpRequest();
+  const params = 'keep_team_entities=' + this.keepTeamEntitiesCheckbox.checked +
+      '&keep_tflite_and_labels=' + this.keepTfLiteFilesCheckbox.checked +
+      '&date_time_string=' + encodeURIComponent(new Date().toLocaleString());
+  xhr.open('POST', '/expungeData', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = this.xhr_expungeData_onreadystatechange.bind(this, xhr, params);
+  xhr.send(params);
+};
+
+fmltc.Admin.prototype.xhr_expungeData_onreadystatechange = function(xhr, params) {
+  if (xhr.readyState === 4) {
+    xhr.onreadystatechange = null;
+
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+      this.expungeStorageActionUuid.textContent = response.storage_action_uuid;
+      this.expungeBlobStorageActionUuid.textContent = response.blob_storage_action_uuid;
+      this.expungeDataMonitorInfo.style.display = 'block';
+
+    } else {
+      this.expungeDataResponse.textContent = 'Failure - status: ' + xhr.status + ', statusText: ' + xhr.status;
+    }
+  }
+};
+
 fmltc.Admin.prototype.refreshConfigButton_onclick = function() {
   const xhr = new XMLHttpRequest();
   xhr.open('POST', '/refreshConfig', true);
@@ -133,7 +264,7 @@ fmltc.Admin.prototype.refreshConfigButton_onclick = function() {
 
 fmltc.Admin.prototype.capitalize = function(str) {
   return str.charAt(0).toUpperCase() + str.slice(1)
-}
+};
 
 fmltc.Admin.prototype.xhr_refreshConfig_onreadystatechange = function(xhr, params) {
   if (xhr.readyState === 4) {

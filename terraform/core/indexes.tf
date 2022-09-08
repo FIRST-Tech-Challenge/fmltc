@@ -400,3 +400,20 @@ resource "google_datastore_index" "adminAction1" {
   }
   depends_on = [google_app_engine_application.fmltc-app]
 }
+
+resource "google_datastore_index" "endOfSeason1" {
+  kind = "EndOfSeason"
+  properties {
+    name = "season"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "program"
+    direction = "ASCENDING"
+  }
+  properties {
+    name = "team_number"
+    direction = "ASCENDING"
+  }
+  depends_on = [google_app_engine_application.fmltc-app]
+}

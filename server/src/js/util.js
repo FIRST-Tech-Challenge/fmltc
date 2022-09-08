@@ -137,13 +137,13 @@ fmltc.Util.prototype.addClass = function(element, classname) {
   if (element.classList) {
     element.classList.add(classname);
   }
-}
+};
 
 fmltc.Util.prototype.removeClass = function(element, classname) {
   if (element.classList) {
     element.classList.remove(classname);
   }
-}
+};
 
 fmltc.Util.prototype.getDateTimeString = function(millis) {
   const d = new Date(millis);
@@ -171,7 +171,7 @@ fmltc.Util.prototype.getDateTimeString = function(millis) {
   return year + month + day +
       '_' +
       hours + minutes + seconds;
-}
+};
 
 fmltc.Util.prototype.initializeTabs = function() {
   const tabButtons = document.getElementsByClassName('tabButton');
