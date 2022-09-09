@@ -40,6 +40,7 @@ from config import KEY_TRAINING_ENABLED
 from config import KEY_USE_TPU
 from config import KEY_SECURE_SESSION_COOKIES
 from config import KEY_SAMESITE_SESSION_COOKIES
+from config import KEY_SITE_DOWN_FOR_MAINTENANCE
 import constants
 import dataset_producer
 import dataset_zipper
@@ -531,6 +532,8 @@ def login():
 @handle_exceptions
 @redirect_to_login_if_needed
 def index():
+    if config.config[KEY_SITE_DOWN_FOR_MAINTENANCE]:
+        return 'This site is temporarily down for maintenance.'
     roles.can_login(flask.session['user_roles'], flask.session['team_number'])
 
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -546,6 +549,8 @@ def index():
 @handle_exceptions
 @redirect_to_login_if_needed
 def label_video():
+    if config.config[KEY_SITE_DOWN_FOR_MAINTENANCE]:
+        return 'This site is temporarily down for maintenance.'
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.args.to_dict(flat=True),
         ['video_uuid'])
@@ -571,6 +576,8 @@ def label_video():
 @handle_exceptions
 @redirect_to_login_if_needed
 def monitor_training():
+    if config.config[KEY_SITE_DOWN_FOR_MAINTENANCE]:
+        return 'This site is temporarily down for maintenance.'
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.args.to_dict(flat=True),
         ['model_uuid'])
@@ -1602,6 +1609,9 @@ def expunge_data():
         '', action.ACTION_NAME_EXPUNGE_STORAGE)
     action_parameters['date_time_string'] = data.get('date_time_string')
     action_parameters['keep_team_entities'] = keep_team_entities
+    action_parameters['num_teams_updated'] = 0
+    action_parameters['teams_updated'] = []
+    action_parameters['failure_counts'] = {}
     action_parameters['num_entities_deleted'] = 0
     storage_action_uuid = action.trigger_action_via_blob(action_parameters)
 

@@ -2051,7 +2051,9 @@ def __save_end_of_season_entity(season, team_entity):
 
 def expunge_storage(action_parameters):
     keep_team_entities = action_parameters['keep_team_entities']
-    if not keep_team_entities:
+    if keep_team_entities:
+        __reset_team_entities(action_parameters)
+    else:
         __expunge_entities(DS_KIND_TEAM, action_parameters)
     __expunge_entities(DS_KIND_VIDEO, action_parameters)
     __expunge_entities(DS_KIND_VIDEO_FRAME, action_parameters)
@@ -2060,6 +2062,48 @@ def expunge_storage(action_parameters):
     __expunge_entities(DS_KIND_MODEL, action_parameters)
     __expunge_entities(DS_KIND_MODEL_SUMMARY_ITEMS, action_parameters)
     logging.info('expunge_storage - all done!')
+
+
+def __reset_team_entities(action_parameters):
+    datastore_client = datastore.Client()
+    loop = True
+    while loop:
+        loop = False
+        action.retrigger_if_necessary(action_parameters)
+        query = datastore_client.query(kind=DS_KIND_TEAM)
+        query.order = ['program', 'team_number']
+        for team_entity in query.fetch():
+            action.retrigger_if_necessary(action_parameters)
+            team_key = '%s %s' % (team_entity['program'], str(team_entity['team_number']))
+            if team_key not in action_parameters['teams_updated']:
+                team_entity.update({
+                    'remaining_training_minutes': constants.TOTAL_TRAINING_MINUTES_PER_TEAM,
+                    'preferences': {},
+                    'last_video_uuid': '',
+                    'videos_uploaded_today': 0,
+                    'datasets_created_today': 0,
+                    'datasets_downloaded_today': 0,
+                    'video_uuids_tracking_now': [],
+                    'video_uuids_deleted': [],
+                    'dataset_uuids_deleted': [],
+                    'model_uuids_deleted': [],
+                })
+                try:
+                    datastore_client.put(team_entity)
+                except:
+                    logging.critical('__reset_team_entities - exception!!! team_key: %s traceback: %s' %
+                        (team_key, traceback.format_exc().replace('\n', ' ... ')))
+                    if team_key not in action_parameters['failure_counts']:
+                        action_parameters['failure_counts'][team_key] = 1
+                        loop = True # repeat the outer while loop
+                    else:
+                        action_parameters['failure_counts'][team_key] += 1
+                        # We've failed to update this team twice, don't repeat the outer while loop
+                        # just for this team.
+                    continue
+                action_parameters['teams_updated'].append(team_key)
+                action_parameters['num_teams_updated'] += 1
+                action_parameters['failure_counts'].pop(team_key, None)
 
 
 def __expunge_entities(kind, action_parameters):
