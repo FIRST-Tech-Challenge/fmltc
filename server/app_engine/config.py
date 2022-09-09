@@ -29,6 +29,7 @@ KEY_USE_TPU = 'use_tpu'
 KEY_SECURE_SESSION_COOKIES = 'secure_session_cookies'
 KEY_SAMESITE_SESSION_COOKIES = 'samesite_session_cookies'
 KEY_RESTRICT_BETA = 'restrict_beta'
+KEY_SITE_DOWN_FOR_MAINTENANCE = 'site_down_for_maintenance'
 
 from distutils.util import strtobool
 
@@ -73,6 +74,7 @@ class Config(dict):
         self[KEY_SECURE_SESSION_COOKIES] = True
         self[KEY_SAMESITE_SESSION_COOKIES] = True
         self[KEY_RESTRICT_BETA] = False
+        self[KEY_SITE_DOWN_FOR_MAINTENANCE] = False
 
     def refresh(self):
         client = datastore.Client()
@@ -91,6 +93,7 @@ class Config(dict):
         self.__setvalue(entity, KEY_SECURE_SESSION_COOKIES, True)
         self.__setvalue(entity, KEY_SAMESITE_SESSION_COOKIES, True)
         self.__setvalue(entity, KEY_RESTRICT_BETA, False)
+        self.__setvalue(entity, KEY_SITE_DOWN_FOR_MAINTENANCE, False)
 
     def __setvalue(self, entity, key, default):
         self[key] = entity[key] if key in entity else default

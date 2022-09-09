@@ -75,6 +75,7 @@ fmltc.Admin = function() {
   this.useTpu = document.getElementById('useTpu');
   this.secureSessionCookies = document.getElementById('secureSessionCookies');
   this.samesiteSessionCookies = document.getElementById('samesiteSessionCookies');
+  this.siteDownForMaintenance = document.getElementById('siteDownForMaintenance');
   this.refreshConfigButton = document.getElementById('refreshConfigButton');
   this.refreshConfigButton.onclick = this.refreshConfigButton_onclick.bind(this);
 
@@ -276,7 +277,7 @@ fmltc.Admin.prototype.xhr_refreshConfig_onreadystatechange = function(xhr, param
       this.useTpu.textContent = this.capitalize(response.use_tpu.toString());
       this.secureSessionCookies.textContent = this.capitalize(response.secure_session_cookies.toString());
       this.samesiteSessionCookies.textContent = this.capitalize(response.samesite_session_cookies.toString());
-
+      this.siteDownForMaintenance.textContent = this.capitalize(response.site_down_for_maintenance.toString());
     }
   }
 };
