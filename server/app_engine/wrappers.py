@@ -14,6 +14,8 @@
 
 # Python Standard Library
 from functools import wraps
+import logging
+import traceback
 
 # Other Modules
 import flask
@@ -82,6 +84,10 @@ def handle_exceptions(func):
         try:
             return func(*args, **kwargs)
         except exceptions.HttpError as e:
+            logging.critical('handle_exceptions message: %s' % e.message)
+            logging.critical('handle_exceptions status_code: %s' % e.status_code)
+            logging.critical('handle_exceptions status_description: %s' % e.status_description)
+            logging.critical('handle_exceptions traceback: %s' % traceback.format_exc().replace('\n', ' ... '))
             return e.status_description, e.status_code
     return wrapper
 

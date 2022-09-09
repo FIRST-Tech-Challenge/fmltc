@@ -1602,6 +1602,9 @@ def expunge_data():
         '', action.ACTION_NAME_EXPUNGE_STORAGE)
     action_parameters['date_time_string'] = data.get('date_time_string')
     action_parameters['keep_team_entities'] = keep_team_entities
+    action_parameters['num_teams_updated'] = 0
+    action_parameters['teams_updated'] = []
+    action_parameters['failure_counts'] = {}
     action_parameters['num_entities_deleted'] = 0
     storage_action_uuid = action.trigger_action_via_blob(action_parameters)
 
