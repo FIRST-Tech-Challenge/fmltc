@@ -87,24 +87,69 @@ limitations under the License.
 
     <br><hr><br>
 
-    <h2>Expunge storage and blob storage</h2>
-    <div><input type="checkbox" id="keepTeamEntitiesCheckbox" checked="true" />
-      <label for="keepTeamEntitiesCheckbox" class="text-22">Keep Team entities (reset them, but do not delete them)</label>
+    <h2>Expunge storage (Firestore)</h2>
+    <div>Please use the Cloud Console to delete the following Firestore collections:<ul>
+        <li>Action</li>
+        <li>Dataset</li>
+        <li>DatasetRecord</li>
+        <li>DatasetRecordWriter</li>
+        <li>DatasetZipper</li>
+        <li>Model</li>
+        <li>ModelSummaryItems</li>
+        <li>Tracker</li>
+        <li>TrackerClient</li>
+        <li>Video</li>
+        <li>VideoFrame</li>
+      </ul></div>
+    <br>
+    <button id="resetTeamEntitiesButton" class="btn btn-secondary">Reset Team Entities</button>
+    <div id="resetTeamEntitiesResponse"></div>
+    <div id="resetTeamEntitiesMonitorInfo" style="display: none">
+        The action to reset team entities has been triggered.<br><br>
+        You should monitor the AdminAction entity (in the datastore) with the <i>action_uuid</i>
+        value<ul>
+          <li>&quot;<span id="resetTeamEntitiesActionUuid" class="fw-bold"></span>&quot;</li>
+        </ul>
+        When the <i>state</i> field becomes &quot;finished&quot;, the action is either
+        finished, or it encountered an error. Check the Cloud Console for logs.
+    </div>
+
+    <br><hr><br>
+
+    <h2>Expunge blob storage</h2>
+    <h4>Team UUID Prefixes</h4>
+    <div>
+      <input type="checkbox" id="team_uuid_0" checked="true" />&nbsp;<label for="team_uuid_0" class="text-22">0</label><br>
+      <input type="checkbox" id="team_uuid_1" checked="true" />&nbsp;<label for="team_uuid_1" class="text-22">1</label><br>
+      <input type="checkbox" id="team_uuid_2" checked="true" />&nbsp;<label for="team_uuid_2" class="text-22">2</label><br>
+      <input type="checkbox" id="team_uuid_3" checked="true" />&nbsp;<label for="team_uuid_3" class="text-22">3</label><br>
+      <input type="checkbox" id="team_uuid_4" checked="true" />&nbsp;<label for="team_uuid_4" class="text-22">4</label><br>
+      <input type="checkbox" id="team_uuid_5" checked="true" />&nbsp;<label for="team_uuid_5" class="text-22">5</label><br>
+      <input type="checkbox" id="team_uuid_6" checked="true" />&nbsp;<label for="team_uuid_6" class="text-22">6</label><br>
+      <input type="checkbox" id="team_uuid_7" checked="true" />&nbsp;<label for="team_uuid_7" class="text-22">7</label><br>
+      <input type="checkbox" id="team_uuid_8" checked="true" />&nbsp;<label for="team_uuid_8" class="text-22">8</label><br>
+      <input type="checkbox" id="team_uuid_9" checked="true" />&nbsp;<label for="team_uuid_9" class="text-22">9</label><br>
+      <input type="checkbox" id="team_uuid_a" checked="true" />&nbsp;<label for="team_uuid_a" class="text-22">a</label><br>
+      <input type="checkbox" id="team_uuid_b" checked="true" />&nbsp;<label for="team_uuid_b" class="text-22">b</label><br>
+      <input type="checkbox" id="team_uuid_c" checked="true" />&nbsp;<label for="team_uuid_c" class="text-22">c</label><br>
+      <input type="checkbox" id="team_uuid_d" checked="true" />&nbsp;<label for="team_uuid_d" class="text-22">d</label><br>
+      <input type="checkbox" id="team_uuid_e" checked="true" />&nbsp;<label for="team_uuid_e" class="text-22">e</label><br>
+      <input type="checkbox" id="team_uuid_f" checked="true" />&nbsp;<label for="team_uuid_f" class="text-22">f</label><br>
     </div>
     <div><input type="checkbox" id="keepTfLiteFilesCheckbox" checked="true" />
       <label for="keepTfLiteFilesCheckbox" class="text-22">Keep TFLite files (do not delete them)</label>
     </div>
     <br>
-    <button id="expungeDataButton" class="btn btn-secondary">Expunge</button>
-    <div id="expungeDataResponse"></div>
-    <div id="expungeDataMonitorInfo" style="display: none">
-        The actions to expunge storage and blob storage have been triggered.<br><br>
+    <button id="expungeBlobStorageButton" class="btn btn-secondary">Expunge Blob Storage</button>
+    <div id="expungeBlobStorageResponse"></div>
+    <div id="expungeBlobStorageMonitorInfo" style="display: none">
+        The action to expunge blob storage has been triggered.<br><br>
         You should monitor the AdminAction entities (in the datastore) with the <i>action_uuid</i>
         values<ul>
-          <li>&quot;<span id="expungeStorageActionUuid" class="fw-bold"></span>&quot;</li>
-          <li>&quot;<span id="expungeBlobStorageActionUuid" class="fw-bold"></span>&quot;</li>
+          <li><span id="expungeBlobStorageActionUuids" class="fw-bold"></span></li>
         </ul>
-        When the <i>state</i> field becomes &quot;finished&quot;, the expunging is finished.
+        When the <i>state</i> fields become &quot;finished&quot;, the expunging is either
+        finished, or it encountered an error. Check the Cloud Console for logs.
     </div>
 
     <br><hr><br>
@@ -120,25 +165,25 @@ limitations under the License.
       <br><hr><br>
   </div>
 
-  <div class="modal" id="expungeConfirmationDialog" tabindex="-1" aria-labelledby="expungeConfirmationLabel" aria-hidden="true">
+  <div class="modal" id="confirmationDialog" tabindex="-1" aria-labelledby="confirmationLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content"><div class="orange-border">
         <div class="modal-header">
-          <h5 class="modal-title">Expunge Storage and Blob Storage?<h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="expungeConfirmationXButton"></button>
+          <h5 class="modal-title" id="confirmationTitle"><h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="confirmationXButton"></button>
         </div>
         <div class="modal-body">
           <center>
-            <div id="expungeConfirmationAreYouSure"></div>
+            <div id="confirmationAreYouSure"></div>
             <div class="fw-bold">This is permanent and cannot be undone.</div>
             <br>
-            <div>To confirm, please type the following into the box below: <span class="fw-bold">Expunge</span></div>
-            <input type="text" maxlength="30" id="expungeConfirmationInput" class="form-control" style="width: 100%">
+            <div>To confirm, please type the following into the box below: <span class="fw-bold">Confirm</span></div>
+            <input type="text" maxlength="30" id="confirmationInput" class="form-control" style="width: 100%">
           </center>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="expungeConfirmationNoButton">Cancel</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="expungeConfirmationYesButton">Expunge</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="confirmationNoButton">Cancel</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="confirmationYesButton">Confirm</button>
         </div>
       </div></div>
     </div>

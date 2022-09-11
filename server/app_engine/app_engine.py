@@ -173,11 +173,34 @@ def validate_string_not_empty(s):
     raise exceptions.HttpErrorBadRequest(message)
 
 
+def validate_team_uuid_prefixes(s):
+    team_uuid_prefixes = []
+    tokens = s.split(',')
+    valid = True
+    allowed = '0123456789abcdef'
+    for token in tokens:
+      if len(token) > 32:
+          valid = False
+          break
+      for c in token:
+          if c not in allowed:
+              valid = False
+              break
+      if not valid:
+          break
+      team_uuid_prefixes.append(token)
+    if valid:
+        return team_uuid_prefixes
+    message = "Error: '%s' is not a valid argument." % s
+    logging.critical(message)
+    raise exceptions.HttpErrorBadRequest(message)
+
+
 def validate_boolean(s):
     if s == 'false':
-        return False;
+        return False
     if s == 'true':
-        return True;
+        return True
     message = "Error: '%s' is not a valid boolean argument." % s
     logging.critical(message)
     raise exceptions.HttpErrorBadRequest(message)
@@ -1595,36 +1618,52 @@ def save_end_of_season_entities():
     return flask.jsonify(__sanitize(response))
 
 
-@app.route('/expungeData', methods=['POST'])
+@app.route('/resetTeamEntities', methods=['POST'])
 @handle_exceptions
 @login_required
 @roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
-def expunge_data():
+def resetTeamEntities():
     data = validate_keys(flask.request.form.to_dict(flat=True),
-        ['keep_team_entities', 'keep_tflite_and_labels', 'date_time_string'])
-    keep_team_entities = validate_boolean(data.get('keep_team_entities'))
-    keep_tflite_and_labels = validate_boolean(data.get('keep_tflite_and_labels'))
-
+        ['date_time_string'])
+    # Deleting Video, VideoFrame, Tracker, TrackerClient, Dataset, DatasetRecordWriter,
+    # DatasetRecord, DatasetZipper, Model, ModelSummaryItems, and Action collections should be done
+    # in the cloud console which is much faster and easier than doing it in python.
     action_parameters = action.create_action_parameters(
-        '', action.ACTION_NAME_EXPUNGE_STORAGE)
+        '', action.ACTION_NAME_RESET_TEAM_ENTITIES)
     action_parameters['date_time_string'] = data.get('date_time_string')
-    action_parameters['keep_team_entities'] = keep_team_entities
     action_parameters['num_teams_updated'] = 0
     action_parameters['teams_updated'] = []
     action_parameters['failure_counts'] = {}
-    action_parameters['num_entities_deleted'] = 0
-    storage_action_uuid = action.trigger_action_via_blob(action_parameters)
-
-    action_parameters = action.create_action_parameters(
-        '', action.ACTION_NAME_EXPUNGE_BLOB_STORAGE)
-    action_parameters['date_time_string'] = data.get('date_time_string')
-    action_parameters['keep_tflite_and_labels'] = keep_tflite_and_labels
-    action_parameters['num_blobs_deleted'] = 0
-    action_parameters['num_blobs_not_deleted'] = 0
-    blob_storage_action_uuid = action.trigger_action_via_blob(action_parameters)
+    action_uuid = action.trigger_action_via_blob(action_parameters)
     response = {
-        'storage_action_uuid': storage_action_uuid,
-        'blob_storage_action_uuid': blob_storage_action_uuid,
+        'action_uuid': action_uuid,
+    }
+    return flask.jsonify(__sanitize(response))
+
+@app.route('/expungeBlobStorage', methods=['POST'])
+@handle_exceptions
+@login_required
+@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
+def expunge_blob_storage():
+    data = validate_keys(flask.request.form.to_dict(flat=True),
+        ['date_time_string', 'keep_tflite_and_labels', 'team_uuid_prefixes'])
+    date_time_string = data.get('date_time_string')
+    keep_tflite_and_labels = validate_boolean(data.get('keep_tflite_and_labels'))
+    team_uuid_prefixes = validate_team_uuid_prefixes(data.get('team_uuid_prefixes'))
+    action_uuids = []
+    for team_uuid_prefix in team_uuid_prefixes:
+        action_parameters = action.create_action_parameters(
+            '', action.ACTION_NAME_EXPUNGE_BLOB_STORAGE)
+        action_parameters['date_time_string'] = date_time_string
+        action_parameters['keep_tflite_and_labels'] = keep_tflite_and_labels
+        action_parameters['team_uuid_prefix'] = team_uuid_prefix
+        action_parameters['num_blobs_deleted'] = 0
+        action_parameters['num_blobs_not_deleted'] = 0
+        action_uuid = action.trigger_action_via_blob(action_parameters)
+        action_uuids.append(action_uuid)
+
+    response = {
+        'action_uuids': action_uuids,
     }
     return flask.jsonify(__sanitize(response))
 

@@ -2049,22 +2049,8 @@ def __save_end_of_season_entity(season, team_entity):
         return num_models
 
 
-def expunge_storage(action_parameters):
-    keep_team_entities = action_parameters['keep_team_entities']
-    if keep_team_entities:
-        __reset_team_entities(action_parameters)
-    else:
-        __expunge_entities(DS_KIND_TEAM, action_parameters)
-    __expunge_entities(DS_KIND_VIDEO, action_parameters)
-    __expunge_entities(DS_KIND_VIDEO_FRAME, action_parameters)
-    __expunge_entities(DS_KIND_DATASET, action_parameters)
-    __expunge_entities(DS_KIND_DATASET_RECORD, action_parameters)
-    __expunge_entities(DS_KIND_MODEL, action_parameters)
-    __expunge_entities(DS_KIND_MODEL_SUMMARY_ITEMS, action_parameters)
-    logging.info('expunge_storage - all done!')
-
-
-def __reset_team_entities(action_parameters):
+def reset_team_entities(action_parameters):
+    logging.info('reset_team_entities')
     datastore_client = datastore.Client()
     loop = True
     while loop:
@@ -2091,7 +2077,7 @@ def __reset_team_entities(action_parameters):
                 try:
                     datastore_client.put(team_entity)
                 except:
-                    logging.critical('__reset_team_entities - exception!!! team_key: %s traceback: %s' %
+                    logging.critical('reset_team_entities - exception!!! team_key: %s traceback: %s' %
                         (team_key, traceback.format_exc().replace('\n', ' ... ')))
                     if team_key not in action_parameters['failure_counts']:
                         action_parameters['failure_counts'][team_key] = 1
@@ -2104,24 +2090,4 @@ def __reset_team_entities(action_parameters):
                 action_parameters['teams_updated'].append(team_key)
                 action_parameters['num_teams_updated'] += 1
                 action_parameters['failure_counts'].pop(team_key, None)
-
-
-def __expunge_entities(kind, action_parameters):
-    logging.info('expunge_storage - %s' % kind)
-    datastore_client = datastore.Client()
-    # Delete the entities, 500 at a time.
-    while True:
-        action.retrigger_if_necessary(action_parameters)
-        query = datastore_client.query(kind=kind)
-        entities = list(query.fetch(500))
-        if len(entities) == 0:
-            break
-        action.retrigger_if_necessary(action_parameters)
-        keys = []
-        while len(entities) > 0:
-            entity = entities.pop()
-            keys.append(entity.key)
-        if len(keys) > 0:
-            logging.info('expunge_storage - deleting %d %s entities' % (len(keys), kind))
-            datastore_client.delete_multi(keys)
-            action_parameters['num_entities_deleted'] += len(keys)
+    logging.info('reset_team_entities - all done!')
