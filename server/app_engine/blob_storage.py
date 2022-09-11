@@ -375,50 +375,50 @@ def delete_model_blobs(model_folder, action_parameters=None):
 
 def expunge_blob_storage(action_parameters):
     keep_tflite_and_labels = action_parameters['keep_tflite_and_labels']
+    blob_name_prefix = action_parameters['team_uuid_prefix']
     client = util.storage_client()
     if 'max_results' not in action_parameters:
         action_parameters['max_results'] = 500
     max_results = action_parameters['max_results']
     while True:
         action.retrigger_if_necessary(action_parameters)
-        logging.info('expunge_blob_storage - max_results is %d' % max_results)
+        logging.info('expunge_blob_storage for %s - max_results is %d' % (blob_name_prefix, max_results))
         action.retrigger_if_necessary(action_parameters)
         count_blobs = 0
         count_blobs_to_ignore = 0
         blob_names_to_delete = []
-        for blob in client.list_blobs(BUCKET_BLOBS, max_results=max_results):
+        for blob in client.list_blobs(BUCKET_BLOBS, prefix=blob_name_prefix, max_results=max_results):
             action.retrigger_if_necessary(action_parameters)
             count_blobs += 1
             # Don't delete blobs whose names begin with team_info/
             if blob.name.startswith("team_info/"):
                 count_blobs_to_ignore += 1
-                continue;
+                continue
             if keep_tflite_and_labels:
                 # Don't delete blobs whose names end in /tflite/model_with_metadata.tflite
                 if blob.name.endswith('/tflite/model_with_metadata.tflite'):
                     count_blobs_to_ignore += 1
-                    continue;
+                    continue
                 # Don't delete blobs whose names end in /tflite/label_map.txt
                 if blob.name.endswith('/tflite/label_map.txt'):
                     count_blobs_to_ignore += 1
-                    continue;
+                    continue
             blob_names_to_delete.append(blob.name)
         action.retrigger_if_necessary(action_parameters)
-        logging.info('expunge_blob_storage - found %d blobs' % count_blobs)
-        logging.info('expunge_blob_storage - ignoring %d blobs' % count_blobs_to_ignore)
+        logging.info('expunge_blob_storage for %s - found %d blobs' % (blob_name_prefix, count_blobs))
+        logging.info('expunge_blob_storage for %s - ignoring %d blobs' % (blob_name_prefix, count_blobs_to_ignore))
         if len(blob_names_to_delete) > 0:
             # We found some blobs to delete.
-            logging.info('expunge_blob_storage - deleting %d blobs' % len(blob_names_to_delete))
+            logging.info('expunge_blob_storage for %s - deleting %d blobs' % (blob_name_prefix, len(blob_names_to_delete)))
             __delete_blobs(blob_names_to_delete)
             action_parameters['num_blobs_deleted'] += len(blob_names_to_delete)
         elif count_blobs < max_results:
             # We didn't find any blobs to delete and we looked at all the blobs.
             action_parameters['num_blobs_not_deleted'] = count_blobs_to_ignore
             break
-        else:
-            # We didn't look at all the blobs because of the max_results, increase it to make sure
-            # we look at all the blobs.
-            max_results += count_blobs_to_ignore + 500
+        if count_blobs_to_ignore > 0:
+            # Set max_results so we look at 500 more blobs than we ignore.
+            max_results = count_blobs_to_ignore + 500
             action_parameters['max_results'] = max_results
-            logging.info('expunge_blob_storage - incrementing max_results to %d' % max_results)
-    logging.info('expunge_blob_storage - all done!')
+            logging.info('expunge_blob_storage for %s - incrementing max_results to %d' % (blob_name_prefix, max_results))
+    logging.info('expunge_blob_storage for %s - all done!' % blob_name_prefix)

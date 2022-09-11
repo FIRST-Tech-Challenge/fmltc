@@ -64,7 +64,7 @@ def __perform_action(action_parameters, time_limit):
         action.ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES: storage.reset_remaining_training_minutes,
         action.ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES: storage.increment_remaining_training_minutes,
         action.ACTION_NAME_SAVE_END_OF_SEASON_ENTITIES: storage.save_end_of_season_entities,
-        action.ACTION_NAME_EXPUNGE_STORAGE: storage.expunge_storage,
+        action.ACTION_NAME_RESET_TEAM_ENTITIES: storage.reset_team_entities,
         action.ACTION_NAME_EXPUNGE_BLOB_STORAGE: blob_storage.expunge_blob_storage,
     }
     action_fn = action_fns.get(action_parameters[action.ACTION_NAME], None)
@@ -73,9 +73,10 @@ def __perform_action(action_parameters, time_limit):
             action_fn(action_parameters)
         except action.Stop as e:
             pass
-        except:
-            logging.critical('action.__perform_action - %s exception!!! action_parameters: %s traceback: %s' %
-                (action_parameters[action.ACTION_NAME], str(action_parameters), traceback.format_exc().replace('\n', ' ... ')))
+        except Exception as e:
+            if e.__class__.__name__ != 'Stop':
+                logging.critical('action.__perform_action - %s exception!!! action_parameters: %s traceback: %s' %
+                    (action_parameters[action.ACTION_NAME], str(action_parameters), traceback.format_exc().replace('\n', ' ... ')))
     else:
         logging.warning('action.__perform_action - %s - action_fn is None' % action_parameters[action.ACTION_NAME])
 
