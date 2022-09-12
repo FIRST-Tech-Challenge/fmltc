@@ -1301,6 +1301,7 @@ def model_trainer_started(team_uuid, model_uuid, description, model_folder,
             'model_uuid': model_uuid,
             'description': description,
             'model_folder': model_folder,
+            'tflite_files_folder': blob_storage.get_tflite_files_folder(team_uuid, model_uuid),
             'tensorflow_version': tensorflow_version,
             'use_tpu': use_tpu,
             'dataset_uuids': dataset_uuids,
@@ -1385,10 +1386,17 @@ def __query_model_entity(team_uuid, model_uuid):
     query.add_filter('team_uuid', '=', team_uuid)
     query.add_filter('model_uuid', '=', model_uuid)
     model_entities = list(query.fetch(1))
+    __update_model_entities(model_entities)
+    return model_entities
+
+def __update_model_entities(model_entities):
+    # In previous versions, the model_folder and tflite_files_folder attributes did not exist in
+    # the model_entity. Add the here.
     for model_entity in model_entities:
         if 'model_folder' not in model_entity:
-            model_entity['model_folder'] = blob_storage.get_old_model_folder(team_uuid, model_uuid)
-    return model_entities
+            model_entity['model_folder'] = blob_storage.get_old_model_folder(team_uuid, model_entity['model_uuid'])
+        if 'tflite_files_folder' not in model_entity:
+            model_entity['tflite_files_folder'] = blob_storage.get_old_tflite_folder(model_entity['model_folder'])
 
 
 # Retrieves the model entity associated with the given team_uuid and model_uuid. If no such
@@ -1685,9 +1693,7 @@ def retrieve_model_list(team_uuid):
     query.add_filter('delete_in_progress', '=', False)
     query.order = ['create_time']
     model_entities = list(query.fetch())
-    for model_entity in model_entities:
-        if 'model_folder' not in model_entity:
-            model_entity['model_folder'] = blob_storage.get_old_model_folder(team_uuid, model_entity['model_uuid'])
+    __update_model_entities(model_entities)
     return model_entities
 
 def can_delete_datasets(team_uuid, dataset_uuid_requested_list):
@@ -1834,6 +1840,7 @@ def finish_delete_model(action_parameters):
         model_entity = model_entities[0]
         # Delete the blobs.
         blob_storage.delete_model_blobs(model_entity['model_folder'], action_parameters=action_parameters)
+        blob_storage.delete_model_blobs(model_entity['tflite_files_folder'], action_parameters=action_parameters)
         # Delete the model entity.
         datastore_client.delete(model_entity.key)
 
@@ -2042,7 +2049,7 @@ def __save_end_of_season_entity(season, team_entity):
         for model_entity in model_entities:
             num_models += 1
             model_names.append(model_entity['description'])
-            tflite_blob_names.append(blob_storage.get_tflite_model_with_metadata_blob_name(model_entity['model_folder']))
+            tflite_blob_names.append(blob_storage.get_tflite_model_with_metadata_blob_name(model_entity['tflite_files_folder']))
         end_of_season_entity['model_names'] = model_names
         end_of_season_entity['tflite_blob_names'] = tflite_blob_names
         transaction.put(end_of_season_entity)

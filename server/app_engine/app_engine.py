@@ -173,29 +173,6 @@ def validate_string_not_empty(s):
     raise exceptions.HttpErrorBadRequest(message)
 
 
-def validate_team_uuid_prefixes(s):
-    team_uuid_prefixes = []
-    tokens = s.split(',')
-    valid = True
-    allowed = '0123456789abcdef'
-    for token in tokens:
-      if len(token) > 32:
-          valid = False
-          break
-      for c in token:
-          if c not in allowed:
-              valid = False
-              break
-      if not valid:
-          break
-      team_uuid_prefixes.append(token)
-    if valid:
-        return team_uuid_prefixes
-    message = "Error: '%s' is not a valid argument." % s
-    logging.critical(message)
-    raise exceptions.HttpErrorBadRequest(message)
-
-
 def validate_boolean(s):
     if s == 'false':
         return False
@@ -1512,8 +1489,8 @@ def create_tflite():
     # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
-    model_folder = model_entity['model_folder']
-    exists, download_url = blob_storage.get_tflite_model_with_metadata_url(model_folder)
+    tflite_files_folder = model_entity['tflite_files_folder']
+    exists, download_url = blob_storage.get_tflite_model_with_metadata_url(tflite_files_folder)
     if exists:
         blob_storage.set_cors_policy_for_get()
     else:
@@ -1535,8 +1512,8 @@ def get_tflite_download_url():
     # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
-    model_folder = model_entity['model_folder']
-    exists, download_url = blob_storage.get_tflite_model_with_metadata_url(model_folder)
+    tflite_files_folder = model_entity['tflite_files_folder']
+    exists, download_url = blob_storage.get_tflite_model_with_metadata_url(tflite_files_folder)
     if exists:
         blob_storage.set_cors_policy_for_get()
     response = {
@@ -1637,33 +1614,6 @@ def resetTeamEntities():
     action_uuid = action.trigger_action_via_blob(action_parameters)
     response = {
         'action_uuid': action_uuid,
-    }
-    return flask.jsonify(__sanitize(response))
-
-@app.route('/expungeBlobStorage', methods=['POST'])
-@handle_exceptions
-@login_required
-@roles_accepted(roles.Role.GLOBAL_ADMIN, roles.Role.ML_DEVELOPER)
-def expunge_blob_storage():
-    data = validate_keys(flask.request.form.to_dict(flat=True),
-        ['date_time_string', 'keep_tflite_and_labels', 'team_uuid_prefixes'])
-    date_time_string = data.get('date_time_string')
-    keep_tflite_and_labels = validate_boolean(data.get('keep_tflite_and_labels'))
-    team_uuid_prefixes = validate_team_uuid_prefixes(data.get('team_uuid_prefixes'))
-    action_uuids = []
-    for team_uuid_prefix in team_uuid_prefixes:
-        action_parameters = action.create_action_parameters(
-            '', action.ACTION_NAME_EXPUNGE_BLOB_STORAGE)
-        action_parameters['date_time_string'] = date_time_string
-        action_parameters['keep_tflite_and_labels'] = keep_tflite_and_labels
-        action_parameters['team_uuid_prefix'] = team_uuid_prefix
-        action_parameters['num_blobs_deleted'] = 0
-        action_parameters['num_blobs_not_deleted'] = 0
-        action_uuid = action.trigger_action_via_blob(action_parameters)
-        action_uuids.append(action_uuid)
-
-    response = {
-        'action_uuids': action_uuids,
     }
     return flask.jsonify(__sanitize(response))
 

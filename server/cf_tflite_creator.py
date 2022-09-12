@@ -42,6 +42,7 @@ def create_tflite(action_parameters):
     try:
         model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
         model_folder = model_entity['model_folder']
+        tflite_files_folder = model_entity['tflite_files_folder']
 
         # The following code is inspired by
         # https://colab.sandbox.google.com/github/tensorflow/models/blob/master/research/object_detection/colab_tutorials/convert_odt_model_to_TFLite.ipynb
@@ -60,7 +61,7 @@ def create_tflite(action_parameters):
                 logging.critical(message)
                 raise exceptions.HttpErrorNotFound(message)
             trained_checkpoint_dir = trained_checkpoint_path[:trained_checkpoint_path.rindex('/')]
-            output_directory = blob_storage.get_tflite_folder_path(model_folder)
+            output_directory = blob_storage.get_tflite_saved_model_parent_path(model_folder)
             max_detections = 10  # This matches the default for TFObjectDetector.Parameters.maxNumDetections in the the FTC SDK.
             export_tflite_graph_lib_tf2.export_tflite_model(pipeline_config, trained_checkpoint_dir,
                 output_directory, max_detections, use_regular_nms=False)
@@ -77,24 +78,24 @@ def create_tflite(action_parameters):
 
         action.retrigger_if_necessary(action_parameters)
 
-        if not blob_storage.tflite_label_map_txt_exists(model_folder):
+        if not blob_storage.tflite_label_map_txt_exists(tflite_files_folder):
             # Create the label map.
-            blob_storage.store_tflite_label_map_txt(model_folder,
+            blob_storage.store_tflite_label_map_txt(tflite_files_folder,
                     '\n'.join(model_entity['sorted_label_list']))
 
         action.retrigger_if_necessary(action_parameters)
 
-        if not blob_storage.tflite_model_with_metadata_exists(model_folder):
+        if not blob_storage.tflite_model_with_metadata_exists(tflite_files_folder):
             # Add Metadata
             # Make a temporary directory
-            folder = '/tmp/tflite_creater/%s' % str(uuid.uuid4().hex)
-            os.makedirs(folder, exist_ok=True)
+            temp_folder = '/tmp/tflite_creater/%s' % str(uuid.uuid4().hex)
+            os.makedirs(temp_folder, exist_ok=True)
             try:
-                quantized_model_filename = '%s/quantized_model' % folder
+                quantized_model_filename = '%s/quantized_model' % temp_folder
                 blob_storage.write_tflite_quantized_model_to_file(model_folder, quantized_model_filename)
-                label_map_txt_filename = '%s/label_map.txt' % folder
-                blob_storage.write_tflite_label_map_txt_to_file(model_folder, label_map_txt_filename)
-                model_with_metadata_filename = '%s/model_with_metadata.tflite' % folder
+                label_map_txt_filename = '%s/label_map.txt' % temp_folder
+                blob_storage.write_tflite_label_map_txt_to_file(tflite_files_folder, label_map_txt_filename)
+                model_with_metadata_filename = '%s/model_with_metadata.tflite' % temp_folder
 
                 writer = object_detector.MetadataWriter.create_for_inference(
                         writer_utils.load_file(quantized_model_filename),
@@ -102,10 +103,10 @@ def create_tflite(action_parameters):
                         label_file_paths=[label_map_txt_filename])
                 writer_utils.save_file(writer.populate(), model_with_metadata_filename)
 
-                blob_storage.store_tflite_model_with_metadata(model_folder, model_with_metadata_filename)
+                blob_storage.store_tflite_model_with_metadata(tflite_files_folder, model_with_metadata_filename)
             finally:
                 # Delete the temporary directory.
-                shutil.rmtree(folder)
+                shutil.rmtree(temp_folder)
     except:
         # Check if the model has been deleted.
         team_entity = storage.retrieve_team_entity(team_uuid)

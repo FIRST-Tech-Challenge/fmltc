@@ -57,20 +57,6 @@ fmltc.Admin = function() {
   this.resetTeamEntitiesActionUuid = document.getElementById('resetTeamEntitiesActionUuid');
   this.resetTeamEntitiesButton.onclick = this.resetTeamEntitiesButton_onclick.bind(this);
 
-  this.team_uuid_prefix_checkboxes = [];
-  const uuid_chars = '0123456789abcdef';
-  for (var i = 0; i < uuid_chars.length; i++) {
-    const ch = uuid_chars.charAt(i);
-    const checkbox = document.getElementById('team_uuid_' + ch);
-    this.team_uuid_prefix_checkboxes.push(checkbox);
-  }
-  this.keepTfLiteFilesCheckbox = document.getElementById('keepTfLiteFilesCheckbox');
-  this.expungeBlobStorageButton = document.getElementById('expungeBlobStorageButton');
-  this.expungeBlobStorageResponse = document.getElementById('expungeBlobStorageResponse');
-  this.expungeBlobStorageMonitorInfo = document.getElementById('expungeBlobStorageMonitorInfo');
-  this.expungeBlobStorageActionUuids = document.getElementById('expungeBlobStorageActionUuids');
-  this.expungeBlobStorageButton.onclick = this.expungeBlobStorageButton_onclick.bind(this);
-
   this.confirmationDialog = document.getElementById('confirmationDialog');
   this.confirmationTitle = document.getElementById('confirmationTitle');
   this.confirmationXButton = document.getElementById('confirmationXButton');
@@ -107,12 +93,6 @@ fmltc.Admin.prototype.enableInputsAndButtons = function(enable) {
   this.saveEndOfSeasonEntitiesButton.disabled = !enable;
 
   this.resetTeamEntitiesButton.disabled = !enable;
-
-  for (var i = 0; i < this.team_uuid_prefix_checkboxes.length; i++) {
-    this.team_uuid_prefix_checkboxes[i].disabled = !enable;
-  }
-  this.keepTfLiteFilesCheckbox.disabled = !enable;
-  this.expungeBlobStorageButton.disabled = !enable;
 
   this.refreshConfigButton.disables = !enable;
 };
@@ -215,20 +195,6 @@ fmltc.Admin.prototype.resetTeamEntitiesButton_onclick = function() {
   this.confirmationCallback = this.resetTeamEntities.bind(this);
 };
 
-fmltc.Admin.prototype.expungeBlobStorageButton_onclick = function() {
-  this.confirmationTitle.textContent = 'Expunge Blob Storage';
-  let message = 'Are you sure you want to delete all blobs';
-  if (this.keepTfLiteFilesCheckbox.checked) {
-    message += ', except TFLite files';
-  }
-  message += '?';
-  this.confirmationAreYouSure.textContent = message;
-  this.confirmationInput.value = '';
-  this.confirmationYesButton.disabled = true;
-  this.confirmationDialog.style.display = 'block';
-  this.confirmationCallback = this.expungeBlobStorage.bind(this);
-};
-
 fmltc.Admin.prototype.confirmationInput_oninput = function() {
   this.confirmationYesButton.disabled = (this.confirmationInput.value != 'Confirm');
 };
@@ -278,45 +244,6 @@ fmltc.Admin.prototype.xhr_resetTeamEntities_onreadystatechange = function(xhr, p
 
     } else {
       this.resetTeamEntitiesResponse.textContent = 'Failure - status: ' + xhr.status + ', statusText: ' + xhr.status;
-    }
-  }
-};
-
-fmltc.Admin.prototype.expungeBlobStorage = function() {
-  this.enableInputsAndButtons(false);
-
-  let team_uuid_prefixes = [];
-  for (var i = 0; i < this.team_uuid_prefix_checkboxes.length; i++) {
-    if (this.team_uuid_prefix_checkboxes[i].checked) {
-      const id = this.team_uuid_prefix_checkboxes[i].id;
-      if (id.startsWith('team_uuid_')) {
-        const char = id.substring(10); // length of 'team_uuid_' is 10.
-        team_uuid_prefixes.push(char);
-      }
-    }
-  }
-
-  const xhr = new XMLHttpRequest();
-  const params = 'keep_tflite_and_labels=' + this.keepTfLiteFilesCheckbox.checked +
-      '&team_uuid_prefixes=' + encodeURIComponent(team_uuid_prefixes.join(',')) +
-      '&date_time_string=' + encodeURIComponent(new Date().toLocaleString());
-  xhr.open('POST', '/expungeBlobStorage', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.onreadystatechange = this.xhr_expungeBlobStorage_onreadystatechange.bind(this, xhr, params);
-  xhr.send(params);
-};
-
-fmltc.Admin.prototype.xhr_expungeBlobStorage_onreadystatechange = function(xhr, params) {
-  if (xhr.readyState === 4) {
-    xhr.onreadystatechange = null;
-
-    if (xhr.status === 200) {
-      const response = JSON.parse(xhr.responseText);
-      this.expungeBlobStorageActionUuids.textContent = response.action_uuids.join(', ');
-      this.expungeBlobStorageMonitorInfo.style.display = 'block';
-
-    } else {
-      this.expungeBlobStorageResponse.textContent = 'Failure - status: ' + xhr.status + ', statusText: ' + xhr.status;
     }
   }
 };

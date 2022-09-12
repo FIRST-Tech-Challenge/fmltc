@@ -28,6 +28,8 @@ import util
 
 BUCKET_BLOBS = ('%s-blobs' % constants.PROJECT_ID)
 
+CURRENT_SEASON = '2022_2023'
+
 # blob storage
 
 def __retrieve_blob(blob_name):
@@ -116,7 +118,7 @@ def __delete_blobs(blob_names):
 # video files
 
 def get_video_blob_name(team_uuid, video_uuid):
-    return '%s/video_files/%s' % (team_uuid, video_uuid)
+    return '%s/video_files/%s/%s' % (CURRENT_SEASON, team_uuid, video_uuid)
 
 def prepare_to_upload_video(team_uuid, video_uuid, content_type):
     video_blob_name = get_video_blob_name(team_uuid, video_uuid)
@@ -142,7 +144,7 @@ def delete_video_blob(video_blob_name):
 # video frame images
 
 def store_video_frame_image(team_uuid, video_uuid, frame_number, content_type, image):
-    image_blob_name = '%s/image_files/%s/%05d' % (team_uuid, video_uuid, frame_number)
+    image_blob_name = '%s/image_files/%s/%s/%05d' % (CURRENT_SEASON, team_uuid, video_uuid, frame_number)
     __write_string_to_blob(image_blob_name, image, content_type)
     return image_blob_name
 
@@ -164,7 +166,7 @@ def delete_video_frame_images(image_blob_names):
 # dataset records
 
 def get_dataset_folder(team_uuid, dataset_uuid):
-    return '%s/tf_records/%s' % (team_uuid, dataset_uuid)
+    return '%s/tf_records/%s/%s' % (CURRENT_SEASON, team_uuid, dataset_uuid)
 
 def get_dataset_folder_path(team_uuid, dataset_uuid):
     return __get_path(get_dataset_folder(team_uuid, dataset_uuid))
@@ -193,7 +195,7 @@ def delete_dataset_blobs(blob_names):
 # dataset zips
 
 def __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index):
-    return '%s/dataset_zips/%s/%s' % (team_uuid, dataset_zip_uuid, partition_index)
+    return '%s/dataset_zips/%s/%s/%s' % (CURRENT_SEASON, team_uuid, dataset_zip_uuid, partition_index)
 
 def store_dataset_zip(team_uuid, dataset_zip_uuid, partition_index, zip_data):
     blob_name = __get_dataset_zip_blob_name(team_uuid, dataset_zip_uuid, partition_index)
@@ -220,7 +222,7 @@ def get_old_model_folder(team_uuid, model_uuid):
     return 'models/%s/%s' % (team_uuid, model_uuid)
 
 def get_model_folder(team_uuid, model_uuid):
-    return '%s/models/%s' % (team_uuid, model_uuid)
+    return '%s/models/%s/%s' % (CURRENT_SEASON, team_uuid, model_uuid)
 
 def get_model_folder_path(model_folder):
     return __get_path(model_folder)
@@ -296,14 +298,20 @@ def get_trained_checkpoint_path(model_folder):
         return __get_path(blob_name)
     return ''
 
-def __get_tflite_folder(model_folder):
+def get_old_tflite_folder(model_folder):
     return '%s/tflite' % model_folder
 
-def get_tflite_folder_path(model_folder):
-    return __get_path(__get_tflite_folder(model_folder))
+def get_tflite_files_folder(team_uuid, model_uuid):
+    return '%s/tflite_files/%s/%s' % (CURRENT_SEASON, team_uuid, model_uuid)
+
+def get_tflite_files_folder_path(tflite_files_folder):
+    return __get_path(tflite_files_folder)
+
+def get_tflite_saved_model_parent_path(model_folder):
+    return __get_path('%s/tflite' % model_folder)
 
 def __get_tflite_saved_model_folder(model_folder):
-    return '%s/saved_model' % __get_tflite_folder(model_folder)
+    return '%s/tflite/saved_model' % model_folder
 
 def get_tflite_saved_model_path(model_folder):
     return __get_path(__get_tflite_saved_model_folder(model_folder))
@@ -317,7 +325,7 @@ def tflite_saved_model_exists(model_folder):
     return False
 
 def __get_tflite_quantized_model_blob_name(model_folder):
-    return '%s/quantized_model' % __get_tflite_folder(model_folder)
+    return '%s/tflite/quantized_model' % model_folder
 
 def tflite_quantized_model_exists(model_folder):
     client = util.storage_client()
@@ -333,92 +341,44 @@ def write_tflite_quantized_model_to_file(model_folder, filename):
     blob_name = __get_tflite_quantized_model_blob_name(model_folder)
     return __write_blob_to_file(blob_name, filename)
 
-def __get_tflite_label_map_txt_blob_name(model_folder):
-    return '%s/label_map.txt' % __get_tflite_folder(model_folder)
+def __get_tflite_label_map_txt_blob_name(tflite_files_folder):
+    return '%s/label_map.txt' % tflite_files_folder
 
-def tflite_label_map_txt_exists(model_folder):
+def tflite_label_map_txt_exists(tflite_files_folder):
     client = util.storage_client()
-    blob_name = __get_tflite_label_map_txt_blob_name(model_folder)
+    blob_name = __get_tflite_label_map_txt_blob_name(tflite_files_folder)
     blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
     return blob.exists()
 
-def store_tflite_label_map_txt(model_folder, tflite_label_map_txt):
-    blob_name = __get_tflite_label_map_txt_blob_name(model_folder)
+def store_tflite_label_map_txt(tflite_files_folder, tflite_label_map_txt):
+    blob_name = __get_tflite_label_map_txt_blob_name(tflite_files_folder)
     __write_string_to_blob(blob_name, tflite_label_map_txt, 'text/plain')
 
-def write_tflite_label_map_txt_to_file(model_folder, filename):
-    blob_name = __get_tflite_label_map_txt_blob_name(model_folder)
+def write_tflite_label_map_txt_to_file(tflite_files_folder, filename):
+    blob_name = __get_tflite_label_map_txt_blob_name(tflite_files_folder)
     return __write_blob_to_file(blob_name, filename)
 
-def get_tflite_model_with_metadata_blob_name(model_folder):
-    return '%s/model_with_metadata.tflite' % __get_tflite_folder(model_folder)
+def get_tflite_model_with_metadata_blob_name(tflite_files_folder):
+    return '%s/model_with_metadata.tflite' % tflite_files_folder
 
-def tflite_model_with_metadata_exists(model_folder):
-    blob_name = get_tflite_model_with_metadata_blob_name(model_folder)
+def tflite_model_with_metadata_exists(tflite_files_folder):
+    blob_name = get_tflite_model_with_metadata_blob_name(tflite_files_folder)
     blob = util.storage_client().get_bucket(BUCKET_BLOBS).blob(blob_name)
     return blob.exists()
 
-def store_tflite_model_with_metadata(model_folder, tflite_model_with_metadata_filename):
-    blob_name = get_tflite_model_with_metadata_blob_name(model_folder)
+def store_tflite_model_with_metadata(tflite_files_folder, tflite_model_with_metadata_filename):
+    blob_name = get_tflite_model_with_metadata_blob_name(tflite_files_folder)
     __write_file_to_blob(blob_name, tflite_model_with_metadata_filename, 'application/octet-stream')
 
-def get_tflite_model_with_metadata_url(model_folder):
-    return __get_download_url(get_tflite_model_with_metadata_blob_name(model_folder))
+def get_tflite_model_with_metadata_url(tflite_files_folder):
+    return __get_download_url(get_tflite_model_with_metadata_blob_name(tflite_files_folder))
 
-def delete_model_blobs(model_folder, action_parameters=None):
+def delete_model_blobs(folder, action_parameters=None):
     client = util.storage_client()
-    prefix = '%s/' % model_folder
+    prefix = '%s/' % folder
     for blob in client.list_blobs(BUCKET_BLOBS, prefix=prefix):
+        if action_parameters is not None:
+            action.retrigger_if_necessary(action_parameters)
         __delete_blob(blob.name)
         if action_parameters is not None:
             action.retrigger_if_necessary(action_parameters)
-
-def expunge_blob_storage(action_parameters):
-    keep_tflite_and_labels = action_parameters['keep_tflite_and_labels']
-    blob_name_prefix = action_parameters['team_uuid_prefix']
-    client = util.storage_client()
-    if 'max_results' not in action_parameters:
-        action_parameters['max_results'] = 500
-    max_results = action_parameters['max_results']
-    while True:
-        action.retrigger_if_necessary(action_parameters)
-        logging.info('expunge_blob_storage for %s - max_results is %d' % (blob_name_prefix, max_results))
-        action.retrigger_if_necessary(action_parameters)
-        count_blobs = 0
-        count_blobs_to_ignore = 0
-        blob_names_to_delete = []
-        for blob in client.list_blobs(BUCKET_BLOBS, prefix=blob_name_prefix, max_results=max_results):
-            action.retrigger_if_necessary(action_parameters)
-            count_blobs += 1
-            # Don't delete blobs whose names begin with team_info/
-            if blob.name.startswith("team_info/"):
-                count_blobs_to_ignore += 1
-                continue
-            if keep_tflite_and_labels:
-                # Don't delete blobs whose names end in /tflite/model_with_metadata.tflite
-                if blob.name.endswith('/tflite/model_with_metadata.tflite'):
-                    count_blobs_to_ignore += 1
-                    continue
-                # Don't delete blobs whose names end in /tflite/label_map.txt
-                if blob.name.endswith('/tflite/label_map.txt'):
-                    count_blobs_to_ignore += 1
-                    continue
-            blob_names_to_delete.append(blob.name)
-        action.retrigger_if_necessary(action_parameters)
-        logging.info('expunge_blob_storage for %s - found %d blobs' % (blob_name_prefix, count_blobs))
-        logging.info('expunge_blob_storage for %s - ignoring %d blobs' % (blob_name_prefix, count_blobs_to_ignore))
-        if len(blob_names_to_delete) > 0:
-            # We found some blobs to delete.
-            logging.info('expunge_blob_storage for %s - deleting %d blobs' % (blob_name_prefix, len(blob_names_to_delete)))
-            __delete_blobs(blob_names_to_delete)
-            action_parameters['num_blobs_deleted'] += len(blob_names_to_delete)
-        elif count_blobs < max_results:
-            # We didn't find any blobs to delete and we looked at all the blobs.
-            action_parameters['num_blobs_not_deleted'] = count_blobs_to_ignore
-            break
-        if count_blobs_to_ignore > 0:
-            # Set max_results so we look at 500 more blobs than we ignore.
-            max_results = count_blobs_to_ignore + 500
-            action_parameters['max_results'] = max_results
-            logging.info('expunge_blob_storage for %s - incrementing max_results to %d' % (blob_name_prefix, max_results))
-    logging.info('expunge_blob_storage for %s - all done!' % blob_name_prefix)

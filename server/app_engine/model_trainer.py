@@ -457,7 +457,6 @@ def retrieve_tags_and_steps(team_uuid, model_uuid, job_type, value_type):
     # storage.retrieve_model_entity will raise HttpErrorNotFound
     # if the team_uuid/model_uuid is not found.
     model_entity = storage.retrieve_model_entity(team_uuid, model_uuid)
-    model_folder = model_entity['model_folder']
     list_of_summary_items = storage.get_model_summary_items_all_steps(model_entity, job_type, value_type)
     step_and_tag_pairs = []
     for summary_items in list_of_summary_items:

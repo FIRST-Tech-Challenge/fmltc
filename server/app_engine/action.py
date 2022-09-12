@@ -61,14 +61,12 @@ ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES = 'reset_remaining_training_minutes
 ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES = 'increment_remaining_training_minutes'
 ACTION_NAME_SAVE_END_OF_SEASON_ENTITIES = 'save_end_of_season_entities'
 ACTION_NAME_RESET_TEAM_ENTITIES = 'reset_team_entities'
-ACTION_NAME_EXPUNGE_BLOB_STORAGE = 'expunge_blob_storage'
 
 def create_action_parameters(team_uuid, action_name):
     if (action_name == ACTION_NAME_RESET_REMAINING_TRAINING_MINUTES or
             action_name == ACTION_NAME_INCREMENT_REMAINING_TRAINING_MINUTES or
             action_name == ACTION_NAME_SAVE_END_OF_SEASON_ENTITIES or
             action_name == ACTION_NAME_RESET_TEAM_ENTITIES or
-            action_name == ACTION_NAME_EXPUNGE_BLOB_STORAGE or
             action_name == ACTION_NAME_TEST):
         is_admin_action = True
     else:
