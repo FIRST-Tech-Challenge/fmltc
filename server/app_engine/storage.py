@@ -85,6 +85,7 @@ def retrieve_team_uuid(program, team_number):
         team_entities = list(query.fetch(1))
         need_put = False
         if len(team_entities) == 0:
+            current_time = datetime.now(timezone.utc)
             team_uuid = str(uuid.uuid4().hex)
             incomplete_key = datastore_client.key(DS_KIND_TEAM)
             team_entity = datastore.Entity(key=incomplete_key)
@@ -93,8 +94,9 @@ def retrieve_team_uuid(program, team_number):
                 'program': program,
                 'team_number': team_number,
                 'remaining_training_minutes': constants.TOTAL_TRAINING_MINUTES_PER_TEAM,
-                'create_time': datetime.now(timezone.utc),
-                'last_time': datetime.now(timezone.utc),
+                'create_time': current_time,
+                'last_time': current_time,
+                'last_time_stamp': current_time.timestamp(),
                 'preferences': {},
                 'last_video_uuid': '',
                 'videos_uploaded_today': 0,
@@ -159,16 +161,19 @@ def __set_last_time(team_entity):
     current_time = datetime.now(timezone.utc)
     if current_time.date() != team_entity['last_time'].date():
         team_entity['last_time'] = current_time
-        team_entity['videos_uploaded_today']  = team_entity['datasets_created_today'] = team_entity['datasets_downloaded_today'] = 0
+        team_entity['last_time_stamp'] = current_time.timestamp()
+        team_entity['videos_uploaded_today'] = team_entity['datasets_created_today'] = team_entity['datasets_downloaded_today'] = 0
         return True
     return False
 
 def __set_last_video_uuid(team_uuid, video_uuid):
     datastore_client = datastore.Client()
+    current_time = datetime.now(timezone.utc)
     with datastore_client.transaction() as transaction:
         team_entity = retrieve_team_entity(team_uuid)
         team_entity['last_video_uuid'] = video_uuid
-        team_entity['last_video_time'] = datetime.now(timezone.utc)
+        team_entity['last_video_time'] = current_time
+        team_entity['last_video_time_stamp'] = current_time.timestamp()
         transaction.put(team_entity)
 
 def __add_video_uuid_to_tracking_list(transaction, team_uuid, video_uuid):
