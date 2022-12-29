@@ -69,6 +69,7 @@ fmltc.TrainMoreDialog = function(
   this.numTrainingStepsInput.min = this.util.modelTrainerData['min_training_steps'];
   this.numTrainingStepsInput.max = this.util.modelTrainerData['max_training_steps'];
   this.numTrainingStepsInput.value = this.util.modelTrainerData['default_training_steps'];
+  this.numTrainingStepsInput.step = this.util.modelTrainerData['checkpoint_every_n'];
   this.updateHelpfulText();
 
   // Create checkboxes for the datasets. Omit the datasets that are already part of this model.
@@ -186,6 +187,7 @@ fmltc.TrainMoreDialog.prototype.getTrainingInfo = function() {
 };
 
 fmltc.TrainMoreDialog.prototype.numTrainingStepsInput_onchange = function() {
+  this.numTrainingStepsInput.value -= this.numTrainingStepsInput.value % this.util.modelTrainerData['checkpoint_every_n'];
   this.numTrainingStepsInput.value = Math.max(this.numTrainingStepsInput.min, Math.min(Math.round(this.numTrainingStepsInput.value), this.numTrainingStepsInput.max));
   this.updateHelpfulText();
   this.updateStartButton();

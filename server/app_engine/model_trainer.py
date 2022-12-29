@@ -69,6 +69,7 @@ STARTING_MODELS = {
     },
 }
 
+CHECKPOINT_EVERY_N = 100
 
 def validate_starting_model(s):
     if s not in STARTING_MODELS:
@@ -88,6 +89,7 @@ def get_data_for_root_template(use_tpu):
         'max_training_steps': get_max_training_steps(use_tpu),
         'default_training_steps': __get_default_training_steps(use_tpu),
         'batch_sizes': __get_batch_sizes(use_tpu),
+        'checkpoint_every_n': CHECKPOINT_EVERY_N,
     }
 
 
@@ -125,7 +127,7 @@ def __get_batch_size(use_tpu, original_starting_model, train_frame_count):
     return batch_size
 
 
-def __get_num_warmup_steps(original_starting_model, checkpoint_every_n, num_training_steps):
+def __get_num_warmup_steps(original_starting_model, num_training_steps):
     starting_model_data = STARTING_MODELS[original_starting_model]
     return min(starting_model_data['num_warmup_steps'], num_training_steps)
 
@@ -219,8 +221,7 @@ def start_training_model(team_uuid, description, dataset_uuid_list,
             raise exceptions.HttpErrorBadRequest(message)
 
     batch_size = __get_batch_size(use_tpu, original_starting_model, train_frame_count)
-    checkpoint_every_n = 100
-    num_warmup_steps = __get_num_warmup_steps(original_starting_model, checkpoint_every_n, num_training_steps)
+    num_warmup_steps = __get_num_warmup_steps(original_starting_model, num_training_steps)
 
     # Create the pipeline.config file and store it in cloud storage.
     bucket = util.storage_client().get_bucket(BUCKET)
@@ -257,7 +258,7 @@ def start_training_model(team_uuid, description, dataset_uuid_list,
             'args': [
                 '--model_dir', model_dir,
                 '--pipeline_config_path', pipeline_config_path,
-                '--checkpoint_every_n', str(checkpoint_every_n),
+                '--checkpoint_every_n', str(CHECKPOINT_EVERY_N),
             ],
         }
         if use_tpu:
@@ -331,7 +332,7 @@ def start_training_model(team_uuid, description, dataset_uuid_list,
     tensorflow_version = '2'
     model_entity = storage.model_trainer_started(team_uuid, model_uuid, description, model_folder,
         tensorflow_version, use_tpu, dataset_uuids, create_time_ms, max_running_minutes,
-        num_training_steps, batch_size, num_warmup_steps, checkpoint_every_n,
+        num_training_steps, batch_size, num_warmup_steps, CHECKPOINT_EVERY_N,
         previous_training_steps, starting_model, user_visible_starting_model,
         original_starting_model, fine_tune_checkpoint,
         sorted_label_list, label_map_path, train_input_path, eval_input_path,
