@@ -157,7 +157,7 @@ def extract_frames(action_parameters):
                     video_entity = storage.frame_extraction_done(team_uuid, video_uuid, frame_number)
                     return
                 # Store the frame as a jpg image, which are smaller/faster than png.
-                success, buffer = cv2.imencode('.jpg', frame)
+                success, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
                 if success:
                     try:
                         video_entity = storage.store_frame_image(team_uuid, video_uuid, frame_number,
