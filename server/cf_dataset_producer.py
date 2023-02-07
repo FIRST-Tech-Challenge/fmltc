@@ -256,7 +256,7 @@ def __get_frame_data(video_entity, video_frame_entities, frame_number_list):
                         # We've reached the end of the video.
                         break
                     format = 'png'
-                    success, buffer = cv2.imencode('.%s' % format, frame, [int(cv2.IMWRITE_PNG_COMPRESSION), 6])
+                    success, buffer = cv2.imencode('.%s' % format, frame)
                     if not success:
                         message = 'cv2.imencode returned %s for frame number %d.' % (success, frame_number)
                         logging.critical(message)
