@@ -307,16 +307,14 @@ def __write_record(team_uuid, sorted_label_list, frame_number_list, frame_data_d
 
 
 def __create_tf_example(frame_data, sorted_label_list):
+    # frame_data.image is a numpy.ndarray. Convert it to bytes.
     im = PIL.Image.open(io.BytesIO(frame_data.image))
     arr = io.BytesIO()
-    if frame_data.format == 'jpg':
-      format = 'JPEG'
-    else:
-      format = frame_data.format.upper()
-    im.save(arr, format=format)
+    im.save(arr, format=frame_data.format)
     height = im.height
     width = im.width
     encoded_image_data = arr.getvalue()
+
     rects, labels = bbox_writer.convert_text_to_rects_and_labels(frame_data.bboxes_text)
     # List of normalized coordinates, 1 per box, capped to [0, 1]
     xmins = [max(min(rect[0] / width, 1), 0) for rect in rects] # left x

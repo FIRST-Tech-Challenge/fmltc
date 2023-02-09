@@ -17,11 +17,13 @@ __author__ = "lizlooney@google.com (Liz Looney)"
 # Python Standard Library
 from datetime import datetime, timedelta, timezone
 import dateutil.parser
+import io
 import math
 import time
 
 # Other Modules
 from google.api_core.exceptions import GoogleAPIError
+import PIL.Image
 import tensorflow as tf
 from tensorflow.core.util import event_pb2
 
@@ -183,9 +185,15 @@ def __monitor_training_for_event_file(model_folder, job_type, event_file_path, a
                 width = int(float(image_value[0].decode('utf-8')))
                 height = int(float(image_value[1].decode('utf-8')))
                 image_bytes = image_value[2]
-                # There might be more than one image, but we only look at the first one.
+
+                # Convert to JPEG with lower quality.
+                im = PIL.Image.open(io.BytesIO(image_bytes))
+                arr = io.BytesIO()
+                im.save(arr, format='JPEG', quality=50)
+                jpeg_image_bytes = arr.getvalue()
+
                 blob_storage.store_event_summary_image(model_folder, job_type,
-                    event.step, value.tag, image_bytes)
+                    event.step, value.tag, jpeg_image_bytes)
                 item = {
                     'job_type': job_type,
                     'step': event.step,
