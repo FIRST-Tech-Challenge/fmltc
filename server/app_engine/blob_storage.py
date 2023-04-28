@@ -28,7 +28,7 @@ import util
 
 BUCKET_BLOBS = ('%s-blobs' % constants.PROJECT_ID)
 
-CURRENT_SEASON = '2022_2023'
+CURRENT_SEASON = '2023_2024'
 
 # blob storage
 
