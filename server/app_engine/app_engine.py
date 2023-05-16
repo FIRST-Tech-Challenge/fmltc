@@ -41,6 +41,7 @@ from config import KEY_USE_TPU
 from config import KEY_SECURE_SESSION_COOKIES
 from config import KEY_SAMESITE_SESSION_COOKIES
 from config import KEY_SITE_DOWN_FOR_MAINTENANCE
+from config import KEY_SITE_CLOSED_FOR_OFFSEASON
 import constants
 import dataset_producer
 import dataset_zipper
@@ -63,7 +64,6 @@ from wrappers import login_required
 from wrappers import oidc_require_login
 from wrappers import roles_accepted
 from wrappers import roles_required
-
 
 sentry_dsn = cloud_secrets.get_or_none('sentry_dsn')
 if sentry_dsn is not None:
@@ -534,6 +534,9 @@ def login():
 def index():
     if config.config[KEY_SITE_DOWN_FOR_MAINTENANCE]:
         return 'This site is temporarily down for maintenance.'
+    elif config.config[KEY_SITE_CLOSED_FOR_OFFSEASON]:
+        return flask.render_template('offseason.html')
+
     roles.can_login(flask.session['user_roles'], flask.session['team_number'])
 
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
@@ -551,6 +554,9 @@ def index():
 def label_video():
     if config.config[KEY_SITE_DOWN_FOR_MAINTENANCE]:
         return 'This site is temporarily down for maintenance.'
+    elif config.config[KEY_SITE_CLOSED_FOR_OFFSEASON]:
+        return flask.render_template('offseason.html')
+
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.args.to_dict(flat=True),
         ['video_uuid'])
@@ -578,6 +584,9 @@ def label_video():
 def monitor_training():
     if config.config[KEY_SITE_DOWN_FOR_MAINTENANCE]:
         return 'This site is temporarily down for maintenance.'
+    elif config.config[KEY_SITE_CLOSED_FOR_OFFSEASON]:
+        return flask.render_template('offseason.html')
+
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.args.to_dict(flat=True),
         ['model_uuid'])
@@ -1703,4 +1712,3 @@ def forbidden_handler(e):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     app.run(host='127.0.0.1', port=8088, debug=True)
-
