@@ -55,3 +55,12 @@ class HttpErrorInternalServerError(HttpError):
 
 class NoRoles(Exception):
     pass
+
+
+class DownForMaintenance(Exception):
+    pass
+
+
+class ClosedForOffseason(Exception):
+    pass
+
