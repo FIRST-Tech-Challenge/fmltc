@@ -23,8 +23,7 @@ PROJECT_ID = os.getenv('PROJECT_ID')
 ORIGIN = os.getenv('ORIGIN')
 
 # REDIS_IP_ADDR may be set in the environment in app engine, but not cloud functions.
-# REDIS_IP_ADDR = os.getenv('REDIS_IP_ADDR')
-REDIS_IP_ADDR = None
+REDIS_IP_ADDR = os.getenv('REDIS_IP_ADDR')
 
 # Expects to be 'development' or 'production'
 ENVIRONMENT = os.getenv('ENVIRONMENT')
