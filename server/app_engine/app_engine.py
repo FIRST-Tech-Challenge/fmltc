@@ -47,6 +47,8 @@ import dataset_producer
 import dataset_zipper
 import exceptions
 from exceptions import NoRoles
+from exceptions import DownForMaintenance
+from exceptions import ClosedForOffseason
 import frame_extractor
 import model_trainer
 import oidc
@@ -432,6 +434,8 @@ def login_via_oidc():
 
         team_roles = oidc.user_getfield('team_roles')
 
+        check_site_status()
+
         #
         # There are a couple reasons that a user might have no team roles, lack
         # of YPP screening or a global admin or custom role that is not also
@@ -532,10 +536,7 @@ def login():
 @handle_exceptions
 @redirect_to_login_if_needed
 def index():
-    if config.config[KEY_SITE_DOWN_FOR_MAINTENANCE]:
-        return 'This site is temporarily down for maintenance.'
-    elif config.config[KEY_SITE_CLOSED_FOR_OFFSEASON]:
-        return flask.render_template('offseason.html')
+    check_site_status()
 
     roles.can_login(flask.session['user_roles'], flask.session['team_number'])
 
@@ -552,10 +553,7 @@ def index():
 @handle_exceptions
 @redirect_to_login_if_needed
 def label_video():
-    if config.config[KEY_SITE_DOWN_FOR_MAINTENANCE]:
-        return 'This site is temporarily down for maintenance.'
-    elif config.config[KEY_SITE_CLOSED_FOR_OFFSEASON]:
-        return flask.render_template('offseason.html')
+    check_site_status()
 
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.args.to_dict(flat=True),
@@ -582,10 +580,7 @@ def label_video():
 @handle_exceptions
 @redirect_to_login_if_needed
 def monitor_training():
-    if config.config[KEY_SITE_DOWN_FOR_MAINTENANCE]:
-        return 'This site is temporarily down for maintenance.'
-    elif config.config[KEY_SITE_CLOSED_FOR_OFFSEASON]:
-        return flask.render_template('offseason.html')
+    check_site_status()
 
     team_uuid = team_info.retrieve_team_uuid(flask.session, flask.request)
     data = validate_keys(flask.request.args.to_dict(flat=True),
@@ -1650,6 +1645,13 @@ def perform_action_gcf():
     return 'OK'
 
 
+def check_site_status():
+    if config.config[KEY_SITE_DOWN_FOR_MAINTENANCE]:
+        raise DownForMaintenance()
+    elif config.config[KEY_SITE_CLOSED_FOR_OFFSEASON]:
+        raise ClosedForOffseason()
+
+
 # errors
 def add_userinfo_breadcrumb():
     if sentry_dsn is not None:
@@ -1706,6 +1708,17 @@ def no_roles_handler(e):
 def forbidden_handler(e):
     return flask.render_template('forbidden.html',
                                  error_message="You do not have the required permissions to access this page"), 403
+
+
+@app.errorhandler(ClosedForOffseason)
+def closed_handler(e):
+    return flask.render_template('offseason.html')
+
+
+@app.errorhandler(DownForMaintenance)
+def maintenance_handler(e):
+    return flask.render_template('maintenance.html')
+
 
 
 # For running locally:
