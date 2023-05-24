@@ -1,6 +1,6 @@
 blinker==1.4
 Flask==2.0.2
-flask-oidc-ext==1.4.3
+flask-oidc-ext @ git+https://github.com/cmacfarl/flask-oidc@release
 google-api-python-client==1.9.0
 google-cloud-datastore==2.1.0
 google-cloud-error-reporting
