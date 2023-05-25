@@ -434,7 +434,6 @@ def login_via_oidc():
 
         team_roles = oidc.user_getfield('team_roles')
 
-        check_site_status()
 
         #
         # There are a couple reasons that a user might have no team roles, lack
@@ -443,6 +442,7 @@ def login_via_oidc():
         # so we will throw NoRoles if there are no team roles defined.
         #
         if len(team_roles) == 0:
+            check_site_status()
             raise NoRoles()
 
         #
