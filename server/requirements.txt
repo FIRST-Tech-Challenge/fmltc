@@ -16,3 +16,4 @@ sqlitedict==1.7.0
 tensorflow==2.5.3
 tflite-support==0.2.0
 Werkzeug==2.0.1
+Flask==2.0.2
