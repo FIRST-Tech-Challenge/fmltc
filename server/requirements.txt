@@ -7,7 +7,7 @@ google-cloud-storage==1.35.0
 numpy==1.19.4
 object_detection-0.1_2.5.0.tar.gz
 opencv-contrib-python-headless==4.5.2.54
-Pillow==9.0.0
+Pillow==9.3.0
 protobuf==3.17.3
 psutil==5.8.0
 python-dateutil==2.8.1
