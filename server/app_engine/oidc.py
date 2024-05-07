@@ -17,7 +17,7 @@
 import json
 
 # Other Modules
-from flask_oidc_ext import OpenIDConnect
+from flask_oidc import OpenIDConnect
 from sqlitedict import SqliteDict
 
 # My Modules
