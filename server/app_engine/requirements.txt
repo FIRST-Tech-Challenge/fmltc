@@ -15,4 +15,4 @@ python-dateutil==2.8.1
 redis==3.5.3
 sentry-sdk==1.4.3
 sqlitedict==1.7.0
-Werkzeug==2.0.1
+Werkzeug==2.2.3
